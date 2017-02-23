@@ -32,7 +32,6 @@ import (
 	zkd "github.com/control-center/serviced/zzk/docker"
 	zkr "github.com/control-center/serviced/zzk/registry"
 	zks "github.com/control-center/serviced/zzk/service"
-	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
 
@@ -51,7 +50,7 @@ func getLocalConnection(ctx datastore.Context, path string) (client.Connection, 
 
 func (zk *zkf) syncServiceRegistry(ctx datastore.Context, tenantID string, svcs []*service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.syncServiceRegistry"))
-	for _, svc := range(svcs) {
+	for _, svc := range svcs {
 		if err := zk.SyncServiceRegistry(ctx, tenantID, svc); err != nil {
 			return err
 		}
@@ -83,7 +82,7 @@ func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*se
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UpdateServices"))
 
 	servicesByPool := make(map[string]*[]*service.Service)
-	for _, svc := range(svcs) {
+	for _, svc := range svcs {
 		if poolSvcs, ok := servicesByPool[svc.PoolID]; ok {
 			*poolSvcs = append(*poolSvcs, svc)
 		} else {
@@ -92,7 +91,7 @@ func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*se
 		}
 	}
 
-	for poolID, poolSvcs := range(servicesByPool) {
+	for poolID, poolSvcs := range servicesByPool {
 		poolLogger := plog.WithFields(log.Fields{
 			"tenantid":     tenantID,
 			"poolid":       poolID,
@@ -114,8 +113,6 @@ func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*se
 		}
 		poolLogger.Debug("Updated the pool service(s) in zookeeper")
 	}
-
-
 
 	return nil
 }
@@ -416,28 +413,12 @@ func (z *zkf) RemoveResourcePool(poolID string) error {
 	return zks.RemoveResourcePool(conn, poolID)
 }
 
-func (z *zkf) AddVirtualIP(virtualIP *pool.VirtualIP) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(virtualIP.PoolID))
-	if err != nil {
-		return err
-	}
-	return zkvirtualip.AddVirtualIP(conn, virtualIP)
-}
-
-func (z *zkf) RemoveVirtualIP(virtualIP *pool.VirtualIP) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(virtualIP.PoolID))
-	if err != nil {
-		return err
-	}
-	return zkvirtualip.RemoveVirtualIP(conn, virtualIP.IP)
-}
-
 func (z *zkf) GetVirtualIPHostID(poolID, ip string) (string, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return "", err
 	}
-	return zkvirtualip.GetHostID(conn, poolID, ip)
+	return zks.GetHostID(conn, poolID, ip)
 }
 
 func (z *zkf) GetRegistryImage(id string) (*registry.Image, error) {

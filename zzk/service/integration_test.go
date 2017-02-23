@@ -1,4 +1,4 @@
-// Copyright 2017 The Serviced Authors.
+// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,15 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package virtualips
+// +build integration,!quick
+
+package service_test
 
 import (
-	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
+	. "gopkg.in/check.v1"
 )
 
-// RegisteredHostHandler can be used to get hosts that are registered.  Calls
-// to get the registered hosts should block until a host comes online.  The cancel
-// parameter can be used to stop the call.
-type RegisteredHostHandler interface {
-	GetRegisteredHosts(cancel <-chan interface{}) ([]host.Host, error)
+var _ = Suite(&ZZKTest{})
+
+type ZZKTest struct {
+	zzk.ZZKTestSuite
 }

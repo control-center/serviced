@@ -14,12 +14,33 @@
 package mocks
 
 import (
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/stretchr/testify/mock"
 )
 
 type AssignmentHandler struct {
 	mock.Mock
+}
+
+func (_m *AssignmentHandler) GetAll(poolID string) (map[string]string, error) {
+	ret := _m.Called(poolID)
+
+	var r0 map[string]string
+	if rf, ok := ret.Get(0).(func(string) map[string]string); ok {
+		r0 = rf(poolID)
+	} else {
+		r0 = ret.Get(0).(map[string]string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(poolID)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Error(1)
+		}
+	}
+
+	return r0, r1
 }
 
 func (_m *AssignmentHandler) Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
@@ -46,26 +67,4 @@ func (_m *AssignmentHandler) Unassign(poolID, ipAddress string) error {
 	}
 
 	return r0
-}
-
-func (_m *AssignmentHandler) Watch(poolID, ipAddress string, stop <-chan struct{}) (<-chan client.Event, error) {
-	ret := _m.Called(poolID, ipAddress, stop)
-
-	var r0 <-chan client.Event
-	if rf, ok := ret.Get(0).(func(string, string, <-chan struct{}) <-chan client.Event); ok {
-		r0 = rf(poolID, ipAddress, stop)
-	} else {
-		r0 = ret.Get(0).(<-chan client.Event)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, <-chan struct{}) error); ok {
-		r1 = rf(poolID, ipAddress, stop)
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Error(1)
-		}
-	}
-
-	return r0, r1
 }

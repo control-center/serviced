@@ -13,17 +13,13 @@
 
 // +build integration,!quick
 
-package virtualips_test
+package service_test
 
 import (
 	"github.com/control-center/serviced/zzk"
-	. "github.com/control-center/serviced/zzk/virtualips"
+	. "github.com/control-center/serviced/zzk/service"
 	. "gopkg.in/check.v1"
 )
-
-type ZZKTest struct {
-	zzk.ZZKTestSuite
-}
 
 func (t *ZZKTest) TestParseIPID(c *C) {
 	// invalid id

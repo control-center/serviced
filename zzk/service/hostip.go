@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package virtualips
+package service
 
 import (
 	"errors"
@@ -88,6 +88,23 @@ func ParseIPID(ipid string) (hostid string, ipaddress string, err error) {
 		return "", "", ErrInvalidIPID
 	}
 	return parts[0], parts[1], nil
+}
+
+// GetHostID returns the signed host ID for a virtual IP or and err if it is not
+// assigned.
+func GetHostID(conn client.Connection, poolID string, address string) (string, error) {
+	hostIPs, _ := conn.Children(Base().Pools().ID(poolID).IPs().Path())
+	for _, hostIP := range hostIPs {
+		host, ip, err := ParseIPID(hostIP)
+		if err != nil {
+			return "", err
+		}
+
+		if ip == address {
+			return host, nil
+		}
+	}
+	return "", ErrNoAssignedHost
 }
 
 // GetIP returns the ip data for a given virtual ip

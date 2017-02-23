@@ -13,13 +13,13 @@
 
 // +build unit
 
-package virtualips_test
+package service_test
 
 import (
 	h "github.com/control-center/serviced/domain/host"
-	. "github.com/control-center/serviced/zzk/virtualips"
-
 	. "github.com/control-center/serviced/utils/checkers"
+	. "github.com/control-center/serviced/zzk/service"
+
 	. "gopkg.in/check.v1"
 )
 

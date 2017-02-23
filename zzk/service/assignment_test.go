@@ -13,17 +13,14 @@
 
 // +build integration,!quick
 
-package virtualips_test
+package service_test
 
 import (
-	"time"
-
 	"github.com/control-center/serviced/coordinator/client"
 	h "github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/service"
-	. "github.com/control-center/serviced/zzk/virtualips"
-	"github.com/control-center/serviced/zzk/virtualips/mocks"
+	. "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/service/mocks"
 
 	. "gopkg.in/check.v1"
 )
@@ -64,7 +61,7 @@ func (s *ZKAssignmentHandlerTestSuite) SetUpTest(c *C) {
 
 	err = s.connection.Create(
 		Base().Pools().ID("poolid").Hosts().ID("testHost").Path(),
-		&service.HostNode{Host: &s.testHost},
+		&HostNode{Host: &s.testHost},
 	)
 	c.Assert(err, IsNil)
 }
@@ -97,26 +94,6 @@ func (s *ZKAssignmentHandlerTestSuite) TestUnassignsCorrectly(c *C) {
 func (s *ZKAssignmentHandlerTestSuite) TestUnassignsWithNoAssignmentReturnsError(c *C) {
 	err := s.assignmentHandler.Unassign("poolid", "7.7.7.7")
 	c.Assert(err, Equals, ErrNoAssignedHost)
-}
-
-func (s *ZKAssignmentHandlerTestSuite) TestWatchesCorrectly(c *C) {
-	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
-	s.assertNodeHasChildren(c, "pools/poolid/ips", []string{"testHost-7.7.7.7"})
-	s.assertNodeHasChildren(c, "pools/poolid/hosts/testHost/ips", []string{"testHost-7.7.7.7"})
-
-	stop := make(chan struct{})
-	event, err := s.assignmentHandler.Watch("poolid", "7.7.7.7", stop)
-	c.Assert(err, IsNil)
-
-	go func() {
-		s.assignmentHandler.Unassign("poolid", "7.7.7.7")
-	}()
-
-	select {
-	case <-event:
-	case <-time.After(time.Second):
-		c.Fatalf("Timed out waiting for watch event")
-	}
 }
 
 func (s *ZKAssignmentHandlerTestSuite) assertNodeHasChildren(c *C, path string, children []string) {

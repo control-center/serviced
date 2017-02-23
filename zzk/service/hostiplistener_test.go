@@ -13,7 +13,7 @@
 
 // +build integration,!quick
 
-package virtualips_test
+package service_test
 
 import (
 	"errors"
@@ -22,8 +22,8 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
+	. "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/service/mocks"
-	. "github.com/control-center/serviced/zzk/virtualips"
 	. "gopkg.in/check.v1"
 )
 
