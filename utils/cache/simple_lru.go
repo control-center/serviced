@@ -13,8 +13,9 @@
 package cache
 
 import (
-	lru "github.com/hashicorp/golang-lru"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type SimpleLRUCache struct {
@@ -116,6 +117,11 @@ func (c *SimpleLRUCache) Set(key string, value interface{}) {
 	}
 
 	c.lruCache.Add(key, item)
+}
+
+// Invalidate removes the service from the cache.
+func (c *SimpleLRUCache) Invalidate(key string) {
+	c.lruCache.Remove(key)
 }
 
 // Returns the maximum size of the cache.

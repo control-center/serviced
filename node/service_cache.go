@@ -14,19 +14,21 @@ package node
 
 import (
 	"fmt"
+
 	log "github.com/Sirupsen/logrus"
+
+	"time"
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils/cache"
-	"time"
 )
 
 type ServiceCache struct {
-	master string               // the connection string to the master agent
+	master string // the connection string to the master agent
 	cache  cache.LRUCache
 
-	masterClient master.ClientInterface	// ONLY USED FOR UNIT-TESTING
+	masterClient master.ClientInterface // ONLY USED FOR UNIT-TESTING
 }
 
 type cachedService struct {
@@ -48,8 +50,8 @@ func NewServiceCache(master string) *ServiceCache {
 
 func (sc *ServiceCache) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   serviceID,
-		"instanceid":  instanceID,
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
 	})
 
 	var item cachedService
@@ -76,9 +78,14 @@ func (sc *ServiceCache) GetEvaluatedService(serviceID string, instanceID int) (*
 	return item.Service, item.TenantID, nil
 }
 
+func (sc *ServiceCache) Invalidate(serviceID string, instanceID int) {
+	key := fmt.Sprintf("%s-%d", serviceID, instanceID)
+	sc.cache.Invalidate(key)
+}
+
 func (sc *ServiceCache) getMasterClient() (master.ClientInterface, error) {
 	if sc.masterClient != nil {
-		return sc.masterClient, nil	// ONLY USED FOR UNIT-TESTING
+		return sc.masterClient, nil // ONLY USED FOR UNIT-TESTING
 	}
 
 	return master.NewClient(sc.master)
