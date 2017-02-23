@@ -21,28 +21,6 @@ type AssignmentHandler struct {
 	mock.Mock
 }
 
-func (_m *AssignmentHandler) GetAll(poolID string) (map[string]string, error) {
-	ret := _m.Called(poolID)
-
-	var r0 map[string]string
-	if rf, ok := ret.Get(0).(func(string) map[string]string); ok {
-		r0 = rf(poolID)
-	} else {
-		r0 = ret.Get(0).(map[string]string)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(poolID)
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Error(1)
-		}
-	}
-
-	return r0, r1
-}
-
 func (_m *AssignmentHandler) Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
 	ret := _m.Called(poolID, ipAddress, netmask, binding, cancel)
 

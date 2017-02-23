@@ -66,9 +66,9 @@ func (s *PoolListenerTestSuite) SetUpTest(c *C) {
 
 	s.ipEvent = make(chan client.Event)
 	s.childrenWCall = connection.On("ChildrenW", "/pools/test/ips", mock.Anything).
-		Return([]string{}, (<-chan client.Event)(s.ipEvent), nil)
+		Return([]string{"host-1.2.3.4", "host-7.7.7.7"}, (<-chan client.Event)(s.ipEvent), nil)
 
-	s.syncCall = synchronizer.On("Sync", s.pool, s.shutdown).
+	s.syncCall = synchronizer.On("Sync", s.pool, mock.Anything, s.shutdown).
 		Return(nil)
 
 	s.listener = NewPoolListener(&synchronizer)
@@ -154,6 +154,28 @@ func (s *PoolListenerTestSuite) TestListenerShouldSyncAfterIPEvent(c *C) {
 		case <-time.After(time.Second):
 			c.Fatalf("Timed out waiting for listener to exit")
 		}
+	case <-time.After(time.Second):
+		c.Fatalf("Timed out waiting for listener to exit")
+	}
+}
+
+func (s *PoolListenerTestSuite) TestListenerShouldProperlyParseHostIPChildren(c *C) {
+	done := make(chan struct{})
+
+	var assignments map[string]string
+	s.syncCall.Run(func(a mock.Arguments) {
+		assignments = a.Get(1).(map[string]string)
+		done <- struct{}{}
+	})
+
+	go func() {
+		s.listener.Spawn(s.shutdown, "test")
+	}()
+
+	select {
+	case <-done:
+		c.Assert(assignments["1.2.3.4"], Equals, "host")
+		c.Assert(assignments["7.7.7.7"], Equals, "host")
 	case <-time.After(time.Second):
 		c.Fatalf("Timed out waiting for listener to exit")
 	}

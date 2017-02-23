@@ -69,15 +69,20 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 			return
 		}
 
-		err = l.synchronizer.Sync(*node.ResourcePool, shutdown)
+		children, ipsEvent, err := l.connection.ChildrenW(poolPath.IPs().Path(), stop)
 		if err != nil {
-			logger.WithError(err).Error("Unable to sync virtual IPs")
+			logger.WithError(err).Error("Unable to watch IPs")
 			return
 		}
 
-		_, ipsEvent, err := l.connection.ChildrenW(poolPath.IPs().Path(), stop)
+		assignments, err := l.getAssignmentMap(children)
 		if err != nil {
-			logger.WithError(err).Error("Unable to watch IPs")
+			logger.WithError(err).Error("Unable to get assignments")
+		}
+
+		err = l.synchronizer.Sync(*node.ResourcePool, assignments, shutdown)
+		if err != nil {
+			logger.WithError(err).Error("Unable to sync virtual IPs")
 			return
 		}
 
@@ -91,4 +96,16 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 		close(stop)
 		stop = make(chan struct{})
 	}
+}
+
+func (l *PoolListener) getAssignmentMap(hostIPs []string) (map[string]string, error) {
+	assignments := make(map[string]string)
+	for _, hostIP := range hostIPs {
+		host, ip, err := ParseIPID(hostIP)
+		if err != nil {
+			return nil, err
+		}
+		assignments[ip] = host
+	}
+	return assignments, nil
 }

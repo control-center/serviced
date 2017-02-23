@@ -19,7 +19,7 @@ import (
 
 // VirtualIPSynchronizer will sync virtual IP assignments for a pool.
 type VirtualIPSynchronizer interface {
-	Sync(pool p.ResourcePool, cancel <-chan interface{}) error
+	Sync(pool p.ResourcePool, assignments map[string]string, cancel <-chan interface{}) error
 }
 
 // ZKVirtualIPSynchronizer implements the VirtualIPSynchronizer interface for ZooKeeper.
@@ -35,12 +35,7 @@ func NewZKVirtualIPSynchronizer(handler AssignmentHandler) *ZKVirtualIPSynchroni
 // Sync will synchronize virtual IP assignments for a pool.  It will assign virtual IPs that
 // are not assigned to a host.  It will unassign any active assignments if the virtual IP as been
 // removed from the pool.
-func (s *ZKVirtualIPSynchronizer) Sync(pool p.ResourcePool, cancel <-chan interface{}) error {
-	assignments, err := s.handler.GetAll(pool.ID)
-	if err != nil {
-		return err
-	}
-
+func (s *ZKVirtualIPSynchronizer) Sync(pool p.ResourcePool, assignments map[string]string, cancel <-chan interface{}) error {
 	virtualIPMap := s.getVirtualIPMap(pool)
 
 	for _, ip := range s.virtualIPsWithNoAssignment(virtualIPMap, assignments) {
