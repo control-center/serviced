@@ -5,7 +5,12 @@ if [ $1 -eq 1 ] ; then
 fi
 
 mkdir -p /var/log/serviced
-chmod 1777 /var/log/serviced
+chgrp serviced /var/log/serviced
+chmod 1770 /var/log/serviced
+
+chgrp serviced /etc/default/serviced
+chgrp -R serviced /opt/serviced
+chmod 750 /opt/serviced
 
 LIBDEVMAPPER="$(ldconfig -p | grep libdevmapper.so.1.02 | awk {'print $4'})"
 if [ -z "${LIBDEVMAPPER}" ]; then
@@ -15,6 +20,3 @@ if ! (python -c "import sys; sys.exit(0 if \"${LIBDEVMAPPER}\".endswith('.1') el
     [ -f "${LIBDEVMAPPER}.1" -o -h "${LIBDEVMAPPER}.1" ] || ln -sf ${LIBDEVMAPPER} ${LIBDEVMAPPER}.1
     ldconfig
 fi
-
-chgrp serviced /etc/default/serviced
-chgrp -R serviced /opt/serviced
