@@ -13,7 +13,7 @@
 
 // +build integration,!quick
 
-package virtualips_test
+package service_test
 
 import (
 	"sort"
@@ -21,9 +21,8 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	h "github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/service"
-	. "github.com/control-center/serviced/zzk/virtualips"
-	"github.com/control-center/serviced/zzk/virtualips/mocks"
+	. "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/service/mocks"
 
 	. "gopkg.in/check.v1"
 )
@@ -43,45 +42,50 @@ type ZKHostUnassignHandlerTestSuite struct {
 	testHost h.Host
 }
 
-func (s *ZKHostUnassignHandlerTestSuite) TestUnassignsVirtualIPsFromHostCorrectly(c *C) {
+func (s *ZKHostUnassignHandlerTestSuite) SetUpTest(c *C) {
+	s.ZZKTestSuite.SetUpTest(c)
+
 	s.testHost = h.Host{ID: "testHost", PoolID: "poolid"}
 	s.cancel = make(<-chan interface{})
 
 	var err error
 	s.connection, err = zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
+	err = s.connection.Create(
+		Base().Pools().ID("poolid").Hosts().ID("testHost").Path(),
+		&HostNode{Host: &s.testHost},
+	)
+	c.Assert(err, IsNil)
 
 	s.registeredHostHandler = mocks.RegisteredHostHandler{}
+	s.registeredHostHandler.On("GetRegisteredHosts", s.cancel).
+		Return([]h.Host{s.testHost}, nil)
+
 	s.assignmentHandler = NewZKAssignmentHandler(
 		&RandomHostSelectionStrategy{},
 		&s.registeredHostHandler,
 		s.connection)
+}
 
-	s.registeredHostHandler.On("GetRegisteredHosts", s.cancel).
-		Return([]h.Host{s.testHost}, nil)
-
-	err = s.connection.Create(
-		Base().Pools().ID("poolid").Hosts().ID("testHost").Path(),
-		&service.HostNode{Host: &s.testHost},
-	)
+func (s *ZKHostUnassignHandlerTestSuite) TestUnassignsVirtualIPsFromHostCorrectly(c *C) {
+	err := s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
 	c.Assert(err, IsNil)
 
-	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
-	s.assignmentHandler.Assign("poolid", "9.9.9.9", "netmask", "http", s.cancel)
+	err = s.assignmentHandler.Assign("poolid", "9.9.9.9", "netmask", "http", s.cancel)
+	c.Assert(err, IsNil)
 
-	s.assertNodeHasChildren(c, "pools/poolid/ips", []string{
-		"testHost-7.7.7.7",
-		"testHost-9.9.9.9",
-	})
-	s.assertNodeHasChildren(c, "pools/poolid/hosts/testHost/ips", []string{
-		"testHost-7.7.7.7",
-		"testHost-9.9.9.9",
-	})
 	unassignmentHandler := NewZKHostUnassignmentHandler(s.connection)
-	unassignmentHandler.UnassignAll("poolid", "testHost")
+	err = unassignmentHandler.UnassignAll("poolid", "testHost")
+	c.Assert(err, IsNil)
 
 	s.assertNodeHasChildren(c, "pools/poolid/ips", []string{})
 	s.assertNodeHasChildren(c, "pools/poolid/hosts/testHost/ips", []string{})
+}
+
+func (s *ZKHostUnassignHandlerTestSuite) TestUnassignWorksIfNoAssignments(c *C) {
+	unassignmentHandler := NewZKHostUnassignmentHandler(s.connection)
+	err := unassignmentHandler.UnassignAll("poolid", "testHost")
+	c.Assert(err, IsNil)
 }
 
 func (s *ZKHostUnassignHandlerTestSuite) assertNodeHasChildren(c *C, path string, children []string) {
