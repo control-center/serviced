@@ -14,6 +14,9 @@
 package service
 
 import (
+	"time"
+
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
 )
@@ -24,6 +27,7 @@ import (
 type PoolListener struct {
 	synchronizer VirtualIPSynchronizer
 	connection   client.Connection
+	logger       *log.Entry
 }
 
 // NewPoolListener instantiates a new PoolListener
@@ -54,41 +58,65 @@ func (l *PoolListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a pool and syncs its virtual IPs.
 func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
-	logger := plog.WithField("poolid", poolID)
+	l.logger = plog.WithField("poolid", poolID)
+
+	l.logger.Debug("Spawning pool listener")
 
 	stop := make(chan struct{})
 	defer func() { close(stop) }()
 
 	for {
-
 		poolPath := Base().Pools().ID(poolID)
 		node := &PoolNode{ResourcePool: &pool.ResourcePool{}}
-		poolEvent, err := l.connection.GetW(poolPath.Path(), node, stop)
-		if err != nil {
-			logger.WithError(err).Error("Unable to watch pool")
+
+		var poolEvent, ipsEvent, poolExistsEvent, ipsExistsEvent <-chan client.Event
+
+		poolExists, poolExistsEvent, err := l.connection.ExistsW(poolPath.Path(), stop)
+		if poolExists && err == nil {
+			poolEvent, err = l.connection.GetW(poolPath.Path(), node, stop)
+			if err != nil {
+				l.processError(err, "Unable to watch pool")
+				return
+			}
+		} else if err != nil {
+			l.processError(err, "Unable to check if pool exists")
 			return
 		}
 
-		children, ipsEvent, err := l.connection.ChildrenW(poolPath.IPs().Path(), stop)
-		if err != nil {
-			logger.WithError(err).Error("Unable to watch IPs")
-			return
-		}
+		children := []string{}
+		if poolExists {
+			var ipsExists bool
+			ipsExists, ipsExistsEvent, err = l.connection.ExistsW(poolPath.IPs().Path(), stop)
+			if ipsExists && err == nil {
+				children, ipsEvent, err = l.connection.ChildrenW(poolPath.IPs().Path(), stop)
+				if err != nil {
+					l.processError(err, "Unable to watch IPs")
+					return
+				}
+			} else if err != nil {
+				l.processError(err, "Unable to watch IPs node")
+				return
+			}
 
-		assignments, err := l.getAssignmentMap(children)
-		if err != nil {
-			logger.WithError(err).Error("Unable to get assignments")
-		}
+			assignments, err := l.getAssignmentMap(children)
+			if err != nil {
+				l.processError(err, "Unable to get assignments")
+				return
+			}
 
-		err = l.synchronizer.Sync(*node.ResourcePool, assignments, shutdown)
-		if err != nil {
-			logger.WithError(err).Error("Unable to sync virtual IPs")
-			return
+			err = l.synchronizer.Sync(*node.ResourcePool, assignments, shutdown)
+			if err != nil {
+				l.processError(err, "Unable to sync virtual IPs")
+				return
+			}
+
 		}
 
 		select {
 		case <-ipsEvent:
 		case <-poolEvent:
+		case <-poolExistsEvent:
+		case <-ipsExistsEvent:
 		case <-shutdown:
 			return
 		}
@@ -108,4 +136,12 @@ func (l *PoolListener) getAssignmentMap(hostIPs []string) (map[string]string, er
 		assignments[ip] = host
 	}
 	return assignments, nil
+}
+
+func (l *PoolListener) processError(err error, message string) {
+	l.logger.WithError(err).Error(message)
+	// if an error occured the listener will get spawned again so wait a little bit before exiting
+	// in case the problem has been addressed.
+	time.Sleep(5 * time.Second)
+	return
 }
