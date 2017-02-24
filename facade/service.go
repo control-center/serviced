@@ -1488,6 +1488,8 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		}
 	}
 
+	// Keep track of which instances haven't been restarted yet, so we can revert the current state if we exit
+	// prematurely
 	nextInstance := 0
 	defer func() {
 		for instance := nextInstance; instance < svc.Instances; instance++ {
@@ -1548,6 +1550,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 			return err
 		}
 
+		// Increment nextInstance now, since we have started the restart process for this instance
 		nextInstance++
 
 		// Wait for the instance's containerID to change
