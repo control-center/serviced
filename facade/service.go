@@ -1544,7 +1544,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 
 		if err = f.zzk.RestartInstance(ctx, svc.PoolID, svc.ID, instanceID); err != nil {
 			close(done)
-			logger.WithError(err).Error("Failed to restart instance")
+			logger.WithError(err).Debug("Failed to restart instance")
 			return err
 		}
 
