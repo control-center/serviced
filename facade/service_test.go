@@ -2709,7 +2709,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_Pass(c *C) {
 
 	done := make(chan struct{})
 	go func() {
-		err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+		err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second, make(chan interface{}))
 		c.Assert(err, IsNil)
 		close(done)
 	}()
@@ -2825,7 +2825,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutWait(c *C) {
 
 	done := make(chan struct{})
 	go func() {
-		err := ft.Facade.rollingRestart(ft.CTX, &svc, timeout)
+		err := ft.Facade.rollingRestart(ft.CTX, &svc, timeout, make(chan interface{}))
 		c.Assert(err, IsNil)
 		close(done)
 	}()
@@ -2915,7 +2915,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutHealthcheck(c 
 
 	done := make(chan struct{})
 	go func() {
-		err := ft.Facade.rollingRestart(ft.CTX, &svc, timeout)
+		err := ft.Facade.rollingRestart(ft.CTX, &svc, timeout, make(chan interface{}))
 		c.Assert(err, IsNil)
 		close(done)
 	}()
@@ -2980,7 +2980,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailWait(c *C) {
 	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, mock.AnythingOfType("func(*service.State, bool) bool"), mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
 	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, mock.AnythingOfType("func(*service.State, bool) bool"), mock.AnythingOfType("<-chan struct {}")).Return(testerr).Once()
 
-	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second, make(chan interface{}))
 	// Make sure our rollingRestart bailed after it failed for one instance
 	c.Assert(err, Equals, testerr)
 }
@@ -3014,7 +3014,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailRestartInstance(c
 
 	// Make sure we call WaitInstance once for each insance of svc that gets called
 	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, mock.AnythingOfType("func(*service.State, bool) bool"), mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
-	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second, make(chan interface{}))
 	// Make sure our rollingRestart bailed after it failed for one instance
 	c.Assert(err, Equals, testerr)
 }
@@ -3041,7 +3041,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailGetState(c *C) {
 	testerr := errors.New("test error")
 	ft.zzk.On("GetServiceState", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil, testerr).Once()
 
-	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second, make(chan interface{}))
 	// Make sure our rollingRestart bailed after it failed for one instance
 	c.Assert(err, Equals, testerr)
 }

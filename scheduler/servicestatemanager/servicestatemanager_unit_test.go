@@ -479,7 +479,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	}).Once()
 
 	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{getTestServicesADGH()[1]}).Once()
-	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), tenantID, service.SVCRun).Return([]string{}, nil).Once()
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]servicestatemanager.CancellableService"), tenantID, service.SVCRun).Return([]string{}, nil).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCRun, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -586,22 +586,50 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		c.Fatal("Timeout waiting for expedited batch")
 	}
 
-	// Stop services DEF and make sure it cancels the start requests
+	// Stop services DEF and make sure it cancels the start requests for E and F
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
 		serviceIDs := args.Get(2).([]string)
-		c.Assert(len(serviceIDs), Equals, 3)
+		c.Assert(len(serviceIDs), Equals, 1)
 		found := make(map[string]bool)
 		for _, sid := range serviceIDs {
 			found[sid] = true
 		}
 
 		c.Assert(found["D"], Equals, true)
-		c.Assert(found["E"], Equals, true)
-		c.Assert(found["F"], Equals, true)
 	}).Once()
+
+	var efWG sync.WaitGroup
+	efWG.Add(2)
+	svcDEF := getTestServicesDEF()
+	svcE := svcDEF[1]
+	svcF := svcDEF[2]
+	s.facade.On("GetServicesForScheduling", s.ctx, []string{"F", "E"}).Return([]*service.Service{svcF, svcE}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"F"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"E"}).Once()
+	s.facade.On("WaitSingleService", svcE, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	s.facade.On("WaitSingleService", svcF, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"F"}).Run(func(args mock.Arguments) {
+		efWG.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"E"}).Run(func(args mock.Arguments) {
+		efWG.Done()
+	}).Once()
+
 	err = s.serviceStateManager.ScheduleServices(getTestServicesDEF(), tenantID, service.SVCStop, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+
+	// Wait for the cancelled services to get their pending states set
+	efDone := make(chan struct{})
+	go func() {
+		efWG.Wait()
+		close(efDone)
+	}()
+	select {
+	case <-efDone:
+	case <-time.After(1 * time.Second):
+		c.Fatalf("Timeout waiting for cancelled services EF to have current state set")
 	}
 
 	pass = s.CompareBatchSlices(c, startQueue.BatchQueue, []ssm.ServiceStateChangeBatch{
@@ -680,33 +708,11 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		},
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"E": ssm.CancellableService{
-					Service: &service.Service{
-						ID:                     "E",
-						DesiredState:           1,
-						EmergencyShutdownLevel: 1,
-						StartLevel:             3,
-					},
-				},
-			},
-			DesiredState: 0,
-			Emergency:    false,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: map[string]ssm.CancellableService{
 				"D": ssm.CancellableService{
 					Service: &service.Service{
 						ID:                     "D",
 						DesiredState:           1,
 						EmergencyShutdownLevel: 0,
-						StartLevel:             2,
-					},
-				},
-				"F": ssm.CancellableService{
-					Service: &service.Service{
-						ID:                     "F",
-						DesiredState:           1,
-						EmergencyShutdownLevel: 2,
 						StartLevel:             2,
 					},
 				},
@@ -818,33 +824,11 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		},
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"E": ssm.CancellableService{
-					Service: &service.Service{
-						ID:                     "E",
-						DesiredState:           1,
-						EmergencyShutdownLevel: 1,
-						StartLevel:             3,
-					},
-				},
-			},
-			DesiredState: 0,
-			Emergency:    false,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: map[string]ssm.CancellableService{
 				"D": ssm.CancellableService{
 					Service: &service.Service{
 						ID:                     "D",
 						DesiredState:           1,
 						EmergencyShutdownLevel: 0,
-						StartLevel:             2,
-					},
-				},
-				"F": ssm.CancellableService{
-					Service: &service.Service{
-						ID:                     "F",
-						DesiredState:           1,
-						EmergencyShutdownLevel: 2,
 						StartLevel:             2,
 					},
 				},
@@ -1932,6 +1916,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
 }
 
 func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop_WaitScheduled(c *C) {
+	var wg sync.WaitGroup
+
 	// Setup a tenant
 	s.facade.On("GetTenantIDs", s.ctx).Return([]string{"tenant1"}, nil).Once()
 
@@ -1941,12 +1927,13 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop_WaitSchedul
 	svcD := svcs[1]
 	svcG := svcs[2]
 	svcH := svcs[3]
+	// D will fail and return to "stopped" state
+	svcD.DesiredState = int(service.SVCStop)
 
 	// Start the manager
 	s.serviceStateManager.Start()
 
 	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcA, svcD, svcH}).Once()
-	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcG}).Once()
 
 	// All 4 services will get set to "Pending Start" at once
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
@@ -1969,27 +1956,46 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop_WaitSchedul
 	}{IDs: make(map[string]bool)}
 
 	// ScheduleServiceBatch will get called twice (2 different batches)
-	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return([]string{}, nil).Run(func(args mock.Arguments) {
-		services := args.Get(1).([]*service.Service)
+	// The first time we will report D as failed
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]servicestatemanager.CancellableService"), "tenant1", service.SVCRun).Return([]string{"D"}, nil).Run(func(args mock.Arguments) {
+		services := args.Get(1).([]ssm.CancellableService)
 		scheduledServices.Lock()
 		defer scheduledServices.Unlock()
-		firstRun := len(scheduledServices.IDs) == 0
+		for _, s := range services {
+			scheduledServices.IDs[s.ID] = true
+		}
+
+		c.Assert(len(scheduledServices.IDs), Equals, 3)
+		c.Assert(scheduledServices.IDs["A"], Equals, true)
+		c.Assert(scheduledServices.IDs["D"], Equals, true)
+		c.Assert(scheduledServices.IDs["H"], Equals, true)
+
+	}).Once()
+
+	// D has failed, so handle the mocks for that
+	s.facade.On("GetServicesForScheduling", s.ctx, []string{"D"}).Return([]*service.Service{svcD}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStopping, []string{"D"}).Once()
+	s.facade.On("WaitSingleService", svcD, service.SVCStop, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	wg.Add(1)
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStopped, []string{"D"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+
+	// Second batch will just contain G
+	s.facade.On("GetServicesForScheduling", s.ctx, []string{"G"}).Return([]*service.Service{svcG}).Once()
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]servicestatemanager.CancellableService"), "tenant1", service.SVCRun).Return([]string{}, nil).Run(func(args mock.Arguments) {
+		services := args.Get(1).([]ssm.CancellableService)
+		scheduledServices.Lock()
+		defer scheduledServices.Unlock()
 		for _, s := range services {
 			scheduledServices.IDs[s.ID] = true
 		}
 
 		// Check that the batches are scheduled in the correct order
-		if firstRun {
-			c.Assert(len(scheduledServices.IDs), Equals, 3)
-			c.Assert(scheduledServices.IDs["A"], Equals, true)
-			c.Assert(scheduledServices.IDs["D"], Equals, true)
-			c.Assert(scheduledServices.IDs["H"], Equals, true)
-		} else {
-			c.Assert(len(scheduledServices.IDs), Equals, 4)
-			c.Assert(scheduledServices.IDs["G"], Equals, true)
-		}
+		c.Assert(len(scheduledServices.IDs), Equals, 4)
+		c.Assert(scheduledServices.IDs["G"], Equals, true)
 
-	}).Twice()
+	}).Once()
 
 	// The first batch should contain A, D, H because of startlevel
 	// Those should get waited on by a call to the facade from runLoop
@@ -2003,7 +2009,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop_WaitSchedul
 		Return(nil).Run(func(mock.Arguments) {
 		time.Sleep(100 * time.Millisecond)
 		c.Logf("Waited on D")
-	}).Twice()
+	}).Once()
 	s.facade.On("WaitSingleService", svcH, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
 		Return(nil).Run(func(mock.Arguments) {
 		time.Sleep(100 * time.Millisecond)
@@ -2036,17 +2042,12 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop_WaitSchedul
 
 	// After they are scheduled in the facade, they'll get set to Starting again
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"A"}).Once()
-	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"D"}).Once()
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"H"}).Once()
 
 	// They will eventually go to "started"
-	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(3)
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"A"}).Run(func(args mock.Arguments) {
-		wg.Done()
-	}).Once()
-	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"D"}).Run(func(args mock.Arguments) {
 		wg.Done()
 	}).Once()
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"G"}).Run(func(args mock.Arguments) {
@@ -2137,6 +2138,10 @@ func (s *ServiceStateManagerSuite) CompareBatches(c *C, a, b ssm.ServiceStateCha
 	}
 	for id, svc := range a.Services {
 		c.Logf("svc1: id: %v svc:%+v", id, svc)
+		if _, ok := b.Services[id]; !ok {
+			c.Logf("Service %s not found in batch b", id)
+			return false
+		}
 		c.Logf("svc2: id: %v svc:%+v", id, b.Services[id])
 		if !s.CompareCancellableServices(svc, b.Services[id]) {
 			return false

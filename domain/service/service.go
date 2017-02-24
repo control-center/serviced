@@ -160,6 +160,20 @@ func DesiredToCurrentFinalState(state DesiredState, emergency bool) ServiceCurre
 	}
 }
 
+// Determines whether the desiredState acts as a "cancel" to a pending state.
+func DesiredCancelsPending(pendingState ServiceCurrentState, desiredState DesiredState) bool {
+	switch pendingState {
+	case SVCCSPendingStart:
+		return desiredState == SVCStop
+	case SVCCSPendingRestart:
+		return desiredState == SVCRun
+	case SVCCSPendingStop, SVCCSPendingPause:
+		return desiredState == SVCRun
+	}
+
+	return false
+}
+
 // Service A Service that can run in serviced.
 type Service struct {
 	ID                string
