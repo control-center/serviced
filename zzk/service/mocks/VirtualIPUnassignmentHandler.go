@@ -1,9 +1,9 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2017 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -11,24 +11,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration,!quick
+package mocks
 
-package virtualips
+import "github.com/stretchr/testify/mock"
 
-import (
-	"github.com/control-center/serviced/zzk"
-	. "gopkg.in/check.v1"
-)
-
-var _ = Suite(&ZZKTest{})
-
-type ZZKTest struct {
-	zzk.ZZKTestSuite
+type VirtualIPUnassignmentHandler struct {
+	mock.Mock
 }
 
-// TODO: implement this when we have tests
-/*
-func Test(t *testing.T) {
-	TestingT(t)
+func (_m *VirtualIPUnassignmentHandler) UnassignAll(poolID, hostID string) error {
+	ret := _m.Called(poolID, hostID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(poolID, hostID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
-*/

@@ -11,16 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit integration
+// +build integration,!quick
 
 package service_test
 
 import (
-	"testing"
-
+	"github.com/control-center/serviced/zzk"
 	. "gopkg.in/check.v1"
 )
 
-func Test(t *testing.T) {
-	TestingT(t)
+var _ = Suite(&ZZKTest{})
+
+type ZZKTest struct {
+	zzk.ZZKTestSuite
 }

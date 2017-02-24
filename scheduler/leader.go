@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/scheduler/strategy"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/serviced/zzk/virtualips"
 )
 
 type leader struct {
@@ -47,16 +46,23 @@ type leader struct {
 func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string) {
 
 	// creates a listener for the host registry
-	hreg := zkservice.NewHostRegistryListener(poolID)
+	unassignmentHandler := zkservice.NewZKHostUnassignmentHandler(conn)
+	hreg := zkservice.NewHostRegistryListener(poolID, unassignmentHandler)
+
+	assignmentHandler := zkservice.NewZKAssignmentHandler(
+		&zkservice.RandomHostSelectionStrategy{}, hreg, conn)
 
 	plog.Info("Processing leader duties")
 	leader := leader{shutdown, conn, cpClient, facade, poolID, hreg}
+
+	synchronizer := zkservice.NewZKVirtualIPSynchronizer(assignmentHandler)
+	poolListener := zkservice.NewPoolListener(synchronizer)
 
 	// creates a listener for services
 	serviceListener := zkservice.NewServiceListener(poolID, &leader)
 
 	// starts all of the listeners
-	zzk.Start(shutdown, conn, serviceListener, hreg)
+	zzk.Start(shutdown, conn, serviceListener, hreg, poolListener)
 }
 
 // SelectHost chooses a host from the pool for the specified service. If the
@@ -117,7 +123,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 		// find which host the address belongs to
 		hostID := assignment.HostID
 		if assignment.AssignmentType == commons.VIRTUAL {
-			hostID, err = virtualips.GetHostID(l.conn, l.poolID, assignment.IPAddr)
+			hostID, err = zkservice.GetHostID(l.conn, l.poolID, assignment.IPAddr)
 			if err != nil {
 				logger.WithError(err).Debug("Could not get host assignment of virtual ip")
 				return "", err

@@ -39,9 +39,6 @@ type ZZK interface {
 	IsHostActive(poolID string, hostId string) (bool, error)
 	UpdateResourcePool(_pool *pool.ResourcePool) error
 	RemoveResourcePool(poolID string) error
-	AddVirtualIP(vip *pool.VirtualIP) error
-	RemoveVirtualIP(vip *pool.VirtualIP) error
-	GetVirtualIPHostID(poolID, ip string) (string, error)
 	GetRegistryImage(id string) (*registry.Image, error)
 	SetRegistryImage(rImage *registry.Image) error
 	DeleteRegistryImage(id string) error
@@ -58,4 +55,5 @@ type ZZK interface {
 	GetServiceNodes() ([]zkservice.ServiceNode, error)
 	RegisterDfsClients(clients ...host.Host) error
 	UnregisterDfsClients(clients ...host.Host) error
+	GetVirtualIPHostID(poolID, ip string) (string, error)
 }
