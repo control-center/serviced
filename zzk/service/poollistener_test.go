@@ -32,14 +32,18 @@ var _ = Suite(&PoolListenerTestSuite{})
 type PoolListenerTestSuite struct {
 	pool p.ResourcePool
 
-	shutdown  <-chan interface{}
-	poolEvent chan client.Event
-	ipEvent   chan client.Event
+	shutdown        <-chan interface{}
+	poolEvent       chan client.Event
+	ipEvent         chan client.Event
+	poolExistsEvent chan client.Event
+	ipsExistsEvent  chan client.Event
 
-	getWCall      *mock.Call
-	childrenWCall *mock.Call
-	syncCall      *mock.Call
-	listener      *PoolListener
+	getWCall       *mock.Call
+	childrenWCall  *mock.Call
+	syncCall       *mock.Call
+	ipsExistsCall  *mock.Call
+	poolExistsCall *mock.Call
+	listener       *PoolListener
 }
 
 func (s *PoolListenerTestSuite) SetUpTest(c *C) {
@@ -64,9 +68,17 @@ func (s *PoolListenerTestSuite) SetUpTest(c *C) {
 			node.ResourcePool = &s.pool
 		})
 
+	s.poolExistsEvent = make(chan client.Event)
+	s.poolExistsCall = connection.On("ExistsW", "/pools/test", mock.Anything).
+		Return(true, (<-chan client.Event)(s.poolExistsEvent), nil)
+
 	s.ipEvent = make(chan client.Event)
 	s.childrenWCall = connection.On("ChildrenW", "/pools/test/ips", mock.Anything).
 		Return([]string{"host-1.2.3.4", "host-7.7.7.7"}, (<-chan client.Event)(s.ipEvent), nil)
+
+	s.ipsExistsEvent = make(chan client.Event)
+	s.ipsExistsCall = connection.On("ExistsW", "/pools/test/ips", mock.Anything).
+		Return(true, (<-chan client.Event)(s.ipsExistsEvent), nil)
 
 	s.syncCall = synchronizer.On("Sync", s.pool, mock.Anything, s.shutdown).
 		Return(nil)
@@ -176,6 +188,85 @@ func (s *PoolListenerTestSuite) TestListenerShouldProperlyParseHostIPChildren(c 
 	case <-done:
 		c.Assert(assignments["1.2.3.4"], Equals, "host")
 		c.Assert(assignments["7.7.7.7"], Equals, "host")
+	case <-time.After(time.Second):
+		c.Fatalf("Timed out waiting for listener to exit")
+	}
+}
+
+func (s *PoolListenerTestSuite) TestListenerShouldListenForPoolIfPoolDoesNotExist(c *C) {
+	existsCalled := make(chan struct{})
+	synched := make(chan struct{})
+	exited := make(chan struct{})
+
+	s.poolExistsCall.
+		Return(false, (<-chan client.Event)(s.poolExistsEvent), nil).
+		Run(func(a mock.Arguments) {
+			existsCalled <- struct{}{}
+		})
+
+	s.syncCall.Run(func(a mock.Arguments) {
+		synched <- struct{}{}
+	})
+
+	go func() {
+		s.listener.Spawn(s.shutdown, "test")
+		exited <- struct{}{}
+	}()
+
+	select {
+	case <-existsCalled:
+		s.poolExistsCall.
+			Return(true, (<-chan client.Event)(s.poolExistsEvent), nil).
+			Run(func(a mock.Arguments) {})
+		s.poolExistsEvent <- client.Event{Type: client.EventNodeCreated}
+		select {
+		case <-synched:
+		case <-exited:
+			c.Fatalf("Pool Listener exited before synching")
+		case <-time.After(time.Second):
+			c.Fatalf("Timed out waiting for listener to exit")
+		}
+	case <-exited:
+		c.Fatalf("Pool Listener exited instead of watching for pool")
+	case <-synched:
+		c.Fatalf("Pool node does not exist so listener should not try to sync")
+	case <-time.After(time.Second):
+		c.Fatalf("Timed out waiting for listener to exit")
+	}
+}
+
+func (s *PoolListenerTestSuite) TestListenerShouldListenForIPsIfIpsNodeDoesNotExist(c *C) {
+	synched := make(chan struct{})
+	exited := make(chan struct{})
+
+	s.ipsExistsCall.
+		Return(false, (<-chan client.Event)(s.ipsExistsEvent), nil).
+		Run(func(a mock.Arguments) {})
+
+	s.syncCall.Run(func(a mock.Arguments) {
+		synched <- struct{}{}
+	})
+
+	go func() {
+		s.listener.Spawn(s.shutdown, "test")
+		exited <- struct{}{}
+	}()
+
+	select {
+	case <-synched:
+		s.ipsExistsCall.
+			Return(true, (<-chan client.Event)(s.ipsExistsEvent), nil).
+			Run(func(a mock.Arguments) {})
+		s.ipsExistsEvent <- client.Event{Type: client.EventNodeCreated}
+		select {
+		case <-synched:
+		case <-exited:
+			c.Fatalf("Pool Listener exited before synching")
+		case <-time.After(time.Second):
+			c.Fatalf("Timed out waiting for listener to exit")
+		}
+	case <-exited:
+		c.Fatalf("Pool Listener exited instead of watching for pool")
 	case <-time.After(time.Second):
 		c.Fatalf("Timed out waiting for listener to exit")
 	}
