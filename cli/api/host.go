@@ -28,6 +28,7 @@ import (
 // HostConfig is the deserialized object from the command-line
 type HostConfig struct {
 	Address *utils.URL
+	Nat     *utils.URL
 	PoolID  string
 	Memory  string
 	IPs     []string
@@ -129,16 +130,24 @@ func (a *api) GetHostMemory(id string) (*metrics.MemoryUsageStats, error) {
 
 // Adds a new host
 func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
-	agentClient, err := a.connectAgent(config.Address.String())
+	// if a nat is configured then we connect rpc to the nat, otherwise
+	// connect to the host address.
+	var rpcAddress string
+	if len(config.Nat.Host) > 0 {
+		rpcAddress = config.Nat.String()
+	} else {
+		rpcAddress = config.Address.String()
+	}
+	agentClient, err := a.connectAgent(rpcAddress)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	req := agent.BuildHostRequest{
-		IP:     config.Address.Host,
-		Port:   config.Address.Port,
-		PoolID: config.PoolID,
-		Memory: config.Memory,
+		IP:      config.Address.Host,
+		Port:    config.Address.Port,
+		PoolID:  config.PoolID,
+		Memory:  config.Memory,
 	}
 
 	h, err := agentClient.BuildHost(req)
@@ -221,8 +230,8 @@ func (a *api) RegisterHost(keydata []byte) error {
 	return auth.RegisterLocalHost(keydata)
 }
 
-func (a *api) RegisterRemoteHost(h *host.Host, keyData []byte, prompt bool) error {
-	return auth.RegisterRemoteHost(h.ID, h.IPAddr, keyData, prompt)
+func (a *api) RegisterRemoteHost(h *host.Host, nat utils.URL, keyData []byte, prompt bool) error {
+	return auth.RegisterRemoteHost(h.ID, nat, h.IPAddr, keyData, prompt)
 }
 
 // Output a delegate key file to a given location on disk

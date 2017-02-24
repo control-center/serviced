@@ -96,4 +96,9 @@ func (_m *Facade) GetServicesForScheduling(_a0 datastore.Context, _a1 []string) 
 	return r0
 }
 
+// SetServicesCurrentState provides a mock function with given fields: ctx, currentState, serviceIDs
+func (_m *Facade) SetServicesCurrentState(ctx datastore.Context, currentState service.ServiceCurrentState, serviceIDs ...string) {
+	_m.Called(ctx, currentState, serviceIDs)
+}
+
 var _ servicestatemanager.Facade = (*Facade)(nil)

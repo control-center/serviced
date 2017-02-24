@@ -37,6 +37,27 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
+func (a *HostAgent) setInstanceState(serviceID string, instanceID int, state service.InstanceCurrentState) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(a.poolID))
+	if err != nil {
+		logger.WithError(err).Error("Could not connect to zookeeper")
+		return err
+	}
+	req := zkservice.StateRequest{
+		HostID:     a.hostID,
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+	}
+	return zkservice.UpdateState(conn, req, func(s *zkservice.State) bool {
+		s.Status = state
+		return true
+	})
+}
+
 // StopContainer stops running container or returns nil if the container does
 // not exist or has already stopped.
 func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
@@ -56,6 +77,7 @@ func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
 		return err
 	}
 
+	a.setInstanceState(serviceID, instanceID, service.StateStopping)
 	err = ctr.Stop(45 * time.Second)
 	if _, ok := err.(*dockerclient.ContainerNotRunning); ok {
 		logger.Debug("Container already stopped")
@@ -64,7 +86,6 @@ func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
 		logger.WithError(err).Debug("Could not stop container")
 		return err
 	}
-
 	return nil
 }
 
@@ -109,6 +130,7 @@ func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID str
 		return nil, nil
 	}
 	go a.exposeAssignedIPs(state, ctr)
+	a.setInstanceState(serviceID, instanceID, service.StateRunning)
 	return ev, nil
 }
 
@@ -121,6 +143,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 		"instanceid": instanceID,
 	})
 
+	a.serviceCache.Invalidate(serviceID, instanceID)
 	evaluatedService, tenantID, err := a.serviceCache.GetEvaluatedService(serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
@@ -128,6 +151,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	}
 
 	// pull the service image
+	a.setInstanceState(serviceID, instanceID, service.StatePulling)
 	imageUUID, imageName, err := a.pullImage(logger, cancel, evaluatedService.ImageID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not pull the service image")
@@ -144,6 +168,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	}
 
 	// start the container
+	a.setInstanceState(serviceID, instanceID, service.StateStarting)
 	ev := a.monitorContainer(logger, ctr)
 
 	if err := ctr.Start(); err != nil {
@@ -165,6 +190,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	state.Started = dctr.State.StartedAt
 
 	go a.exposeAssignedIPs(state, ctr)
+	a.setInstanceState(serviceID, instanceID, service.StateRunning)
 	return state, ev, nil
 }
 
@@ -198,6 +224,7 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 	}
 
 	go func() {
+		a.setInstanceState(serviceID, instanceID, service.StatePulling)
 		for {
 			// relentlessly try to pull the image
 			_, _, err := a.pullImage(logger, cancel, ctr.Config.Image)
@@ -216,6 +243,7 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 			break
 		}
 
+		a.setInstanceState(serviceID, instanceID, service.StateStopping)
 		// set the container to stop; ctr.Stop() stops the container by
 		// container id and not name, so if the container was stopped or
 		// deleted before the pull is successful, then this will just be a
@@ -262,11 +290,13 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 	}
 
 	// resume the paused container
+	a.setInstanceState(serviceID, instanceID, service.StateResuming)
 	if err := attachAndRun(ctrName, svc.Snapshot.Resume); err != nil {
 		logger.WithError(err).Debug("Could not resume paused container")
 		return err
 	}
 	logger.Debug("Resumed paused container")
+	a.setInstanceState(serviceID, instanceID, service.StateRunning)
 
 	return nil
 }
@@ -304,11 +334,13 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	}
 
 	// pause the running container
+	a.setInstanceState(serviceID, instanceID, service.StatePausing)
 	if err := attachAndRun(ctrName, svc.Snapshot.Pause); err != nil {
 		logger.WithError(err).Debug("Could not pause running container")
 		return err
 	}
 	logger.Debug("Paused running container")
+	a.setInstanceState(serviceID, instanceID, service.StatePaused)
 	return nil
 }
 
@@ -367,9 +399,14 @@ func (a *HostAgent) pullImage(logger *log.Entry, cancel <-chan interface{}, imag
 }
 
 // monitorContainer tracks the running state of the container.
+// runs when the container dies
 func (a *HostAgent) monitorContainer(logger *log.Entry, ctr *docker.Container) <-chan time.Time {
 	ev := make(chan time.Time, 1)
 	ctr.OnEvent(docker.Die, func(_ string) {
+		someSlice := strings.Split(ctr.Name, "-")
+		serviceID := someSlice[0]
+		instanceID, err := strconv.ParseInt(someSlice[1], 10, 0)
+		a.setInstanceState(serviceID, int(instanceID), service.StateStopped)
 		defer close(ev)
 		dctr, err := ctr.Inspect()
 		if err != nil {
@@ -410,6 +447,8 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 		"containername": ctr.Name,
 	})
 
+	protocols := map[string]struct{}{}
+
 	if ip := state.AssignedIP; ip != "" {
 		for _, exp := range state.Exports {
 			if port := exp.AssignedPortNumber; port > 0 {
@@ -421,7 +460,16 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 				explog.Debug("Starting proxy for endpoint")
 				public := iptables.NewAddress(ip, int(port))
 				private := iptables.NewAddress(state.PrivateIP, int(exp.PortNumber))
-
+				if a.conntrackFlush {
+					if _, ok := protocols[exp.Protocol]; !ok {
+						if err := flushConntrack(exp.Protocol); err != nil {
+							plog.WithError(err).WithFields(log.Fields{
+								"protocol": exp.Protocol,
+							}).Warn("Unable to flush conntrack table")
+						}
+						protocols[exp.Protocol] = struct{}{}
+					}
+				}
 				a.servicedChain.Forward(iptables.Add, exp.Protocol, public, private)
 				defer a.servicedChain.Forward(iptables.Delete, exp.Protocol, public, private)
 			}
@@ -811,4 +859,14 @@ func addBindingToMap(bindsMap map[string]string, cp, rp string) {
 	} else {
 		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Warn("Not adding to map, because at least one argument is empty.")
 	}
+}
+
+func flushConntrack(protocol string) error {
+	args := []string{"-D", "-p", protocol}
+	plog.WithFields(log.Fields{
+		"protocol": protocol,
+		"cmd":      fmt.Sprintf("conntrack %s", strings.Join(args, " ")),
+	}).Debug("Flushing conntrack table")
+	_, err := iptables.RunConntrackCommand(args...)
+	return err
 }

@@ -26,7 +26,8 @@ import (
 )
 
 var (
-	ErrRequestExpired = errors.New("Authentication request expired")
+	ErrRequestExpired    = errors.New("Authentication request expired")
+	ErrRequestFromFuture = errors.New("Authentication request has future timestamp")
 )
 
 // GetHost gets the host
@@ -94,7 +95,7 @@ func (s *Server) FindHostsInPool(poolID string, hostReply *[]host.Host) error {
 
 type HostAuthenticationRequest struct {
 	HostID    string
-	Expires   int64
+	Timestamp int64
 	Signature []byte
 }
 
@@ -104,7 +105,7 @@ type HostAuthenticationResponse struct {
 }
 
 func (req HostAuthenticationRequest) toMessage() []byte {
-	return []byte(fmt.Sprintf("%s:%d", req.HostID, req.Expires))
+	return []byte(fmt.Sprintf("%s:%d", req.HostID, req.Timestamp))
 }
 
 func (req HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
@@ -115,9 +116,16 @@ func (req HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
 	if err := verifier.Verify(req.toMessage(), req.Signature); err != nil {
 		return err
 	}
-	if time.Now().UTC().Unix() >= req.Expires {
+	logger := plog.WithField("hostid", req.HostID)
+	timeDiff := time.Now().UTC().Unix() - req.Timestamp
+	if timeDiff > int64(auth.ExpirationDelta/time.Second) {
+		logger.WithField("clockdriftsec", timeDiff).Error("Delegate time behind master, re-sync clocks")
 		return ErrRequestExpired
+	} else if -1*timeDiff > int64(auth.ExpirationDelta/time.Second) {
+		logger.WithField("clockdriftsec", timeDiff).Error("Delegate time ahead of master, re-sync clocks")
+		return ErrRequestFromFuture
 	}
+
 	return nil
 }
 
@@ -131,6 +139,7 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 		s.f.RemoveHostExpiration(s.context(), req.HostID)
 		return err
 	}
+
 	host, err := s.f.GetHost(s.context(), req.HostID)
 	if err != nil {
 		return err

@@ -30,4 +30,6 @@ type Facade interface {
 	GetTenantIDs(ctx datastore.Context) ([]string, error)
 	// GetServiceLite looks up the latest service object with all of the information necessary to schedule it
 	GetServicesForScheduling(ctx datastore.Context, ids []string) []*service.Service
+	// SetServicesCurrentState updates the service's current state in the service store
+	SetServicesCurrentState(ctx datastore.Context, currentState service.ServiceCurrentState, serviceIDs ...string)
 }

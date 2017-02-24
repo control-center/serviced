@@ -173,7 +173,7 @@
                 return !!this[NOT_RUNNING];
             },
             allNotRunning: function(){
-                return this.total && this[NOT_RUNNING] === this.total;
+                return this[NOT_RUNNING] === this.total;
             },
             anyUnknown: function(){
                 return !!this[UNKNOWN];
@@ -201,47 +201,27 @@
 
             // distill this service's statusRollup into a single value
             evaluateStatus: function(){
-                if(this.desiredState === 1){
-                    // if any failing, bad!
-                    if(this.statusRollup.anyFailed()){
-                        this.status = FAILED;
-                        this.description = $translate.instant("failing_health_checks");
-
-                    // if any notRunning, oh no!
-                    } else if(this.statusRollup.anyNotRunning()){
-                        this.status = UNKNOWN;
-                        this.description = $translate.instant("starting_service");
-
-                    // if all are ok, yay! ok!
+                    // stuff is shutdown and emergency shutdown is flagged
+                    if(this.emergencyShutdown){
+                        this.status = EMERGENCY_SHUTDOWN;
+                        this.description = $translate.instant("emergency_shutdown");
+                    // if all are ok, up
                     } else if(this.statusRollup.allOK()){
                         this.status = OK;
                         this.description = $translate.instant("passing_health_checks");
-
-                    // some health checks are late
-                    } else {
-                        this.status = UNKNOWN;
-                        this.description = $translate.instant("missing_health_checks");
-                    }
-
-                } else if(this.desiredState === 0){
-                    // shouldnt be running, but still getting health checks,
-                    // so probably stopping
-                    if(this.statusRollup.anyOK() || this.statusRollup.anyFailed() ||
-                            this.statusRollup.anyUnknown()){
-                        this.status = UNKNOWN;
-                        this.description = $translate.instant("stopping_service");
-
-                    // stuff is shutdown and emergency shutdown is flagged
-                    } else if(this.emergencyShutdown){
-                        this.status = EMERGENCY_SHUTDOWN;
-                        this.description = $translate.instant("emergency_shutdown");
-
-                    // stuff is notRunning as expected
-                    } else {
+                    // if all are failed, fail
+                    } else if(this.statusRollup.allFailed()){
+                        this.status = FAILED;
+                        this.description = $translate.instant("failed");
+                    // if all are stopped, stopped
+                    } else if(this.statusRollup.allNotRunning()){
                         this.status = NOT_RUNNING;
                         this.description = $translate.instant("container_down");
+                    // else some running up some stopped
+                    } else {
+                    this.status = UNKNOWN;
+                    this.description = $translate.instant("missing_health_checks");
                     }
-                }
             },
 
             // roll up child status into this status

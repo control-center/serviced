@@ -175,6 +175,76 @@ func (t *ZZKTest) TestGetServiceStateIDs(c *C) {
 	c.Assert(actual, DeepEquals, []int{2, 3})
 }
 
+func (t *ZZKTest) TestGetServiceStatus(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	// add two services
+	err = conn.CreateDir("/pools/poolid/services/serviceid1")
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/pools/poolid/services/serviceid2")
+	c.Assert(err, IsNil)
+
+	// add two hosts
+	err = conn.CreateDir("/pools/poolid/hosts/hostid1")
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/pools/poolid/hosts/hostid2")
+	c.Assert(err, IsNil)
+
+	// create statuses and check them
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid1",
+		ServiceID:  "serviceid1",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+	// the state should be 'service.StateStopped' on initialization
+	state, err := GetState(conn, req)
+	c.Assert(err, IsNil)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateStopped)
+	// change the state to Pulling for the first service
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.Status = service.StatePulling
+		return true
+	})
+	c.Assert(err, IsNil)
+	state, err = GetState(conn, req)
+	c.Assert(err, IsNil)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StatePulling)
+	// change the state to Starting for the first service
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.Status = service.StateStarting
+		return true
+	})
+	c.Assert(err, IsNil)
+	state, err = GetState(conn, req)
+	c.Assert(err, IsNil)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateStarting)
+	// change the state to Running for the first service
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.Status = service.StateRunning
+		return true
+	})
+	c.Assert(err, IsNil)
+	state, err = GetState(conn, req)
+	c.Assert(err, IsNil)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateRunning)
+
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid2",
+		ServiceID:  "serviceid2",
+		InstanceID: 2,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+	state, err = GetState(conn, req)
+	c.Assert(err, IsNil)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateStopped)
+}
+
 func (t *ZZKTest) TestGetServiceStates(c *C) {
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)

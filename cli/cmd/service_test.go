@@ -799,6 +799,7 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
 	//    --sync, -s		Schedules services synchronously
+	//    --rebalance		Stops all instances before restarting them, instead of performing a rolling restart
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {

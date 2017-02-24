@@ -5,7 +5,12 @@ if [ $1 -eq 1 ] ; then
 fi
 
 mkdir -p /var/log/serviced
-chmod 1777 /var/log/serviced
+chgrp serviced /var/log/serviced
+chmod 1770 /var/log/serviced
+
+chgrp serviced /etc/default/serviced
+chgrp -R serviced /opt/serviced
+chmod 750 /opt/serviced
 
 LIBDEVMAPPER="$(ldconfig -p | grep libdevmapper.so.1.02 | awk {'print $4'})"
 if [ -z "${LIBDEVMAPPER}" ]; then

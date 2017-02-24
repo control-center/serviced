@@ -10,6 +10,7 @@ import metrics "github.com/control-center/serviced/metrics"
 import mock "github.com/stretchr/testify/mock"
 import pool "github.com/control-center/serviced/domain/pool"
 import script "github.com/control-center/serviced/script"
+import "github.com/control-center/serviced/utils"
 import service "github.com/control-center/serviced/domain/service"
 import servicedefinition "github.com/control-center/serviced/domain/servicedefinition"
 import servicetemplate "github.com/control-center/serviced/domain/servicetemplate"
@@ -1022,13 +1023,13 @@ func (_m *API) RegisterHost(_a0 []byte) error {
 	return r0
 }
 
-// RegisterRemoteHost provides a mock function with given fields: _a0, _a1, _a2
-func (_m *API) RegisterRemoteHost(_a0 *host.Host, _a1 []byte, _a2 bool) error {
-	ret := _m.Called(_a0, _a1, _a2)
+// RegisterRemoteHost provides a mock function with given fields: _a0, _a1, _a2, _a3
+func (_m *API) RegisterRemoteHost(_a0 *host.Host, _a1 utils.URL, _a2 []byte, _a3 bool) error {
+	ret := _m.Called(_a0, _a1, _a2, _a3)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*host.Host, []byte, bool) error); ok {
-		r0 = rf(_a0, _a1, _a2)
+	if rf, ok := ret.Get(0).(func(*host.Host, utils.URL, []byte, bool) error); ok {
+		r0 = rf(_a0, _a1, _a2, _a3)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1245,6 +1246,27 @@ func (_m *API) ResolveServicePath(path string) ([]service.ServiceDetails, error)
 
 // RestartService provides a mock function with given fields: _a0
 func (_m *API) RestartService(_a0 api.SchedulerConfig) (int, error) {
+	ret := _m.Called(_a0)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(api.SchedulerConfig) int); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(api.SchedulerConfig) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// RebalanceService provides a mock function with given fields: _a0
+func (_m *API) RebalanceService(_a0 api.SchedulerConfig) (int, error) {
 	ret := _m.Called(_a0)
 
 	var r0 int

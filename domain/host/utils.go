@@ -40,7 +40,7 @@ func (err InvalidIPAddress) Error() string {
 	return fmt.Sprintf("IP %s is not a valid address", string(err))
 }
 
-// currentHost creates a Host object of the reprsenting the host where this method is invoked. The passed in poolID is
+// currentHost creates a Host object of the representing the host where this method is invoked. The passed in poolID is
 // used as the resource pool in the result.
 func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) {
 	cpus := runtime.NumCPU()
@@ -65,9 +65,6 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 	}
 
 	if ip != "" {
-		if !ipExists(ip) {
-			return nil, InvalidIPAddress(ip)
-		}
 		if isLoopBack(ip) {
 			return nil, IsLoopbackError(ip)
 		}
@@ -205,21 +202,6 @@ func getInterfaceMap() (map[string]net.Interface, error) {
 		}
 	}
 	return ips, nil
-}
-
-func normalizeIP(ip string) string {
-	return strings.Trim(strings.ToLower(ip), " ")
-}
-
-func ipExists(ip string) bool {
-	interfaces, err := getInterfaceMap()
-	if err != nil {
-		plog.WithError(err).Debug("Unable to get network interface map")
-		return false
-	}
-	normalIP := normalizeIP(ip)
-	_, found := interfaces[normalIP]
-	return found
 }
 
 func isLoopBack(ip string) bool {

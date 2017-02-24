@@ -61,4 +61,9 @@ func (_m *ServiceStateManager) WaitScheduled(tenantID string, serviceIDs ...stri
 	_m.Called(tenantID, serviceIDs)
 }
 
+// SyncCurrentStates provides a mock function with given fields: svcIDs
+func (_m *ServiceStateManager) SyncCurrentStates(svcIDs []string) {
+	_m.Called(svcIDs)
+}
+
 var _ servicestatemanager.ServiceStateManager = (*ServiceStateManager)(nil)

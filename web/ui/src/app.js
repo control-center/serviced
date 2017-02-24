@@ -23,11 +23,11 @@ var DEBUG = false;
 var controlplane = angular.module('controlplane', [
     'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'ngSanitize',
     'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker',
-    'modalService', 'angular-cache', 'ui.codemirror',
+    'modalService', 'angular-cache', 'ui.codemirror', 'serviceActions',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'publicEndpointLink',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
     'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady', 'log',
-    'LogSearch', 'hostIcon'
+    'LogSearch', 'hostIcon', 'appName'
 ]);
 
 controlplane.

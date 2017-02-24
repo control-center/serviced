@@ -28,6 +28,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/utils"
 )
 
 // The FacadeInterface is the API for a Facade
@@ -83,7 +84,7 @@ type FacadeInterface interface {
 
 	ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
 
-	RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte, prompt bool) error
+	RegisterHostKeys(ctx datastore.Context, entity *host.Host, nat utils.URL, keys []byte, prompt bool) error
 
 	SetHostExpiration(ctx datastore.Context, hostID string, expiration int64)
 

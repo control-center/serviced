@@ -22,6 +22,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
+	"net"
 )
 
 func (c *ServicedCli) initKey() {
@@ -43,6 +44,11 @@ func (c *ServicedCli) initKey() {
 				BashComplete: c.printHostsFirst,
 				Action:       c.cmdKeyReset,
 				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "nat-address",
+						Value: "",
+						Usage: "The host address of the NAT for this delegate",
+					},
 					cli.StringFlag{
 						Name:  "key-file, k",
 						Value: "",
@@ -79,15 +85,43 @@ func (c *ServicedCli) cmdKeyReset(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "list")
+		cli.ShowCommandHelp(ctx, "reset")
 		return
+	}
+
+	// Parse/resolve the NAT address, if provided.
+	var nat utils.URL
+	natString := ctx.String("nat-address")
+	if len(natString) > 0 {
+		// Both host or host:port are accepted since the host portion is the only thing used
+		// for key reset.  If they don't provide the port, append ":0" so the host is parsed properly.
+		if !strings.Contains(natString, ":") {
+			natString += ":0"
+		}
+		if err := nat.Set(natString); err != nil {
+			fmt.Println(err)
+			return
+		}
+		if natip := net.ParseIP(nat.Host); natip == nil {
+			// NAT did not parse, try resolving
+			addr, err := net.ResolveIPAddr("ip", nat.Host) // unknown network tcp
+			if err != nil {
+				fmt.Printf("Could not resolve nat address (%s): %s\n", nat.Host, err)
+				return
+			}
+			nat.Host = addr.IP.String()
+		}
+		if strings.HasPrefix(nat.Host, "127.") {
+			fmt.Printf("The nat address %s must not resolve to a loopback address\n", natString)
+			return
+		}
 	}
 
 	hostID := args[0]
 
 	host, err := c.driver.GetHost(hostID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not get host %s: %s", hostID, err.Error())
+		fmt.Fprintf(os.Stderr, "Could not get host %s: %s\n", hostID, err.Error())
 		return
 	}
 
@@ -99,14 +133,14 @@ func (c *ServicedCli) cmdKeyReset(ctx *cli.Context) {
 
 	keyfileName := ctx.String("key-file")
 	registerHost := ctx.Bool("register")
-	c.outputDelegateKey(host, key, keyfileName, registerHost)
+	c.outputDelegateKey(host, nat, key, keyfileName, registerHost)
 }
 
-func (c *ServicedCli) outputDelegateKey(host *host.Host, keyData []byte, keyfileName string, register bool) {
+func (c *ServicedCli) outputDelegateKey(host *host.Host, nat utils.URL, keyData []byte, keyfileName string, register bool) {
 	writeKeyFile := false
 	if register {
 		prompt := utils.Isatty(os.Stdin) && utils.Isatty(os.Stdout)
-		if err := c.driver.RegisterRemoteHost(host, keyData, prompt); err != nil {
+		if err := c.driver.RegisterRemoteHost(host, nat, keyData, prompt); err != nil {
 			fmt.Fprintf(os.Stderr, "Error registering host: %s\n", err.Error())
 			writeKeyFile = true
 		} else {

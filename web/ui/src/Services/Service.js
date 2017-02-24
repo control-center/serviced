@@ -64,9 +64,11 @@
         }
 
         update(model) {
+
             // basically new-up with exisiting children and instances
             this.name = model.Name;
             this.id = model.ID;
+            this.currentState = model.CurrentState;
             this.desiredState = model.DesiredState;
             this.emergencyShutdown = model.EmergencyShutdown;
             this.model = Object.freeze(model);
@@ -263,7 +265,7 @@
             let ids = Object.keys(descendents);
             this.getServiceStatuses(ids)
                 .then(results => {
-                    if (results.length) {
+                    if (results && results.length) {
                         results.forEach(stat => {
                             // TODO - handle stat.NotFound
                             let svc = descendents[stat.ServiceID];
@@ -323,6 +325,9 @@
             return this.model.HasChildren;
         }
 
+        isContainer() {
+            return this.hasChildren() && !this.model.Startup;
+        }
 
         // start, stop, or restart this service
         start(skipChildren) {
@@ -370,8 +375,19 @@
                     this.touch();
                 })
                 .error((data, status) => {
-                    $notification.create("Stop Instance failed", data.Detail).error();
+                    let detail = data.Detail || data || "";
+                    $notification.create("Stop Instance failed", detail).error();
                 });
+        }
+
+        cancelPending() {
+            if (this.currentState === "pending_start") {
+                return this.stop();
+            } else if (this.currentState === "pending_stop") {
+                return this.start();
+            } else if (this.currentState === "pending_restart") {
+                return this.start();
+            }
         }
 
 
@@ -400,6 +416,7 @@
 
             // update service status
             this.desiredState = myStatus.DesiredState;
+            this.currentState = myStatus.CurrentState;
             this.emergencyShutdown = myStatus.EmergencyShutdown;
 
             // update public endpoints

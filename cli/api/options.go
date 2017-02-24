@@ -174,15 +174,16 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		DockerLogConfigList:        cfg.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
 		AllowLoopBack:              strconv.FormatBool(cfg.BoolVal("ALLOW_LOOP_BACK", false)),
 		UIPollFrequency:            cfg.IntVal("UI_POLL_FREQUENCY", 3),
+		ConntrackFlush:             strconv.FormatBool(cfg.BoolVal("CONNTRACK_FLUSH", false)),
 		StorageStatsUpdateInterval: cfg.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       cfg.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           cfg.IntVal("ZK_SESSION_TIMEOUT", 15),
 		TokenExpiration:            cfg.IntVal("AUTH_TOKEN_EXPIRATION", 60*60),
-		ServiceRunLevelTimeout:     cfg.IntVal("RUN_LEVEL_TIMEOUT", 60),
+		ServiceRunLevelTimeout:     cfg.IntVal("RUN_LEVEL_TIMEOUT", 60*10),
 		StorageReportInterval:      cfg.IntVal("STORAGE_REPORT_INTERVAL", 30),
 		StorageMetricMonitorWindow: cfg.IntVal("STORAGE_METRIC_MONITOR_WINDOW", 300),
-		StorageLookaheadPeriod:     cfg.IntVal("STORAGE_LOOKAHEAD_PERIOD", 600),
-		StorageMinimumFreeSpace:    cfg.StringVal("STORAGE_MIN_FREE", "1G"),
+		StorageLookaheadPeriod:     cfg.IntVal("STORAGE_LOOKAHEAD_PERIOD", 360),
+		StorageMinimumFreeSpace:    cfg.StringVal("STORAGE_MIN_FREE", "3G"),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")

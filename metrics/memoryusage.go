@@ -18,8 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/zenoss/glog"
 )
 
 var (
@@ -139,8 +137,9 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 }
 
 func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error) {
+	logger := log.WithField("hostid", hostID)
 	getter := func() ([]MemoryUsageStats, error) {
-		glog.V(2).Infof("Requesting memory stats for host %s", hostID)
+		logger.Debug("Requesting memory stats for host")
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
 			End:       "now",
@@ -159,7 +158,6 @@ func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*Memory
 
 		result, err := c.performanceQuery(options)
 		if err != nil {
-			glog.Errorf("Could not get performance data for host %s: %s", hostID, err)
 			return nil, err
 		}
 
@@ -179,8 +177,9 @@ func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*Memory
 }
 
 func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error) {
+	logger := log.WithField("serviceid", serviceID)
 	getter := func() ([]MemoryUsageStats, error) {
-		glog.V(2).Infof("Requesting memory stats for service %s", serviceID)
+		logger.Debug("Requesting memory stats for service")
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
 			End:       "now",
@@ -199,7 +198,6 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 
 		result, err := c.performanceQuery(options)
 		if err != nil {
-			glog.V(2).Infof("Could not get performance data for service %s: %s", serviceID, err)
 			return nil, err
 		}
 
@@ -219,7 +217,8 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 }
 
 func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
-	glog.V(2).Infof("Requesting memory stats for %d instances", len(instances))
+	logger := log.WithField("instancecount", len(instances))
+	logger.Debug("Requesting memory stats service instances")
 	secsAgo := time.Now().Sub(startDate).Seconds()
 	options := V2PerformanceOptions{
 		Start: fmt.Sprintf("%ds-ago", int(secsAgo)),
@@ -263,7 +262,6 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 
 			result, err := c.v2performanceQuery(options)
 			if err != nil {
-				glog.V(2).Infof("Could not get performance data for instances %+v: %s", instances, err)
 				return nil, err
 			}
 			perfDataMap[agg] = result
@@ -276,7 +274,6 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 		options.Start= "10m-ago" //Reduce the time frame to search for last value to reduce memory usage in CentralQuery
 		result, err := c.v2performanceQuery(options)
 		if err != nil {
-			glog.V(2).Infof("Could not get performance data for instances %+v: %s", instances, err)
 			return nil, err
 		}
 		perfDataMap["last"] = result
