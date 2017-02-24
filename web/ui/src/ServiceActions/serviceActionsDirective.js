@@ -57,7 +57,7 @@
                     <span translate>start</span>
                 </button>
                 <button
-                    class="btn btn-link action svcactions vcactions-startnow"
+                    class="btn btn-link action svcactions svcactions-startnow"
                     ng-click="vm.start(true)"
                     data-valid="pending_start"
                 >
@@ -122,6 +122,14 @@
                     <i class="glyphicon glyphicon-remove"></i>
                     <span translate>btn_cancel</span>
                 </span>
+                <button
+                    class="btn btn-link action svcactions svcactions-container-restart"
+                    ng-click="vm.restart(false)"
+                    data-valid=""
+                >
+                    <i class="glyphicon glyphicon-refresh"></i>
+                    <span translate>action_restart</span>
+                </button>
             </div>
 
         </div>
@@ -173,6 +181,7 @@
                     allButtonEls.hide();
                     startActions.find(".svcactions-start").show();
                     stopActions.find(".svcactions-stop").show();
+                    cancelActions.find(".svcactions-container-restart").show();
                 };
 
                 $scope.vm.showValidActions = showValidActions;
