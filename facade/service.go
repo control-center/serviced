@@ -1488,6 +1488,16 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		}
 	}
 
+	nextInstance := 0
+	defer func() {
+		for instance := nextInstance; instance < svc.Instances; instance++ {
+			err := f.zzk.UpdateInstanceCurrentState(ctx, svc.PoolID, svc.ID, instance, service.StateRunning)
+			if err != nil {
+				logger.WithField("instance", instance).WithError(err).Error("Failed to revert instance current state to started")
+			}
+		}
+	}()
+
 	// Build the service health object to use for getting instance health
 	svch := service.BuildServiceHealth(*svc)
 	var punctualLock sync.RWMutex
@@ -1526,6 +1536,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		state, err := f.zzk.GetServiceState(ctx, svc.PoolID, svc.ID, instanceID)
 		if err != nil {
 			close(done)
+			logger.WithError(err).Debug("Failed to get service's current container ID")
 			return err
 		}
 
@@ -1533,8 +1544,11 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 
 		if err = f.zzk.RestartInstance(ctx, svc.PoolID, svc.ID, instanceID); err != nil {
 			close(done)
+			logger.WithError(err).Error("Failed to restart instance")
 			return err
 		}
+
+		nextInstance++
 
 		// Wait for the instance's containerID to change
 		checkContainer := func(s *zkservice.State, exists bool) bool {
@@ -1548,6 +1562,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		}
 		if err = f.zzk.WaitInstance(ctx, svc, instanceID, checkContainer, cancelWait); err != nil {
 			close(done)
+			logger.WithError(err).Debug("Failed to wait on instance")
 			return err
 		}
 
