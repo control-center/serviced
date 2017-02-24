@@ -465,6 +465,11 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 		newBatch = queue.reconcileWithPendingBatch(newBatch)
 	}
 
+	// Now check for services that are already in the desired state
+	var cancelled []string
+	newBatch, cancelled = s.reconcileWithCurrentState(newBatch)
+	cancelledIDs = append(cancelledIDs, cancelled...)
+
 	if len(cancelledIDs) > 0 {
 		// Spawn a goroutine to update the current state of all cancelled services
 		defer func() {
@@ -531,6 +536,26 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	}
 
 	return err
+}
+
+// reconcileWithCurrentState will compare the desired state to the services' current states and return a new batch
+//  with unnecessary services removed.  It also returns a list of IDs of the services it omitted
+func (s *BatchServiceStateManager) reconcileWithCurrentState(new ServiceStateChangeBatch) (ServiceStateChangeBatch, []string) {
+	newSvcs := make(map[string]CancellableService)
+	var cancelledIDs []string
+	for id, newSvc := range new.Services {
+		if service.DesiredStateIsRedundant(new.DesiredState, new.Emergency, service.ServiceCurrentState(newSvc.CurrentState)) {
+			newSvc.Cancel()
+			cancelledIDs = append(cancelledIDs, id)
+		} else {
+			newSvcs[id] = newSvc
+		}
+	}
+	return ServiceStateChangeBatch{
+		Services:     newSvcs,
+		DesiredState: new.DesiredState,
+		Emergency:    new.Emergency,
+	}, cancelledIDs
 }
 
 func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch) (ServiceStateChangeBatch, ServiceStateChangeBatch, []string) {
