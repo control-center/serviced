@@ -26,8 +26,9 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/rpc/agent"
-	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
+	"github.com/control-center/serviced/utils"
 )
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
@@ -528,7 +529,8 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	var nat utils.URL := payload.NatAddr
+	var nat utils.URL
+	nat.Set(payload.NatAddr)
 
 	agentClient, err := agent.NewClient(payload.IPAddr)
 	if err != nil {

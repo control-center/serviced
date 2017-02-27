@@ -157,7 +157,13 @@
                                 }
 
                                 modalScope.newHost.IPAddr = modalScope.newHost.host + ':' + modalScope.newHost.port;
-                                modalScope.newHost.NatAddr = modalScope.newHost.natIp + ':' + modalScope.newHost.natPort;
+                                if (modalScope.newHost.addType === 'via_nat') {
+                                    modalScope.newHost.NatAddr = modalScope.newHost.natIp + ':' + modalScope.newHost.natPort;
+                                } else {
+                                    modalScope.newHost.natIp = "";
+                                    modalScope.newHost.natPort = "";
+                                    modalScope.newHost.NatAddr = ":0";
+                                }
 
                                 resourcesFactory.addHost(modalScope.newHost)
                                     .success(function(data, status){
