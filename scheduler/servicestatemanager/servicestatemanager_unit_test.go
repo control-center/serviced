@@ -1665,6 +1665,99 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 	c.Assert(pass, Equals, true)
 }
 
+func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_CancelledByCurrentState(c *C) {
+	svcs := getTestServicesABC()
+	svcA := svcs[0]
+	svcB := svcs[1]
+	svcC := svcs[2]
+
+	// Set B's current state to Running
+	svcB.CurrentState = string(service.SVCCSRunning)
+
+	// Set up a tenant with empty queues
+	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{
+		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
+		CurrentBatch: ssm.ServiceStateChangeBatch{},
+		Changed:      make(chan bool),
+		Facade:       s.facade,
+	}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{
+		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
+		CurrentBatch: ssm.ServiceStateChangeBatch{},
+		Changed:      make(chan bool),
+		Facade:       s.facade,
+	}
+
+	startQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCRun]
+	stopQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCStop]
+
+	// Only A and C will have their current states set to pending start
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 2)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
+
+	// B will get re-synced
+	done := make(chan interface{})
+	s.facade.On("GetServicesForScheduling", s.ctx, []string{"B"}).Return([]*service.Service{svcB}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"B"}).Once()
+	s.facade.On("WaitSingleService", svcB, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"B"}).Run(func(args mock.Arguments) {
+		close(done)
+	}).Once()
+
+	// Test that the batches are correct and B is not in them
+	err := s.serviceStateManager.ScheduleServices([]*service.Service{svcA, svcB, svcC}, tenantID, service.SVCRun, false)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+	pass := s.CompareBatchSlices(c, startQueue.BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"A": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+	})
+	c.Assert(pass, Equals, true)
+
+	c.Assert(len(stopQueue.BatchQueue), Equals, 0)
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		c.Fatalf("Timeout waiting for service B to re-sync")
+	}
+
+	s.facade.AssertExpectations(c)
+
+}
+
 func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_TwoTenants(c *C) {
 	// set up 2 tenants
 	tenantID := "tenant"
