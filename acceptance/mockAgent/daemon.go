@@ -122,7 +122,7 @@ func (d *daemon) buildHost() error {
 	var err error
 	glog.Infof("Outbound IP: %s", d.hostConfig.OutboundIP)
 
-	d.host, err = host.Build(d.hostConfig.OutboundIP, rpcPort, d.hostConfig.PoolID, fmt.Sprintf("%d", d.hostConfig.Memory))
+	d.host, err = host.Build(d.hostConfig.OutboundIP, rpcPort, d.hostConfig.PoolID, fmt.Sprintf("%d", d.hostConfig.Memory), "")
 	if err != nil {
 		return fmt.Errorf("Failed to build host: %v", err)
 	}

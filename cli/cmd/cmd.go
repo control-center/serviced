@@ -150,6 +150,8 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
 		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
 		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
+
+		cli.StringFlag{"nat-ip", defaultOps.NatIP, "this delegate's NAT IP address"},
 	}
 
 	c.initVersion()
@@ -255,6 +257,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		VirtualAddressSubnet:       ctx.GlobalString("virtual-address-subnet"),
 		MasterPoolID:               ctx.GlobalString("master-pool-id"),
 		OutboundIP:                 ctx.GlobalString("outbound"),
+		NatIP:                      ctx.GlobalString("nat-ip"),
 		LogstashES:                 ctx.GlobalString("logstash-es"),
 		LogstashMaxDays:            ctx.GlobalInt("logstash-max-days"),
 		LogstashMaxSize:            ctx.GlobalInt("logstash-max-size"),

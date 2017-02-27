@@ -130,8 +130,7 @@ func parseOSKernelData(data string) (string, string) {
 }
 
 // getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
-func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIPResource, error) {
-
+func getIPResources(hostID string, hostIP string, natIP string, staticIPs ...string) ([]HostIPResource, error) {
 	//make a map of all ipaddresses to interface
 	ifacemap, err := getInterfaceMap()
 	if err != nil {
@@ -172,7 +171,21 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 			}
 			hostIPResources[i] = hostIPResource
 		} else {
-			return nil, InvalidIPAddress(ip)
+			// The requested IP doesn't belong to any of the host interfaces.  If the NAT IP was set,
+			// check to see if this matches.
+			if len(natIP) > 0 && ip == natIP {
+				// This is the NAT IP from the config.  Return a host IP resource for the NAT.
+				hostIPResource := HostIPResource{
+					HostID:        hostID,
+					IPAddress:     ip,
+					InterfaceName: "nat",
+					MACAddress:    "00:00:00:00:00:00",
+				}
+				hostIPResources[i] = hostIPResource
+			} else {
+				// Unknown IP address.
+				return nil, InvalidIPAddress(ip)
+			}
 		}
 	}
 

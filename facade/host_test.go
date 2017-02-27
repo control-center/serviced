@@ -31,10 +31,11 @@ import (
 func (s *FacadeIntegrationTest) Test_HostCRUD(t *C) {
 	testid := "deadb10f"
 	poolid := "pool-id"
+	natIP := "10.10.10.150"
 	defer s.Facade.RemoveHost(s.CTX, testid)
 
 	//fill host with required values
-	h, err := host.Build("", "65535", poolid, "", []string{}...)
+	h, err := host.Build("", "65535", poolid, "", natIP, []string{}...)
 	h.ID = testid
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -97,6 +98,7 @@ func (s *FacadeIntegrationTest) Test_HostCRUD(t *C) {
 func (s *FacadeIntegrationTest) Test_HostGetKey(t *C) {
 	testid := "deadb10f"
 	poolid := "pool-id"
+	natIP := "10.10.10.150"
 
 	// confirm error on gethostkey for nonexistent host
 	public, err := s.Facade.GetHostKey(s.CTX, testid)
@@ -109,7 +111,7 @@ func (s *FacadeIntegrationTest) Test_HostGetKey(t *C) {
 	defer s.Facade.RemoveResourcePool(s.CTX, poolid)
 
 	// create host for test
-	h, err := host.Build("", "65535", poolid, "", []string{}...)
+	h, err := host.Build("", "65535", poolid, "", natIP, []string{}...)
 	t.Assert(err, IsNil)
 	h.ID = testid
 	private, err := s.Facade.AddHost(s.CTX, h)

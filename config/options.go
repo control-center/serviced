@@ -44,6 +44,7 @@ type Options struct {
 	RPCPort                    string
 	Listen                     string
 	OutboundIP                 string // outbound ip to listen on
+	NatIP                      string // The delegate's NAT IP, if set.
 	Master                     bool
 	DockerDNS                  []string
 	Agent                      bool
