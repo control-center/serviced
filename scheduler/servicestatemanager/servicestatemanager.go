@@ -711,7 +711,7 @@ func (s *ServiceStateQueue) reconcileWithPendingBatch(newBatch ServiceStateChang
 		"newdesiredstate":      newBatch.DesiredState,
 		"newemergency":         newBatch.Emergency,
 		"newservices":          len(reconciledBatch.Services),
-	}).Info("finished reconcile with pending batch")
+	}).Debug("finished reconcile with pending batch")
 
 	return reconciledBatch
 }
