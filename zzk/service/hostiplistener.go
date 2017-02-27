@@ -176,6 +176,19 @@ func (l *HostIPListener) Spawn(cancel <-chan struct{}, ipid string) {
 			return
 		}
 
+		// set the status of the ip
+		if err := UpdateIP(l.conn, req, func(ip *IP) bool {
+			if !ip.OK {
+				ip.OK = true
+				return true
+			}
+			return false
+		}); err != nil {
+			logger.WithError(err).Error("Could not update ip state, detaching")
+			l.saveThread(ipid)
+			return
+		}
+
 		select {
 		case <-hevt:
 		case <-pevt:

@@ -30,6 +30,7 @@ var ErrInvalidIPID = errors.New("invalid ip id")
 // PoolIP provides information about the virtual ip with respect to its state
 // on the host.
 type PoolIP struct {
+	OK      bool
 	version interface{}
 }
 
