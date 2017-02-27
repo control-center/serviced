@@ -76,6 +76,10 @@ func (t *HostIPListenerSuite) assertCreateIP(c *C, ipaddr, netmask, iface string
 	}
 	err := CreateIP(t.conn, req, netmask, iface)
 	c.Assert(err, IsNil)
+
+	ip, err := GetIP(t.conn, req)
+	c.Assert(err, IsNil)
+	c.Assert(ip.OK, Equals, false)
 	return req
 }
 
@@ -87,7 +91,7 @@ func (t *HostIPListenerSuite) assertSpawnStarts(c *C, cancel <-chan struct{}, ip
 		netmask = "255.255.255.0"
 		iface   = "dummy0"
 	)
-	t.handler.On("BindIP", ipaddr, netmask, iface).Return(nil).Once()
+	t.handler.On("BindIP", ipaddr, netmask, iface).Return(nil).Twice()
 	req := t.assertCreateIP(c, ipaddr, netmask, iface)
 
 	done := make(chan struct{})
@@ -101,6 +105,10 @@ func (t *HostIPListenerSuite) assertSpawnStarts(c *C, cancel <-chan struct{}, ip
 		c.Errorf("listener exited unexpectedly")
 	case <-time.After(time.Second):
 	}
+
+	ip, err := GetIP(t.conn, req)
+	c.Assert(err, IsNil)
+	c.Assert(ip.OK, Equals, true)
 
 	return req, done
 }
