@@ -16,11 +16,14 @@
 package service_test
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/coordinator/client"
 	h "github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/zzk"
 	. "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/service/mocks"
+	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
 )
@@ -32,8 +35,11 @@ type ZKAssignmentHandlerTestSuite struct {
 
 	// Dependencies
 	registeredHostHandler mocks.RegisteredHostHandler
-	assignmentHandler     AssignmentHandler
+	assignmentHandler     *ZKAssignmentHandler
 	connection            client.Connection
+	strategy              mocks.HostSelectionStrategy
+
+	selectHostCall *mock.Call
 
 	// Data
 	cancel   <-chan interface{}
@@ -50,11 +56,16 @@ func (s *ZKAssignmentHandlerTestSuite) SetUpTest(c *C) {
 	s.connection, err = zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 
+	strategy := &mocks.HostSelectionStrategy{}
+	s.selectHostCall = strategy.On("Select", mock.AnythingOfType("[]host.Host")).
+		Return(s.testHost, nil)
+
 	s.registeredHostHandler = mocks.RegisteredHostHandler{}
 	s.assignmentHandler = NewZKAssignmentHandler(
-		&RandomHostSelectionStrategy{},
+		strategy,
 		&s.registeredHostHandler,
 		s.connection)
+	s.assignmentHandler.Timeout = time.Second
 
 	s.registeredHostHandler.On("GetRegisteredHosts", s.cancel).
 		Return([]h.Host{s.testHost}, nil)
@@ -94,6 +105,31 @@ func (s *ZKAssignmentHandlerTestSuite) TestUnassignsCorrectly(c *C) {
 func (s *ZKAssignmentHandlerTestSuite) TestUnassignsWithNoAssignmentReturnsError(c *C) {
 	err := s.assignmentHandler.Unassign("poolid", "7.7.7.7")
 	c.Assert(err, Equals, ErrNoAssignedHost)
+}
+
+func (s *ZKAssignmentHandlerTestSuite) TestExcludesHostAfterAssigning(c *C) {
+	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	request := IPRequest{PoolID: "poolid", HostID: "testHost", IPAddress: "7.7.7.7"}
+	err := DeleteIP(s.connection, request)
+	c.Assert(err, IsNil)
+
+	s.selectHostCall.Return(h.Host{}, ErrNoHosts).Run(func(a mock.Arguments) {
+		hosts := a.Get(0).([]h.Host)
+		c.Assert(hosts, HasLen, 0)
+	}).Once()
+
+	err = s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	c.Assert(err, Equals, ErrNoHosts)
+
+	time.Sleep(time.Second)
+
+	s.selectHostCall.Return(s.testHost, nil).Run(func(a mock.Arguments) {
+		hosts := a.Get(0).([]h.Host)
+		c.Assert(hosts, HasLen, 1)
+	}).Once()
+
+	err = s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	c.Assert(err, IsNil)
 }
 
 func (s *ZKAssignmentHandlerTestSuite) assertNodeHasChildren(c *C, path string, children []string) {

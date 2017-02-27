@@ -17,6 +17,7 @@ package service_test
 
 import (
 	"sort"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	h "github.com/control-center/serviced/domain/host"
@@ -34,7 +35,7 @@ type ZKHostUnassignHandlerTestSuite struct {
 
 	// Dependencies
 	registeredHostHandler mocks.RegisteredHostHandler
-	assignmentHandler     AssignmentHandler
+	assignmentHandler     *ZKAssignmentHandler
 	connection            client.Connection
 
 	// Data
@@ -65,6 +66,7 @@ func (s *ZKHostUnassignHandlerTestSuite) SetUpTest(c *C) {
 		&RandomHostSelectionStrategy{},
 		&s.registeredHostHandler,
 		s.connection)
+	s.assignmentHandler.Timeout = time.Second
 }
 
 func (s *ZKHostUnassignHandlerTestSuite) TestUnassignsVirtualIPsFromHostCorrectly(c *C) {
