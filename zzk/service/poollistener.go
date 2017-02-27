@@ -14,6 +14,8 @@
 package service
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
 )
@@ -22,13 +24,14 @@ import (
 // pool nodes (/pools/poolid) for changes and then sync virtual IP
 // assignments.
 type PoolListener struct {
+	Timeout      time.Duration
 	synchronizer VirtualIPSynchronizer
 	connection   client.Connection
 }
 
 // NewPoolListener instantiates a new PoolListener
 func NewPoolListener(synchronizer VirtualIPSynchronizer) *PoolListener {
-	return &PoolListener{synchronizer: synchronizer}
+	return &PoolListener{synchronizer: synchronizer, Timeout: time.Second * 5}
 }
 
 // SetConnection sets the ZooKeeper connection.  It is part of the zzk.Listener
@@ -60,6 +63,9 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 
 	stop := make(chan struct{})
 	defer func() { close(stop) }()
+
+	timeout := time.NewTimer(1 * time.Second)
+	timeout.Stop()
 
 	for {
 		poolPath := Base().Pools().ID(poolID)
@@ -102,8 +108,8 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 
 			err = l.synchronizer.Sync(*node.ResourcePool, assignments, shutdown)
 			if err != nil {
-				logger.WithError(err).Error(err, "Unable to sync virtual IPs")
-				return
+				logger.WithError(err).Warn(err, "Unable to sync virtual IPs")
+				timeout.Reset(l.Timeout)
 			}
 
 		}
@@ -113,8 +119,16 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 		case <-poolEvent:
 		case <-poolExistsEvent:
 		case <-ipsExistsEvent:
+		case <-timeout.C:
 		case <-shutdown:
 			return
+		}
+
+		if !timeout.Stop() {
+			select {
+			case <-timeout.C:
+			default:
+			}
 		}
 
 		close(stop)

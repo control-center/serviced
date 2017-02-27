@@ -16,6 +16,7 @@
 package service_test
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -80,10 +81,11 @@ func (s *PoolListenerTestSuite) SetUpTest(c *C) {
 	s.ipsExistsCall = connection.On("ExistsW", "/pools/test/ips", mock.Anything).
 		Return(true, (<-chan client.Event)(s.ipsExistsEvent), nil)
 
-	s.syncCall = synchronizer.On("Sync", s.pool, mock.Anything, s.shutdown).
+	s.syncCall = synchronizer.On("Sync", s.pool, mock.AnythingOfType("map[string]string"), s.shutdown).
 		Return(nil)
 
 	s.listener = NewPoolListener(&synchronizer)
+	s.listener.Timeout = time.Second
 	s.listener.SetConnection(&connection)
 }
 
@@ -267,6 +269,32 @@ func (s *PoolListenerTestSuite) TestListenerShouldListenForIPsIfIpsNodeDoesNotEx
 		}
 	case <-exited:
 		c.Fatalf("Pool Listener exited instead of watching for pool")
+	case <-time.After(time.Second):
+		c.Fatalf("Timed out waiting for listener to exit")
+	}
+}
+
+func (s *PoolListenerTestSuite) TestListenerWaitBeforeTryingAgainOnAFailedSync(c *C) {
+	done := make(chan struct{})
+
+	s.syncCall.Return(errors.New("error")).Run(func(a mock.Arguments) {
+		done <- struct{}{}
+	}).Once()
+
+	go func() {
+		s.listener.Spawn(s.shutdown, "test")
+	}()
+
+	select {
+	case <-done:
+		s.syncCall.Return(nil).Run(func(a mock.Arguments) {
+			done <- struct{}{}
+		}).Once()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			c.Fatalf("Timed out waiting for listener to exit")
+		}
 	case <-time.After(time.Second):
 		c.Fatalf("Timed out waiting for listener to exit")
 	}

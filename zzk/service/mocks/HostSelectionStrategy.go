@@ -22,19 +22,19 @@ type HostSelectionStrategy struct {
 	mock.Mock
 }
 
-func (_m *HostSelectionStrategy) Select(virtualIP string, hosts []host.Host) (host.Host, error) {
-	ret := _m.Called(virtualIP, hosts)
+func (_m *HostSelectionStrategy) Select(hosts []host.Host) (host.Host, error) {
+	ret := _m.Called(hosts)
 
 	var r0 host.Host
-	if rf, ok := ret.Get(0).(func(string, []host.Host) host.Host); ok {
-		r0 = rf(virtualIP, hosts)
+	if rf, ok := ret.Get(0).(func([]host.Host) host.Host); ok {
+		r0 = rf(hosts)
 	} else {
 		r0 = ret.Get(0).(host.Host)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, []host.Host) error); ok {
-		r1 = rf(virtualIP, hosts)
+	if rf, ok := ret.Get(1).(func([]host.Host) error); ok {
+		r1 = rf(hosts)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -17,6 +17,12 @@ import (
 	p "github.com/control-center/serviced/domain/pool"
 )
 
+type SyncError []error
+
+func (e *SyncError) Error() string {
+	return "errors encountered while syncing"
+}
+
 // VirtualIPSynchronizer will sync virtual IP assignments for a pool.
 type VirtualIPSynchronizer interface {
 	Sync(pool p.ResourcePool, assignments map[string]string, cancel <-chan interface{}) error
@@ -38,12 +44,23 @@ func NewZKVirtualIPSynchronizer(handler AssignmentHandler) *ZKVirtualIPSynchroni
 func (s *ZKVirtualIPSynchronizer) Sync(pool p.ResourcePool, assignments map[string]string, cancel <-chan interface{}) error {
 	virtualIPMap := s.getVirtualIPMap(pool)
 
+	errorList := SyncError{}
 	for _, ip := range s.virtualIPsWithNoAssignment(virtualIPMap, assignments) {
-		s.handler.Assign(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface, cancel)
+		err := s.handler.Assign(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface, cancel)
+		if err != nil {
+			errorList = append(errorList, err)
+		}
 	}
 
 	for _, ip := range s.assignmentsWithNoVirtualIP(virtualIPMap, assignments) {
-		s.handler.Unassign(pool.ID, ip)
+		err := s.handler.Unassign(pool.ID, ip)
+		if err != nil {
+			errorList = append(errorList, err)
+		}
+	}
+
+	if len(errorList) > 0 {
+		return &errorList
 	}
 
 	return nil

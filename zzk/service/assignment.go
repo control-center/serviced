@@ -15,9 +15,12 @@ package service
 
 import (
 	"errors"
+	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/host"
 )
 
 var (
@@ -45,9 +48,17 @@ type AssignmentHandler interface {
 // 		/pools/poolid/hosts/hostid/ips/hostid-ipaddress
 //
 type ZKAssignmentHandler struct {
+	Timeout               time.Duration
 	connection            client.Connection
 	hostHandler           RegisteredHostHandler
 	hostSelectionStrategy HostSelectionStrategy
+	mu                    *sync.Mutex
+	exclude               map[string]excludeHost
+}
+
+type excludeHost struct {
+	hostID  string
+	timeout time.Time
 }
 
 // NewZKAssignmentHandler returns a new ZKAssignmentHandler with the provided
@@ -59,6 +70,9 @@ func NewZKAssignmentHandler(strategy HostSelectionStrategy,
 		hostSelectionStrategy: strategy,
 		hostHandler:           handler,
 		connection:            connection,
+		exclude:               make(map[string]excludeHost),
+		mu:                    &sync.Mutex{},
+		Timeout:               time.Second * 10,
 	}
 }
 
@@ -123,14 +137,39 @@ func (h *ZKAssignmentHandler) getAssignedHostID(poolID, ipAddress string) (strin
 }
 
 func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	hosts, err := h.hostHandler.GetRegisteredHosts(cancel)
 	if err != nil {
 		return err
 	}
 
+	// Filter out any excluded hosts from the registered hosts list.  For example,
+	// if a host failed to bind to the IP.
+	if excludeHost, ok := h.exclude[ipAddress]; ok {
+		if excludeHost.timeout.After(time.Now()) {
+			includeHosts := []host.Host{}
+			for _, host := range hosts {
+				if host.ID != excludeHost.hostID {
+					includeHosts = append(includeHosts, host)
+				}
+			}
+			hosts = includeHosts
+		} else {
+			delete(h.exclude, ipAddress)
+		}
+	}
+
 	host, err := h.hostSelectionStrategy.Select(hosts)
 	if err != nil {
 		return err
+	}
+
+	// Add to exclude list so we don't try to assign that ip to the same host for ten seconds
+	h.exclude[ipAddress] = excludeHost{
+		hostID:  host.ID,
+		timeout: time.Now().Add(h.Timeout),
 	}
 
 	plog.WithFields(log.Fields{
