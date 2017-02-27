@@ -1301,7 +1301,7 @@ func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, 
 		if _, ok := alreadyChecked[svc.ID]; !ok {
 			alreadyChecked[svc.ID] = struct{}{}
 			_, explicit := isRequested[svc.ID]
-			if svc.Launch == commons.MANUAL && !emergency && !explicit {
+			if svc.Launch == commons.MANUAL && !emergency && !explicit && svc.CurrentState == string(service.SVCCSStopped) {
 				return nil
 			}
 			// Are we skipping this pool?
