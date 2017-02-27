@@ -128,6 +128,19 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 				logger.WithError(err).Debug("Could not get host assignment of virtual ip")
 				return "", err
 			}
+
+			request := zkservice.IPRequest{
+				IPAddress: assignment.IPAddr,
+				HostID:    hostID,
+				PoolID:    l.poolID,
+			}
+
+			ip, err := zkservice.GetIP(l.conn, request)
+			if err != nil {
+				return "", errors.New("could not check if virtual ip is bound")
+			} else if !ip.OK {
+				return "", errors.New("assigned ip is not bound")
+			}
 		}
 
 		// is the host available?
