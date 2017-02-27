@@ -194,7 +194,7 @@ type FacadeInterface interface {
 
 	UpdateServiceCache(ctx datastore.Context) error
 
-	CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error)
+	CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[string]int, error)
 
 	ReloadLogstashConfig(ctx datastore.Context) error
 

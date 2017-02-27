@@ -203,15 +203,15 @@ func (_m *FacadeInterface) ClearEmergencyStopFlag(ctx datastore.Context, service
 }
 
 // CountDescendantStates provides a mock function with given fields: ctx, serviceID
-func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error) {
+func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[string]int, error) {
 	ret := _m.Called(ctx, serviceID)
 
-	var r0 map[string]map[int]int
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) map[string]map[int]int); ok {
+	var r0 map[string]map[string]int
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) map[string]map[string]int); ok {
 		r0 = rf(ctx, serviceID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]map[int]int)
+			r0 = ret.Get(0).(map[string]map[string]int)
 		}
 	}
 

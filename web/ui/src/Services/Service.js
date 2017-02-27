@@ -473,6 +473,9 @@
     }
 
     // class methods
+
+    // Returns counts for affected descendants if they click on the
+    // 'start all', 'stop all', 'restart all' buttons.
     Service.countAffectedDescendants = function(service, state){
         let deferred = $q.defer();
         resourcesFactory.v2.getDescendantCounts(service.id)
@@ -480,22 +483,27 @@
                 var count = 0;
                 switch (state) {
                     case "start":
-                        // When starting, we only care about autostart
-                        // services that are currently stopped
-                        if (data.auto) {
-                            count += data.auto["0"] || 0;
+                        // Start only affects these states, with the "auto" start method.
+                        var affected = ["unknown", "stopped", "pending_start", "pending_restart", "restarting",
+                            "pending_stop", "stopping", "pending_pause", "pausing", "paused"];
+                        for (var i = 0, len = affected.length; i < len; i++) {
+                            count += data["auto"][affected[i]] || 0;
                         }
                         break;
                     case "restart":
-                    case "stop":
-                        // When stopping or restarting, we care about
-                        // running services that are either manual or
-                        // autostart
-                        if (data.auto) {
-                            count += data.auto["1"] || 0;
+                        // Restart will restart services with any of these states, both manual and auto started.
+                        var affected = ["unknown", "stopped", "pending_start", "starting", "started",
+                            "pending_restart", "pending_stop", "stopping", "pending_pause", "pausing", "paused"];
+                        for (var i = 0, len = affected.length; i < len; i++) {
+                            count += (data["auto"][affected[i]] || 0) + (data["manual"][affected[i]] || 0);
                         }
-                        if (data.manual) {
-                            count += data.manual["1"] || 0;
+                        break;
+                    case "stop":
+                        // Stop will stop all services with any of these states, both manual and auto started.
+                        var affected = ["unknown", "pending_start", "starting", "started", "pending_restart",
+                            "restarting", "pending_stop", "pending_pause", "pausing", "paused"];
+                        for (var i = 0, len = affected.length; i < len; i++) {
+                            count += (data["auto"][affected[i]] || 0) + (data["manual"][affected[i]] || 0);
                         }
                         break;
                 }
@@ -506,7 +514,6 @@
             });
         return deferred.promise;
     };
-
 
     ServiceFactory.$inject = ['$notification', '$serviceHealth', '$q', 'resourcesFactory', 'miscUtils', 'Instance'];
     function ServiceFactory(_$notification, _serviceHealth, _$q, _resourcesFactory, _utils, _Instance) {
