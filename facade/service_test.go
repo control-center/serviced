@@ -2356,7 +2356,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 		ImageID:        "test/pinger",
 		PoolID:         "default",
 		DeploymentID:   "deployment_id",
-		DesiredState:   int(service.SVCRun),
+		DesiredState:   int(service.SVCStop),
 		Launch:         "auto",
 		Endpoints:      []service.ServiceEndpoint{},
 		CreatedAt:      time.Now(),
@@ -2435,7 +2435,8 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	c.Assert(err, IsNil)
 
 	// Make sure services returned to their original state
-	ft.Facade.WaitService(ft.CTX, service.SVCRun, 5*time.Second, false, "ParentServiceID")
+	err = ft.Facade.WaitService(ft.CTX, service.SVCRun, 5*time.Second, false, "ParentServiceID")
+	c.Assert(err, IsNil)
 	services, err := ft.Facade.GetServices(ft.CTX, dao.ServiceRequest{})
 	c.Assert(err, IsNil)
 	for _, s := range services {

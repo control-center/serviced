@@ -591,10 +591,12 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	images := make([]string, 0)
 	serviceids := make([]string, len(svcs))
 	servicesToPause := []*service.Service{}
+	var pausedServiceIds []string
 	for i, _ := range svcs {
 		svc := &svcs[i]
 		if svc.DesiredState == int(service.SVCRun) {
 			servicesToPause = append(servicesToPause, svc)
+			pausedServiceIds = append(pausedServiceIds, svc.ID)
 		}
 		serviceids[i] = svc.ID
 		if svc.ImageID != "" {
@@ -610,7 +612,11 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 		return "", err
 	}
 
-	defer scheduleServices(f, servicesToPause, ctx, tenantID, service.SVCRun, false)
+	defer func() {
+		// Refresh service objects in case something has changed (like current state)
+		servicesToPause = f.GetServicesForScheduling(ctx, pausedServiceIds)
+		scheduleServices(f, servicesToPause, ctx, tenantID, service.SVCRun, false)
+	}()
 
 	// Wait for the paused services to reach the paused state (and other services to reach stopped)
 	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), false, serviceids...); err != nil {

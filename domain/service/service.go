@@ -174,6 +174,26 @@ func DesiredCancelsPending(pendingState ServiceCurrentState, desiredState Desire
 	return false
 }
 
+// Determines whether setting the desired state would be unnecessary
+func DesiredStateIsRedundant(desiredState DesiredState, emergency bool, currentState ServiceCurrentState) bool {
+	switch desiredState {
+	case SVCRun:
+		return currentState == SVCCSRunning || currentState == SVCCSStarting || currentState == SVCCSPendingStart
+	case SVCRestart:
+		return currentState == SVCCSRestarting || currentState == SVCCSPendingRestart
+	case SVCStop:
+		if emergency {
+			return currentState == SVCCSEmergencyStopped || currentState == SVCCSEmergencyStopping || currentState == SVCCSPendingEmergencyStop
+		} else {
+			return currentState == SVCCSStopped || currentState == SVCCSStopping || currentState == SVCCSPendingStop
+		}
+	case SVCPause:
+		return currentState == SVCCSPaused || currentState == SVCCSPausing || currentState == SVCCSPendingPause
+	}
+
+	return false
+}
+
 // Service A Service that can run in serviced.
 type Service struct {
 	ID                string
