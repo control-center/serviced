@@ -26,9 +26,8 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/rpc/agent"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
@@ -488,6 +487,7 @@ type addHostRequest struct {
 	IPAddr   string
 	PoolID   string
 	RAMLimit string
+	NatAddr  string
 }
 
 type addHostResponse struct {
@@ -528,8 +528,7 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	// TODO: Add UI elements to capture NAT information
-	var nat utils.URL
+	var nat utils.URL := payload.NatAddr
 
 	agentClient, err := agent.NewClient(payload.IPAddr)
 	if err != nil {

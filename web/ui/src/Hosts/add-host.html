@@ -1,4 +1,17 @@
 <span id="formWait" ng-if="newHost">
+
+    <label for="host_access_type"><span translate>access</span>:</label><br>
+    <div class="btn-group">
+        <label class="btn btn-primary"  ng-class="{active: newHost.addType === 'direct'}">
+            <input type="radio" name="host_access_type" value="direct" ng-model="newHost.addType">
+            <span translate>directly</span>
+        </label>
+        <label class="btn btn-primary"  ng-class="{active: newHost.addType === 'via_nat'}">
+            <input type="radio" name="host_access_type" value="via_nat" ng-model="newHost.addType">
+            <span translate>via_nat</span>
+        </label>
+    </div><br><br>
+
     <div class="form-group">
         <label for="new_host_name"><span translate>label_host</span>:</label>
         <input class="form-control" focusme name="new_host_name" id="new_host_name" type="text"
@@ -10,6 +23,19 @@
         <input class="form-control" name="new_host_port" id="new_host_port" type="text"
              placeholder="{{'placeholder_port'|translate}}" ng-model="newHost.port"
              ng-pattern="/^[0-9]+$/" />
+    </div>
+
+    <div class="form-group" ng-show="newHost.addType === 'via_nat'">
+        <label for="new_host_nat_ip"><span translate>label_nat_ip_addr</span>:</label>
+        <input class="form-control" focusme name="new_host_nat_ip" id="new_host_nat_ip" type="text"
+                placeholder="{{'placeholder_ip'|translate}}" ng-model="newHost.natIp" />
+    </div>
+
+    <div class="form-group" ng-show="newHost.addType === 'via_nat'">
+        <label for="new_host_nat_port"><span translate>label_nat_port</span>:</label>
+        <input class="form-control" name="new_host_nat_port" id="new_host_nat_port" type="text"
+                placeholder="{{'placeholder_port'|translate}}" ng-model="newHost.natPort"
+                ng-pattern="/^[0-9]+$/" />
     </div>
 
     <div class="form-group">

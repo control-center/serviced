@@ -131,8 +131,9 @@
             modalScope.poolIds = this.pools.map(p => p.id);
 
             modalScope.newHost = {
+                addType: "direct",
                 port: $translate.instant('placeholder_port'),
-                PoolID: modalScope.poolIds[0] || "",
+                PoolID: modalScope.poolIds[0] || ""
             };
 
             areUIReady.lock();
@@ -156,6 +157,7 @@
                                 }
 
                                 modalScope.newHost.IPAddr = modalScope.newHost.host + ':' + modalScope.newHost.port;
+                                modalScope.newHost.NatAddr = modalScope.newHost.natIp + ':' + modalScope.newHost.natPort;
 
                                 resourcesFactory.addHost(modalScope.newHost)
                                     .success(function(data, status){
@@ -176,6 +178,11 @@
                     var err = utils.validateHostName(modalScope.newHost.host, $translate) ||
                         utils.validatePortNumber(modalScope.newHost.port, $translate) ||
                         utils.validateRAMLimit(modalScope.newHost.RAMLimit);
+                    if (modalScope.newHost.addType === 'via_nat') {
+                        err = err || 
+                        ! utils.isIpAddress(modalScope.newHost.natIp) ||
+                        utils.validatePortNumber(modalScope.newHost.natPort, $translate);
+                    }
                     if(err){
                         this.createNotification("Error", err).error();
                         return false;
