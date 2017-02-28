@@ -19,7 +19,6 @@ import (
 
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/volume"
 	"github.com/dustin/go-humanize"
 	"errors"
 )
@@ -28,13 +27,10 @@ import (
 type BackupDetails struct {
 	Available uint64
 	EstimatedBytes uint64
-	Estimated dao.BackupActual
+	Estimated dao.BackupEstimate
 	Path string
 	Excludes []string
-	EstCompr float64
-	MinOverhead string
 	Warn bool
-	Deny bool
 	Message string
 }
 
@@ -88,45 +84,27 @@ func (a *api) GetBackupSpace(dirpath string, excludes []string) (*BackupDetails,
 		Dirpath:              dirpath,
 		SnapshotSpacePercent: config.GetOptions().SnapshotSpacePercent,
 		Excludes:             excludes,
+		Force:                false,
 	}
-	fmt.Printf("Made BackupRequest: %v\n", req)
-	ec := config.GetOptions().BackupEstimatedCompression
-	fmt.Printf("got ec: %f\n", ec)
-	mo := config.GetOptions().BackupMinOverhead
-	fmt.Printf("got mo: %s\n", mo)
-	minOverheadBytes, err := humanize.ParseBytes(mo)
-	if err != nil {
-		fmt.Printf("Error humanizing mo: %v\n", err)
-		return nil, errors.New(fmt.Sprintf("error calling ParseBytes(%s): %v", mo, err))
-		//return nil, err
-	}
-	est := dao.BackupActual{}
+	est := dao.BackupEstimate{}
 	if err := client.GetBackupEstimate(req, &est); err != nil {
 		return nil, errors.New(fmt.Sprintf("error calling GetBackupestimate(): %v", err))
-		//return nil, err
 	}
-	avail := volume.FilesystemBytesAvailable(dirpath)
-	estBytes := uint64(float64(est.TotalBytesRequired) / ec)
-	warn := (avail - estBytes) < minOverheadBytes
-	deny := avail < estBytes
+
+	warn := est.TotalBytesRequired > est.FilesystemSpaceAvailable
 	message := ""
-	if deny {
-		message = fmt.Sprintf("Cannot take backup. Available space on %s is %s, and backup is estimated to take %s", dirpath, humanize.Bytes(avail), humanize.Bytes(estBytes))
-	} else if warn {
-		message = fmt.Sprintf("Backup not recommended. Available space on %s is %s, and backup is estimated to take %s, which would leave less than %s.", dirpath, humanize.Bytes(avail), humanize.Bytes(estBytes), humanize.Bytes(minOverheadBytes))
+	if warn {
+		message = fmt.Sprintf("Backup not recommended. Available space on %s is %s, and backup is estimated to take %s.", dirpath, humanize.Bytes(est.FilesystemSpaceAvailable), humanize.Bytes(est.TotalBytesRequired))
 	} else {
-		message = fmt.Sprintf("There should be sufficient room for a backup. Free space on %s is %s, and the backup is estimated to take %s, which will leave %s", dirpath, humanize.Bytes(avail), humanize.Bytes(estBytes), humanize.Bytes(avail - estBytes))
+		message = fmt.Sprintf("There should be sufficient room for a backup. Free space on %s is %s, and the backup is estimated to take %s, which will leave %s", dirpath, humanize.Bytes(est.FilesystemSpaceAvailable), humanize.Bytes(est.TotalBytesRequired), humanize.Bytes(est.FilesystemSpaceAvailable - est.TotalBytesRequired))
 	}
 	deets := BackupDetails{
-		Available: avail,
-		EstimatedBytes: estBytes,
+		Available: est.FilesystemSpaceAvailable,
+		EstimatedBytes: est.TotalBytesRequired,
 		Estimated: est,
 		Path: dirpath,
 		Excludes: excludes,
-		EstCompr: ec,
-		MinOverhead: mo,
 		Warn: warn,
-		Deny: deny,
 		Message: message,
 	}
 
