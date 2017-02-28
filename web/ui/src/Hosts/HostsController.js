@@ -131,7 +131,7 @@
             modalScope.poolIds = this.pools.map(p => p.id);
 
             modalScope.newHost = {
-                addType: "direct",
+                AddType: "direct",
                 port: $translate.instant('placeholder_port'),
                 PoolID: modalScope.poolIds[0] || ""
             };
@@ -157,10 +157,10 @@
                                 }
 
                                 modalScope.newHost.IPAddr = modalScope.newHost.host + ':' + modalScope.newHost.port;
-                                if (modalScope.newHost.addType === 'via_nat') {
-                                    modalScope.newHost.NatAddr = modalScope.newHost.natIp + ':' + modalScope.newHost.natPort;
+                                if (modalScope.newHost.AddType === 'via_nat') {
+                                    modalScope.newHost.NatAddr = modalScope.newHost.natHost + ':' + modalScope.newHost.natPort;
                                 } else {
-                                    modalScope.newHost.natIp = "";
+                                    modalScope.newHost.natHost = "";
                                     modalScope.newHost.natPort = "";
                                     modalScope.newHost.NatAddr = ":0";
                                 }
@@ -184,9 +184,9 @@
                     var err = utils.validateHostName(modalScope.newHost.host, $translate) ||
                         utils.validatePortNumber(modalScope.newHost.port, $translate) ||
                         utils.validateRAMLimit(modalScope.newHost.RAMLimit);
-                    if (modalScope.newHost.addType === 'via_nat') {
+                    if (modalScope.newHost.AddType === 'via_nat') {
                         err = err || 
-                        ! utils.isIpAddress(modalScope.newHost.natIp) ||
+                        utils.validateHostName(modalScope.newHost.natHost, $translate) ||
                         utils.validatePortNumber(modalScope.newHost.natPort, $translate);
                     }
                     if(err){

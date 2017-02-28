@@ -489,6 +489,7 @@ type addHostRequest struct {
 	PoolID   string
 	RAMLimit string
 	NatAddr  string
+	AddType  string
 }
 
 type addHostResponse struct {
@@ -529,8 +530,35 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	var nat utils.URL
-	nat.Set(payload.NatAddr)
+	natIpAddr := payload.NatAddr
+	var natHostIP string
+	var natHostPort int
+	if payload.AddType == "via_nat" {
+		natParts := strings.Split(natIpAddr, ":")
+		natHostIPAddr, err := net.ResolveIPAddr("ip", natParts[0])
+		if err != nil {
+			glog.Errorf("NAT host %s could not be resolved", natParts[0])
+			restBadRequest(w, err)
+			return
+		}
+		natHostIP = natHostIPAddr.IP.String()
+		if len(natParts) < 2 {
+			glog.Errorf("NAT port needs to be specified")
+			restBadRequest(w, err)
+			return
+		}
+		natHostPort, err = strconv.Atoi(natParts[1])
+		if err != nil {
+			glog.Errorf("could not convert NAT port %s to int", natParts[1])
+			restBadRequest(w, err)
+			return
+		}
+	}
+
+	nat := utils.URL {
+		Host: natHostIP,
+		Port: natHostPort,
+	}
 
 	agentClient, err := agent.NewClient(payload.IPAddr)
 	if err != nil {
