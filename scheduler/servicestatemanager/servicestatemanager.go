@@ -43,6 +43,7 @@ var (
 	ErrWaitTimeout = errors.New("Timeout waiting for services")
 )
 
+// ServiceStateManager provides a way to organize and manage services before scheduling them
 type ServiceStateManager interface {
 	// ScheduleServices schedules a set of services to change their desired state
 	ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error
@@ -54,6 +55,8 @@ type ServiceStateManager interface {
 	WaitScheduled(tenantID string, serviceIDs ...string)
 	// Wait blocks until all processing for the current tenant has completed
 	Wait(tenantID string)
+	// SyncCurrentStates will try to determine the current state of services and update the service store
+	SyncCurrentStates(svcIDs []string)
 }
 
 // ServiceStateChangeBatch represents a batch of services with the same
@@ -110,7 +113,8 @@ type ServiceStateQueue struct {
 	Facade       Facade
 }
 
-// BatchServiceStateManager intelligently schedules batches of services to start/stop/restart with the facade
+// BatchServiceStateManager schedules batches of services to start/stop/restart according to
+//  StartLevel
 type BatchServiceStateManager struct {
 	sync.RWMutex
 	Facade                 Facade
@@ -118,6 +122,15 @@ type BatchServiceStateManager struct {
 	ServiceRunLevelTimeout time.Duration
 	TenantQueues           map[string]map[service.DesiredState]*ServiceStateQueue
 	TenantShutDowns        map[string]chan<- int
+
+	currentStateLock  sync.Mutex
+	currentStateWaits map[string]CurrentStateWait
+}
+
+type CurrentStateWait struct {
+	Cancel       chan<- interface{}
+	WaitingState service.DesiredState
+	Done         <-chan struct{}
 }
 
 func NewCancellableService(svc *service.Service) CancellableService {
@@ -174,7 +187,7 @@ func (b ServiceStateChangeBatch) String() string {
 }`, svcStr, b.DesiredState, b.Emergency)
 }
 
-// NewServiceStateManager creates a new, initialized ServiceStateManager
+// NewBatchServiceStateManager creates a new, initialized ServiceStateManager
 func NewBatchServiceStateManager(facade Facade, ctx datastore.Context, runLevelTimeout time.Duration) *BatchServiceStateManager {
 	return &BatchServiceStateManager{
 		RWMutex: sync.RWMutex{},
@@ -183,6 +196,7 @@ func NewBatchServiceStateManager(facade Facade, ctx datastore.Context, runLevelT
 		ServiceRunLevelTimeout: runLevelTimeout,
 		TenantQueues:           make(map[string]map[service.DesiredState]*ServiceStateQueue),
 		TenantShutDowns:        make(map[string]chan<- int),
+		currentStateWaits:      make(map[string]CurrentStateWait),
 	}
 }
 
@@ -192,6 +206,13 @@ func (s *BatchServiceStateManager) Shutdown() {
 	defer s.Unlock()
 	for tenantID, _ := range s.TenantShutDowns {
 		s.removeTenant(tenantID)
+	}
+
+	s.currentStateLock.Lock()
+	defer s.currentStateLock.Unlock()
+	for _, thread := range s.currentStateWaits {
+		close(thread.Cancel)
+		<-thread.Done
 	}
 }
 
@@ -269,6 +290,113 @@ func (s *BatchServiceStateManager) removeTenant(tenantID string) error {
 	return nil
 }
 
+func (s *BatchServiceStateManager) SyncCurrentStates(svcIDs []string) {
+	states := make(map[string]service.ServiceCurrentState)
+	s.RLock()
+	defer s.RUnlock()
+	// Get states for everything in our queues
+	for _, tenantQueues := range s.TenantQueues {
+		for _, queue := range tenantQueues {
+			func() {
+				queue.RLock()
+				defer queue.RUnlock()
+
+				// Pending states for services in the queue
+				for _, batch := range queue.BatchQueue {
+					pendingState := service.DesiredToCurrentPendingState(batch.DesiredState, batch.Emergency)
+					for _, svc := range batch.Services {
+						states[svc.ID] = pendingState
+					}
+				}
+
+				// Transition states for services in the current batch
+				transitionState := service.DesiredToCurrentTransitionState(queue.CurrentBatch.DesiredState, queue.CurrentBatch.Emergency)
+				for _, svc := range queue.CurrentBatch.Services {
+					states[svc.ID] = transitionState
+				}
+			}()
+		}
+	}
+
+	// Update the states we know and build a list of missing states
+	s.currentStateLock.Lock()
+	defer s.currentStateLock.Unlock()
+
+	var missingStates []string
+	for _, sid := range svcIDs {
+		if state, ok := states[sid]; ok {
+			s.updateServiceCurrentState(state, sid)
+		} else {
+			missingStates = append(missingStates, sid)
+		}
+	}
+
+	// Now figure out the ones that aren't in the queues
+	// Get updated service info
+	svcs := s.Facade.GetServicesForScheduling(s.ctx, missingStates)
+	for _, svc := range svcs {
+		s.startCurrentStateWait(svc, service.DesiredState(svc.DesiredState), svc.EmergencyShutdown)
+	}
+}
+
+// Lock s.currentStateLock before calling this
+func (s *BatchServiceStateManager) startCurrentStateWait(svc *service.Service, desiredState service.DesiredState, emergency bool) {
+	if thread, ok := s.currentStateWaits[svc.ID]; ok {
+		if thread.WaitingState == desiredState {
+			// We are already waiting on it, do nothing
+			return
+		} else {
+			// Cancel this wait and start a new one
+			close(thread.Cancel)
+			<-thread.Done
+			delete(s.currentStateWaits, svc.ID)
+		}
+	}
+
+	finalState := service.DesiredToCurrentFinalState(desiredState, emergency)
+	currentState := service.DesiredToCurrentTransitionState(desiredState, emergency)
+
+	// Set current state to the transition state
+	s.updateServiceCurrentState(currentState, svc.ID)
+
+	// Spawn a thread that will update the state to the final state when it reaches it
+	cancel := make(chan interface{})
+	done := make(chan struct{})
+	thread := CurrentStateWait{
+		Cancel:       cancel,
+		Done:         done,
+		WaitingState: desiredState,
+	}
+	s.currentStateWaits[svc.ID] = thread
+	go func() {
+		defer close(done)
+		s.Facade.WaitSingleService(svc, desiredState, cancel)
+
+		// If we were cancelled, bail
+		select {
+		case <-cancel:
+			return
+		default:
+		}
+
+		s.Facade.SetServicesCurrentState(s.ctx, finalState, svc.ID)
+	}()
+}
+
+// Lock s.currentStateLock before calling this
+func (s *BatchServiceStateManager) updateServiceCurrentState(state service.ServiceCurrentState, serviceIDs ...string) {
+	// Cancel any existing waits
+	for _, sid := range serviceIDs {
+		if thread, ok := s.currentStateWaits[sid]; ok {
+			close(thread.Cancel)
+			<-thread.Done
+			delete(s.currentStateWaits, sid)
+		}
+	}
+	s.Facade.SetServicesCurrentState(s.ctx, state, serviceIDs...)
+
+}
+
 // ScheduleServices merges and reconciles a slice of services with the
 // ServiceStateChangeBatches in the ServiceStateManager's queue
 func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error {
@@ -318,10 +446,12 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	}
 	var expeditedBatch ServiceStateChangeBatch
 	expeditedServices := make(map[string]CancellableService)
-
+	var cancelledIDs []string
 	for _, queue := range queues {
 		// reconcile the new batch against all batches in q
-		newBatch, expeditedBatch = queue.reconcileWithBatchQueue(newBatch)
+		var cancelled []string
+		newBatch, expeditedBatch, cancelled = queue.reconcileWithBatchQueue(newBatch)
+		cancelledIDs = append(cancelledIDs, cancelled...)
 		for id, svc := range expeditedBatch.Services {
 			expeditedServices[id] = svc
 		}
@@ -335,16 +465,32 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 		newBatch = queue.reconcileWithPendingBatch(newBatch)
 	}
 
+	// Now check for services that are already in the desired state
+	var cancelled []string
+	newBatch, cancelled = s.reconcileWithCurrentState(newBatch)
+	cancelledIDs = append(cancelledIDs, cancelled...)
+
+	if len(cancelledIDs) > 0 {
+		// Spawn a goroutine to update the current state of all cancelled services
+		defer func() {
+			logger.WithField("services", cancelledIDs).Debug("Cancelling and re-syncing services")
+			go s.SyncCurrentStates(cancelledIDs)
+		}()
+	}
+
 	expeditedBatch.Services = expeditedServices
 
 	if len(expeditedBatch.Services) > 0 {
 		// process the expedited batch now
 		go func() {
 			s.updateBatch(&expeditedBatch)
-			s.processBatch(tenantID, expeditedBatch)
+			failed := s.processBatch(tenantID, expeditedBatch)
 			// Cancel these services to notify waiters that they have been scheduled
 			for _, svc := range expeditedBatch.Services {
 				svc.Cancel()
+			}
+			if len(failed) > 0 {
+				s.SyncCurrentStates(failed)
 			}
 		}()
 	}
@@ -373,6 +519,16 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 		err = queue.mergeBatch(newBatch)
 	}
 
+	// Set pending desired state
+	currentState := service.DesiredToCurrentPendingState(newBatch.DesiredState, newBatch.Emergency)
+	var sids []string
+	for sid := range newBatch.Services {
+		sids = append(sids, sid)
+	}
+	s.currentStateLock.Lock()
+	s.updateServiceCurrentState(currentState, sids...)
+	s.currentStateLock.Unlock()
+
 	// Signal update or exit
 	select {
 	case queue.Changed <- true:
@@ -382,8 +538,29 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	return err
 }
 
-func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch) (ServiceStateChangeBatch, ServiceStateChangeBatch) {
+// reconcileWithCurrentState will compare the desired state to the services' current states and return a new batch
+//  with unnecessary services removed.  It also returns a list of IDs of the services it omitted
+func (s *BatchServiceStateManager) reconcileWithCurrentState(new ServiceStateChangeBatch) (ServiceStateChangeBatch, []string) {
+	newSvcs := make(map[string]CancellableService)
+	var cancelledIDs []string
+	for id, newSvc := range new.Services {
+		if service.DesiredStateIsRedundant(new.DesiredState, new.Emergency, service.ServiceCurrentState(newSvc.CurrentState)) {
+			newSvc.Cancel()
+			cancelledIDs = append(cancelledIDs, id)
+		} else {
+			newSvcs[id] = newSvc
+		}
+	}
+	return ServiceStateChangeBatch{
+		Services:     newSvcs,
+		DesiredState: new.DesiredState,
+		Emergency:    new.Emergency,
+	}, cancelledIDs
+}
+
+func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch) (ServiceStateChangeBatch, ServiceStateChangeBatch, []string) {
 	var newBatchQueue []ServiceStateChangeBatch
+	var cancelledIDs []string
 	expeditedBatch := ServiceStateChangeBatch{
 		Services:     make(map[string]CancellableService),
 		DesiredState: new.DesiredState,
@@ -392,7 +569,9 @@ func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch)
 	updated := new
 	for _, batch := range s.BatchQueue {
 		var expedited map[string]CancellableService
-		updated, expedited = batch.reconcile(updated)
+		var cancelled []string
+		updated, expedited, cancelled = batch.reconcile(updated)
+		cancelledIDs = append(cancelledIDs, cancelled...)
 		if len(batch.Services) > 0 {
 			newBatchQueue = append(newBatchQueue, batch)
 		}
@@ -407,11 +586,11 @@ func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch)
 		"newdesiredState": new.DesiredState,
 		"newemergency":    new.Emergency,
 	}).Debug("finished reconcile with batch queue")
-	return updated, expeditedBatch
+	return updated, expeditedBatch, cancelledIDs
 }
 
-func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ServiceStateChangeBatch, map[string]CancellableService) {
-	expedited := make(map[string]CancellableService)
+func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (batch ServiceStateChangeBatch, expedited map[string]CancellableService, cancelled []string) {
+	expedited = make(map[string]CancellableService)
 	newSvcs := make(map[string]CancellableService)
 	for id, newSvc := range newBatch.Services {
 		if oldsvc, ok := b.Services[id]; ok {
@@ -439,7 +618,18 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (Se
 				// so we can take this service out of old batch
 				delete(b.Services, id)
 				oldsvc.Cancel()
-				newSvcs[id] = newSvc
+
+				// Is this a "cancel"?
+				if service.DesiredCancelsPending(service.DesiredToCurrentPendingState(b.DesiredState, b.Emergency), newBatch.DesiredState) {
+					plog.WithFields(logrus.Fields{
+						"service":  newSvc.ID,
+						"oldstate": b.DesiredState,
+						"newstate": newBatch.DesiredState,
+					}).Debug("Cancelling pending service")
+					cancelled = append(cancelled, newSvc.ID)
+				} else {
+					newSvcs[id] = newSvc
+				}
 			} else {
 				// this service exists in b with the same desired state,
 				// so expedite it
@@ -459,13 +649,16 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (Se
 		"existingemergency":    b.Emergency,
 		"newdesiredstate":      newBatch.DesiredState,
 		"newemergency":         newBatch.Emergency,
+		"newservices":          len(newSvcs),
 	}).Debug("finished reconcile")
 
-	return ServiceStateChangeBatch{
+	batch = ServiceStateChangeBatch{
 		Services:     newSvcs,
 		DesiredState: newBatch.DesiredState,
 		Emergency:    newBatch.Emergency,
-	}, expedited
+	}
+
+	return
 }
 
 func (s *ServiceStateQueue) reconcileWithPendingBatch(newBatch ServiceStateChangeBatch) ServiceStateChangeBatch {
@@ -517,7 +710,8 @@ func (s *ServiceStateQueue) reconcileWithPendingBatch(newBatch ServiceStateChang
 		"existingemergency":    s.CurrentBatch.Emergency,
 		"newdesiredstate":      newBatch.DesiredState,
 		"newemergency":         newBatch.Emergency,
-	}).Debug("finished reconcile")
+		"newservices":          len(reconciledBatch.Services),
+	}).Debug("finished reconcile with pending batch")
 
 	return reconciledBatch
 }
@@ -696,16 +890,19 @@ func (s *BatchServiceStateManager) Wait(tenantID string) {
 func (s *BatchServiceStateManager) WaitScheduled(tenantID string, serviceIDs ...string) {
 	s.RLock()
 	var wg sync.WaitGroup
-	count := 0
 	for _, sid := range serviceIDs {
 		// find the service in the queues
 		if svc, ok := s.findService(tenantID, sid); ok {
 			wg.Add(1)
-			count++
-			go func(s CancellableService) {
-				<-s.C
+			go func(cs CancellableService) {
+				<-cs.C
 				wg.Done()
 			}(svc)
+		} else {
+			plog.WithFields(logrus.Fields{
+				"tenantid":  tenantID,
+				"serviceid": sid,
+			}).Debug("Not waiting for service, could not find it")
 		}
 	}
 	s.RUnlock()
@@ -723,6 +920,9 @@ func (s *BatchServiceStateManager) findService(tenantID, serviceID string) (Canc
 				if svc, ok := batch.Services[serviceID]; ok {
 					return svc, true
 				}
+			}
+			if svc, ok := queue.CurrentBatch.Services[serviceID]; ok {
+				return svc, true
 			}
 			return CancellableService{}, false
 		}()
@@ -757,13 +957,21 @@ func (s *BatchServiceStateManager) queueLoop(tenantID, queueName string, queue *
 	})
 	logger.Info("Started loop for queue")
 	defer logger.Info("queue loop exited")
+	var badsids []string
 	for {
 		select {
 		case <-cancel:
 			return
 		default:
 		}
+
 		batch, err := queue.getNextBatch()
+
+		// We re-sync the failed services from the previous run after getNextBatch has updated the queue
+		if len(badsids) > 0 {
+			s.SyncCurrentStates(badsids)
+		}
+
 		if err == nil {
 			batchlogger := logger.WithFields(logrus.Fields{
 				"emergency":    batch.Emergency,
@@ -774,10 +982,10 @@ func (s *BatchServiceStateManager) queueLoop(tenantID, queueName string, queue *
 			batchlogger.Debug("Got Batch")
 
 			s.updateBatch(&batch)
-			sids := s.processBatch(tenantID, batch)
+			badsids = s.processBatch(tenantID, batch)
 
 			// Cancel the services that didn't get scheduled, so we don't wait on them
-			for _, sid := range sids {
+			for _, sid := range badsids {
 				batch.Services[sid].Cancel()
 			}
 
@@ -844,20 +1052,30 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 			"desiredstate": batch.DesiredState,
 		})
 	// Schedule services for this batch
-	var services []*service.Service
+	var services []CancellableService
 	var serviceIDs []string
 	for _, svc := range batch.Services {
-		services = append(services, svc.Service)
-		serviceIDs = append(serviceIDs, svc.ID)
-		if batch.Emergency && batch.DesiredState == service.SVCStop {
-			// Set EmergencyShutdown to true for this service and update the database
-			svc.EmergencyShutdown = true
-			uerr := s.Facade.UpdateService(s.ctx, *svc.Service)
-			if uerr != nil {
-				batchLogger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+		select {
+		case <-svc.C:
+
+		default:
+			services = append(services, svc)
+			serviceIDs = append(serviceIDs, svc.ID)
+			if batch.Emergency && batch.DesiredState == service.SVCStop {
+				// Set EmergencyShutdown to true for this service and update the database
+				svc.EmergencyShutdown = true
+				uerr := s.Facade.UpdateService(s.ctx, *svc.Service)
+				if uerr != nil {
+					batchLogger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+				}
 			}
 		}
 	}
+
+	// Update pending state to transition state (-ing state)
+	s.currentStateLock.Lock()
+	s.updateServiceCurrentState(service.DesiredToCurrentTransitionState(batch.DesiredState, batch.Emergency), serviceIDs...)
+	s.currentStateLock.Unlock()
 
 	failedServiceIDs, serr := s.Facade.ScheduleServiceBatch(s.ctx, services, tenantID, batch.DesiredState)
 	if serr != nil {
@@ -865,6 +1083,23 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 		return serviceIDs
 	}
 
+	// Start a watch to update to final state
+	s.currentStateLock.Lock()
+	for _, svc := range batch.Services {
+		// Check if it was failed
+		failed := false
+		for _, fid := range failedServiceIDs {
+			if fid == svc.ID {
+				failed = true
+				break
+			}
+		}
+
+		if !failed {
+			s.startCurrentStateWait(svc.Service, batch.DesiredState, batch.Emergency)
+		}
+	}
+	s.currentStateLock.Unlock()
 	return failedServiceIDs
 }
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/logging"
 )
 
 var (
@@ -30,6 +31,8 @@ var (
 
 	EMPTY     = "EMPTY"
 	emptyNode = node{cmd: EMPTY}
+
+	plog = logging.PackageLogger()
 )
 
 func init() {

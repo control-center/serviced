@@ -94,6 +94,7 @@ type HostAgent struct {
 	zkSessionTimeout     int
 	delegateKeyFile      string
 	tokenFile            string
+	conntrackFlush       bool
 	serviceCache         *ServiceCache
 }
 
@@ -133,6 +134,7 @@ type AgentOptions struct {
 	ZKSessionTimeout     int
 	DelegateKeyFile      string
 	TokenFile            string
+	ConntrackFlush       bool
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -160,6 +162,7 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.zkSessionTimeout = options.ZKSessionTimeout
 	agent.delegateKeyFile = options.DelegateKeyFile
 	agent.tokenFile = options.TokenFile
+	agent.conntrackFlush = options.ConntrackFlush
 	agent.serviceCache = NewServiceCache(options.Master)
 
 	var err error

@@ -68,6 +68,18 @@ func (_m *Store) UpdateDesiredState(ctx datastore.Context, serviceID string, des
 
 	return r0
 }
+func (_m *Store) UpdateCurrentState(ctx datastore.Context, serviceID string, currentState string) error {
+	ret := _m.Called(ctx, serviceID, currentState)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string) error); ok {
+		r0 = rf(ctx, serviceID, currentState)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *Store) GetServices(ctx datastore.Context) ([]service.Service, error) {
 	ret := _m.Called(ctx)
 

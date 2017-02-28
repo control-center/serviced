@@ -57,6 +57,143 @@ const (
 	SVCPause   = DesiredState(2)
 )
 
+type ServiceCurrentState string
+
+const (
+	SVCCSUnknown              = ServiceCurrentState("unknown")
+	SVCCSStopped              = ServiceCurrentState("stopped")
+	SVCCSPendingStart         = ServiceCurrentState("pending_start")
+	SVCCSStarting             = ServiceCurrentState("starting")
+	SVCCSRunning              = ServiceCurrentState("started")
+	SVCCSPendingRestart       = ServiceCurrentState("pending_restart")
+	SVCCSRestarting           = ServiceCurrentState("restarting")
+	SVCCSPendingStop          = ServiceCurrentState("pending_stop")
+	SVCCSStopping             = ServiceCurrentState("stopping")
+	SVCCSPendingPause         = ServiceCurrentState("pending_pause")
+	SVCCSPausing              = ServiceCurrentState("pausing")
+	SVCCSPaused               = ServiceCurrentState("paused")
+	SVCCSPendingEmergencyStop = ServiceCurrentState("pending_emergency_stop")
+	SVCCSEmergencyStopping    = ServiceCurrentState("emergency_stopping")
+	SVCCSEmergencyStopped     = ServiceCurrentState("emergency_stopped")
+)
+
+func (state ServiceCurrentState) Validate() error {
+	serviceCurrentStates := map[ServiceCurrentState]struct{}{
+		SVCCSUnknown:              struct{}{},
+		SVCCSStopped:              struct{}{},
+		SVCCSPendingStart:         struct{}{},
+		SVCCSStarting:             struct{}{},
+		SVCCSRunning:              struct{}{},
+		SVCCSPendingRestart:       struct{}{},
+		SVCCSRestarting:           struct{}{},
+		SVCCSPendingStop:          struct{}{},
+		SVCCSStopping:             struct{}{},
+		SVCCSPendingPause:         struct{}{},
+		SVCCSPausing:              struct{}{},
+		SVCCSPaused:               struct{}{},
+		SVCCSPendingEmergencyStop: struct{}{},
+		SVCCSEmergencyStopping:    struct{}{},
+		SVCCSEmergencyStopped:     struct{}{},
+	}
+
+	if _, ok := serviceCurrentStates[state]; !ok {
+		return errors.New("invalid current state")
+	}
+
+	return nil
+}
+
+func DesiredToCurrentPendingState(state DesiredState, emergency bool) ServiceCurrentState {
+	switch state {
+	case SVCRestart:
+		return SVCCSPendingRestart
+	case SVCStop:
+		if emergency {
+			return SVCCSPendingEmergencyStop
+		} else {
+			return SVCCSPendingStop
+		}
+	case SVCRun:
+		return SVCCSPendingStart
+	case SVCPause:
+		return SVCCSPendingPause
+	default:
+		return SVCCSUnknown
+	}
+}
+
+func DesiredToCurrentTransitionState(state DesiredState, emergency bool) ServiceCurrentState {
+	switch state {
+	case SVCRestart:
+		return SVCCSRestarting
+	case SVCStop:
+		if emergency {
+			return SVCCSEmergencyStopping
+		} else {
+			return SVCCSStopping
+		}
+	case SVCRun:
+		return SVCCSStarting
+	case SVCPause:
+		return SVCCSPausing
+	default:
+		return SVCCSUnknown
+	}
+}
+
+func DesiredToCurrentFinalState(state DesiredState, emergency bool) ServiceCurrentState {
+	switch state {
+	case SVCRestart:
+		return SVCCSRunning
+	case SVCStop:
+		if emergency {
+			return SVCCSEmergencyStopped
+		} else {
+			return SVCCSStopped
+		}
+	case SVCRun:
+		return SVCCSRunning
+	case SVCPause:
+		return SVCCSPaused
+	default:
+		return SVCCSUnknown
+	}
+}
+
+// Determines whether the desiredState acts as a "cancel" to a pending state.
+func DesiredCancelsPending(pendingState ServiceCurrentState, desiredState DesiredState) bool {
+	switch pendingState {
+	case SVCCSPendingStart:
+		return desiredState == SVCStop
+	case SVCCSPendingRestart:
+		return desiredState == SVCRun
+	case SVCCSPendingStop, SVCCSPendingPause:
+		return desiredState == SVCRun
+	}
+
+	return false
+}
+
+// Determines whether setting the desired state would be unnecessary
+func DesiredStateIsRedundant(desiredState DesiredState, emergency bool, currentState ServiceCurrentState) bool {
+	switch desiredState {
+	case SVCRun:
+		return currentState == SVCCSRunning || currentState == SVCCSStarting || currentState == SVCCSPendingStart
+	case SVCRestart:
+		return currentState == SVCCSRestarting || currentState == SVCCSPendingRestart
+	case SVCStop:
+		if emergency {
+			return currentState == SVCCSEmergencyStopped || currentState == SVCCSEmergencyStopping || currentState == SVCCSPendingEmergencyStop
+		} else {
+			return currentState == SVCCSStopped || currentState == SVCCSStopping || currentState == SVCCSPendingStop
+		}
+	case SVCPause:
+		return currentState == SVCCSPaused || currentState == SVCCSPausing || currentState == SVCCSPendingPause
+	}
+
+	return false
+}
+
 // Service A Service that can run in serviced.
 type Service struct {
 	ID                string
@@ -76,6 +213,7 @@ type Service struct {
 	ImageID           string
 	PoolID            string
 	DesiredState      int
+	CurrentState      string
 	HostPolicy        servicedefinition.HostPolicy
 	Hostname          string
 	Privileged        bool

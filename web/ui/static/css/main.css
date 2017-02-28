@@ -932,6 +932,28 @@ input.startup {
     padding-left: 18px;
 }
 
+.popover .emergencyTooltip {
+    color: #9c1200;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.popover .emergencyTooltip h3 {
+    margin-top: 3px;
+    margin-bottom: 3px;
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.popover .emergencyTooltip a.btn {
+    margin-top: 8px;
+    padding: 5px 15px 8px 8px;
+    border-radius: 6px;
+}
+
+.popover .emergencyTooltip a.btn .glyphicon {
+    padding: 0 3px;
+}
 
 .chartContainer {
   position: relative;
@@ -1280,7 +1302,7 @@ health-icon {
 }
 .unknown>.healthIcon:before{
     color: #94C0DB;
-    content: "\e085";
+    content: "\e063";
 }
 .not_running>.healthIcon:before{
     color: #AAA;
@@ -1289,6 +1311,20 @@ health-icon {
 .emergency_shutdown>.healthIcon:before{
     color: #9C1200;
     content: "\e090";
+}
+
+.appName {
+    position: relative;
+}
+
+.appName .healthIcon {
+    top: 3px;
+    font-size: 0.9em;
+}
+
+.appName>.link.emergency_shutdown {
+    color: #9C1200;
+    margin-left: 20px;
 }
 
 h3 health-icon {
@@ -1304,6 +1340,49 @@ h3 .healthTooltipDetailRow {
 h3 .healthTooltipDetailRow .healthIcon {
     top: -1px;
 }
+
+/* service state styles */
+
+.svcstate {
+    display: inline-block;
+    font-style: italic;
+    line-height: 13px;
+    min-width: 90px;
+    text-transform: capitalize;
+}
+
+    .svcstate.running,
+    .svcstate.started {
+        color: #0084DB;
+        font-weight: bold;
+        font-style: normal;
+    }
+
+    .svcstate.stopped {
+        color: #aaa;
+        font-style: normal;
+    }
+
+    .svcstate.pending_emergency_stop,
+    .svcstate.emergency_stopped {
+        color: #7A0000;
+        font-weight: bold;
+    }
+
+    .svcstate.emergency_stopped {
+        font-style: normal;
+    }
+
+/* service actions */
+
+.svc-actionbar {
+    color: #bbb;
+    display: flex;
+    font-size: 12px;
+}
+    .svc-actionbar > div {
+        flex-basis: 100px;
+    }
 
 /* chart styles */
 .nv-axis .tick text,

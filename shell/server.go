@@ -27,18 +27,23 @@ import (
 	"time"
 
 	"github.com/control-center/go-socket.io"
-	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/logging"
 	worker "github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
+	log "github.com/Sirupsen/logrus"
 )
 
-var empty interface{}
+var (
+	empty interface{}
 
-var ErrShellDisabled = errors.New("shell has been disabled for this service")
+	ErrShellDisabled = errors.New("shell has been disabled for this service")
+
+	plog = logging.PackageLogger()
+)
 
 const (
 	PROCESSKEY      string = "process"
@@ -99,7 +104,7 @@ func (p *ProcessServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *ProcessServer) onProcess(ns *socketio.NameSpace, cfg *ProcessConfig) {
 	// Kick it off
-	glog.Infof("Received process packet")
+	plog.Info("Received process packet")
 	proc := s.actor.Exec(cfg)
 	ns.Session.Values[PROCESSKEY] = proc
 
@@ -109,7 +114,7 @@ func (s *ProcessServer) onProcess(ns *socketio.NameSpace, cfg *ProcessConfig) {
 }
 
 func (s *ProcessServer) onConnect(ns *socketio.NameSpace) {
-	glog.Infof("Waiting for process packet")
+	plog.Info("Waiting for process packet")
 }
 
 func onForwarderDisconnect(ns *socketio.NameSpace) {
@@ -144,16 +149,14 @@ func (p *ProcessInstance) Close() {
 
 func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 	ns.On("signal", func(n *socketio.NameSpace, signal int) {
-		glog.V(4).Infof("received signal %d", signal)
 		if p.disconnected {
-			glog.Warning("disconnected; cannot send signal: %s", signal)
+			plog.WithField("signal", signal).Warning("disconnected; cannot send signal")
 		}
 	})
 
 	ns.On("stdin", func(n *socketio.NameSpace, stdin string) {
-		glog.V(4).Infof("Received stdin: %s", stdin)
 		if p.disconnected {
-			glog.Warning("disconnected; cannot send stdin: %s", stdin)
+			plog.WithField("value", stdin).Warning("disconnected; cannot send string from stdin")
 		} else {
 			for _, b := range []byte(stdin) {
 				p.Stdin <- b
@@ -161,11 +164,11 @@ func (p *ProcessInstance) ReadRequest(ns *socketio.NameSpace) {
 		}
 	})
 
-	glog.V(0).Info("Hooked up incoming events!")
+	plog.Debug("Hooked up incoming events")
 }
 
 func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
-	glog.V(0).Info("Hooking up input channels!")
+	plog.Debug("Hooking up input channels!")
 	for p.Stdin != nil {
 		select {
 		case m, ok := <-p.Stdin:
@@ -180,9 +183,8 @@ func (p *ProcessInstance) WriteRequest(ns *socketio.NameSpace) {
 
 func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 	ns.On("stdout", func(n *socketio.NameSpace, stdout string) {
-		glog.V(4).Infof("Process received stdout: %s", stdout)
 		if p.closed {
-			glog.Warning("connection closed; cannot write stdout: %s", stdout)
+			plog.WithField("value", stdout).Warning("connection closed; cannot send string to stdout")
 		} else {
 			for _, b := range []byte(stdout) {
 				p.Stdout <- b
@@ -191,9 +193,8 @@ func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 	})
 
 	ns.On("stderr", func(n *socketio.NameSpace, stderr string) {
-		glog.V(4).Infof("Process received stderr: %s", stderr)
 		if p.closed {
-			glog.Warning("connection closed; cannot write stderr: %s", stderr)
+			plog.WithField("value", stderr).Warning("connection closed; cannot send string to stderr")
 		} else {
 			for _, b := range []byte(stderr) {
 				p.Stderr <- b
@@ -202,14 +203,14 @@ func (p *ProcessInstance) ReadResponse(ns *socketio.NameSpace) {
 	})
 
 	ns.On("result", func(n *socketio.NameSpace, result Result) {
-		glog.V(0).Infof("Process received result: %s", result)
+		plog.WithField("result", result).Debug("Process received result")
 		p.Result <- result
 	})
-	glog.V(0).Info("Hooked up outgoing events!")
+	plog.Debug("Hooked up outgoing events")
 }
 
 func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
-	glog.V(0).Info("Hooking up output channels!")
+	plog.Debug("Hooking up output channels")
 
 	for p.Stdout != nil || p.Stderr != nil {
 		select {
@@ -217,14 +218,12 @@ func (p *ProcessInstance) WriteResponse(ns *socketio.NameSpace) {
 			if !ok {
 				p.Stdout = nil
 			} else {
-				glog.V(2).Infof("Emitting stdout: %3s %c", m, m)
 				ns.Emit("stdout", m)
 			}
 		case m, ok := <-p.Stderr:
 			if !ok {
 				p.Stderr = nil
 			} else {
-				glog.V(2).Infof("Emitting stderr: %3s %c", m, m)
 				ns.Emit("stderr", m)
 			}
 		}
@@ -237,7 +236,7 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 	// TODO: make me more extensible
 	urlAddr, err := url.Parse(f.addr)
 	if err != nil {
-		glog.Fatalf("Not a valid path: %s (%v)", f.addr, err)
+		plog.WithError(err).WithField("url", f.addr).Fatal("Not a valid URL")
 	}
 
 	host := fmt.Sprintf("http://%s:50000/", strings.Split(urlAddr.Host, ":")[0])
@@ -246,14 +245,14 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 	client, err := socketio.Dial(host)
 
 	if err != nil {
-		glog.Fatalf("Unable to contact remote process server: %v", err)
+		plog.WithError(err).WithField("host", host).Fatal("Unable to contact remote process server")
 	}
 
 	client.On("connect", func(ns *socketio.NameSpace) {
 		if ns.Session.Values[PROCESSKEY] == nil {
 			ns.Emit("process", cfg)
 		} else {
-			glog.Fatalf("Trying to connect to a stale process!")
+			plog.WithError(err).Fatal("Trying to connect to a stale process!")
 		}
 	})
 
@@ -266,7 +265,7 @@ func (f *Forwarder) Exec(cfg *ProcessConfig) *ProcessInstance {
 	}
 
 	client.On("disconnect", func(ns *socketio.NameSpace) {
-		glog.Infof("Disconnected!")
+		plog.Info("Disconnected")
 		proc.Disconnect()
 		proc.Close()
 	})
@@ -336,43 +335,51 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 }
 
 func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistry, controller string) (*exec.Cmd, error) {
+	logger := plog.WithFields(log.Fields{
+		"masteraddress":   masterAddress,
+		"delegateaddress": workerAddress,
+		"serviceid":       cfg.ServiceID,
+	})
+
 	// look up the service on the master
 	masterClient, err := master.NewClient(masterAddress)
 	if err != nil {
-		glog.Errorf("Could not connect to the master server at %s: %s", masterAddress, err)
+		logger.WithError(err).Error("Could not connect to the master server")
 		return nil, err
 	}
 	defer masterClient.Close()
-	glog.Infof("Connected to master at %s", masterAddress)
+	logger.Info("Connected to master")
 	svc := &service.Service{}
 	if svc, err = masterClient.GetService(cfg.ServiceID); err != nil {
-		glog.Errorf("Could not get service %s: %s", cfg.ServiceID, err)
+		logger.WithError(err).Error("Could not get services")
 		return nil, err
 	}
 
 	// can we create a shell for this service?
+	logger = logger.WithField("servicename", svc.Name)
 	if svc.DisableShell {
-		glog.Warningf("Shell commands are disabled for service %s (%s)", svc.Name, svc.ID)
+		logger.Warning("Shell commands are disabled for service")
 		return nil, ErrShellDisabled
 	} else if svc.ImageID == "" {
-		glog.Warningf("No image is configured for service %s (%s)", svc.Name, svc.ID)
+		logger.Warning("No image is configured for service")
 		return nil, ErrShellDisabled
 	}
 
 	// lets make sure the image exists locally and is the latest
 	workerClient, err := worker.NewClient(workerAddress)
 	if err != nil {
-		glog.Errorf("Could not connect to the worker server at %s: %s", workerAddress, err)
+		logger.WithError(err).Error("Could not connect to the delegate server")
 		return nil, err
 	}
 	defer workerClient.Close()
-	glog.Infof("Connected to agent at %s; pulling image %s", workerAddress, svc.ImageID)
+	logger = logger.WithField("imageid", svc.ImageID)
+	logger.Info("Connected to delegate; pulling image")
 	image, err := workerClient.PullImage(dockerRegistry, svc.ImageID, time.Minute)
 	if err != nil {
-		glog.Errorf("Could not pull image %s: %s", svc.ImageID, err)
+		logger.WithError(err).Error("Could not pull image")
 		return nil, err
 	}
-	glog.Infof("Pulled image %s, setting up shell", image)
+	logger.Info("Pulled image, setting up shell")
 
 	dir, binary := filepath.Split(controller)
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
@@ -407,7 +414,7 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	// get the docker start command
 	docker, err := exec.LookPath("docker")
 	if err != nil {
-		glog.Errorf("Docker not found: %v", err)
+		logger.WithError(err).Error("Docker not found")
 		return nil, err
 	}
 	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", utils.ResourcesDir() + ":" + "/usr/local/serviced/resources", "-u", "root", "-w", "/"}
@@ -441,7 +448,7 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	argv = append(argv, image)
 	argv = append(argv, proxycmd...)
 
-	glog.V(1).Infof("command: docker %+v", argv)
-	glog.Infof("Shell initialized for service %s (%s), starting", svc.Name, svc.ID)
+	logger.Debugf("command: docker %+v", argv)
+	logger.Info("Shell initialized for service, starting")
 	return exec.Command(docker, argv...), nil
 }

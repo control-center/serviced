@@ -108,6 +108,7 @@ type Options struct {
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
 	TokenExpiration            int               // The time in seconds before an authentication token expires
+	ConntrackFlush             string            // Whether to flush the conntrack table when a service with an assigned IP is started
 	LogConfigFilename          string            // Path to the logri configuration
 	StorageReportInterval      int               // frequency in seconds to report storage stats to opentsdb
 	ServiceRunLevelTimeout     int               // The time in seconds serviced will wait for a batch of services to stop/start before moving to services with the next run level

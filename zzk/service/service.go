@@ -404,3 +404,30 @@ func WaitService(cancel <-chan struct{}, conn client.Connection, poolID, service
 		done = make(chan struct{})
 	}
 }
+
+// WaitInstance waits for an instance of a service to satisfy a particular state
+func WaitInstance(cancel <-chan struct{}, conn client.Connection, poolID, serviceID string, instanceID int, checkState func(s *State, exists bool) bool) error {
+	hostID, err := GetServiceStateHostID(conn, poolID, serviceID, instanceID)
+	if err != nil {
+		return err
+	}
+
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+
+	req := StateRequest{
+		PoolID:     poolID,
+		HostID:     hostID,
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+	}
+
+	// wait for the state to satisfy the requirements
+	if _, err := MonitorState(cancel, conn, req, checkState); err != nil {
+		logger.WithError(err).Debug("Stopped monitoring state")
+	}
+
+	return nil
+}

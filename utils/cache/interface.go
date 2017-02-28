@@ -21,6 +21,9 @@ type LRUCache interface {
 	// If the key already exists in the cache, it's value will be replaced.
 	Set(key string, value interface{})
 
+	// Invalidate removes the record with the specified key
+	Invalidate(key string)
+
 	// Returns the current number of items in the cache.
 	GetCurrentSize() int
 

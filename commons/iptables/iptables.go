@@ -31,9 +31,10 @@ const (
 )
 
 var (
-	ErrIptablesNotFound = errors.New("iptables not found")
-	nat                 = []string{"-t", "nat"}
-	supportsXlock       = false
+	ErrIptablesNotFound  = errors.New("iptables not found")
+	ErrConntrackNotFound = errors.New("conntrack not found")
+	nat                  = []string{"-t", "nat"}
+	supportsXlock        = false
 )
 
 type Chain struct {
@@ -145,6 +146,18 @@ func RunIptablesCommand(args ...string) ([]byte, error) {
 	// ignore iptables' message about xtables lock
 	if strings.Contains(string(output), "waiting for it to exit") {
 		output = []byte("")
+	}
+	return output, err
+}
+
+func RunConntrackCommand(args ...string) ([]byte, error) {
+	path, err := exec.LookPath("conntrack")
+	if err != nil {
+		return nil, ErrConntrackNotFound
+	}
+	output, err := exec.Command(path, args...).CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("conntrack failed: conntrack %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
 	return output, err
 }

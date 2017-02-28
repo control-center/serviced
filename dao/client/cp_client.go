@@ -70,7 +70,7 @@ func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[stri
 	return s.rpcClient.Call("ControlCenter.GetServiceEndpoints", serviceId, response, 0)
 }
 
-func (s *ControlClient) GetTenantIDs(unused struct {}, tenantIDs *[]string) error {
+func (s *ControlClient) GetTenantIDs(unused struct{}, tenantIDs *[]string) error {
 	return s.rpcClient.Call("ControlCenter.GetTenantIDs", unused, tenantIDs, 0)
 }
 
@@ -144,6 +144,10 @@ func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affecte
 
 func (s *ControlClient) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
 	return s.rpcClient.Call("ControlCenter.RestartService", request, affected, 0)
+}
+
+func (s *ControlClient) RebalanceService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlCenter.RebalanceService", request, affected, 0)
 }
 
 func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected *int) (err error) {

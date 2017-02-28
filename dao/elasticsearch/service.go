@@ -129,7 +129,7 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 }
 
 // Get a list of tenant IDs
-func (this *ControlPlaneDao) GetTenantIDs(unused struct {}, tenantIDs *[]string) error {
+func (this *ControlPlaneDao) GetTenantIDs(unused struct{}, tenantIDs *[]string) error {
 	ctx := datastore.Get()
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetTenantIDs"))
 	if ids, err := this.facade.GetTenantIDs(ctx); err == nil {
@@ -166,6 +166,12 @@ func (this *ControlPlaneDao) StartService(request dao.ScheduleServiceRequest, af
 // restart the provided service
 func (this *ControlPlaneDao) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
 	*affected, err = this.facade.RestartService(datastore.Get(), request)
+	return err
+}
+
+// rebalance the provided service
+func (this *ControlPlaneDao) RebalanceService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	*affected, err = this.facade.RebalanceService(datastore.Get(), request)
 	return err
 }
 

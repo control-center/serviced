@@ -34,18 +34,18 @@ func (_m *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 }
 
 // ScheduleServiceBatch provides a mock function with given fields: _a0, _a1, _a2, _a3
-func (_m *Facade) ScheduleServiceBatch(_a0 datastore.Context, _a1 []*service.Service, _a2 string, _a3 service.DesiredState) ([]string, error) {
+func (_m *Facade) ScheduleServiceBatch(_a0 datastore.Context, _a1 []servicestatemanager.CancellableService, _a2 string, _a3 service.DesiredState) ([]string, error) {
 	ret := _m.Called(_a0, _a1, _a2, _a3)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func(datastore.Context, []*service.Service, string, service.DesiredState) []string); ok {
+	if rf, ok := ret.Get(0).(func(datastore.Context, []servicestatemanager.CancellableService, string, service.DesiredState) []string); ok {
 		r0 = rf(_a0, _a1, _a2, _a3)
 	} else {
 		r0 = ret.Get(0).([]string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, []*service.Service, string, service.DesiredState) error); ok {
+	if rf, ok := ret.Get(1).(func(datastore.Context, []servicestatemanager.CancellableService, string, service.DesiredState) error); ok {
 		r1 = rf(_a0, _a1, _a2, _a3)
 	} else {
 		r1 = ret.Error(1)
@@ -94,6 +94,11 @@ func (_m *Facade) GetServicesForScheduling(_a0 datastore.Context, _a1 []string) 
 	}
 
 	return r0
+}
+
+// SetServicesCurrentState provides a mock function with given fields: ctx, currentState, serviceIDs
+func (_m *Facade) SetServicesCurrentState(ctx datastore.Context, currentState service.ServiceCurrentState, serviceIDs ...string) {
+	_m.Called(ctx, currentState, serviceIDs)
 }
 
 var _ servicestatemanager.Facade = (*Facade)(nil)

@@ -173,6 +173,9 @@ type ControlPlane interface {
 	// Schedule the given service to restart
 	RestartService(request ScheduleServiceRequest, affected *int) error
 
+	// Schedule the given service to rebalance
+	RebalanceService(request ScheduleServiceRequest, affected *int) error
+
 	// Schedule the given service to stop
 	StopService(request ScheduleServiceRequest, affected *int) error
 

@@ -82,6 +82,8 @@ type Facade struct {
 	deployments   *PendingDeploymentMgr
 	ssm           servicestatemanager.ServiceStateManager
 	isvcsPath     string
+
+	rollingRestartTimeout time.Duration
 }
 
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
@@ -126,3 +128,5 @@ func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegis
 }
 
 func (f *Facade) SetDeploymentMgr(mgr *PendingDeploymentMgr) { f.deployments = mgr }
+
+func (f *Facade) SetRollingRestartTimeout(t time.Duration) { f.rollingRestartTimeout = t }

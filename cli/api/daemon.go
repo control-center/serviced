@@ -15,7 +15,7 @@ package api
 
 import (
 	"bytes"
-
+	"errors"
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/auth"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
@@ -82,8 +82,9 @@ import (
 	"time"
 
 	// Needed for profiling
-	"github.com/control-center/serviced/scheduler/servicestatemanager"
 	_ "net/http/pprof"
+
+	"github.com/control-center/serviced/scheduler/servicestatemanager"
 )
 
 var (
@@ -491,6 +492,9 @@ func (d *daemon) startMaster() (err error) {
 	d.initServiceStateManager(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.facade.SetServiceStateManager(d.ssm)
 
+	// Update current states
+	d.facade.SyncCurrentStates(d.dsContext)
+
 	if err = d.checkVersion(); err != nil {
 		log.WithError(err).Fatal("Unable to initialize version")
 	}
@@ -837,10 +841,21 @@ func (d *daemon) startAgent() error {
 				}
 				err = masterClient.UpdateHost(updatedHost)
 				if err != nil {
-					log.WithError(err).Warn("Unable to update master with delegate host information")
-					return "" // Try again
+					log.WithError(err).Warn("Unable to update master with delegate host information. Retrying silently")
+					go func(masterClient *master.Client, updatedHost host.Host) {
+						err := errors.New("")
+						for err != nil {
+							select {
+								case <-d.shutdown:
+									return
+								default:
+									time.Sleep(5 * time.Second)
+							}
+							err = masterClient.UpdateHost(updatedHost)
+						}
+						log.Info("Updated master with delegate host information")
+					}(masterClient, updatedHost)
 				}
-				log.Info("Updated master with delegate host information")
 				return poolID
 			}()
 			if poolID != "" {
@@ -919,6 +934,8 @@ func (d *daemon) startAgent() error {
 		}
 
 		muxDisableTLS, _ := strconv.ParseBool(options.MuxDisableTLS)
+		conntrackFlush, _ := strconv.ParseBool(options.ConntrackFlush)
+
 		agentOptions := node.AgentOptions{
 			IPAddress:            agentIP,
 			PoolID:               thisHost.PoolID,
@@ -938,6 +955,7 @@ func (d *daemon) startAgent() error {
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 			ControllerBinary:     options.ControllerBinary,
+			ConntrackFlush:       conntrackFlush,
 			LogstashURL:          options.LogstashURL,
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
@@ -1118,6 +1136,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	if err := f.UpdateServiceCache(d.dsContext); err != nil {
 		log.WithError(err).Fatal("Unable to update the service cache")
 	}
+	f.SetRollingRestartTimeout(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	return f
 }
 
@@ -1156,8 +1175,7 @@ func (d *daemon) startStorageMonitor() {
 				log.WithFields(logrus.Fields{
 					"value": options.StorageMinimumFreeSpace,
 				}).Warn("Unable to parse minimum free space parameter. Falling back to default")
-				// TODO: Change this when we update the default
-				minfree, _ = units.RAMInBytes("1G")
+				minfree, _ = units.RAMInBytes("3G")
 			}
 			tenants := []string{}
 		CheckMetrics:

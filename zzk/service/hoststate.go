@@ -44,7 +44,7 @@ type HostStateHandler interface {
 
 	// RestartContainer asynchronously prepulls the latest image before
 	// stopping the container.  It only returns an error if there is a problem
-	// with docker and not of the container is not running or doesn't exist.
+	// with docker and not if the container is not running or doesn't exist.
 	RestartContainer(cancel <-chan interface{}, serviceID string, instanceID int) error
 
 	// ResumeContainer resumes a paused container.  Returns nil if the
@@ -406,7 +406,7 @@ func (l *HostStateListener) handleContainerExit(timeExit time.Time, ssdat *Servi
 	// set the service state
 	ssdat.Terminated = timeExit
 	l.setExistingThread(stateID, ssdat, nil)
-	logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
+	logger.WithField("terminated", timeExit).Warn("Container exited, restarting")
 
 	if err := l.updateServiceStateInZK(ssdat, req); err != nil {
 		logger.WithError(err).Error("Could not set state for stopped container")

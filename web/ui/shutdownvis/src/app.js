@@ -78,9 +78,7 @@ function reformatData(data){
             // and sort by timestamp
             let data = Object.keys(m.dps)
                 .sort((a,b) => (+a) - (+b))
-                .map(ts => [ts*1000, m.dps[ts]])
-                // NOTE - this is about 7 days worth
-                .slice(0,50000);
+                .map(ts => [ts*1000, m.dps[ts]]);
 
             return {
                 metric: m.metric,

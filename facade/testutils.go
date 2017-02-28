@@ -114,6 +114,7 @@ func (ft *FacadeIntegrationTest) setupMockZZK(c *gocheck.C) {
 	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UnregisterDfsClients", mock.AnythingOfType("[]host.Host")).Return(nil)
+	ft.zzk.On("UpdateInstanceCurrentState", ft.CTX, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("service.InstanceCurrentState")).Return(nil)
 
 	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
 		mock.AnythingOfType("<-chan interface {}")).Return(nil)

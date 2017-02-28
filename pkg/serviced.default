@@ -247,21 +247,24 @@
 # SERVICED_VHOST_ALIASES=
 
 # The max amount of time, in seconds, to wait for services to start/stop before starting/stopping services at the next run level
-# SERVICED_RUN_LEVEL_TIMEOUT=60
+# SERVICED_RUN_LEVEL_TIMEOUT=600
+
+# Whether a delegate should flush the conntrack table when a service with an assigned IP is started
+# SERVICED_CONNTRACK_FLUSH=false
 
 # The frequency in seconds to report storage stats to opentsdb
 # SERVICED_STORAGE_REPORT_INTERVAL=30
 
 # The amount of time in seconds for which serviced will consider storage
 # availability metrics in order to predict future availability
-# SERVICED_STORAGE_METRIC_MONITOR_WINDOW=120
+# SERVICED_STORAGE_METRIC_MONITOR_WINDOW=300
 
 # The amount of time in the future in seconds serviced should predict storage
 # availability for the purposes of emergency shutdown
-# SERVICED_STORAGE_LOOKAHEAD_PERIOD=600
+# SERVICED_STORAGE_LOOKAHEAD_PERIOD=360
 
 # The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
-# SERVICED_STORAGE_MIN_FREE=1G
+# SERVICED_STORAGE_MIN_FREE=3G
 
 # Best guess for tgz compression ratio (uncompressed size / compressed size) used to determine
 # whether sufficient disk space is available for taking a backup
@@ -269,4 +272,3 @@
 
 # Warn user if estimated backup size would leave less than this amount of space free
 # SERVICED_BACKUP_MIN_OVERHEAD=1G
-

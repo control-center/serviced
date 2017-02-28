@@ -23,11 +23,13 @@ type Facade interface {
 	// WaitSingleService blocks until the service has reached the desired state, or the channel is closed
 	WaitSingleService(*service.Service, service.DesiredState, <-chan interface{}) error
 	// ScheduleServiceBatch changes the desired state of a set of services, and returns a list of IDs of services that could not be scheduled
-	ScheduleServiceBatch(datastore.Context, []*service.Service, string, service.DesiredState) ([]string, error)
+	ScheduleServiceBatch(datastore.Context, []CancellableService, string, service.DesiredState) ([]string, error)
 	// UpdateService modifies a service
 	UpdateService(ctx datastore.Context, svc service.Service) error
 	// GetTenantIDs gets a list of all tenant IDs
 	GetTenantIDs(ctx datastore.Context) ([]string, error)
 	// GetServiceLite looks up the latest service object with all of the information necessary to schedule it
 	GetServicesForScheduling(ctx datastore.Context, ids []string) []*service.Service
+	// SetServicesCurrentState updates the service's current state in the service store
+	SetServicesCurrentState(ctx datastore.Context, currentState service.ServiceCurrentState, serviceIDs ...string)
 }

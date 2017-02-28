@@ -166,6 +166,7 @@ deb: stage_deb
 		-d nfs-common \
 		-d 'docker-engine (= 1.12.1)' \
 		-d logrotate \
+		-d conntrack \
 		-d rsync \
 		-d lvm2 \
 		-d sysstat \
@@ -182,6 +183,7 @@ deb: stage_deb
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--before-install deb/preinstall \
 		--after-install deb/postinstall \
 		--config-files /etc/default/serviced \
 		.
@@ -207,6 +209,7 @@ rpm: stage_rpm
 		-d sysstat \
 		-d lvm2 \
 		-d cronie \
+		-d conntrack-tools \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -218,6 +221,7 @@ rpm: stage_rpm
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--before-install rpm/preinstall \
 		--after-install rpm/postinstall \
 		--before-remove rpm/preuninstall \
 		--after-remove rpm/postuninstall \
