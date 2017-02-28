@@ -263,3 +263,10 @@
 # The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
 # SERVICED_STORAGE_MIN_FREE=1G
 
+# Best guess for tgz compression ratio (uncompressed size / compressed size) used to determine
+# whether sufficient disk space is available for taking a backup
+# SERVICED_BACKUP_ESTIMATED_COMPRESSION=2.5
+
+# Warn user if estimated backup size would leave less than this amount of space free
+# SERVICED_BACKUP_MIN_OVERHEAD=1G
+

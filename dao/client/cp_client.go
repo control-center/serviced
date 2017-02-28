@@ -193,6 +193,15 @@ func (s *ControlClient) Backup(backupRequest dao.BackupRequest, filename *string
 	return s.rpcClient.Call("ControlCenter.Backup", backupRequest, filename, 0)
 }
 
+func (s *ControlClient) GetBackupEstimate(backupRequest dao.BackupRequest, estimate *dao.BackupActual) (err error) {
+	return s.rpcClient.Call("ControlCenter.GetBackupEstimate", backupRequest, estimate, 0)
+}
+
+// TODO: Remove if not needed
+//func (s *ControlClient) GetBackupActual(backupRequest dao.BackupRequest, estimate *dao.BackupActual) (err error) {
+//	return s.rpcClient.Call("ControlCenter.GetBackupActual", backupRequest, estimate, 0)
+//}
+
 func (s *ControlClient) AsyncBackup(backupRequest dao.BackupRequest, filename *string) (err error) {
 	return s.rpcClient.Call("ControlCenter.AsyncBackup", backupRequest, filename, 0)
 }

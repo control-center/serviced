@@ -253,3 +253,50 @@ func (dfs *DistributedFilesystem) writeBackupMetadata(data BackupInfo, w *tar.Wr
 	}
 	return nil
 }
+
+func (dfs *DistributedFilesystem) GetImageInfo(image string) (*ImageInfo, error) {
+	infoLogger := plog.WithField("image", image)
+
+	dinfo, err := dfs.docker.FindImage(image)
+	if err != nil || docker.IsImageNotFound(err) {
+		infoLogger.WithError(err).Debug("Could not get info for image.")
+	}
+	infoLogger.WithField("info", dinfo).Info("Info from docker")
+	result := ImageInfo {
+		Size:        dinfo.Size,
+		VirtualSize: dinfo.VirtualSize,
+	}
+	return &result, nil
+}
+
+//TODO: Remove this if not needed
+//func (dfs *DistributedFilesystem) SimulateImagesBackup(images []string) (*ImageInfo, error) {
+//	ibLogger := plog.WithField("images", images)
+//	stime := time.Now()
+//	info := ImageInfo{}
+//
+//	// dump the images from all the snapshots into the backup
+//	imageReader, errchan := dfs.dockerSavePipe(images...)
+//	ibLogger.Info("Starting simulated export of images to backup")
+//	written, err := io.Copy(ioutil.Discard, imageReader)
+//	if err != nil {
+//		// be a good citizen and clean up any running threads
+//		<-errchan
+//		ibLogger.WithError(err).Error("Could not write images to backup")
+//		return nil, err
+//	} else if err := <-errchan; err != nil {
+//		ibLogger.WithError(err).Error("Could not export images for backup")
+//		return nil, err
+//	}
+//	ibLogger.WithFields(log.Fields{
+//		"elapsed":       time.Since(stime),
+//		"bytesWritten":  written,
+//	}).Info("Simulated backup of images")
+//	info.Size = written
+//	return &info, nil
+//}
+
+
+func (dfs *DistributedFilesystem) GetImagePullSize(images []string) (uint64, error) {
+	return dfs.docker.GetImagePullSize(images)
+}

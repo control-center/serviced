@@ -36,7 +36,6 @@ type MetricsClient interface {
 	GetInstanceMemoryStats(time.Time, ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error)
 	GetAvailableStorage(time.Duration, ...string) (*metrics.StorageMetrics, error)
 }
-
 // instantiate the package logger
 var plog = logging.PackageLogger()
 

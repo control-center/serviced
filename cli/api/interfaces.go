@@ -103,6 +103,7 @@ type API interface {
 	DeployServiceTemplate(DeployTemplateConfig) ([]service.ServiceDetails, error)
 
 	// Backup & Restore
+	GetBackupSpace(string, []string) (*BackupDetails, error)
 	Backup(string, []string) (string, error)
 	Restore(string) error
 
