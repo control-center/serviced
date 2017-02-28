@@ -1559,7 +1559,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 				return true
 			}
 			if s.ContainerID != "" && s.ContainerID != oldContainer {
-				return true
+				return service.InstanceCurrentState(s.Status) == service.StateRunning
 			}
 			return false
 		}
@@ -1571,6 +1571,11 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 
 		// Check if we're ready to move on to the next instance on an interval
 		ready := func() bool {
+			// I don't care if it is the last instance
+			if instanceID == svc.Instances-1 {
+				return true
+			}
+
 			// Wait for health checks to pass
 			statuses := f.getInstanceHealth(svch, instanceID)
 			for key, status := range statuses {
