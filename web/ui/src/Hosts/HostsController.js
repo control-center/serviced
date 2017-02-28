@@ -127,6 +127,15 @@
 
         clickAddHost() {
             let modalScope = this.newScope();
+
+            // Acceptance timing fix.
+            modalScope.SetDirect = function() {
+                modalScope.newHost.AddType = 'direct';
+            };
+            modalScope.SetNat = function() {
+                modalScope.newHost.AddType = 'via_nat';
+            };
+
             modalScope.refreshHosts = () => this.refreshHosts();
             modalScope.poolIds = this.pools.map(p => p.id);
 

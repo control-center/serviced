@@ -17,4 +17,12 @@ class Hosts < SitePrism::Page
     element :invalidPort_input, "[class$='ng-invalid ng-invalid-pattern']#new_host_port"
     elements :active_icons, "[ng-if$='host.active']"
     elements :host_entries, "[ng-repeat='host in $data']"
+
+    # type selector
+    element :buttonDirectType, "div.btn-group", "//input[@value='direct']"
+    element :buttonViaNATType, "div.btn-group", "//input[@value='via_nat']"
+
+    # nat inputs
+    element :natHost_input, "#new_host_nat_host"
+    element :natPort_input, "#new_host_nat_port"
 end

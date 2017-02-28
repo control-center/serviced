@@ -560,7 +560,17 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		Port: natHostPort,
 	}
 
-	agentClient, err := agent.NewClient(payload.IPAddr)
+	// Check to see if the nat address is set.
+	var rpcAddress string
+	if len(nat.Host) > 0 {
+		// connect via rpc using that address.
+		rpcAddress = nat.String()
+	} else {
+		// connect via rpc using the host address.
+		rpcAddress = payload.IPAddr
+	}
+
+	agentClient, err := agent.NewClient(rpcAddress)
 	if err != nil {
 		glog.Errorf("Could not create connection to host %s: %v", payload.IPAddr, err)
 		restServerError(w, err)
