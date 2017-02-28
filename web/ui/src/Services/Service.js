@@ -19,6 +19,23 @@
         META = "meta",           // service with children but no startup command
         DEPLOYING = "deploying"; // service whose parent is still being deployed
 
+    // Service Current State enum
+    var SVCCSUnknown              = "unknown",
+        SVCCSStopped              = "stopped",
+        SVCCSPendingStart         = "pending_start",
+        SVCCSStarting             = "starting",
+        SVCCSRunning              = "started",
+        SVCCSPendingRestart       = "pending_restart",
+        SVCCSRestarting           = "restarting",
+        SVCCSPendingStop          = "pending_stop",
+        SVCCSStopping             = "stopping",
+        SVCCSPendingPause         = "pending_pause",
+        SVCCSPausing              = "pausing",
+        SVCCSPaused               = "paused";
+        //SVCCSPendingEmergencyStop = "pending_emergency_stop",
+        //SVCCSEmergencyStopping    = "emergency_stopping",
+        //SVCCSEmergencyStopped     = "emergency_stopped";
+
     // fetch retrieves something from the v2 api
     // endpoint and stores it on the `this` context
     function fetch(methodName, propertyName, force) {
@@ -484,26 +501,42 @@
                 switch (state) {
                     case "start":
                         // Start only affects these states, with the "auto" start method.
-                        var affected = ["unknown", "stopped", "pending_start", "pending_restart", "restarting",
-                            "pending_stop", "stopping", "pending_pause", "pausing", "paused"];
-                        for (var i = 0, len = affected.length; i < len; i++) {
-                            count += data["auto"][affected[i]] || 0;
+                        var affected = [SVCCSUnknown, SVCCSStopped, SVCCSPendingStart, SVCCSPendingRestart, SVCCSRestarting,
+                            SVCCSPendingStop, SVCCSStopping, SVCCSPendingPause, SVCCSPausing, SVCCSPaused];
+                        if (data.auto) {
+                            affected.forEach(s => {
+                                count += data.auto[s] || 0;
+                            });
                         }
                         break;
                     case "restart":
                         // Restart will restart services with any of these states, both manual and auto started.
-                        var affected = ["unknown", "stopped", "pending_start", "starting", "started",
-                            "pending_restart", "pending_stop", "stopping", "pending_pause", "pausing", "paused"];
-                        for (var i = 0, len = affected.length; i < len; i++) {
-                            count += (data["auto"][affected[i]] || 0) + (data["manual"][affected[i]] || 0);
+                        var affected = [SVCCSUnknown, SVCCSStopped, SVCCSPendingStart, SVCCSStarting, SVCCSRunning,
+                            SVCCSPendingRestart, SVCCSPendingStop, SVCCSStopping, SVCCSPendingPause, SVCCSPausing, SVCCSPaused];
+                        if (data.auto) {
+                            affected.forEach(s => {
+                                count += data.auto[s] || 0;
+                            });
+                        }
+                        if (data.manual) {
+                            affected.forEach(s => {
+                                count += data.manual[s] || 0;
+                            });
                         }
                         break;
                     case "stop":
                         // Stop will stop all services with any of these states, both manual and auto started.
-                        var affected = ["unknown", "pending_start", "starting", "started", "pending_restart",
-                            "restarting", "pending_stop", "pending_pause", "pausing", "paused"];
-                        for (var i = 0, len = affected.length; i < len; i++) {
-                            count += (data["auto"][affected[i]] || 0) + (data["manual"][affected[i]] || 0);
+                        var affected = [SVCCSUnknown, SVCCSPendingStart, SVCCSStarting, SVCCSRunning, SVCCSPendingRestart,
+                            SVCCSRestarting, SVCCSPendingStop, SVCCSPendingPause, SVCCSPausing, SVCCSPaused];
+                        if (data.auto) {
+                            affected.forEach(s => {
+                                count += data.auto[s] || 0;
+                            });
+                        }
+                        if (data.manual) {
+                            affected.forEach(s => {
+                                count += data.manual[s] || 0;
+                            });
                         }
                         break;
                 }
