@@ -54,7 +54,7 @@ type StorageMetrics struct {
 	Tenants               map[string]MetricSeries
 }
 
-func (c *Client) GetAvailableStorage(window time.Duration, aggregator string, tenants ...string) (*StorageMetrics, error) {
+func (c *Client) GetAvailableStorage(window time.Duration, tenants ...string) (*StorageMetrics, error) {
 	log.WithField("tenants", tenants).Debug("Requesting storage availability metrics")
 
 	options := PerformanceOptions{
@@ -66,19 +66,19 @@ func (c *Client) GetAvailableStorage(window time.Duration, aggregator string, te
 		{
 			Metric:     "storage.pool.data.available",
 			Name:       PoolDataAvailableName,
-			Aggregator: aggregator,
+			Aggregator: "sum",
 		},
 		{
 			Metric:     "storage.pool.metadata.available",
 			Name:       PoolMetadataAvailableName,
-			Aggregator: aggregator,
+			Aggregator: "sum",
 		},
 	}
 	for _, tenantID := range tenants {
 		metrics = append(metrics, MetricOptions{
 			Metric:     fmt.Sprintf("storage.filesystem.available.%s", tenantID),
 			Name:       tenantID,
-			Aggregator: aggregator,
+			Aggregator: "sum",
 		})
 	}
 	options.Metrics = metrics
