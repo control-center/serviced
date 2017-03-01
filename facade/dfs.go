@@ -228,6 +228,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	AdjustedBytesRequired := uint64(float64(TotalBytesRequired) / CompressionEst + 0.5) + MinOverheadBytes
 	estimate.EstimatedBytes = AdjustedBytesRequired
 	estimate.EstimatedString = humanize.Bytes(AdjustedBytesRequired)
+	estimate.AllowBackup = estimate.EstimatedBytes < estimate.AvailableBytes
 
 	plog.WithFields(logrus.Fields {
 		"elapsed":  time.Since(stime),
