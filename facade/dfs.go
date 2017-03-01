@@ -756,7 +756,7 @@ func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead tim
 
 	// Next, query metrics for our window
 	window := time.Duration(options.StorageMetricMonitorWindow) * time.Second
-	perfdata, err := f.metricsClient.GetAvailableStorage(window, "mimmax", tenantIDs...)
+	perfdata, err := f.metricsClient.GetAvailableStorage(window, tenantIDs...)
 	if err != nil {
 		return nil, err
 	}
