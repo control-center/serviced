@@ -102,9 +102,7 @@ func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.
 		glog.Errorf("Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
-	if svc.CurrentState == "" || svc.CurrentState == string(service.SVCCSUnknown) {
-		f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
-	}
+	f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
 	glog.Infof("Created service %s (%s)", svc.Name, svc.ID)
 	// add the service configurations to the database
 	if err := f.updateServiceConfigs(ctx, svc.ID, configFiles, true); err != nil {
@@ -196,8 +194,9 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 	svc.MonitoringProfile.GraphConfigs = graphs
 
 	// set service defaults
-	svc.DesiredState = int(service.SVCStop) // new services must always be stopped
-	svc.DatabaseVersion = 0                 // create service set database version to 0
+	svc.DesiredState = int(service.SVCStop)         // new services must always be stopped
+	svc.CurrentState = string(service.SVCCSStopped) // new services are always stopped
+	svc.DatabaseVersion = 0                         // create service set database version to 0
 	// manage service configurations
 	if svc.OriginalConfigs == nil || len(svc.OriginalConfigs) == 0 {
 		if svc.ConfigFiles != nil {
