@@ -19,6 +19,23 @@
         META = "meta",           // service with children but no startup command
         DEPLOYING = "deploying"; // service whose parent is still being deployed
 
+    // Service Current State enum
+    var SVCCSUnknown              = "unknown",
+        SVCCSStopped              = "stopped",
+        SVCCSPendingStart         = "pending_start",
+        SVCCSStarting             = "starting",
+        SVCCSRunning              = "started",
+        SVCCSPendingRestart       = "pending_restart",
+        SVCCSRestarting           = "restarting",
+        SVCCSPendingStop          = "pending_stop",
+        SVCCSStopping             = "stopping",
+        SVCCSPendingPause         = "pending_pause",
+        SVCCSPausing              = "pausing",
+        SVCCSPaused               = "paused";
+        //SVCCSPendingEmergencyStop = "pending_emergency_stop",
+        //SVCCSEmergencyStopping    = "emergency_stopping",
+        //SVCCSEmergencyStopped     = "emergency_stopped";
+
     // fetch retrieves something from the v2 api
     // endpoint and stores it on the `this` context
     function fetch(methodName, propertyName, force) {
@@ -473,6 +490,9 @@
     }
 
     // class methods
+
+    // Returns counts for affected descendants if they click on the
+    // 'start all', 'stop all', 'restart all' buttons.
     Service.countAffectedDescendants = function(service, state){
         let deferred = $q.defer();
         resourcesFactory.v2.getDescendantCounts(service.id)
@@ -480,22 +500,43 @@
                 var count = 0;
                 switch (state) {
                     case "start":
-                        // When starting, we only care about autostart
-                        // services that are currently stopped
+                        // Start only affects these states, with the "auto" start method.
+                        var affected = [SVCCSUnknown, SVCCSStopped, SVCCSPendingStart, SVCCSPendingRestart, SVCCSRestarting,
+                            SVCCSPendingStop, SVCCSStopping, SVCCSPendingPause, SVCCSPausing, SVCCSPaused];
                         if (data.auto) {
-                            count += data.auto["0"] || 0;
+                            affected.forEach(s => {
+                                count += data.auto[s] || 0;
+                            });
                         }
                         break;
                     case "restart":
-                    case "stop":
-                        // When stopping or restarting, we care about
-                        // running services that are either manual or
-                        // autostart
+                        // Restart will restart services with any of these states, both manual and auto started.
+                        var affected = [SVCCSUnknown, SVCCSStopped, SVCCSPendingStart, SVCCSStarting, SVCCSRunning,
+                            SVCCSPendingRestart, SVCCSPendingStop, SVCCSStopping, SVCCSPendingPause, SVCCSPausing, SVCCSPaused];
                         if (data.auto) {
-                            count += data.auto["1"] || 0;
+                            affected.forEach(s => {
+                                count += data.auto[s] || 0;
+                            });
                         }
                         if (data.manual) {
-                            count += data.manual["1"] || 0;
+                            affected.forEach(s => {
+                                count += data.manual[s] || 0;
+                            });
+                        }
+                        break;
+                    case "stop":
+                        // Stop will stop all services with any of these states, both manual and auto started.
+                        var affected = [SVCCSUnknown, SVCCSPendingStart, SVCCSStarting, SVCCSRunning, SVCCSPendingRestart,
+                            SVCCSRestarting, SVCCSPendingStop, SVCCSPendingPause, SVCCSPausing, SVCCSPaused];
+                        if (data.auto) {
+                            affected.forEach(s => {
+                                count += data.auto[s] || 0;
+                            });
+                        }
+                        if (data.manual) {
+                            affected.forEach(s => {
+                                count += data.manual[s] || 0;
+                            });
                         }
                         break;
                 }
@@ -506,7 +547,6 @@
             });
         return deferred.promise;
     };
-
 
     ServiceFactory.$inject = ['$notification', '$serviceHealth', '$q', 'resourcesFactory', 'miscUtils', 'Instance'];
     function ServiceFactory(_$notification, _serviceHealth, _$q, _resourcesFactory, _utils, _Instance) {

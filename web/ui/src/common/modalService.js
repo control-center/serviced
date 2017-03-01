@@ -405,9 +405,9 @@
                     }
                 ];
 
-                // if multiple services will be affected by this change,
-                // modify the model to explain that
-                if(childCount > 1) {
+                // If there are any child nodes affected (1+ children), give them the
+                // option to just start the service or service + 1 child.
+                if(childCount >= 1) {
                     html = manyTemplate(model);
                     actions.push({
                         role: "ok",

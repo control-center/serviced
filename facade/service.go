@@ -20,6 +20,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -2579,8 +2580,8 @@ func (f *Facade) getServicePublicEndpoints(svc service.Service) []service.Public
 // of their Launch (auto/manual) and their DesiredState. This is primarily for
 // use by the UI, so that it can know how many descendants a start/stop action
 // will affect.
-func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error) {
-	result := make(map[string]map[int]int)
+func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[string]int, error) {
+	result := make(map[string]map[string]int)
 	f.walkServices(ctx, serviceID, true, func(svc *service.Service) error {
 		if svc.ID == serviceID {
 			// Ignore the parent service
@@ -2592,10 +2593,11 @@ func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) 
 		}
 		m, ok := result[svc.Launch]
 		if !ok {
-			m = make(map[int]int)
+			m = make(map[string]int)
 			result[svc.Launch] = m
 		}
-		m[svc.DesiredState]++
+		m[svc.CurrentState]++
+		m[strconv.Itoa(svc.DesiredState)]++
 		return nil
 	}, "descendantStatus")
 	return result, nil
