@@ -3,7 +3,7 @@ Upstream-Name: Zenoss Control Center
 Source: https://github.com/control-center/serviced/
 
 Files: *
-Copyright: Copyright 2014 Zenoss, Inc.
+Copyright: Copyright 2017 Zenoss, Inc.
 License: Apache 2.0
 
 License: Apache 2.0

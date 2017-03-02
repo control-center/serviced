@@ -26,9 +26,9 @@
       
       <meta name="version" content="1">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
       <meta name="modification" content="0">
       
@@ -59,6 +59,14 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -80,16 +88,16 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  collapsed"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
@@ -106,6 +114,10 @@
                                     </ul>
                                  </li>
                                  <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -155,15 +167,15 @@
                            </p>
                            
                            
-                           <div class="section"><a name="referenceid-d14242e41" id="referenceid-d14242e41" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d14790e41" id="referenceid-d14790e41" class="anchor"></a>
                               
-                              <p class="p">Use this command to perform administrative actions on a specific service.</p>
+                              <p class="p">Use this command to perform administrative actions on a specific service or view service status information.</p>
                               
                               
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14242e47" id="referenceid-d14242e47" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d14790e48" id="referenceid-d14790e48" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">USAGE</h2>
                               <pre class="pre codeblock">serviced service [global options] command [command options] \
@@ -172,7 +184,7 @@
                               </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14242e56" id="referenceid-d14242e56" class="anchor"></a><h2 class="title sectiontitle">COMMANDS</h2>The following commands are available for <span class="keyword cmdname">serviced
+                           <div class="section"><a name="referenceid-d14790e57" id="referenceid-d14790e57" class="anchor"></a><h2 class="title sectiontitle">COMMANDS</h2>The following commands are available for <span class="keyword cmdname">serviced
                                  service</span>:
                               <dl class="dl">
                                  
@@ -192,11 +204,30 @@
                                  
                                  
                                  
+                                 <dd class="dd ddexpand">The status <samp class="ph codeph">emergency-stopped</samp> indicates that <span class="ph">Control Center</span>
+                                    performed an emergency shutdown of the service due to low storage. Before you can
+                                    restart the service, resolve the space issue, and then use  the
+                                    <span class="keyword cmdname">clear-emergency</span> command (listed below) to remove the
+                                    emergency-shutdown flags. For more information, see <a class="xref" href="../manage/emer-sdown-overview.html" title="Control Center monitors each service's short-term storage usage trends and current usage levels. When Control Center predicts that a service is about to exhaust storage space, it initiates an automatic emergency shutdown of the service. By shutting down while enough space is available to perform recovery operations, Control Center minimizes the risk of data corruption.">Emergency shutdown of services</a>.
+                                 </dd>
+                                 
+                                 
+                                 
                                  
                                  <dt class="dt dlterm">add</dt>
                                  
                                  
                                  <dd class="dd">Add a service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">clear-emergency</dt>
+                                 
+                                 
+                                 <dd class="dd">Reset the emergency-shutdown flag for a service that was shut down due to a
+                                    low-storage condition. 
+                                 </dd>
                                  
                                  
                                  
@@ -234,9 +265,9 @@
                                  
                                  
                                  <dt class="dt dlterm">start</dt>
+                                  
                                  
-                                 
-                                 <dd class="dd">Start a service. </dd>
+                                 <dd class="dd">Start one or more services. </dd>
                                  
                                  
                                  
@@ -244,7 +275,8 @@
                                  <dt class="dt dlterm">restart</dt>
                                  
                                  
-                                 <dd class="dd">Restart a service. </dd>
+                                 
+                                 <dd class="dd">Restart one or more services. </dd>
                                  
                                  
                                  
@@ -252,7 +284,8 @@
                                  <dt class="dt dlterm">stop</dt>
                                  
                                  
-                                 <dd class="dd">Stop a service.</dd>
+                                 
+                                 <dd class="dd">Stop one or more services.</dd>
                                  
                                  
                                  
@@ -343,7 +376,7 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14242e252" id="referenceid-d14242e252" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d14790e298" id="referenceid-d14790e298" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">GLOBAL OPTIONS</h2>
                               
@@ -377,21 +410,21 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-section_gyp_fpp_tx" id="referenceid-section_gyp_fpp_tx" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d14790e330" id="referenceid-d14790e330" class="anchor"></a>
                               
-                              <h2 class="title sectiontitle">serviced service [start | restart | stop]</h2>
+                              <h2 class="title sectiontitle">serviced service [start | stop]</h2>
                               
-                              <p class="p">By default, <span class="ph">Control Center</span> version 5.2.0 and later schedules services in the
-                                 background to start, restart, and stop. The asynchronous scheduling improves the speed of
-                                 these operations, especially in large-scale installations. However, if you use a script that
-                                 depends on synchronous scheduling that was used in earlier versions of <span class="ph">Control Center</span>,
-                                 specify the command line option <span class="keyword cmdname">--sync</span>.
+                              <p class="p">By default, <span class="ph">Control Center</span> schedules services in the background to start, and stop. The asynchronous scheduling improves the speed of these operations,
+                                 especially in
+                                 large-scale installations. However, if you use a script that depends on synchronous
+                                 scheduling that was used in earlier versions of <span class="ph">Control Center</span>, specify the command
+                                 line option <span class="keyword cmdname">--sync</span>.
                               </p>
                               
                               
                               <p class="p">Syntax:</p>
                               
-                              <pre class="pre codeblock">serviced service [start | restart | stop] [-s|--sync] <var class="keyword varname">ServiceID</var></pre>
+                              <pre class="pre codeblock">serviced service [start | stop] [-s|--sync] <var class="keyword varname">ServiceID</var></pre>
                               
                               <div class="p">Command option: 
                                  <dl class="dl">
@@ -401,7 +434,7 @@
                                     
                                     
                                     <dd class="dd">Schedules services synchronously. Specify this flag if a script expects the
-                                       <samp class="ph codeph">serviced service [start | restart | stop]</samp> command to wait to return
+                                       <samp class="ph codeph">serviced service [start | stop]</samp> command to wait to return
                                        until the service operation has been scheduled. If this flag is not specified,
                                        services are scheduled asynchronously, in the background. 
                                     </dd>
@@ -409,6 +442,66 @@
                                     
                                     
                                  </dl>
+                                 
+                              </div>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d14790e375" id="referenceid-d14790e375" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">serviced service restart</h2>
+                              
+                              <p class="p">By default, <span class="ph">Control Center</span> schedules services in the background to restart to improve the speed of the operation, especially in
+                                 large-scale installations. However, if you use a script that depends on synchronous
+                                 scheduling that was used in earlier versions of <span class="ph">Control Center</span>, specify the command
+                                 line option <span class="keyword cmdname">--sync</span>.
+                              </p>
+                              
+                              
+                              <p class="p">Syntax:</p>
+                              
+                              <pre class="pre codeblock">serviced service restart [<var class="keyword varname">commandOptions</var>] \ 
+    {<var class="keyword varname">ServiceID</var> | <var class="keyword varname">instanceID</var>}</pre>
+                              
+                              <div class="p">Command option: 
+                                 <dl class="dl">
+                                    
+                                    
+                                    
+                                    <dt class="dt dlterm">--auto-launch</dt>
+                                    
+                                    
+                                    <dd class="dd">Recursively schedules child services.</dd>
+                                    
+                                    
+                                    
+                                    
+                                    <dt class="dt dlterm">--sync, -s</dt>
+                                    
+                                    
+                                    <dd class="dd">Schedules services synchronously. Specify this flag if a script expects the
+                                       <samp class="ph codeph">serviced service restart</samp> command to wait to return until the
+                                       service operation has been scheduled. If this flag is not specified, services are
+                                       scheduled asynchronously, in the background. 
+                                    </dd>
+                                    
+                                    
+                                    
+                                    
+                                    <dt class="dt dlterm">--rebalance</dt>
+                                    
+                                    
+                                    <dd class="dd">Stops all instances of a service before restarting, instead of performing a serial
+                                       restart of multi-instance services.
+                                    </dd>
+                                    
+                                    
+                                    
+                                 </dl>
+                                 
                                  
                               </div>
                               

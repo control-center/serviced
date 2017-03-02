@@ -22,7 +22,7 @@
             <div class="emergencyTooltip">
               <h3>Emergency Shutdown</h3>
               <div>due to low disk space.</div>
-              <a href="/static/doc" type="button" class="btn btn-danger">
+              <a href="/static/doc/feature/manage/emer-sdown-overview.html" type="button" class="btn btn-danger">
                 <span ng-show="icon" class="glyphicon glyphicon-book"></span>
                 More Info
               </a>
