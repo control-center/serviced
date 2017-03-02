@@ -162,8 +162,6 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	volumesPath := options.VolumesPath
 	var FilesystemBytesRequired, DockerBytesRequired uint64
 
-	plog.WithField("volpath", volumesPath).Info("Got VolumesPath")
-
 	for _, tenant := range tenants {
 		tenantPath := filepath.Join(volumesPath, tenant)
 		tenantLogger := plog.WithFields(logrus.Fields{
@@ -175,28 +173,23 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 			tenantLogger.WithError(err).Info("Could not get size for path.")
 		}
 
-		tenantLogger.WithFields(logrus.Fields{
-			"elapsed":    time.Since(stime),
-			"tpSize":     tpsize,
-		}).Info("Tenant Size")
 		FilesystemBytesRequired += tpsize
-
-		tenantLogger.WithField("elapsed", time.Since(stime)).Info("path sized")
 	}
-
-	plog.WithField("elapsed", time.Since(stime)).Info("Estimated tenants")
+	plog.WithField("elapsed", time.Since(stime)).Debugf("Estimated filesystem backup size at %d", FilesystemBytesRequired)
 
 	// Estimate Docker image bytes to backup
 	size, err := f.dfs.EstimateImagePullSize(images)
 	if err != nil {
 		plog.WithError(err).Info("Could not get size for images.")
+		return err
 	}
-	plog.WithField("elapsed", time.Since(stime)).Infof("Estimated Docker pull size at %d", size)
+	plog.WithField("elapsed", time.Since(stime)).Debugf("Estimated Docker pull size at %d", size)
 	DockerBytesRequired = size
 
 	MinOverheadBytes, err := humanize.ParseBytes(options.BackupMinOverhead)
 	if err != nil {
 		plog.WithError(err).Info("Unable to get MinOverheadBytes")
+		MinOverheadBytes = 1 * 1000 * 1000 * 1000 // default to 1G
 	}
 	CompressionEst := options.BackupEstimatedCompression
 	TotalBytesRequired := FilesystemBytesRequired + DockerBytesRequired
@@ -205,18 +198,14 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	estimate.EstimatedString = humanize.Bytes(AdjustedBytesRequired)
 	estimate.AllowBackup = estimate.EstimatedBytes < estimate.AvailableBytes
 
-	plog.WithFields(logrus.Fields {
-		"elapsed":  time.Since(stime),
+	plog.WithFields(logrus.Fields{
+		"duration": time.Since(stime),
 		"filesystembytes": FilesystemBytesRequired,
 		"dockerbytes":    DockerBytesRequired,
-		"totalbytes": estimate.EstimatedBytes,
 		"BackupEstimatedCompression": CompressionEst,
 		"BackupMinOverhead": options.BackupMinOverhead,
-		"MinOverheadBytes": MinOverheadBytes,
-	}).Info("Estimated sizes for images")
-
-
-	plog.WithField("duration", time.Since(stime)).WithField("estimate", estimate).Info("Completed backup estimate")
+		"estimate": estimate,
+	}).Info("Completed backup estimate")
 	return nil
 }
 
