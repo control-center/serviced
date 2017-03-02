@@ -24,8 +24,7 @@ Feature: Host Management
     When I am on the hosts page
       And I click the add Host button
     Then I should see the Add Host dialog
-      And I should see "Directly"
-      And I should see "Via NAT"
+      And I should see "Use NAT"
       And I should see "Host"
       And I should see the Host field
       And I should see "Port"
@@ -34,7 +33,7 @@ Feature: Host Management
       And I should see the Resource Pool ID field
       And I should see "RAM Limit"
       And I should see the RAM Limit field
-    And I click the via_nat button
+    And I click the nat checkbox
       Then I should see "NAT Host"
       And I should see "NAT Port"
 
@@ -96,7 +95,7 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
     And I click the add Host button
-    And I click the via_nat button
+    And I click the nat checkbox
     And I fill in the Host field with "host"
     And I fill in the Port field with "4979"
     And I fill in the NATHost field with "host"
@@ -114,7 +113,7 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
     And I click the add Host button
-    And I click the via_nat button
+    And I click the nat checkbox
     And I fill in the Host field with "host"
     And I fill in the Port field with "4979"
     And I fill in the NATPort field with "4979"
@@ -130,7 +129,7 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
     And I click the add Host button
-    And I click the via_nat button
+    And I click the nat checkbox
     And I fill in the Host field with "172.17.42.1"
     And I fill in the Port field with "9999"
     And I fill in the NATHost field with "172.17.42.2"
@@ -147,7 +146,7 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
     And I click the add Host button
-    And I click the via_nat button
+    And I click the nat checkbox
     And I fill in the Host field with "172.17.42.1"
     And I fill in the Port field with "7500"
     And I fill in the NATHost field with "172.17.42.1"
@@ -166,10 +165,10 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
     And I click the add Host button
-    And I click the via_nat button
+    And I click the nat checkbox
     And I fill in the NATHost field with "172.17.42.2"
     And I fill in the NATPort field with "8888"
-    And I click the direct button
+    And I clear the nat checkbox
     And I fill in the Host field with "172.17.42.1"
     And I fill in the Port field with "9999"
     And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"

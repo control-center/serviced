@@ -19,8 +19,7 @@ class Hosts < SitePrism::Page
     elements :host_entries, "[ng-repeat='host in $data']"
 
     # type selector
-    element :buttonDirectType, "div.btn-group", "//input[@value='direct']"
-    element :buttonViaNATType, "div.btn-group", "//input[@value='via_nat']"
+    element :checkNAT, :xpath, '//*[@id="ckbox_use_nat"]'
 
     # nat inputs
     element :natHost_input, "#new_host_nat_host"

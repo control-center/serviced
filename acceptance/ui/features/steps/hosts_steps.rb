@@ -57,14 +57,16 @@ When (/^I click the add Host button$/) do
     clickAddHostButton()
 end
 
-Then (/^I click the via_nat button$/) do
-    CC.UI.HostsPage.buttonViaNATType.click
+When(/^I click the nat checkbox$/) do
+    CC.UI.HostsPage.checkNAT.set(true)
+
     # work-around for angular controller not detecting change from cucumber
     page.driver.execute_script("angular.element('#new_host_name').scope().SetNat()")
 end
 
-Then (/^I click the direct button$/) do
-    CC.UI.HostsPage.buttonDirectType.click
+When(/^I clear the nat checkbox$/) do
+    CC.UI.HostsPage.checkNAT.set(false)
+
     # work-around for angular controller not detecting change from cucumber
     page.driver.execute_script("angular.element('#new_host_name').scope().SetDirect()")
 end
