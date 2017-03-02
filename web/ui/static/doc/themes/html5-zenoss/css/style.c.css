@@ -6,7 +6,7 @@
 
 /*! normalize.css v3.0.2 | MIT License | git.io/normalize */
 html {
-  font-family: sans-serif;
+
   -webkit-text-size-adjust: 100%;
       -ms-text-size-adjust: 100%;
 }
@@ -921,7 +921,7 @@ a {
 a:hover,
 a:focus {
   color: #23527c;
-  text-decoration: underline;
+  text-decoration: none;
 }
 a:focus {
   outline: thin dotted;
@@ -1002,7 +1002,7 @@ h6,
   font-family: inherit;
   font-weight: 500;
   line-height: 1.1;
-  color: inherit;
+  color: #111642;
 }
 h1 small,
 h2 small,
@@ -2364,7 +2364,6 @@ output {
   background-color: #fff;
   background-image: none;
   border: 1px solid #ccc;
-  border-radius: 4px;
   -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
           box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
   -webkit-transition: border-color ease-in-out .15s, -webkit-box-shadow ease-in-out .15s;
@@ -4362,8 +4361,6 @@ fieldset[disabled] .navbar-inverse .btn-link:focus {
   padding: 8px 15px;
   margin-bottom: 20px;
   list-style: none;
-  background-color: #f5f5f5;
-  border-radius: 4px;
 }
 .breadcrumb > li {
   display: inline-block;
@@ -4371,7 +4368,7 @@ fieldset[disabled] .navbar-inverse .btn-link:focus {
 .breadcrumb > li + li:before {
   padding: 0 5px;
   color: #ccc;
-  content: "/\00a0";
+  content: ">";
 }
 .breadcrumb > .active {
   color: #777;
@@ -6579,13 +6576,7 @@ button.close {
   text-shadow: 0 1px 0 rgba(255, 255, 255, .25);
 }
 .navbar-inverse {
-  background-image: -webkit-linear-gradient(top, #3c3c3c 0%, #222 100%);
-  background-image:      -o-linear-gradient(top, #3c3c3c 0%, #222 100%);
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#3c3c3c), to(#222));
-  background-image:         linear-gradient(to bottom, #3c3c3c 0%, #222 100%);
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff3c3c3c', endColorstr='#ff222222', GradientType=0);
-  filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
-  background-repeat: repeat-x;
+  background-image: radial-gradient(circle,rgba(17,22,66,0.8) 0%,rgba(0,105,181,0.7) 100%);
 }
 .navbar-inverse .navbar-nav > .open > a,
 .navbar-inverse .navbar-nav > .active > a {
@@ -6597,6 +6588,7 @@ button.close {
   background-repeat: repeat-x;
   -webkit-box-shadow: inset 0 3px 9px rgba(0, 0, 0, .25);
           box-shadow: inset 0 3px 9px rgba(0, 0, 0, .25);
+
 }
 .navbar-inverse .navbar-brand,
 .navbar-inverse .navbar-nav > li > a {
@@ -6906,7 +6898,7 @@ a.navbar-brand, a.navbar-brand:link, a.navbar-brand:visited {
   -webkit-border-radius: 3px;
   -moz-border-radius: 3px;
   border-radius: 3px;
-  border-right:3px solid #ffa500;
+  border-right:3px solid #00B7C3;
 }
 
 .nav {
@@ -6953,7 +6945,7 @@ a.navbar-brand, a.navbar-brand:link, a.navbar-brand:visited {
   background-color:yellow;
 }
 #msg-version {
-  border-top:3px solid #FFA500;
+  border-top:3px solid #00B7C3;
   display: block;
   position:relative;
   height:1px;
@@ -7206,4 +7198,45 @@ li.collapsible span.ic {
   font-weight: normal;
   z-index: 1000;
   font-size:0.8em;
+}
+
+p.p {
+ font-size: 14px;
+ line-height: 23px;
+ margin-bottom: 18px;
+}
+.p > ul, .p > ol {
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+p.p img{
+  margin: 50px 0;
+}
+#topicsNPLinks {
+  margin: 50px 0 80px;
+}
+h1 {
+  margin-bottom: 20px;
+  margin-top: 0px;
+}
+.col-xs-6.col-md-4.hidden-xs {
+  background: rgba(0,0,0,.06);
+  padding: 20px 15px 20px 35px;
+}
+button#expandBtn, button#collapseBtn { 
+  display: inline-block;
+  position: absolute;
+  left: -74px;
+  margin: 50px;
+  z-index: 999;
+  top: -50px;
+  border: none;
+  background: #337ab7;
+  color: #fff;
+}
+.navbar-inverse .navbar-nav > li > a {
+  color: #fff;
+}
+.breadcrumb {
+  margin-bottom: 10px;
 }

@@ -3,20 +3,26 @@
 <html lang="">
    <head>
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Backing up using the browser interface</title>
+      <title>Backing up using the CLI</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <link rel="schema.DC" href="http://purl.org/dc/terms/">
       <meta name="DC.Type" content="task">
       
-      <meta name="DC.Title" content="Backing up using the browser interface">
+      <meta name="DC.Title" content="Backing up using the CLI">
       
-      <meta name="abstract" content="Using the browser interface, you can create a backup of your entire system.">
+      <meta name="abstract" content="As an alternative to performing application backup from the Control Center browser interface, you can use the command-line interface (CLI).">
       
-      <meta name="description" content="Using the browser interface, you can create a backup of your entire system.">
+      <meta name="description" content="As an alternative to performing application backup from the Control Center browser interface, you can use the command-line interface (CLI).">
       
-      <meta name="DC.Relation" scheme="URI" content="backup-restore.html">
+      <meta name="DC.Relation" scheme="URI" content="overview.html">
+      
+      <meta name="DC.Relation" scheme="URI" content="cli-all.html">
+      
+      <meta name="DC.Relation" scheme="URI" content="cli-exclude-one.html">
+      
+      <meta name="DC.Relation" scheme="URI" content="cli-exclude-multiple.html">
       
       <meta name="prodname" content="Control Center">
       
@@ -26,9 +32,9 @@
       
       <meta name="version" content="1">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
       <meta name="modification" content="0">
       
@@ -39,7 +45,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="taskid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/manage\/backup-from-cli.html","previousTopicHref":"feature\/manage\/backup-restore-best-pract.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/backup\/cli-all.html","previousTopicHref":"feature\/backup\/backup.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -59,6 +65,14 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -69,9 +83,9 @@
                <ol class="breadcrumb">
                   <li><a class="breadcrumb" href="../../feature/manage/admin.html" title="Administration reference">Administration reference</a></li>
                   
-                  <li><a class="breadcrumb" href="../../feature/manage/backup-restore.html" title="Backing up and restoring">Backing up and restoring</a></li>
+                  <li><a class="breadcrumb" href="../../feature/backup/overview.html" title="Backing up and restoring">Backing up and restoring</a></li>
                   
-                  <li>Backing up using the browser interface</li>
+                  <li>Backing up using the CLI</li>
                </ol>
             </div>
          </div>
@@ -82,16 +96,16 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  active"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  active"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child  active"><a class="selected" href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                           <li class=" collapsible  active"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  active"><a class="selected" href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
@@ -108,6 +122,10 @@
                                     </ul>
                                  </li>
                                  <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -150,50 +168,56 @@
                   <article>
                      <div class="page task  - topic-topic task-task " id="taskid">
                         
-                        <h1 class="title topictitle1">Backing up using the browser interface</h1>
+                        <h1 class="title topictitle1">Backing up using the CLI</h1>
                         <div class="body taskbody">
-                           <p class="shortdesc">Using the browser interface, you can create a backup of your entire system.</p>
+                           <p class="shortdesc">As an alternative to performing application backup from the <span class="ph">Control Center</span>
+                              browser interface, you can use the command-line interface (CLI). 
+                           </p>
                            
                            
-                           <ol class="ol steps">
-                              <li class="li step">
-                                 <span class="ph cmd">Log in to the <span class="ph">Control Center</span> browser interface.</span>
-                                 
-                              </li>
+                           <div class="section context"><a name="taskid-context_tbt_5px_mx" id="taskid-context_tbt_5px_mx" class="anchor"></a>Using the CLI, you can back up your entire system or specify
+                              one or more tenant volumes to exclude from the backup. For example, to save resources, you
+                              might exclude the tenant volume that contains performance data,
+                              <span class="ph filepath">hbase-master</span>. If you want to create a backup to restore on another
+                              system, you might exclude the tenant volumes for the events database and index,
+                              <span class="ph filepath">mariadb-events</span> and <span class="ph filepath">zeneventserver</span>.
+                              <p class="p">The default
+                                 directory for backup files is <span class="ph filepath">/opt/serviced/var/backups</span>. The directory
+                                 can be changed by specifying the <var class="keyword varname">SERVICED_BACKUPS_PATH</var> environment
+                                 variable in the <span class="ph">Control Center</span> configuration file,
+                                 <span class="ph filepath">/etc/default/serviced</span>.
+                              </p>
                               
-                              <li class="li step">
-                                 <span class="ph cmd">Click the <span class="ph uicontrol">Backup / Restore</span> tab.</span>
-                                 
-                              </li>
-                              
-                              <li class="li step">
-                                 <span class="ph cmd">Click <span class="ph uicontrol">Create Backup</span>. </span>
-                                 
-                              </li>
-                              
-                              <li class="li step">
-                                 <span class="ph cmd">At the prompt, confirm your selection by clicking <span class="ph uicontrol">Create
-                                       Backup</span>.</span>
-                                 
-                              </li>
-                              
-                           </ol>
-                           
-                           
-                           <div class="section result"><a name="taskid-result_kql_fqt_qx" id="taskid-result_kql_fqt_qx" class="anchor"></a>When the backup is complete, the compressed archive file name is
-                              displayed.
                            </div>
                            
                            
                         </div>
                         
-                        <div class="related-links"></div>
+                        <div class="related-links">
+                           
+                           <ul class="ullinks">
+                              
+                              <li class="link ulchildlink"><strong><a href="cli-all.html">Backing up the entire system</a></strong><br>
+                                 
+                              </li>
+                              
+                              <li class="link ulchildlink"><strong><a href="cli-exclude-one.html">Exclude one tenant volume from the backup</a></strong><br>
+                                 
+                              </li>
+                              
+                              <li class="link ulchildlink"><strong><a href="cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></strong><br>
+                                 
+                              </li>
+                              
+                           </ul>
+                           
+                        </div>
                      </div>
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../feature/manage/backup-restore-best-pract.html" class="previous" rel="internal" title="Best practices for backup and restore"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Best practices for backup and restore</span></a></div>
-                           <div id="footer_next"><a href="../../feature/manage/backup-from-cli.html" class="next" rel="internal" title="Backing up using the CLI"><span class="sr-only">Backing up using the CLI</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_previous"><a href="../../feature/backup/backup.html" class="previous" rel="internal" title="Backing up using the browser interface"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Backing up using the browser interface</span></a></div>
+                           <div id="footer_next"><a href="../../feature/backup/cli-all.html" class="next" rel="internal" title="Backing up the entire system"><span class="sr-only">Backing up the entire system</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>

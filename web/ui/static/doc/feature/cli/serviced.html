@@ -22,9 +22,9 @@
       
       <meta name="version" content="1">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
       <meta name="modification" content="0">
       
@@ -55,6 +55,14 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -76,16 +84,16 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  collapsed"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
@@ -102,6 +110,10 @@
                                     </ul>
                                  </li>
                                  <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -148,7 +160,7 @@
                         <div class="body refbody">
                            
                            
-                           <div class="section"><a name="referenceid-d7167e35" id="referenceid-d7167e35" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e35" id="referenceid-d7746e35" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">NAME</h2>
                               
@@ -160,7 +172,7 @@
                               
                            
                            
-                           <div class="section"><a name="referenceid-d7167e46" id="referenceid-d7167e46" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e46" id="referenceid-d7746e46" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">SYNTAX</h2>
                               
@@ -171,7 +183,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7167e76" id="referenceid-d7167e76" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e76" id="referenceid-d7746e76" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">DESCRIPTION</h2>
                               
@@ -184,7 +196,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7167e91" id="referenceid-d7167e91" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e91" id="referenceid-d7746e91" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">GLOBAL OPTIONS</h2>
                               
@@ -933,7 +945,7 @@
                                  
                                  
                                  
-                                 <dt class="dt dlterm">auth-token-expiry</dt>
+                                 <dt class="dt dlterm">--auth-token-expiry</dt>
                                  
                                  
                                  <dd class="dd">The expiration time, in seconds, of delegate authentication tokens. The default value
@@ -1114,7 +1126,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7167e1627" id="referenceid-d7167e1627" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e1627" id="referenceid-d7746e1627" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">COMMANDS</h2>
                               
@@ -1140,10 +1152,27 @@
                                  
                                  
                                  
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">debug</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Manage debugging.</dd>
+                                 
+                                 
+                                 
+                                 
                                  <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">docker</span></span></dt>
                                  
                                  
                                  <dd class="dd">Docker administration commands.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">healthcheck</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Report on the health of <span class="keyword cmdname">serviced</span>.
+                                 </dd>
                                  
                                  
                                  
@@ -1160,15 +1189,6 @@
                                  
                                  
                                  <dd class="dd">Administer hosts.</dd>
-                                 
-                                 
-                                 
-                                 
-                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">healthcheck</span></span></dt>
-                                 
-                                 
-                                 <dd class="dd">Report on the health of <span class="keyword cmdname">serviced</span>.
-                                 </dd>
                                  
                                  
                                  
@@ -1199,7 +1219,7 @@
                                  <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">pool</span></span></dt>
                                  
                                  
-                                 <dd class="dd">Administer resource pools.</dd>
+                                 <dd class="dd">Administer resource pool data.</dd>
                                  
                                  
                                  
@@ -1234,17 +1254,6 @@
                                  
                                  
                                  <dd class="dd">Administer snapshots.</dd>
-                                 
-                                 
-                                 
-                                 
-                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">server</span></span>
-                                    
-                                 </dt>
-                                 
-                                 
-                                 <dd class="dd">Start <span class="keyword cmdname">serviced</span>.
-                                 </dd>
                                  
                                  
                                  
@@ -1285,7 +1294,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7167e1870" id="referenceid-d7167e1870" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e1866" id="referenceid-d7746e1866" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">INVOCATION</h2>
                               
@@ -1300,7 +1309,7 @@
                               </div>
                            
                            
-                           <div class="section"><a name="referenceid-d7167e1897" id="referenceid-d7167e1897" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e1893" id="referenceid-d7746e1893" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">MISCELLANEOUS</h2>
                               
@@ -1335,7 +1344,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7167e1959" id="referenceid-d7167e1959" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e1955" id="referenceid-d7746e1955" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">ENVIRONMENT</h2>
                               
@@ -1358,7 +1367,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7167e1984" id="referenceid-d7167e1984" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d7746e1980" id="referenceid-d7746e1980" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">FILES</h2>
                               

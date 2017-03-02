@@ -22,9 +22,9 @@
       
       <meta name="version" content="1">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
       <meta name="modification" content="0">
       
@@ -55,6 +55,14 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -76,16 +84,16 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  collapsed"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
@@ -102,6 +110,10 @@
                                     </ul>
                                  </li>
                                  <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -148,21 +160,13 @@
                         </h1>
                         <div class="body refbody">
                            
-                           <div class="section"><a name="referenceid-d15897e37" id="referenceid-d15897e37" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d16593e37" id="referenceid-d16593e37" class="anchor"></a>
                               
                               <p class="p">The <span class="ph">Control Center</span> configuration file, <span class="ph filepath">/etc/default/serviced</span>,
                                  contains Bash environment variables that are read by the <span class="keyword cmdname">serviced</span> daemon
                                  startup script. The order of the following list matches the order of the variables in the
                                  file.
                               </p>
-                              
-                              
-                              
-                              <aside class="note note "><span class="title">Note:</span> All of the environment variables declared in this file are available to all of the
-                                 containers that <span class="keyword cmdname">serviced</span> manages. You can add any valid Bash shell
-                                 variable to this file for application containers to use. For compatibility, please
-                                 avoid variables that begin with <samp class="ph codeph">SERVICED</samp>.
-                              </aside>
                               
                               
                               
@@ -769,19 +773,11 @@
                                        <li class="li"><samp class="ph codeph">TLS_RSA_WITH_3DES_EDE_CBC_SHA</samp></li>
                                        
                                        
-                                       <li class="li"><samp class="ph codeph">TLS_RSA_WITH_RC4_128_SHA</samp></li>
-                                       
-                                       
                                        <li class="li"><samp class="ph codeph">TLS_RSA_WITH_AES_128_GCM_SHA256</samp></li>
                                        
                                        
                                        <li class="li"><samp class="ph codeph">TLS_RSA_WITH_AES_256_GCM_SHA384</samp></li>
                                        
-                                       
-                                       <li class="li"><samp class="ph codeph">TLS_ECDHE_ECDSA_WITH_RC4_128_SHA</samp></li>
-                                       
-                                       
-                                       <li class="li"><samp class="ph codeph">TLS_ECDHE_RSA_WITH_RC4_128_SHA</samp></li>
                                        
                                        
                                     </ol>
@@ -938,6 +934,7 @@
                                  </dd>
                                  
                                  
+                                         
                                  
                                  
                                  

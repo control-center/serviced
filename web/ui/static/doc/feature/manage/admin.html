@@ -14,12 +14,14 @@
       
       <meta name="DC.Relation" scheme="URI" content="resize.html">
       
-      <meta name="DC.Relation" scheme="URI" content="backup-restore.html">
+      <meta name="DC.Relation" scheme="URI" content="../backup/overview.html">
       
       <meta name="DC.Relation" scheme="URI" content="snapshot-rollback.html">
       
       <meta name="DC.Relation" scheme="URI" content="intro-stop-start.html">
       
+      <meta name="DC.Relation" scheme="URI" content="emer-sdown-overview.html">
+      
       <meta name="prodname" content="Control Center">
       
       <meta name="prodname" content="Control Center">
@@ -28,9 +30,9 @@
       
       <meta name="version" content="1">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
       <meta name="modification" content="0">
       
@@ -61,6 +63,14 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -80,16 +90,16 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  active"><a class="selected" href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
@@ -106,6 +116,10 @@
                                     </ul>
                                  </li>
                                  <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -152,7 +166,7 @@
                         </h1>
                         <div class="body refbody">
                            
-                           <div class="section"><a name="conceptid-d1520e35" id="conceptid-d1520e35" class="anchor"></a>
+                           <div class="section"><a name="conceptid-d1558e35" id="conceptid-d1558e35" class="anchor"></a>
                               
                               <p class="p">This section contains information about and procedures for performing administrative tasks.
                                  Tasks include adding application storage, copying applications and data, reverting to a
@@ -174,7 +188,7 @@
                                  
                               </li>
                               
-                              <li class="link ulchildlink"><strong><a href="backup-restore.html">Backing up and restoring</a></strong><br>
+                              <li class="link ulchildlink"><strong><a href="../backup/overview.html">Backing up and restoring</a></strong><br>
                                  Use <span class="ph">Control Center</span> to back up applications that <span class="ph">Control Center</span> manages.     Having accurate and tested system backups can mitigate problems caused by software or hardware     issues. The
                                  <span class="ph">Control Center</span> backup process creates a compressed tar archive file       (<span class="ph filepath">.tgz</span>) that can be restored on the same cluster or a similar     cluster.
                               </li>
@@ -187,6 +201,11 @@
                               
                               <li class="link ulchildlink"><strong><a href="intro-stop-start.html">Stopping and starting Control Center for maintenance</a></strong><br>
                                  
+                              </li>
+                              
+                              <li class="link ulchildlink"><strong><a href="emer-sdown-overview.html">Emergency shutdown of services</a></strong><br>
+                                 <span class="ph">Control Center</span> monitors each service's short-term storage usage trends and     current usage levels. When <span class="ph">Control Center</span> predicts that a service is about to exhaust     storage space, it initiates an automatic emergency shutdown of the service.
+                                 By shutting down     while enough space is available to perform recovery operations, <span class="ph">Control Center</span> minimizes     the risk of data corruption. 
                               </li>
                               
                            </ul>

@@ -22,9 +22,9 @@
       
       <meta name="version" content="1">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
       <meta name="modification" content="0">
       
@@ -55,6 +55,14 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -80,16 +88,16 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  active"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
@@ -106,6 +114,10 @@
                                     </ul>
                                  </li>
                                  <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -151,7 +163,7 @@
                         <h1 class="title topictitle1">Stopping a master host (multi-host deployment)</h1>
                         <div class="body taskbody">
                            
-                           <div class="section context"><a name="taskid-d5191e35" id="taskid-d5191e35" class="anchor"></a>Use this procedure to stop the <span class="ph">Control Center</span> 
+                           <div class="section context"><a name="taskid-d5320e35" id="taskid-d5320e35" class="anchor"></a>Use this procedure to stop the <span class="ph">Control Center</span> 
                               service (<span class="keyword cmdname">serviced</span>) on the master host in a multi-host deployment.
                            </div>
                            
@@ -163,41 +175,70 @@
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Identify the top-level service <span class="keyword cmdname">serviced</span> is managing.</span>
+                                 <span class="ph cmd">Stop the top-level service <span class="keyword cmdname">serviced</span> is managing, if necessary.</span>
                                  
-                                 <div class="itemgroup stepxmp">
-                                    <pre class="pre codeblock">serviced service status</pre>
+                                 <ol type="a" class="ol substeps">
                                     
-                                    </div>
-                                 
-                                 <div class="itemgroup stepresult">The top-level service is the service listed immediately 
-                                    below the headings line.
-                                 </div>
-                                 
-                              </li>
-                              
-                              <li class="li step stepexpand">
-                                 <span class="ph cmd">Stop the top-level service.</span>
-                                 
-                                 <div class="itemgroup stepxmp">Replace <var class="keyword varname">Service</var> with the name or
-                                    identifier of the top-level service:
-                                    <pre class="pre codeblock">serviced service stop <var class="keyword varname">Service</var></pre>
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Show the status of running services.</span>
+                                       
+                                       <div class="itemgroup stepxmp">
+                                          <pre class="pre codeblock">serviced service status</pre>
+                                          
+                                          </div>
+                                       
+                                       <div class="itemgroup stepresult">The top-level service is the service listed immediately 
+                                          below the headings line.
+                                          
+                                          <ul class="ul">
+                                             
+                                             <li class="li">If the status of the top-level service and all child services is
+                                                <samp class="ph codeph">stopped</samp>, proceed to the next step.
+                                             </li>
+                                             
+                                             
+                                             <li class="li">If the status of the top-level service and all child services is
+                                                <strong class="ph b">not</strong> <samp class="ph codeph">stopped</samp>, perform the remaining substeps.
+                                             </li>
+                                             
+                                             
+                                          </ul>
+                                          
+                                          
+                                       </div>
+                                       
+                                    </li>
                                     
-                                    </div>
-                                 
-                              </li>
-                              
-                              <li class="li step stepexpand">
-                                 <span class="ph cmd">Monitor the stop.</span>
-                                 
-                                 <div class="itemgroup stepxmp">
-                                    <pre class="pre codeblock">serviced service status</pre>
                                     
-                                    </div>
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Stop the top-level service.</span>
+                                       
+                                       <div class="itemgroup stepxmp">Replace <var class="keyword varname">Service</var> with the name or
+                                          identifier of the top-level service:
+                                          <pre class="pre codeblock">serviced service stop <var class="keyword varname">Service</var></pre>
+                                          
+                                          </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Monitor the stop.</span>
+                                       
+                                       <div class="itemgroup stepxmp">
+                                          <pre class="pre codeblock">serviced service status</pre>
+                                          
+                                          </div>
+                                       
+                                       <div class="itemgroup stepresult">When the status of the top-level service and all child services is
+                                          <samp class="ph codeph">stopped</samp>, proceed to the next step.
+                                       </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                 </ol>
                                  
-                                 <div class="itemgroup stepresult">When the status is <samp class="ph codeph">stopped</samp> for the top-level service and all
-                                    child services, proceed to the next step.
-                                 </div>
                                  
                               </li>
                               

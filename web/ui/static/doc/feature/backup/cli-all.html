@@ -3,20 +3,20 @@
 <html lang="">
    <head>
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Exclude one tenant volume from the backup</title>
+      <title>Backing up the entire system</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <link rel="schema.DC" href="http://purl.org/dc/terms/">
       <meta name="DC.Type" content="task">
       
-      <meta name="DC.Title" content="Exclude one tenant volume from the backup">
+      <meta name="DC.Title" content="Backing up the entire system">
       
       <meta name="abstract" content="">
       
       <meta name="description" content="">
       
-      <meta name="DC.Relation" scheme="URI" content="backup-from-cli.html">
+      <meta name="DC.Relation" scheme="URI" content="cli.html">
       
       <meta name="prodname" content="Control Center">
       
@@ -26,9 +26,9 @@
       
       <meta name="version" content="1">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
-      <meta name="release" content="2">
+      <meta name="release" content="3">
       
       <meta name="modification" content="0">
       
@@ -39,7 +39,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="taskid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/manage\/backup-cli-exclude-mult.html","previousTopicHref":"feature\/manage\/backup-cli-all.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/backup\/cli-exclude-one.html","previousTopicHref":"feature\/backup\/cli.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -59,6 +59,14 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -69,11 +77,11 @@
                <ol class="breadcrumb">
                   <li><a class="breadcrumb" href="../../feature/manage/admin.html" title="Administration reference">Administration reference</a></li>
                   
-                  <li><a class="breadcrumb" href="../../feature/manage/backup-restore.html" title="Backing up and restoring">Backing up and restoring</a></li>
+                  <li><a class="breadcrumb" href="../../feature/backup/overview.html" title="Backing up and restoring">Backing up and restoring</a></li>
                   
-                  <li><a class="breadcrumb" href="../../feature/manage/backup-from-cli.html" title="Backing up using the CLI">Backing up using the CLI</a></li>
+                  <li><a class="breadcrumb" href="../../feature/backup/cli.html" title="Backing up using the CLI">Backing up using the CLI</a></li>
                   
-                  <li>Exclude one tenant volume from the backup</li>
+                  <li>Backing up the entire system</li>
                </ol>
             </div>
          </div>
@@ -84,16 +92,16 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  active"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  active"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  active"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child  active"><a class="selected" href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                           <li class=" collapsible  active"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  active"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child  active"><a class="selected" href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
@@ -110,6 +118,10 @@
                                     </ul>
                                  </li>
                                  <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -152,16 +164,9 @@
                   <article>
                      <div class="page task  - topic-topic task-task " id="taskid">
                         
-                        <h1 class="title topictitle1">Exclude one tenant volume from the backup</h1>
+                        <h1 class="title topictitle1">Backing up the entire system</h1>
                         <div class="body taskbody">
                            <p class="shortdesc"></p>
-                           
-                           
-                           <div class="section context"><a name="taskid-context_tfj_ltt_qx" id="taskid-context_tfj_ltt_qx" class="anchor"></a>By default, <span class="ph">Control Center</span> stores application data in
-                              <span class="ph filepath">/opt/serviced/var/volumes</span>. The directory can be changed by specifying
-                              the <span class="ph filepath">SERVICED_VOLUMES_PATH</span> environment variable in the <span class="ph">Control Center</span> configuration file, <span class="ph filepath">/etc/default/serviced</span>. If necessary, replace
-                              <span class="ph filepath">/opt/serviced/var/volumes</span> with your path.
-                           </div>
                            
                            
                            <ol class="ol steps">
@@ -171,44 +176,27 @@
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Display the <span class="ph">Control Center</span> tenant identifier.</span>
+                                 <span class="ph cmd">Start the backup:</span>
                                  
                                  <div class="itemgroup info">
-                                    <pre class="pre codeblock">ls /opt/serviced/var/volumes</pre>
+                                    <pre class="pre codeblock">serviced backup /opt/serviced/var/backups</pre>
                                     
                                     </div>
                                  
-                                 <div class="itemgroup stepresult">Example result:<pre class="pre codeblock">cvs0ul2tmvjcitolrm7p0d8bx</pre>
-                                    </div>
-                                 
-                              </li>
-                              
-                              <li class="li step stepexpand">
-                                 <span class="ph cmd">Display the directories under the <span class="ph">Control Center</span> tenant identifier. </span>
-                                 
-                                 <div class="itemgroup info">Replace <var class="keyword varname">Tenant-ID</var> with the identifier displayed in the previous
-                                    step.<pre class="pre codeblock">ls /opt/serviced/var/volumes/<var class="keyword varname">Tenant-ID</var></pre>
-                                    </div>
-                                 
-                              </li>
-                              
-                              <li class="li step stepexpand">
-                                 <span class="ph cmd">Exclude the tenant volume from the backup.</span>
-                                 
-                                 <div class="itemgroup info">For example, exclude <span class="ph filepath">hbase-master</span>. Replace
-                                    <var class="keyword varname">Tenant-ID</var> with your tenant
-                                    identifier.<pre class="pre codeblock">serviced backup /opt/serviced/var/backups \
-  --exclude /opt/serviced/var/volumes/<var class="keyword varname">Tenant-ID</var>/hbase-master</pre>
-                                    </div>
+                                 <div class="itemgroup stepresult">After a successful backup, the system displays the name of the backup file.
+                                    
+                                    <p class="p">Example result:</p>
+                                    
+                                    <div class="p">
+                                       <pre class="pre codeblock">backup-2016-10-31-203717.tgz</pre>
+                                       
+                                       </div>
+                                    
+                                 </div>
                                  
                               </li>
                               
                            </ol>
-                           
-                           
-                           <div class="section postreq"><a name="taskid-postreq_a4c_xkl_sx" id="taskid-postreq_a4c_xkl_sx" class="anchor"></a>If you use automated backups, edit the scripts to exclude
-                              tenant volumes. 
-                           </div>
                            
                            
                         </div>
@@ -218,8 +206,8 @@
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../feature/manage/backup-cli-all.html" class="previous" rel="internal" title="Backing up the entire system"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Backing up the entire system</span></a></div>
-                           <div id="footer_next"><a href="../../feature/manage/backup-cli-exclude-mult.html" class="next" rel="internal" title="Exclude multiple tenant volumes from the backup"><span class="sr-only">Exclude multiple tenant volumes from the backup</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_previous"><a href="../../feature/backup/cli.html" class="previous" rel="internal" title="Backing up using the CLI"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Backing up using the CLI</span></a></div>
+                           <div id="footer_next"><a href="../../feature/backup/cli-exclude-one.html" class="next" rel="internal" title="Exclude one tenant volume from the backup"><span class="sr-only">Exclude one tenant volume from the backup</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>
