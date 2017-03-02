@@ -200,6 +200,7 @@ func (_m *Docker) GetContainerStats(containerID string, timeout time.Duration) (
 
 	return r0, r1
 }
+
 func (_m *Docker) FindImageByHash(imageHash string, checkAllLayers bool) (*dockerclient.Image, error) {
 	ret := _m.Called(imageHash, checkAllLayers)
 
@@ -215,6 +216,51 @@ func (_m *Docker) FindImageByHash(imageHash string, checkAllLayers bool) (*docke
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
 		r1 = rf(imageHash, checkAllLayers)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *Docker) GetImagePullSize(images []string) (uint64, error) {
+	ret := _m.Called(images)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func([]string) uint64); ok {
+		r0 = rf(images)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uint64)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(images)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+
+func (_m *Docker) EstimateImagePullSize(images []string) (uint64, error) {
+	ret := _m.Called(images)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func([]string) uint64); ok {
+		r0 = rf(images)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uint64)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(images)
 	} else {
 		r1 = ret.Error(1)
 	}
