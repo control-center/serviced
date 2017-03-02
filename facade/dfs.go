@@ -34,6 +34,7 @@ import (
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
+	"github.com/dustin/go-humanize"
 )
 
 const (
@@ -70,19 +71,19 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 
 	stime := time.Now()
 	message := fmt.Sprintf("started backup at %s", stime.UTC())
-	plog.Info("Started backup")
+	plog.WithField("excludes", excludes).Info("Started backup")
 	templates, images, err := f.GetServiceTemplatesAndImages(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get service templates and images")
 		return err
 	}
-	plog.Info("Loaded templates and their images")
+	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
 	pools, err := f.GetResourcePools(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get resource pools")
 		return err
 	}
-	plog.Info("Loaded resource pools")
+	plog.WithField("elapsed", time.Since(stime)).Info("Loaded resource pools")
 	tenants, err := f.GetTenantIDs(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get tenants")
@@ -103,7 +104,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 		snapshotExcludes[snapshot] = append(excludes, f.getExcludedVolumes(ctx, tenant)...)
 		tenantLogger.WithField("snapshot", snapshot).Info("Created a snapshot for tenant")
 	}
-	plog.Info("Loaded tenants")
+	plog.WithField("elapsed", time.Since(stime)).Info("Loaded tenants")
 	data := dfs.BackupInfo{
 		Templates:        templates,
 		BaseImages:       images,
@@ -113,11 +114,98 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 		Timestamp:        stime,
 		BackupVersion:    1,
 	}
+	plog.WithField("data", data).Info("Calling dfs.Backup")
 	if err := f.dfs.Backup(data, w); err != nil {
 		plog.WithError(err).Debug("Could not backup")
 		return err
 	}
 	plog.WithField("duration", time.Since(stime)).Info("Completed backup")
+	return nil
+}
+
+// EstimateBackup estimates storage requirements to take a backup of all installed applications
+func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest, estimate *dao.BackupEstimate) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EstimateBackup"))
+
+	stime := time.Now()
+	plog.WithField("request", request).Info("Started backup estimate")
+
+	options := config.GetOptions()
+
+	// Do not DFSLock here, ControlPlaneDao does that
+
+	estimate.BackupPath = request.Dirpath
+	// Get Filesystem free space
+	estimate.AvailableBytes = volume.FilesystemBytesAvailable(request.Dirpath)
+	estimate.AvailableString = humanize.Bytes(estimate.AvailableBytes)
+
+	plog.WithFields(logrus.Fields {
+		"dirpath": request.Dirpath,
+		"estimate": estimate,
+	}).Info("Checked FilestystemSpaceAvailable")
+
+	// Estimate bytes to backup from filesystem
+	_, images, err := f.GetServiceTemplatesAndImages(ctx)
+	if err != nil {
+		plog.WithError(err).Debug("Could not get service templates and images")
+		return err
+	}
+
+	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
+
+	tenants, err := f.GetTenantIDs(ctx)
+	if err != nil {
+		plog.WithError(err).Debug("Could not get tenants")
+		return err
+	}
+
+	volumesPath := options.VolumesPath
+	var FilesystemBytesRequired, DockerBytesRequired uint64
+
+	for _, tenant := range tenants {
+		tenantPath := filepath.Join(volumesPath, tenant)
+		tenantLogger := plog.WithFields(logrus.Fields{
+			"tenant": tenant,
+			"tenantPath": tenantPath,
+		})
+		tpsize, err := f.dfs.DfPath(tenantPath, request.Excludes)
+		if err != nil {
+			tenantLogger.WithError(err).Info("Could not get size for path.")
+		}
+
+		FilesystemBytesRequired += tpsize
+	}
+	plog.WithField("elapsed", time.Since(stime)).Debugf("Estimated filesystem backup size at %d", FilesystemBytesRequired)
+
+	// Estimate Docker image bytes to backup
+	size, err := f.dfs.EstimateImagePullSize(images)
+	if err != nil {
+		plog.WithError(err).Info("Could not get size for images.")
+		return err
+	}
+	plog.WithField("elapsed", time.Since(stime)).Debugf("Estimated Docker pull size at %d", size)
+	DockerBytesRequired = size
+
+	MinOverheadBytes, err := humanize.ParseBytes(options.BackupMinOverhead)
+	if err != nil {
+		plog.WithError(err).Info("Unable to get MinOverheadBytes")
+		MinOverheadBytes = 1 * 1000 * 1000 * 1000 // default to 1G
+	}
+	CompressionEst := options.BackupEstimatedCompression
+	TotalBytesRequired := FilesystemBytesRequired + DockerBytesRequired
+	AdjustedBytesRequired := uint64(float64(TotalBytesRequired) / CompressionEst + 0.5) + MinOverheadBytes
+	estimate.EstimatedBytes = AdjustedBytesRequired
+	estimate.EstimatedString = humanize.Bytes(AdjustedBytesRequired)
+	estimate.AllowBackup = estimate.EstimatedBytes < estimate.AvailableBytes
+
+	plog.WithFields(logrus.Fields{
+		"duration": time.Since(stime),
+		"filesystembytes": FilesystemBytesRequired,
+		"dockerbytes":    DockerBytesRequired,
+		"BackupEstimatedCompression": CompressionEst,
+		"BackupMinOverhead": options.BackupMinOverhead,
+		"estimate": estimate,
+	}).Info("Completed backup estimate")
 	return nil
 }
 

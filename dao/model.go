@@ -125,3 +125,12 @@ type BackupRequest struct {
 	SnapshotSpacePercent int
 	Excludes             []string
 }
+
+type BackupEstimate struct {
+	AvailableBytes   uint64
+	EstimatedBytes   uint64
+	AvailableString  string
+	EstimatedString  string
+	BackupPath	 string
+	AllowBackup      bool
+}

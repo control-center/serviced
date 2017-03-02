@@ -19,6 +19,7 @@ import (
 
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
+	"errors"
 )
 
 // Dump all templates and services to a tgz file.
@@ -29,12 +30,16 @@ func (a *api) Backup(dirpath string, excludes []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	var path string
 	req := dao.BackupRequest{
 		Dirpath:              dirpath,
 		SnapshotSpacePercent: config.GetOptions().SnapshotSpacePercent,
 		Excludes:             excludes,
+	}
+
+	est := dao.BackupEstimate{}
+	if err := client.GetBackupEstimate(req, &est); err != nil {
+		return "", err
 	}
 	if err := client.Backup(req, &path); err != nil {
 		return "", err
@@ -57,4 +62,23 @@ func (a *api) Restore(path string) error {
 	}
 
 	return client.Restore(filepath.Clean(fp), &unusedInt)
+}
+
+
+func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*dao.BackupEstimate, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Error in connectDAO(): %v", err))
+	}
+	req := dao.BackupRequest{
+		Dirpath:              dirpath,
+		SnapshotSpacePercent: config.GetOptions().SnapshotSpacePercent,
+		Excludes:             excludes,
+	}
+	est := dao.BackupEstimate{}
+	if err := client.GetBackupEstimate(req, &est); err != nil {
+		return nil, errors.New(fmt.Sprintf("error calling GetBackupEstimate(): %v", err))
+	}
+
+	return &est, nil
 }

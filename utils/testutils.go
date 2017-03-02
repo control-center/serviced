@@ -94,3 +94,14 @@ func (r TestConfigReader) BoolVal(name string, dflt bool) bool {
 func (p TestConfigReader) GetConfigValues() map[string]ConfigValue {
 	return map[string]ConfigValue{}
 }
+
+
+func (r TestConfigReader) Float64Val(name string, dflt float64) float64 {
+	if val, _ := r[name]; val != "" {
+		if floatval, err := strconv.ParseFloat(val, 64); err != nil {
+			return floatval
+		}
+	}
+	return dflt
+}
+
