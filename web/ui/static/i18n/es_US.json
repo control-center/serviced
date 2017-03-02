@@ -401,6 +401,7 @@
     "too_few_instances": "Número de las instancias es demasiado baja",
     "unknown": "Desconocido",
     "updated_at": "Actualizado en",
+    "use_nat": "Utilizar NAT",
     "version": "Versi\u00f3n",
     "via_nat": "Utilizando NAT",
     "vhost_actions": "Acciones",

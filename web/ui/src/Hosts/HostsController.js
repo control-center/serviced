@@ -130,10 +130,10 @@
 
             // Acceptance timing fix.
             modalScope.SetDirect = function() {
-                modalScope.newHost.AddType = 'direct';
+                modalScope.newHost.UseNat = false;
             };
             modalScope.SetNat = function() {
-                modalScope.newHost.AddType = 'via_nat';
+                modalScope.newHost.UseNat = true;
             };
 
             modalScope.refreshHosts = () => this.refreshHosts();
@@ -166,7 +166,7 @@
                                 }
 
                                 modalScope.newHost.IPAddr = modalScope.newHost.host + ':' + modalScope.newHost.port;
-                                if (modalScope.newHost.AddType === 'via_nat') {
+                                if (modalScope.newHost.UseNat) {
                                     modalScope.newHost.NatAddr = modalScope.newHost.natHost + ':' + modalScope.newHost.natPort;
                                 } else {
                                     modalScope.newHost.natHost = "";
@@ -193,7 +193,7 @@
                     var err = utils.validateHostName(modalScope.newHost.host, $translate) ||
                         utils.validatePortNumber(modalScope.newHost.port, $translate) ||
                         utils.validateRAMLimit(modalScope.newHost.RAMLimit);
-                    if (modalScope.newHost.AddType === 'via_nat') {
+                    if (modalScope.newHost.UseNat) {
                         err = err || 
                         utils.validateHostName(modalScope.newHost.natHost, $translate) ||
                         utils.validatePortNumber(modalScope.newHost.natPort, $translate);

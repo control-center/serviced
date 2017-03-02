@@ -489,7 +489,7 @@ type addHostRequest struct {
 	PoolID   string
 	RAMLimit string
 	NatAddr  string
-	AddType  string
+	UseNat   bool
 }
 
 type addHostResponse struct {
@@ -533,7 +533,7 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	natIpAddr := payload.NatAddr
 	var natHostIP string
 	var natHostPort int
-	if payload.AddType == "via_nat" {
+	if payload.UseNat {
 		natParts := strings.Split(natIpAddr, ":")
 		natHostIPAddr, err := net.ResolveIPAddr("ip", natParts[0])
 		if err != nil {

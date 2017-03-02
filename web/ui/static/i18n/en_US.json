@@ -401,6 +401,7 @@
     "too_few_instances": "Number of instances is too small",
     "unknown": "Unknown",
     "updated_at": "Last Modified",
+    "use_nat": "Use NAT",
     "version": "Version",
     "via_nat": "Via NAT",
     "vhost_actions": "Actions",
