@@ -23,13 +23,20 @@ import (
 )
 
 const (
-	// expirationDelta and ClockDriftDelta are margins of error during
-	// which a token should be considered expired.
-	// Together they help avoid expiration races when server/host times don't match
-	ExpirationDelta = 10 * time.Second
+	// .. Not valid ..
+	// |---------------------!--------------------|-------------------------------------------|
+	// |<- ClockDriftDelta ->|<- token duration ->|<- ClockDriftDelta ->|<- ExpirationDelta ->|
+	// .. Expired ..
+
+	// ClockDriftDelta provides the tolerance for clock drift
+	// between master and hosts when a token is considered valid
 	ClockDriftDelta = 5 * time.Minute
 
-	// refresh
+	// ExpirationDelta, combined with ClockDriftDelta provides
+	// the tolerance of when a token should be considered expired.
+	ExpirationDelta = 10 * time.Second
+
+	// token to be refreshed ahead of the expiration time
 	RefreshAhead = 5 * time.Minute
 )
 

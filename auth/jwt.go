@@ -112,7 +112,7 @@ func (id *jwtIdentity) Valid() error {
 
 	now := jwt.TimeFunc().UTC().Unix()
 	// provide tolerance for clockdrifting slower
-	if now < id.IssuedAt-int64(ClockDriftDelta.Seconds()) {
+	if now < (id.IssuedAt - int64(ClockDriftDelta.Seconds())) {
 		return ErrIdentityTokenNotValidYet
 	}
 
@@ -121,7 +121,7 @@ func (id *jwtIdentity) Valid() error {
 
 func (id *jwtIdentity) Expired() bool {
 	now := jwt.TimeFunc().UTC().Unix()
-	return now >= id.ExpiresAt
+	return now >= (id.ExpiresAt + int64(ClockDriftDelta.Seconds()) + int64(ExpirationDelta.Seconds()))
 }
 
 func (id *jwtIdentity) HostID() string {
