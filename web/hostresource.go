@@ -488,6 +488,8 @@ type addHostRequest struct {
 	IPAddr   string
 	PoolID   string
 	RAMLimit string
+	NatAddr  string
+	UseNat   bool
 }
 
 type addHostResponse struct {
@@ -528,10 +530,47 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	// TODO: Add UI elements to capture NAT information
-	var nat utils.URL
+	natIpAddr := payload.NatAddr
+	var natHostIP string
+	var natHostPort int
+	if payload.UseNat {
+		natParts := strings.Split(natIpAddr, ":")
+		natHostIPAddr, err := net.ResolveIPAddr("ip", natParts[0])
+		if err != nil {
+			glog.Errorf("NAT host %s could not be resolved", natParts[0])
+			restBadRequest(w, err)
+			return
+		}
+		natHostIP = natHostIPAddr.IP.String()
+		if len(natParts) < 2 {
+			glog.Errorf("NAT port needs to be specified")
+			restBadRequest(w, err)
+			return
+		}
+		natHostPort, err = strconv.Atoi(natParts[1])
+		if err != nil {
+			glog.Errorf("could not convert NAT port %s to int", natParts[1])
+			restBadRequest(w, err)
+			return
+		}
+	}
 
-	agentClient, err := agent.NewClient(payload.IPAddr)
+	nat := utils.URL {
+		Host: natHostIP,
+		Port: natHostPort,
+	}
+
+	// Check to see if the nat address is set.
+	var rpcAddress string
+	if len(nat.Host) > 0 {
+		// connect via rpc using that address.
+		rpcAddress = nat.String()
+	} else {
+		// connect via rpc using the host address.
+		rpcAddress = payload.IPAddr
+	}
+
+	agentClient, err := agent.NewClient(rpcAddress)
 	if err != nil {
 		glog.Errorf("Could not create connection to host %s: %v", payload.IPAddr, err)
 		restServerError(w, err)

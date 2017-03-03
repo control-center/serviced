@@ -39,8 +39,36 @@ When (/^I fill in the RAM Limit field with "(.*?)"$/) do |ramLimit|
     fillInRAMLimit(ramLimit)
 end
 
+
+
+When(/^I fill in the NATHost field with "([^"]*)"$/) do |natHost|
+    fillInNatHost(natHost)
+end
+
+When(/^I fill in the NATPort field with "([^"]*)"$/) do |natPort|
+    fillInNatPort(natPort)
+end
+
+Then(/^the NATPort field should be flagged as invalid$/) do
+    expect(CC.UI.HostsPage.natPort_input[:class]).to include("ng-invalid")
+end
+
 When (/^I click the add Host button$/) do
     clickAddHostButton()
+end
+
+When(/^I click the nat checkbox$/) do
+    CC.UI.HostsPage.checkNAT.set(true)
+
+    # work-around for angular controller not detecting change from cucumber
+    page.driver.execute_script("angular.element('#new_host_name').scope().SetNat()")
+end
+
+When(/^I clear the nat checkbox$/) do
+    CC.UI.HostsPage.checkNAT.set(false)
+
+    # work-around for angular controller not detecting change from cucumber
+    page.driver.execute_script("angular.element('#new_host_name').scope().SetDirect()")
 end
 
 When (/^I add the "(.*?)" host$/) do |host|
@@ -89,7 +117,6 @@ Then (/^the Port field should be flagged as invalid$/) do
     expect(CC.UI.HostsPage.rpcPort_input[:class]).to include("ng-invalid")
 end
 
-
 def visitHostsPage()
     oldWait = setDefaultWaitTime(180)
     # printf "....load host page..."
@@ -118,6 +145,14 @@ end
 
 def fillInRAMLimit(commitment)
     CC.UI.HostsPage.ramLimit_input.set getTableValue(commitment)
+end
+
+def fillInNatHost(natHost)
+    CC.UI.HostsPage.natHost_input.set getTableValue(natHost)
+end
+
+def fillInNatPort(natPort)
+    CC.UI.HostsPage.natPort_input.set getTableValue(natPort)
 end
 
 def clickAddHostButton()

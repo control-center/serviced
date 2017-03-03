@@ -127,12 +127,22 @@
 
         clickAddHost() {
             let modalScope = this.newScope();
+
+            // Acceptance timing fix.
+            modalScope.SetDirect = function() {
+                modalScope.newHost.UseNat = false;
+            };
+            modalScope.SetNat = function() {
+                modalScope.newHost.UseNat = true;
+            };
+
             modalScope.refreshHosts = () => this.refreshHosts();
             modalScope.poolIds = this.pools.map(p => p.id);
 
             modalScope.newHost = {
+                AddType: "direct",
                 port: $translate.instant('placeholder_port'),
-                PoolID: modalScope.poolIds[0] || "",
+                PoolID: modalScope.poolIds[0] || ""
             };
 
             areUIReady.lock();
@@ -156,6 +166,13 @@
                                 }
 
                                 modalScope.newHost.IPAddr = modalScope.newHost.host + ':' + modalScope.newHost.port;
+                                if (modalScope.newHost.UseNat) {
+                                    modalScope.newHost.NatAddr = modalScope.newHost.natHost + ':' + modalScope.newHost.natPort;
+                                } else {
+                                    modalScope.newHost.natHost = "";
+                                    modalScope.newHost.natPort = "";
+                                    modalScope.newHost.NatAddr = ":0";
+                                }
 
                                 resourcesFactory.addHost(modalScope.newHost)
                                     .success(function(data, status){
@@ -176,6 +193,11 @@
                     var err = utils.validateHostName(modalScope.newHost.host, $translate) ||
                         utils.validatePortNumber(modalScope.newHost.port, $translate) ||
                         utils.validateRAMLimit(modalScope.newHost.RAMLimit);
+                    if (modalScope.newHost.UseNat) {
+                        err = err || 
+                        utils.validateHostName(modalScope.newHost.natHost, $translate) ||
+                        utils.validatePortNumber(modalScope.newHost.natPort, $translate);
+                    }
                     if(err){
                         this.createNotification("Error", err).error();
                         return false;

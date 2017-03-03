@@ -3,6 +3,7 @@
 describe('miscUtils', function() {
     var $scope = null;
     var miscUtils = null;
+    var $translate = null;
 
     beforeEach(module('controlplaneTest'));
     beforeEach(module('miscUtils'));
@@ -11,6 +12,7 @@ describe('miscUtils', function() {
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
         miscUtils = $injector.get('miscUtils');
+        $translate = $injector.get('$translate');
 
         // FIXME: would it be better to remove the 'if (DEBUG)' code in miscUtils.js instead?
         DEBUG = null;
@@ -94,6 +96,13 @@ describe('miscUtils', function() {
             expect(fn.calls.count()).toEqual(2);
 
         });
+    });
+
+    describe("isIpAddress", function(){
+
+      it("Validates an IP address", function(){
+        expect(miscUtils.isIpAddress("127.0.0.1")).toEqual(true);
+      });
     });
 
     describe("needsHostAlias", function(){
@@ -281,6 +290,27 @@ describe('miscUtils', function() {
         });
         it("Invalidates limit that exceeds available memory", function(){
             expect(miscUtils.validateRAMLimit("64G", 32 * 1024 * 1024 * 1024)).toEqual("RAM Limit exceeds available host memory");
+        });
+    });
+
+    describe("validatePortNumber", function(){        
+        it("Invalidates undefined ports", function() {
+            expect(miscUtils.validatePortNumber(undefined, $translate)).toEqual("port_number_invalid");
+        });
+        it("Invalidates empty ports", function() {
+            expect(miscUtils.validatePortNumber("", $translate)).toEqual("port_number_invalid");
+        });
+        it("Invalidates ports less than 1", function() {
+            expect(miscUtils.validatePortNumber("0", $translate)).toEqual("port_number_invalid_range");
+        });
+        it("Invalidates ports greater than 65535", function() {
+            expect(miscUtils.validatePortNumber("65536", $translate)).toEqual("port_number_invalid_range");
+        });
+        it("Invalidates ports that are not a number", function() {
+            expect(miscUtils.validatePortNumber("NotANumber", $translate)).toEqual("port_number_invalid");
+        });
+        it("Validates ports", function() {
+            expect(miscUtils.validatePortNumber("5000", $translate)).toEqual(null);
         });
     });
 
