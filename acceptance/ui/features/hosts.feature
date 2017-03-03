@@ -160,6 +160,23 @@ Feature: Host Management
     And I should see an empty Hosts page
 
   @nat
+  Scenario: Add a nat host without a nat port
+    Given there are no hosts added
+    When I am on the hosts page
+    And I click the add Host button
+    And I click the nat checkbox
+    And I fill in the Host field with "172.17.42.1"
+    And I fill in the Port field with "7500"
+    And I fill in the NATHost field with "172.17.42.1"
+    And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+    And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+    And I click "Next"
+    Then I should see "Error"
+    And I should see "Invalid port number"
+    And I click "Cancel"
+    And I should see an empty Hosts page
+
+  @nat
   # Confirm that the nat information isn't passed to the backend if we select direct
   Scenario: Add nat information but select direct link
     Given there are no hosts added
