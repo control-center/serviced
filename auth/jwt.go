@@ -111,7 +111,8 @@ func (id *jwtIdentity) Valid() error {
 	}
 
 	now := jwt.TimeFunc().UTC().Unix()
-	if now < id.IssuedAt {
+	// provide tolerance for clockdrifting slower
+	if now < id.IssuedAt-int64(ClockDriftDelta.Seconds()) {
 		return ErrIdentityTokenNotValidYet
 	}
 

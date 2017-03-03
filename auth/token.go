@@ -23,10 +23,14 @@ import (
 )
 
 const (
-	// expirationDelta is a margin of error during which a token should be
-	// considered expired. This should help avoid expiration races when server
-	// times don't match
+	// expirationDelta and ClockDriftDelta are margins of error during
+	// which a token should be considered expired.
+	// Together they help avoid expiration races when server/host times don't match
 	ExpirationDelta = 10 * time.Second
+	ClockDriftDelta = 5 * time.Minute
+
+	// refresh
+	RefreshAhead = 5 * time.Minute
 )
 
 var (
@@ -159,9 +163,14 @@ func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}, forceRefr
 			}
 			continue
 		}
-		// Reauthenticate 1 minute before the token expires
+		// Reauthenticate 'RefreshAhead' time before the token expires
 		expiration := time.Unix(expires, 0).Sub(now())
-		refresh := expiration - time.Duration(1*time.Minute)
+
+		refresh := expiration - time.Duration(RefreshAhead)
+		if expiration < time.Duration(RefreshAhead) {
+			// in case it wraps around
+			refresh = expiration
+		}
 		select {
 		case <-done:
 			return
