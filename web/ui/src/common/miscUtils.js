@@ -359,6 +359,9 @@
                 if (port === undefined || port === '') {
                     return $translate.instant("port_number_invalid");
                 }
+                if (isNaN(+port)) {
+                    return $translate.instant("port_number_invalid");
+                }
                 if(+port < 1 || +port > 65535){
                     return $translate.instant("port_number_invalid_range");
                 }
