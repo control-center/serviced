@@ -72,10 +72,6 @@ type DFS interface {
 	UpgradeRegistry(svcs []service.ServiceDetails, tenantID, registryHost string, override bool) error
 	// Override replaces an image in the registry with a new image
 	Override(newImage, oldImage string) error
-	// Get docker image information
-	GetImageInfo(image string) (*ImageInfo, error)
-	//TODO: remove me SimulateImagesBackup(images []string) (*ImageInfo, error)
-	GetImagePullSize(images []string) (uint64, error)
 }
 
 var _ = DFS(&DistributedFilesystem{})
@@ -111,12 +107,6 @@ type DistributedFilesystem struct {
 	timeout time.Duration
 	locker  *csync.TimedMutex
 	tmp     string // tmp directory where backups are temporarily spooled
-}
-
-// ImageInfo provides meta info about a Docker image
-type ImageInfo struct {
-	Size        int64
-	VirtualSize int64
 }
 
 // NewDistributedFilesystem instantiates a new DistributedFilsystem object
