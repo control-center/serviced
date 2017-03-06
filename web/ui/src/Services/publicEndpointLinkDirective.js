@@ -39,7 +39,7 @@
                             portAddress = `${hostAlias}${portAddress}`;
                         }
                         // Remove the port for standard http/https ports.
-                        if(protocol !== "") {
+                        if(protocol === "http" || protocol === "https") {
                             var parts = portAddress.split(":");
                             if (protocol === "http" && parts[1] === "80") {
                                 portAddress = parts[0];
