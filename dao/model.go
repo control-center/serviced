@@ -130,5 +130,4 @@ type BackupRequest struct {
 type BackupEstimate struct {
 	FilesystemSpaceAvailable uint64
 	TotalBytesRequired       uint64
-	BackupPath	         string
 }

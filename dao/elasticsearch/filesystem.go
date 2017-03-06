@@ -89,8 +89,6 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	ctx := datastore.Get()
 	// TODO: handle Force flag on BackupRequest (log if used)
 	dirpath := backupRequest.Dirpath
-
-
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")

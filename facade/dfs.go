@@ -159,7 +159,6 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	stime := time.Now()
 	plog.WithField("request", request).Info("Started backup estimate")
 
-	estimate.BackupPath = request.Dirpath
 	// Get Filesystem free space
 	estimate.FilesystemSpaceAvailable = volume.FilesystemBytesAvailable(request.Dirpath)
 	plog.WithFields(logrus.Fields {
