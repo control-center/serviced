@@ -132,5 +132,4 @@ type BackupEstimate struct {
 	AvailableString  string
 	EstimatedString  string
 	BackupPath	 string
-	AllowBackup      bool
 }
