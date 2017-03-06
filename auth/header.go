@@ -289,7 +289,7 @@ func readAuthHeaderV1(r io.Reader) (sender Identity, tstamp time.Time, payload [
 		return
 	}
 	tstamp = time.Unix(int64(ts), 0).UTC()
-	cutoff := jwt.TimeFunc().UTC().Add(-ExpirationDelta)
+	cutoff := jwt.TimeFunc().UTC().Add(-ClockDriftDelta)
 	if tstamp.Before(cutoff) {
 		err = eatBytesAndGetPayloadError(teed, remaining, ErrHeaderExpired)
 		return

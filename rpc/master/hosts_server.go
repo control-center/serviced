@@ -118,10 +118,10 @@ func (req HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
 	}
 	logger := plog.WithField("hostid", req.HostID)
 	timeDiff := time.Now().UTC().Unix() - req.Timestamp
-	if timeDiff > int64(auth.ExpirationDelta/time.Second) {
+	if timeDiff > int64(auth.ClockDriftDelta/time.Second) {
 		logger.WithField("clockdriftsec", timeDiff).Error("Delegate time behind master, re-sync clocks")
 		return ErrRequestExpired
-	} else if -1*timeDiff > int64(auth.ExpirationDelta/time.Second) {
+	} else if -1*timeDiff > int64(auth.ClockDriftDelta/time.Second) {
 		logger.WithField("clockdriftsec", timeDiff).Error("Delegate time ahead of master, re-sync clocks")
 		return ErrRequestFromFuture
 	}
