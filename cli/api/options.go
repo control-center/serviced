@@ -185,7 +185,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		StorageLookaheadPeriod:     cfg.IntVal("STORAGE_LOOKAHEAD_PERIOD", 360),
 		StorageMinimumFreeSpace:    cfg.StringVal("STORAGE_MIN_FREE", "3G"),
 		BackupEstimatedCompression: cfg.Float64Val("BACKUP_ESTIMATED_COMPRESSION",2.5),
-		BackupMinOverhead:          cfg.StringVal("BACKUP_MIN_OVERHEAD","3G"),
+		BackupMinOverhead:          cfg.StringVal("BACKUP_MIN_OVERHEAD","1G"),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")

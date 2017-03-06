@@ -35,7 +35,6 @@ import (
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"strings"
-	"github.com/dustin/go-humanize"
 )
 
 const (
@@ -149,7 +148,7 @@ func DfPath(path string, excludes []string) (uint64, error) {
 
 
 // EstimateBackup estimates storage requirements to take a backup of all installed applications
-func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest, estimate *dao.BackupEstimate) error {
+func (f *Facade) EstimateBackup(ctx datastore.Context, excludes []string, snapshotSpacePercent int, estimate *dao.BackupActual) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EstimateBackup"))
 
 	options := config.GetOptions()
@@ -157,16 +156,8 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	// Do not DFSLock here, ControlPlaneDao does that
 
 	stime := time.Now()
-	plog.WithField("request", request).Info("Started backup estimate")
+	plog.Info("Started backup estimate")
 
-	// Get Filesystem free space
-	estimate.FilesystemSpaceAvailable = volume.FilesystemBytesAvailable(request.Dirpath)
-	plog.WithFields(logrus.Fields {
-		"dirpath": request.Dirpath,
-		"estimate": estimate,
-	}).Info("Checked FilestystemSpaceAvailable")
-
-	// Estimate bytes to backup from filesystem
 	_, images, err := f.GetServiceTemplatesAndImages(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get service templates and images")
@@ -181,7 +172,6 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	}
 
 	volumesPath := options.VolumesPath
-	var FilesystemBytesRequired, DockerBytesRequired uint64
 	plog.WithField("volpath", volumesPath).Info("Got VolumesPath")
 	for _, tenant := range tenants {
 		tenantPath := filepath.Join(volumesPath, tenant)
@@ -189,7 +179,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 			"tenant": tenant,
 			"tenantPath": tenantPath,
 		})
-		tpsize, err := DfPath(tenantPath, request.Excludes)
+		tpsize, err := DfPath(tenantPath, excludes)
 		if err != nil {
 			tenantLogger.WithError(err).Info("Could not get size for path.")
 		}
@@ -198,42 +188,70 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 			"elapsed":    time.Since(stime),
 			"tpSize":     tpsize,
 		}).Info("Tenant Size")
-		FilesystemBytesRequired += tpsize
+		estimate.FilesystemBytesRequired += tpsize
 
 		tenantLogger.WithField("elapsed", time.Since(stime)).Info("path sized")
 	}
 	plog.WithField("elapsed", time.Since(stime)).Info("Estimated tenants")
 
-	// Estimate Docker image bytes to backup
 	size, err := f.dfs.GetImagePullSize(images)
 	if err != nil {
 		plog.WithError(err).Info("Could not get size for images.")
 	}
 	plog.WithField("elapsed", time.Since(stime)).Infof("Estimated Docker pull size at %d", size)
-	DockerBytesRequired = size
+	estimate.DockerBytesRequired = size
 
-	MinOverheadBytes, err := humanize.ParseBytes(options.BackupMinOverhead)
-	if err != nil {
-		plog.WithError(err).Info("Unable to get MinOverheadBytes")
-	}
-	CompressionEst := options.BackupEstimatedCompression
-	TotalBytesRequired := FilesystemBytesRequired + DockerBytesRequired
-	AdjustedBytesRequired := uint64(float64(TotalBytesRequired) / CompressionEst + 0.5) + MinOverheadBytes
-	estimate.TotalBytesRequired = AdjustedBytesRequired
+	estimate.TotalBytesRequired = estimate.FilesystemBytesRequired + estimate.DockerBytesRequired
 	plog.WithFields(logrus.Fields {
 		"elapsed":  time.Since(stime),
-		"filesystembytes": FilesystemBytesRequired,
-		"dockerbytes":    DockerBytesRequired,
+		"filesystembytes": estimate.FilesystemBytesRequired,
+		"dockerbytes":    estimate.DockerBytesRequired,
 		"totalbytes": estimate.TotalBytesRequired,
-		"BackupEstimatedCompression": CompressionEst,
-		"BackupMinOverhead": options.BackupMinOverhead,
-		"MinOverheadBytes": MinOverheadBytes,
 	}).Info("Estimated sizes for images")
-
 
 	plog.WithField("duration", time.Since(stime)).WithField("estimate", estimate).Info("Completed backup estimate")
 	return nil
 }
+
+// CountWriter is a simple implementation of Writer that simply counts the bytes sent to it.
+type CountWriter struct {
+	BytesWritten uint64
+	Writes uint64
+}
+
+// Implements Writer.Write
+func (w *CountWriter) Write(p []byte) (n int, err error) {
+	lp := len(p)
+	w.BytesWritten += uint64(lp)
+	w.Writes++
+	//glog.Infof("%d bytes written to writer. Total is now %d.", lp, w.BytesWritten)
+	return lp, nil
+}
+
+
+// TODO: remove if not needed
+//func (f *Facade) SimulateDockerBackup(ctx datastore.Context, estimate *dao.BackupActual) error {
+//	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SimulateDockerBackup"))
+//
+//	// Do not DFSLock here, ControlPlaneDao does that
+//
+//	stime := time.Now()
+//	plog.Info("Started backup simulation")
+//
+//	_, images, err := f.GetServiceTemplatesAndImages(ctx)
+//	if err != nil {
+//		plog.WithError(err).Debug("Could not get service templates and images")
+//		return err
+//	}
+//	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
+//	// TODO: Remove if not needed
+//	//info, err := f.dfs.SimulateImagesBackup(images)
+//	//if err != nil {
+//	//	plog.WithError(err).Infof("Could not simulate Docker Images Backup.")
+//	//}
+//	//estimate.DockerBytesRequired = uint64(info.Size)
+//	return nil
+//}
 
 // BackupInfo returns metadata info about a backup
 func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo, error) {

@@ -881,22 +881,6 @@ func restGetUIConfig(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 	w.WriteJson(uiConfig)
 }
 
-func RestBackupCheck(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
-	dir := ""
-	req := dao.BackupRequest{
-		Dirpath:              dir,
-		SnapshotSpacePercent: snapshotSpacePercent,
-	}
-	var estimate dao.BackupEstimate
-	err := client.GetBackupEstimate(req, &estimate)
-	if err != nil {
-		plog.WithError(err).Error("Unexpected error during backup estimate")
-		restServerError(w, err)
-		return
-	}
-	w.WriteJson(&estimate)
-}
-
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	dir := ""
 	filePath := ""

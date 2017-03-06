@@ -41,6 +41,18 @@ func (c *ServicedCli) initBackup() {
 					Name: "check",
 					Usage: "check space, but do not do backup",
 				},
+				cli.StringFlag{
+					Name: "backup-min-overhead",
+					//Value: "TBD", //defaultOps.BackupMinOverhead,
+					Usage: "warn if backup operation would leave less free space than this",
+				},
+				cli.Float64Flag{
+					Name: "backup-estimated-compression",
+					//Value: c.config.Float64Val("BACKUP_ESTIMATED_COMPRESSION", 3.1415),
+					//Value: 0.0, //defaultOps.BackupEstimatedCompression,
+					Usage:"estimated compression ratio for backup tgz",
+				},
+
 			},
 		},
 		cli.Command{
@@ -69,6 +81,8 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 		return
 	} else {
 		fmt.Printf("backup data: %+v\nBackup check took %s\n", backupSpace, time.Since(start))
+		fmt.Printf("Estimated Compression: %f\n", backupSpace.EstCompr)
+		fmt.Printf("MinOverhead: %s\n", backupSpace.MinOverhead)
 	}
 	// if check flag specified, do check
 	if ctx.Bool("check") {

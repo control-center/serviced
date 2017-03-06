@@ -87,7 +87,7 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 // that it is written to.
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
-	// TODO: handle Force flag on BackupRequest (log if used)
+
 	dirpath := backupRequest.Dirpath
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -128,13 +128,26 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	return
 }
 
-func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest, backupEstimate *model.BackupEstimate) (err error) {
+// CountWriter is a simple implementation of Writer that simply counts the bytes sent to it.
+type CountWriter struct {
+	BytesWritten uint64
+	Writes uint64
+}
+
+// Implements Writer.Write
+func (w *CountWriter) Write(p []byte) (n int, err error) {
+	lp := len(p)
+	w.BytesWritten += uint64(lp)
+	w.Writes++
+	//glog.Infof("%d bytes written to writer. Total is now %d.", lp, w.BytesWritten)
+	return lp, nil
+}
+
+func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest, backupEstimate *model.BackupActual) (err error) {
 	ctx := datastore.Get()
 	start := time.Now()
-	if backupRequest.Dirpath == "" {
-		backupRequest.Dirpath = dao.backupsPath
-	}
-	err = dao.facade.EstimateBackup(ctx, backupRequest, backupEstimate)
+	//tempEstimate := model.BackupEstimate{}
+	err = dao.facade.EstimateBackup(ctx, backupRequest.Excludes, backupRequest.SnapshotSpacePercent, backupEstimate)
 	if err != nil {
 		return err
 	}
@@ -142,6 +155,24 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 
 	return nil
 }
+
+// TODO: remove if not needed
+//func (dao *ControlPlaneDao) GetBackupActual(backupRequest  model.BackupRequest, backupEstimate *model.BackupActual) (err error) {
+//	ctx := datastore.Get()
+//	start := time.Now()
+//
+//	w := new(CountWriter)
+//	err = dao.facade.Backup(ctx, w, backupRequest.Excludes, backupRequest.SnapshotSpacePercent)
+//	if err != nil {
+//		return err
+//	}
+//	glog.Infof("Total of %d bytes written in %d writes. Total time: %s", w.BytesWritten, w.Writes, time.Since(start) )
+//	backupEstimate.TotalBytesRequired = w.BytesWritten
+//
+//	dao.facade.SimulateDockerBackup(ctx, backupEstimate)
+//	backupEstimate.FilesystemBytesRequired = backupEstimate.TotalBytesRequired - backupEstimate.DockerBytesRequired
+//	return nil
+//}
 
 // AsyncBackup is the same as backup, but asynchronous
 func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filename *string) (err error) {

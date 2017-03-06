@@ -24,7 +24,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/", gz(mainPage)},
 
 		// Backups
-		rest.Route{"GET", "/backup/check", gz(sc.authorizedClient(RestBackupCheck))},
 		rest.Route{"GET", "/backup/create", gz(sc.authorizedClient(RestBackupCreate))},
 		rest.Route{"GET", "/backup/restore", gz(sc.authorizedClient(RestBackupRestore))},
 		rest.Route{"GET", "/backup/list", gz(sc.authorizedClient(RestBackupFileList))},
