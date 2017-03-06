@@ -16,6 +16,7 @@ package api
 import (
 	"bytes"
 	"errors"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/auth"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
@@ -279,20 +280,8 @@ func (d *daemon) run() (err error) {
 		}).Fatal("Invalid host ID")
 	}
 
-	// Validate that we have an acceptable version of Docker
-	currentDockerVersion, err := node.GetDockerVersion()
-	if err != nil {
-		log.WithError(err).Fatal("Unable to get Docker version")
-	} else if minDockerVersion.Compare(currentDockerVersion) < 0 {
-		log.WithError(err).WithFields(logrus.Fields{
-			"minversion": minDockerVersion,
-			"version":    currentDockerVersion,
-		}).Fatal("Incompatible Docker version")
-	}
-
 	// Establish a connection to Docker
 	dockerlogger := log.WithFields(logrus.Fields{
-		"version": currentDockerVersion,
 		"address": docker.DefaultSocket,
 	})
 	if d.docker, err = docker.NewDockerClient(); err != nil {
@@ -846,10 +835,10 @@ func (d *daemon) startAgent() error {
 						err := errors.New("")
 						for err != nil {
 							select {
-								case <-d.shutdown:
-									return
-								default:
-									time.Sleep(5 * time.Second)
+							case <-d.shutdown:
+								return
+							default:
+								time.Sleep(5 * time.Second)
 							}
 							err = masterClient.UpdateHost(updatedHost)
 						}
@@ -1199,7 +1188,7 @@ func (d *daemon) startStorageMonitor() {
 							// Fall back to pulling tenants from the metrics.
 							// This should really never happen.
 							t = []string{}
-							for k, _ := range avail {
+							for k := range avail {
 								if k != metrics.PoolDataAvailableName && k != metrics.PoolMetadataAvailableName {
 									t = append(t, k)
 								}
@@ -1223,7 +1212,7 @@ func (d *daemon) startStorageMonitor() {
 							// Fall back to pulling tenants from the metrics.
 							// This should really never happen.
 							t = []string{}
-							for k, _ := range avail {
+							for k := range avail {
 								if k != metrics.PoolDataAvailableName && k != metrics.PoolMetadataAvailableName {
 									t = append(t, k)
 								}
