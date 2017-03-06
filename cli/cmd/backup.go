@@ -57,19 +57,16 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context)  {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "backup")
 		c.exit(1)
-		return
 	}
 	if ctx.Bool("check") {
 		fmt.Printf("Checking for space...\n")
 		if backupSpace, err := c.driver.GetBackupEstimate(args[0], ctx.StringSlice("exclude")); err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to estimate backup size: %s", err)
 			c.exit(1)
-			return
 		} else {
 			if ! backupSpace.AllowBackup {
 				fmt.Fprintf(os.Stderr, "Unable to backup: estimated space required (%s) exceeds space available (%s) on %s\n", backupSpace.EstimatedString, backupSpace.AvailableString, backupSpace.BackupPath)
 				c.exit(1)
-				return
 			}
 			fmt.Printf("Okay to backup. Estimated space required: %s, Available: %s\n", backupSpace.EstimatedString, backupSpace.AvailableString)
 		}
@@ -80,11 +77,9 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context)  {
 	if path, err := c.driver.Backup(args[0], ctx.StringSlice("exclude")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
-		return
 	} else if path == "" {
 		fmt.Fprintln(os.Stderr, "received nil path to backup file")
 		c.exit(1)
-		return
 	} else {
 		fmt.Println(path)
 	}
