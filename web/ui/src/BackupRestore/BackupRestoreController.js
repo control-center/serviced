@@ -17,92 +17,49 @@
             RESTORE_COMPLETE = $translate.instant("restore_complete"),
             ERROR = $translate.instant("error");
 
-        $scope.createBackup = function () {
-
-            let modalScope = $scope.$new(true);
-
+        $scope.createBackup = function(){
             $modalService.create({
-                templateUrl: "add-backup.html",
-                model: modalScope,
+                template: $translate.instant("confirm_start_backup"),
+                model: $scope,
                 title: "backup_create",
                 actions: [
                     {
                         role: "cancel"
-                    }, {
+                    },{
                         role: "ok",
                         label: "backup_create",
-                        classes: "btn-primary submit backup-ok",
-                        action: function () {
+                        action: function(){
                             var notification = $notification.create("Backup").updateStatus(BACKUP_RUNNING).show(false);
 
                             // TODO - when the server switches to broadcast instead of
                             // channel. this can be greatly simplified
-                            resourcesFactory.createBackup().success(function checkFirstStatus() {
+                            resourcesFactory.createBackup().success(function checkFirstStatus(){
                                 // recursively check if a valid status has been pushed into
                                 // the pipe. if not, shake yourself off and try again. try again.
-                                resourcesFactory.getBackupStatus().success(function (data) {
+                                resourcesFactory.getBackupStatus().success(function(data){
                                     // no status has been pushed, so check again
-                                    if (data.Detail === "") {
-                                        checkFirstStatus();
+                                    if(data.Detail === ""){
+                                       checkFirstStatus();
 
-                                        // a valid status has been pushed, so
-                                        // start the usual poll cycle
+                                    // a valid status has been pushed, so
+                                    // start the usual poll cycle
                                     } else {
                                         pollBackupStatus(notification);
                                     }
 
                                 })
-                                    .error(function (data, status) {
-                                        backupRestoreError(notification, data.Detail, status);
-                                    });
-                            })
-                                .error(function (data, status) {
+                                .error(function(data, status){
                                     backupRestoreError(notification, data.Detail, status);
                                 });
+                            })
+                            .error(function(data, status){
+                                backupRestoreError(notification, data.Detail, status);
+                            });
 
                             this.close();
                         }
                     }
-                ],
-                onShow: function () {
-
-                    this.disableAction("backup-ok");
-                    modalScope.backupCheck = {
-                        BackupPath: "",
-                        AvailableString: "",
-                        EstimatedString: "",
-                        AllowBackup: true,
-                        pct: 0,
-                        mcKraken: "",
-                        ready: "",
-                    };
-
-                    resourcesFactory.getBackupCheck()
-                        .success((data, status) => {
-
-                            let pct = data.EstimatedBytes / data.AvailableBytes * 100;
-                            pct = Math.min(100, pct); // don't break out of box
-                            pct = Math.max(1, pct);   // show _something_
-
-                            modalScope.backupCheck.pct = pct;
-                            modalScope.backupCheck.BackupPath = data.BackupPath;
-                            modalScope.backupCheck.AvailableString = data.AvailableString;
-                            modalScope.backupCheck.EstimatedString = data.EstimatedString;
-                            modalScope.backupCheck.mcKraken = "disappear";
-
-                            if (data.AllowBackup) {
-                                modalScope.backupCheck.ready = "ready";
-                                this.enableAction("backup-ok");
-                            } else {
-                                modalScope.backupCheck.ready = "ready danger";
-                            }
-                        })
-
-                        .error((data, status) => {
-                            // do something
-                        });
-
-                }
+                ]
             });
         };
 
@@ -177,6 +134,7 @@
                 backupRestoreError(notification, data.Detail, status);
             });
         }
+
 
         function pollRestoreStatus(notification){
             resourcesFactory.getRestoreStatus().success(function(data){
