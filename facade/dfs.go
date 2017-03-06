@@ -34,6 +34,7 @@ import (
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
+	"strings"
 	"github.com/dustin/go-humanize"
 )
 
@@ -123,6 +124,30 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 	return nil
 }
 
+// TODO: find a more suitable place for this
+func DfPath(path string, excludes []string) (uint64, error) {
+	plog.WithField("path", path).WithField("excludes", excludes).Info("Begin DfPath")
+	var size uint64
+	var fqexcludes []string
+	for _, exc := range(excludes) {
+		fqexcludes = append(fqexcludes, filepath.Join(path, exc))
+	}
+	err := filepath.Walk(path, func(walkpath string, info os.FileInfo, err error) error {
+		for _, exclude := range(fqexcludes) {
+			if strings.HasPrefix(walkpath,exclude)  {
+				plog.WithField("walkpath", walkpath).WithField("info", info).Info("Excluding path from size count.")
+				return filepath.SkipDir
+			}
+		}
+		if !info.IsDir() {
+			size += uint64(info.Size())
+		}
+		return err
+	})
+	return size, err
+}
+
+
 // EstimateBackup estimates storage requirements to take a backup of all installed applications
 func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest, estimate *dao.BackupEstimate) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EstimateBackup"))
@@ -170,7 +195,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 			"tenant": tenant,
 			"tenantPath": tenantPath,
 		})
-		tpsize, err := f.dfs.DfPath(tenantPath, request.Excludes)
+		tpsize, err := DfPath(tenantPath, request.Excludes)
 		if err != nil {
 			tenantLogger.WithError(err).Info("Could not get size for path.")
 		}
@@ -187,7 +212,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	plog.WithField("elapsed", time.Since(stime)).Info("Estimated tenants")
 
 	// Estimate Docker image bytes to backup
-	size, err := f.dfs.EstimateImagePullSize(images)
+	size, err := f.dfs.GetImagePullSize(images)
 	if err != nil {
 		plog.WithError(err).Info("Could not get size for images.")
 	}

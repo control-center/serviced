@@ -87,6 +87,7 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 // that it is written to.
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
+	// TODO: handle Force flag on BackupRequest (log if used)
 	dirpath := backupRequest.Dirpath
 
 
@@ -100,20 +101,9 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	backupfilename := filepath.Join(dirpath, *filename)
 	if dirpath == "" {
 		backupfilename = filepath.Join(dao.backupsPath, *filename)
-		backupRequest.Dirpath = backupfilename
 	}
-
-	// CC-2421: Check for space before doing backup
-	est := model.BackupEstimate{}
-	err = dao.facade.EstimateBackup(ctx, backupRequest, &est)
-	if err != nil {
-		glog.Errorf("Could not estimate backup size: %s", err)
-		return
-	} else if !est.AllowBackup {
-		glog.Errorf("Backup failed - insufficient space on %s", est.BackupPath)
-		return
-	}
-
+	// TODO: (here?) Put call to Utils.FilesystemBytesAvailable(dirpath), and error out (or warn?) if less than threshold
+	// TODO: Determine good threshold for warning (and probably make configurable)
 	inprogress.SetProgress(backupfilename, "backup")
 	defer func() {
 		if err != nil {

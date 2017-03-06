@@ -19,8 +19,20 @@ import (
 
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
+	"github.com/dustin/go-humanize"
 	"errors"
 )
+
+
+type BackupDetails struct {
+	Available uint64
+	EstimatedBytes uint64
+	Estimated dao.BackupEstimate
+	Path string
+	Excludes []string
+	Warn bool
+	Message string
+}
 
 // Dump all templates and services to a tgz file.
 // This includes a snapshot of all shared file systems
@@ -30,16 +42,12 @@ func (a *api) Backup(dirpath string, excludes []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// TODO: (?) add check for space here (or just handle error from client.Backup call?)
 	var path string
 	req := dao.BackupRequest{
 		Dirpath:              dirpath,
 		SnapshotSpacePercent: config.GetOptions().SnapshotSpacePercent,
 		Excludes:             excludes,
-	}
-
-	est := dao.BackupEstimate{}
-	if err := client.GetBackupEstimate(req, &est); err != nil {
-		return "", err
 	}
 	if err := client.Backup(req, &path); err != nil {
 		return "", err
@@ -65,8 +73,10 @@ func (a *api) Restore(path string) error {
 }
 
 
-func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*dao.BackupEstimate, error) {
+func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*BackupDetails, error) {
+	fmt.Printf("Hello, from GetBackupSpace()\n")
 	client, err := a.connectDAO()
+	fmt.Printf("Back from connectDAO(). err = %v\n", err)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Error in connectDAO(): %v", err))
 	}
@@ -77,8 +87,25 @@ func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*dao.BackupE
 	}
 	est := dao.BackupEstimate{}
 	if err := client.GetBackupEstimate(req, &est); err != nil {
-		return nil, errors.New(fmt.Sprintf("error calling GetBackupEstimate(): %v", err))
+		return nil, errors.New(fmt.Sprintf("error calling GetBackupestimate(): %v", err))
 	}
 
-	return &est, nil
+	warn := est.EstimatedBytes > est.AvailableBytes
+	message := ""
+	if warn {
+		message = fmt.Sprintf("Backup not recommended. Available space on %s is %s, and backup is estimated to take %s.", dirpath, humanize.Bytes(est.AvailableBytes), humanize.Bytes(est.EstimatedBytes))
+	} else {
+		message = fmt.Sprintf("There should be sufficient room for a backup. Free space on %s is %s, and the backup is estimated to take %s, which will leave %s", dirpath, humanize.Bytes(est.AvailableBytes), humanize.Bytes(est.EstimatedBytes), humanize.Bytes(est.AvailableBytes - est.EstimatedBytes))
+	}
+	deets := BackupDetails{
+		Available: est.AvailableBytes,
+		EstimatedBytes: est.EstimatedBytes,
+		Estimated: est,
+		Path: dirpath,
+		Excludes: excludes,
+		Warn: warn,
+		Message: message,
+	}
+
+	return &deets, nil
 }

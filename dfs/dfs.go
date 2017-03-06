@@ -74,10 +74,8 @@ type DFS interface {
 	Override(newImage, oldImage string) error
 	// Get docker image information
 	GetImageInfo(image string) (*ImageInfo, error)
-	// Get estimated size of docker image pull for backup
-	EstimateImagePullSize(images []string) (uint64, error)
-	// Get free disk space for a path
-	DfPath(path string, excludes []string) (uint64, error)
+	//TODO: remove me SimulateImagesBackup(images []string) (*ImageInfo, error)
+	GetImagePullSize(images []string) (uint64, error)
 }
 
 var _ = DFS(&DistributedFilesystem{})

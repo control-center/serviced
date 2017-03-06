@@ -194,7 +194,7 @@ func (p *EnvironConfigReader) BoolVal(name string, defaultval bool) bool {
 func (p *EnvironConfigReader) Float64Val(name string, defaultval float64) float64 {
 	strval := p.StringVal(name, "")
 	if strval != "" {
-		if val, err := strconv.ParseFloat(strval,64); err == nil {
+		if val, err := strconv.ParseFloat(strval,32); err == nil {
 			return val
 		}
 	}
