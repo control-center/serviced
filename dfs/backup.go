@@ -24,8 +24,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/volume"
-	"os"
-	"strings"
 )
 
 const (
@@ -254,46 +252,4 @@ func (dfs *DistributedFilesystem) writeBackupMetadata(data BackupInfo, w *tar.Wr
 		return err
 	}
 	return nil
-}
-
-func (dfs *DistributedFilesystem) GetImageInfo(image string) (*ImageInfo, error) {
-	infoLogger := plog.WithField("image", image)
-
-	dinfo, err := dfs.docker.FindImage(image)
-	if err != nil || docker.IsImageNotFound(err) {
-		infoLogger.WithError(err).Debug("Could not get info for image.")
-	}
-	infoLogger.WithField("info", dinfo).Info("Info from docker")
-	result := ImageInfo {
-		Size:        dinfo.Size,
-		VirtualSize: dinfo.VirtualSize,
-	}
-	return &result, nil
-}
-
-
-func (dfs *DistributedFilesystem) EstimateImagePullSize(images []string) (uint64, error) {
-	return dfs.docker.GetImagePullSize(images)
-}
-
-func (dfs *DistributedFilesystem) DfPath(path string, excludes []string) (uint64, error) {
-	plog.WithField("path", path).WithField("excludes", excludes).Debug("Begin DfPath")
-	var size uint64
-	var fqexcludes []string
-	for _, exc := range(excludes) {
-		fqexcludes = append(fqexcludes, filepath.Join(path, exc))
-	}
-	err := filepath.Walk(path, func(walkpath string, info os.FileInfo, err error) error {
-		for _, exclude := range(fqexcludes) {
-			if strings.HasPrefix(walkpath,exclude)  {
-				plog.WithField("walkpath", walkpath).WithField("info", info).Debug("Excluding path from size count.")
-				return filepath.SkipDir
-			}
-		}
-		if !info.IsDir() {
-			size += uint64(info.Size())
-		}
-		return err
-	})
-	return size, err
 }

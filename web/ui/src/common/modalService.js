@@ -184,14 +184,6 @@
                     return $notification.create(title, message, this.$notificationEl);
                 },
 
-                disableAction(classname) {
-                    this.$el.find(".modal-footer button." + classname ).addClass("disabled");
-                },
-
-                enableAction(classname) {
-                    this.$el.find(".modal-footer button." + classname ).removeClass("disabled");
-                },
-
                 disableScroll(){
                     var bodyEl = $("body");
                     bodyEl.css("overflow", "hidden");

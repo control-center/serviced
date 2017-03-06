@@ -75,7 +75,6 @@ type Docker interface {
 	GetImageHash(image string) (string, error)
 	GetContainerStats(containerID string, timeout time.Duration) (*dockerclient.Stats, error)
 	FindImageByHash(imageHash string, checkAllLayers bool) (*dockerclient.Image, error)
-	GetImagePullSize(images []string) (uint64, error)
 }
 
 type DockerClient struct {
@@ -92,48 +91,6 @@ func NewDockerClient() (*DockerClient, error) {
 
 func (d *DockerClient) FindImage(image string) (*dockerclient.Image, error) {
 	return d.dc.InspectImage(image)
-}
-
-
-func (d *DockerClient) GetImagePullSize(images []string) (uint64, error) {
-	type layerID struct {
-		Created int64
-		CreatedBy string
-	}
-	sizeMap := make(map[layerID]uint64)
-	totalSize := uint64(0)
-	calcSize := uint64(0)
-	dupSize := uint64(0)
-	for _, image := range(images){
-		hist, err := d.dc.ImageHistory(image)
-		if err != nil {
-			plog.WithError(err).Infof("Unable to get history for image %s", image)
-			return totalSize, err
-		}
-		for _, histentry := range(hist) {
-			hk := layerID {
-				Created: histentry.Created,
-				CreatedBy: histentry.CreatedBy,
-			}
-			prevSize := sizeMap[hk]
-			newSize := uint64(histentry.Size)
-			if prevSize != newSize {
-				if prevSize == 0 {
-					sizeMap[hk] = newSize
-				} else {
-					plog.WithField("histentry", histentry).Infof("prevSize of %d mismatched with new value of %d", prevSize, newSize)
-				}
-			} else {
-				dupSize += uint64(histentry.Size)
-			}
-			totalSize += uint64(histentry.Size)
-		}
-	}
-	for _, s := range(sizeMap) {
-		calcSize += s
-	}
-	plog.WithFields(log.Fields{"calcSize": calcSize, "totalSize": totalSize}).Info("done.")
-	return calcSize, nil
 }
 
 func (d *DockerClient) SaveImages(images []string, writer io.Writer) error {

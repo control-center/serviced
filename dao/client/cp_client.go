@@ -197,10 +197,6 @@ func (s *ControlClient) Backup(backupRequest dao.BackupRequest, filename *string
 	return s.rpcClient.Call("ControlCenter.Backup", backupRequest, filename, 0)
 }
 
-func (s *ControlClient) GetBackupEstimate(backupRequest dao.BackupRequest, estimate *dao.BackupEstimate) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetBackupEstimate", backupRequest, estimate, 0)
-}
-
 func (s *ControlClient) AsyncBackup(backupRequest dao.BackupRequest, filename *string) (err error) {
 	return s.rpcClient.Call("ControlCenter.AsyncBackup", backupRequest, filename, 0)
 }

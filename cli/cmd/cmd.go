@@ -150,8 +150,6 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
 		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
 		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
-		cli.StringFlag{"backup-min-overhead", defaultOps.BackupMinOverhead, "Minimum free space to allow when calculating backup estimates"},
-		cli.Float64Flag{"backup-estimated-compression", defaultOps.BackupEstimatedCompression, "Estimate of compression rate to use when caluclating backup estimates"},
 	}
 
 	c.initVersion()
@@ -292,11 +290,9 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		StorageMetricMonitorWindow: ctx.GlobalInt("storage-metric-monitor-window"),
 		StorageLookaheadPeriod:     ctx.GlobalInt("storage-lookahead-period"),
 		StorageMinimumFreeSpace:    ctx.GlobalString("storage-min-free"),
-		BackupEstimatedCompression: ctx.Float64("backup-estimated-compression"),
-		BackupMinOverhead:          ctx.String("backup-min-overhead"),
 	}
 
-	// Long story, but due to the way codegangsta handles bools and the way we start system services vs
+	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
 	// zendev, we need to double-check the environment variables for Master/Agent after all option
 	// initialization has been done
 	if cfg.StringVal("MASTER", "") == "1" {
