@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/volume"
 	gzip "github.com/klauspost/pgzip"
 	"github.com/zenoss/glog"
-	"errors"
 )
 
 // InProgress prompts which backup is currently backing up or restoring
@@ -88,6 +87,7 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 // that it is written to.
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
+	dirpath := backupRequest.Dirpath
 
 
 	// synchronize the dfs
@@ -95,10 +95,14 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	dfslocker.Lock("backup")
 	defer dfslocker.Unlock()
 
-
-	if backupRequest.Dirpath == "" {
-		backupRequest.Dirpath = dao.backupsPath
+	// set the progress of the backup file
+	*filename = time.Now().UTC().Format("backup-2006-01-02-150405.tgz")
+	backupfilename := filepath.Join(dirpath, *filename)
+	if dirpath == "" {
+		backupfilename = filepath.Join(dao.backupsPath, *filename)
+		backupRequest.Dirpath = backupfilename
 	}
+
 	// CC-2421: Check for space before doing backup
 	est := model.BackupEstimate{}
 	err = dao.facade.EstimateBackup(ctx, backupRequest, &est)
@@ -106,15 +110,9 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 		glog.Errorf("Could not estimate backup size: %s", err)
 		return
 	} else if !est.AllowBackup {
-		message := fmt.Sprintf("Could not take backup - insufficient space on %s (%s estimated backup size, %s available)", est.BackupPath, est.EstimatedString, est.AvailableString)
-		err := errors.New(message)
-		glog.Errorf("No space for backup: %s", err)
-		return err
+		glog.Errorf("Backup failed - insufficient space on %s", est.BackupPath)
+		return
 	}
-
-	// set the progress of the backup file
-	*filename = time.Now().UTC().Format("backup-2006-01-02-150405.tgz")
-	backupfilename := filepath.Join(backupRequest.Dirpath, *filename)
 
 	inprogress.SetProgress(backupfilename, "backup")
 	defer func() {
@@ -146,7 +144,6 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 	ctx := datastore.Get()
 	start := time.Now()
 	if backupRequest.Dirpath == "" {
-		glog.Infof("Dirpath was empty. Updating to dao.BackupsPath value of %s\n", dao.backupsPath)
 		backupRequest.Dirpath = dao.backupsPath
 	}
 	err = dao.facade.EstimateBackup(ctx, backupRequest, backupEstimate)

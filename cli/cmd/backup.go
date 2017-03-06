@@ -58,21 +58,23 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 		cli.ShowCommandHelp(ctx, "backup")
 		return
 	}
-	if ctx.Bool("check") {
-		fmt.Printf("Checking for space...\n")
-		if backupSpace, err := c.driver.GetBackupEstimate(args[0], ctx.StringSlice("exclude")); err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to estimate backup size: %s", err)
+	fmt.Printf("Checking for space...\n")
+	if backupSpace, err := c.driver.GetBackupEstimate(args[0], ctx.StringSlice("exclude")); err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to estimate backup size: %s", err)
+		return
+	} else {
+		if ! backupSpace.AllowBackup {
+			fmt.Fprintf(os.Stderr, "Unable to backup: estimated space required (%s) exceeds space available (%s) on %s\n", backupSpace.EstimatedString, backupSpace.AvailableString, backupSpace.BackupPath)
 			return
-		} else {
-			if ! backupSpace.AllowBackup {
-				fmt.Fprintf(os.Stderr, "Unable to backup: estimated space required (%s) exceeds space available (%s) on %s\n", backupSpace.EstimatedString, backupSpace.AvailableString, backupSpace.BackupPath)
-				return
-			}
-			fmt.Printf("Okay to backup. Estimated space required: %s, Available: %s\n", backupSpace.EstimatedString, backupSpace.AvailableString)
 		}
+		fmt.Printf("Okay to backup. Estimated space required: %s, Available: %s\n", backupSpace.EstimatedString, backupSpace.AvailableString)
+	}
+	// if check flag specified, do check
+	if ctx.Bool("check") {
 		fmt.Printf("Check only - not taking backup\n")
 		return
 	}
+
 	// do backup
 	fmt.Printf("Taking backup\n")
 	if path, err := c.driver.Backup(args[0], ctx.StringSlice("exclude")); err != nil {

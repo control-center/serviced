@@ -277,7 +277,7 @@ func (dfs *DistributedFilesystem) EstimateImagePullSize(images []string) (uint64
 }
 
 func (dfs *DistributedFilesystem) DfPath(path string, excludes []string) (uint64, error) {
-	plog.WithField("path", path).WithField("excludes", excludes).Debug("Begin DfPath")
+	plog.WithField("path", path).WithField("excludes", excludes).Info("Begin DfPath")
 	var size uint64
 	var fqexcludes []string
 	for _, exc := range(excludes) {
@@ -286,7 +286,7 @@ func (dfs *DistributedFilesystem) DfPath(path string, excludes []string) (uint64
 	err := filepath.Walk(path, func(walkpath string, info os.FileInfo, err error) error {
 		for _, exclude := range(fqexcludes) {
 			if strings.HasPrefix(walkpath,exclude)  {
-				plog.WithField("walkpath", walkpath).WithField("info", info).Debug("Excluding path from size count.")
+				plog.WithField("walkpath", walkpath).WithField("info", info).Info("Excluding path from size count.")
 				return filepath.SkipDir
 			}
 		}
