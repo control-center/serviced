@@ -23,21 +23,17 @@ import (
 )
 
 const (
-	// .. Not valid ..
-	// |---------------------!--------------------|-------------------------------------------|
-	// |<- ClockDriftDelta ->|<- token duration ->|<- ClockDriftDelta ->|<- ExpirationDelta ->|
-	// .. Expired ..
+	// before - Not valid ..
+	// |---------------------!--------------------|---------------------|
+	// |<- ClockDriftDelta ->|<- token duration ->|<- ClockDriftDelta ->|
+	// after  - Expired ..
 
 	// ClockDriftDelta provides the tolerance for clock drift
 	// between master and hosts when a token is considered valid
 	ClockDriftDelta = 5 * time.Minute
 
-	// ExpirationDelta, combined with ClockDriftDelta provides
-	// the tolerance of when a token should be considered expired.
-	ExpirationDelta = 10 * time.Second
-
 	// token to be refreshed ahead of the expiration time
-	RefreshAhead = 5 * time.Minute
+	RefreshAhead = 3 * time.Minute
 )
 
 var (
@@ -256,7 +252,7 @@ func expired() bool {
 	if expiration.IsZero() {
 		return false
 	}
-	return expiration.Add(-ExpirationDelta).Before(now())
+	return expiration.Add(ClockDriftDelta).Before(now())
 }
 
 func updateToken(token string, expires time.Time, filename string) {
