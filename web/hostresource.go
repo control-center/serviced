@@ -28,6 +28,7 @@ import (
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/control-center/serviced/utils"
 )
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
@@ -517,6 +518,9 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
+	// TODO: Add UI elements to capture NAT information
+	var nat utils.URL
+
 	agentClient, err := agent.NewClient(payload.IPAddr)
 	if err != nil {
 		glog.Errorf("Could not create connection to host %s: %v", payload.IPAddr, err)
@@ -547,7 +551,7 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 	glog.V(0).Info("Added host ", host.ID)
 	var registered bool
-	if err := facade.RegisterHostKeys(dataCtx, host, privateKey[:], false); err != nil {
+	if err := facade.RegisterHostKeys(dataCtx, host, nat, privateKey[:], false); err != nil {
 		glog.V(2).Infof("Unable to register keys for host %s automatically (%s)", host.ID, err)
 	} else {
 		registered = true
