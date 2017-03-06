@@ -73,7 +73,7 @@ func (a *api) Restore(path string) error {
 }
 
 
-func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*BackupDetails, error) {
+func (a *api) GetBackupSpace(dirpath string, excludes []string) (*BackupDetails, error) {
 	fmt.Printf("Hello, from GetBackupSpace()\n")
 	client, err := a.connectDAO()
 	fmt.Printf("Back from connectDAO(). err = %v\n", err)
@@ -84,22 +84,23 @@ func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*BackupDetai
 		Dirpath:              dirpath,
 		SnapshotSpacePercent: config.GetOptions().SnapshotSpacePercent,
 		Excludes:             excludes,
+		Force:                false,
 	}
 	est := dao.BackupEstimate{}
 	if err := client.GetBackupEstimate(req, &est); err != nil {
 		return nil, errors.New(fmt.Sprintf("error calling GetBackupestimate(): %v", err))
 	}
 
-	warn := est.EstimatedBytes > est.AvailableBytes
+	warn := est.TotalBytesRequired > est.FilesystemSpaceAvailable
 	message := ""
 	if warn {
-		message = fmt.Sprintf("Backup not recommended. Available space on %s is %s, and backup is estimated to take %s.", dirpath, humanize.Bytes(est.AvailableBytes), humanize.Bytes(est.EstimatedBytes))
+		message = fmt.Sprintf("Backup not recommended. Available space on %s is %s, and backup is estimated to take %s.", dirpath, humanize.Bytes(est.FilesystemSpaceAvailable), humanize.Bytes(est.TotalBytesRequired))
 	} else {
-		message = fmt.Sprintf("There should be sufficient room for a backup. Free space on %s is %s, and the backup is estimated to take %s, which will leave %s", dirpath, humanize.Bytes(est.AvailableBytes), humanize.Bytes(est.EstimatedBytes), humanize.Bytes(est.AvailableBytes - est.EstimatedBytes))
+		message = fmt.Sprintf("There should be sufficient room for a backup. Free space on %s is %s, and the backup is estimated to take %s, which will leave %s", dirpath, humanize.Bytes(est.FilesystemSpaceAvailable), humanize.Bytes(est.TotalBytesRequired), humanize.Bytes(est.FilesystemSpaceAvailable - est.TotalBytesRequired))
 	}
 	deets := BackupDetails{
-		Available: est.AvailableBytes,
-		EstimatedBytes: est.EstimatedBytes,
+		Available: est.FilesystemSpaceAvailable,
+		EstimatedBytes: est.TotalBytesRequired,
 		Estimated: est,
 		Path: dirpath,
 		Excludes: excludes,

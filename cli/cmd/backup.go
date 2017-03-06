@@ -62,7 +62,7 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 	}
 	fmt.Printf("Checking for space...\n")
 	start := time.Now()
-	if backupSpace, err := c.driver.GetBackupEstimate(args[0], ctx.StringSlice("exclude")); err != nil {
+	if backupSpace, err := c.driver.GetBackupSpace(args[0], ctx.StringSlice("exclude")); err != nil {
 		fmt.Println("Error with check:")
 		fmt.Println(err)
 		fmt.Fprintln(os.Stderr, err)
