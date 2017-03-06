@@ -93,7 +93,7 @@ func ExampleServicedCLI_CmdBackup_usage() {
 	//
 	// OPTIONS:
 	//    --exclude '--exclude option --exclude option'	Subdirectory of the tenant volume to exclude from backup
-	//    --check						check space, but do not do backup
+	//
 }
 
 func ExampleServicedCli_cmdRestore() {
