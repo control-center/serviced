@@ -54,7 +54,7 @@ func (c *ServicedCli) initBackup() {
 func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Printf("Incorrect Usage.\n\n")
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "backup")
 		return
 	}
@@ -74,6 +74,7 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 		return
 	}
 	// do backup
+	fmt.Printf("Taking backup\n")
 	if path, err := c.driver.Backup(args[0], ctx.StringSlice("exclude")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if path == "" {
