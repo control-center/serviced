@@ -17,9 +17,11 @@ var miscUtilsMock = function($provide) {
             'after',
             'mapToArr',
             'memoize',
+            'isIpAddress',
             'needsHostAlias',
             'parseEngineeringNotation',
-            'validateRAMLimit'
+            'validateRAMLimit',
+            'validatePortNumber'
         ]);
 
         return mock;

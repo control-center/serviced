@@ -158,15 +158,12 @@ $(GOBIN):
 
 $(GOBIN)/serviced: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ .
-	@chmod 750 $@
 
 $(GOBIN)/serviced-controller: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./serviced-controller
-	@chmod 750 $@
 
 $(GOBIN)/serviced-storage: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./tools/serviced-storage
-	@chmod 750 $@
 
 .PHONY: serviced
 serviced: $(GOBIN)/serviced
@@ -183,7 +180,7 @@ go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
 #
 # BUILD_VERSION is the version of the serviced-build docker image
 #
-BUILD_VERSION = v$(VERSION)-8
+BUILD_VERSION = v1.3.0-8
 export BUILD_VERSION
 
 #
@@ -413,9 +410,7 @@ $(install_DIRS): FORCE
 				exit 1 ;\
 			fi ;\
 		done ;\
-	done ;\
-	chmod 750 $(_DESTDIR)${prefix} ;\
-	chmod 640 pkg/serviced.default
+	done ;
 
 .PHONY: install
 install: $(install_TARGETS)

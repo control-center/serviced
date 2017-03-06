@@ -19,10 +19,12 @@ Feature: Host Management
       And I should see "RAM Limit"
       And I should see an empty Hosts page
 
+  @nat
   Scenario: View Add Host dialog
     When I am on the hosts page
       And I click the add Host button
     Then I should see the Add Host dialog
+      And I should see "Use NAT"
       And I should see "Host"
       And I should see the Host field
       And I should see "Port"
@@ -31,6 +33,9 @@ Feature: Host Management
       And I should see the Resource Pool ID field
       And I should see "RAM Limit"
       And I should see the RAM Limit field
+    And I click the nat checkbox
+      Then I should see "NAT Host"
+      And I should see "NAT Port"
 
   Scenario: Add an invalid host with an invalid port
     Given there are no hosts added
@@ -83,6 +88,111 @@ Feature: Host Management
     Then I should see "Error"
       And I should see "The port number must be between 1 and 65535"
       And I click "Cancel"
+    And I should see an empty Hosts page
+
+  @nat
+  Scenario: Add a nat host with an invalid nat port
+    Given there are no hosts added
+    When I am on the hosts page
+    And I click the add Host button
+    And I click the nat checkbox
+    And I fill in the Host field with "host"
+    And I fill in the Port field with "4979"
+    And I fill in the NATHost field with "host"
+    And I fill in the NATPort field with "invalid"
+    And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+    And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+    And I click "Next"
+    Then I should see "Error"
+    And I should see "Invalid port number"
+    And the NATPort field should be flagged as invalid
+    And I should see an empty Hosts page
+
+  @nat
+  Scenario: Add a nat host with an empty nat host
+    Given there are no hosts added
+    When I am on the hosts page
+    And I click the add Host button
+    And I click the nat checkbox
+    And I fill in the Host field with "host"
+    And I fill in the Port field with "4979"
+    And I fill in the NATPort field with "4979"
+    And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+    And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+    And I click "Next"
+    Then I should see "Error"
+    And I should see "Please enter a valid host name"
+    And I should see an empty Hosts page
+
+  @nat
+  Scenario: Add a nat host with an invalid nat host name
+    Given there are no hosts added
+    When I am on the hosts page
+    And I click the add Host button
+    And I click the nat checkbox
+    And I fill in the Host field with "172.17.42.1"
+    And I fill in the Port field with "9999"
+    And I fill in the NATHost field with "172.17.42.2"
+    And I fill in the NATPort field with "8888"
+    And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+    And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+    And I click "Next"
+    Then I should see "Error"
+    And I should see "Bad Request: dial tcp4 172.17.42.2:8888"
+    And I should see an empty Hosts page
+
+  @nat
+  Scenario: Add a nat host with a nat port out of range
+    Given there are no hosts added
+    When I am on the hosts page
+    And I click the add Host button
+    And I click the nat checkbox
+    And I fill in the Host field with "172.17.42.1"
+    And I fill in the Port field with "7500"
+    And I fill in the NATHost field with "172.17.42.1"
+    And I fill in the NATPort field with "75000"
+    And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+    And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+    And I click "Next"
+    Then I should see "Error"
+    And I should see "The port number must be between 1 and 65535"
+    And I click "Cancel"
+    And I should see an empty Hosts page
+
+  @nat
+  Scenario: Add a nat host without a nat port
+    Given there are no hosts added
+    When I am on the hosts page
+    And I click the add Host button
+    And I click the nat checkbox
+    And I fill in the Host field with "172.17.42.1"
+    And I fill in the Port field with "7500"
+    And I fill in the NATHost field with "172.17.42.1"
+    And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+    And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+    And I click "Next"
+    Then I should see "Error"
+    And I should see "Invalid port number"
+    And I click "Cancel"
+    And I should see an empty Hosts page
+
+  @nat
+  # Confirm that the nat information isn't passed to the backend if we select direct
+  Scenario: Add nat information but select direct link
+    Given there are no hosts added
+    When I am on the hosts page
+    And I click the add Host button
+    And I click the nat checkbox
+    And I fill in the NATHost field with "172.17.42.2"
+    And I fill in the NATPort field with "8888"
+    And I clear the nat checkbox
+    And I fill in the Host field with "172.17.42.1"
+    And I fill in the Port field with "9999"
+    And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+    And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+    And I click "Next"
+    Then I should see "Error"
+    And I should see "Bad Request: dial tcp4 172.17.42.1:9999"
     And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid RAM Limit field

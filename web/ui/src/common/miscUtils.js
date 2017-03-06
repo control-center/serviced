@@ -201,10 +201,14 @@
                 };
             },
 
+            isIpAddress: function(addr) {
+                var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
+                return re.test(addr);
+            },
+
             needsHostAlias: function(host){
                 // check is location.hostname is an IP
-                var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
-                return re.test(host) || host === "localhost";
+                return this.isIpAddress(host) || host === "localhost";
             },
 
             parseEngineeringNotation: function(str) {
@@ -353,6 +357,9 @@
 
             validatePortNumber: function(port, $translate){
                 if (port === undefined || port === '') {
+                    return $translate.instant("port_number_invalid");
+                }
+                if (isNaN(+port)) {
                     return $translate.instant("port_number_invalid");
                 }
                 if(+port < 1 || +port > 65535){
