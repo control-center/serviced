@@ -29,7 +29,7 @@ const (
 	// after  - Expired ..
 
 	// ClockDriftDelta provides the tolerance for clock drift
-	// between master and hosts when a token is considered valid
+	// between master and hosts when a token or request is considered valid
 	ClockDriftDelta = 5 * time.Minute
 
 	// token to be refreshed ahead of the expiration time
