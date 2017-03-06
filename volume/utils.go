@@ -139,17 +139,8 @@ func FilesystemBytesSize(path string) uint64 {
 func FilesystemBytesAvailable(path string) uint64 {
 	s := syscall.Statfs_t{}
 	syscall.Statfs(path, &s)
-	fmt.Printf("syscall.Statfs_t result: %#v\n", s)
-	return uint64(s.Bavail) * uint64(s.Bsize)
+	return uint64(s.Bavail) * uint64(s.Blocks)
 }
-
-func FilesystemBytesUsed(path string) uint64 {
-	s := syscall.Statfs_t{}
-	syscall.Statfs(path, &s)
-	fmt.Printf("syscall.Statfs_t result: %#v\n", s)
-	return (uint64(s.Blocks) - uint64(s.Bavail)) * uint64(s.Bsize)
-}
-
 func DefaultSnapshotLabel(tenant, label string) string {
 	prefix := tenant + "_"
 	if !strings.HasPrefix(label, prefix) {

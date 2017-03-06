@@ -225,13 +225,6 @@ type ControlPlane interface {
 	// to disk.
 	Backup(backupRequest BackupRequest, filename *string) (err error)
 
-	// GetBackupEstimate determines bounds of space required to take backup
-	GetBackupEstimate(backupRequest BackupRequest, estimate *BackupActual) (err error)
-
-	//// TODO: Remove if not needed
-	//// GetBackupActual simulates backup to determine space required to take backup
-	//GetBackupActual(backupRequest BackupRequest, estimate *BackupActual) (err error)
-
 	// AsyncBackup is the same as backup but asynchronous
 	AsyncBackup(backupRequest BackupRequest, filename *string) (err error)
 

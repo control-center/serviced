@@ -34,7 +34,6 @@ import (
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"strings"
 )
 
 const (
@@ -71,19 +70,19 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 
 	stime := time.Now()
 	message := fmt.Sprintf("started backup at %s", stime.UTC())
-	plog.WithField("excludes", excludes).Info("Started backup")
+	plog.Info("Started backup")
 	templates, images, err := f.GetServiceTemplatesAndImages(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get service templates and images")
 		return err
 	}
-	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
+	plog.Info("Loaded templates and their images")
 	pools, err := f.GetResourcePools(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get resource pools")
 		return err
 	}
-	plog.WithField("elapsed", time.Since(stime)).Info("Loaded resource pools")
+	plog.Info("Loaded resource pools")
 	tenants, err := f.GetTenantIDs(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get tenants")
@@ -104,7 +103,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 		snapshotExcludes[snapshot] = append(excludes, f.getExcludedVolumes(ctx, tenant)...)
 		tenantLogger.WithField("snapshot", snapshot).Info("Created a snapshot for tenant")
 	}
-	plog.WithField("elapsed", time.Since(stime)).Info("Loaded tenants")
+	plog.Info("Loaded tenants")
 	data := dfs.BackupInfo{
 		Templates:        templates,
 		BaseImages:       images,
@@ -114,7 +113,6 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 		Timestamp:        stime,
 		BackupVersion:    1,
 	}
-	plog.WithField("data", data).Info("Calling dfs.Backup")
 	if err := f.dfs.Backup(data, w); err != nil {
 		plog.WithError(err).Debug("Could not backup")
 		return err
@@ -122,136 +120,6 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 	plog.WithField("duration", time.Since(stime)).Info("Completed backup")
 	return nil
 }
-
-// TODO: find a more suitable place for this
-func DfPath(path string, excludes []string) (uint64, error) {
-	plog.WithField("path", path).WithField("excludes", excludes).Info("Begin DfPath")
-	var size uint64
-	var fqexcludes []string
-	for _, exc := range(excludes) {
-		fqexcludes = append(fqexcludes, filepath.Join(path, exc))
-	}
-	err := filepath.Walk(path, func(walkpath string, info os.FileInfo, err error) error {
-		for _, exclude := range(fqexcludes) {
-			if strings.HasPrefix(walkpath,exclude)  {
-				plog.WithField("walkpath", walkpath).WithField("info", info).Info("Excluding path from size count.")
-				return filepath.SkipDir
-			}
-		}
-		if !info.IsDir() {
-			size += uint64(info.Size())
-		}
-		return err
-	})
-	return size, err
-}
-
-
-// EstimateBackup estimates storage requirements to take a backup of all installed applications
-func (f *Facade) EstimateBackup(ctx datastore.Context, excludes []string, snapshotSpacePercent int, estimate *dao.BackupActual) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EstimateBackup"))
-
-	options := config.GetOptions()
-
-	// Do not DFSLock here, ControlPlaneDao does that
-
-	stime := time.Now()
-	plog.Info("Started backup estimate")
-
-	_, images, err := f.GetServiceTemplatesAndImages(ctx)
-	if err != nil {
-		plog.WithError(err).Debug("Could not get service templates and images")
-		return err
-	}
-	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
-
-	tenants, err := f.GetTenantIDs(ctx)
-	if err != nil {
-		plog.WithError(err).Debug("Could not get tenants")
-		return err
-	}
-
-	volumesPath := options.VolumesPath
-	plog.WithField("volpath", volumesPath).Info("Got VolumesPath")
-	for _, tenant := range tenants {
-		tenantPath := filepath.Join(volumesPath, tenant)
-		tenantLogger := plog.WithFields(logrus.Fields{
-			"tenant": tenant,
-			"tenantPath": tenantPath,
-		})
-		tpsize, err := DfPath(tenantPath, excludes)
-		if err != nil {
-			tenantLogger.WithError(err).Info("Could not get size for path.")
-		}
-
-		tenantLogger.WithFields(logrus.Fields{
-			"elapsed":    time.Since(stime),
-			"tpSize":     tpsize,
-		}).Info("Tenant Size")
-		estimate.FilesystemBytesRequired += tpsize
-
-		tenantLogger.WithField("elapsed", time.Since(stime)).Info("path sized")
-	}
-	plog.WithField("elapsed", time.Since(stime)).Info("Estimated tenants")
-
-	size, err := f.dfs.GetImagePullSize(images)
-	if err != nil {
-		plog.WithError(err).Info("Could not get size for images.")
-	}
-	plog.WithField("elapsed", time.Since(stime)).Infof("Estimated Docker pull size at %d", size)
-	estimate.DockerBytesRequired = size
-
-	estimate.TotalBytesRequired = estimate.FilesystemBytesRequired + estimate.DockerBytesRequired
-	plog.WithFields(logrus.Fields {
-		"elapsed":  time.Since(stime),
-		"filesystembytes": estimate.FilesystemBytesRequired,
-		"dockerbytes":    estimate.DockerBytesRequired,
-		"totalbytes": estimate.TotalBytesRequired,
-	}).Info("Estimated sizes for images")
-
-	plog.WithField("duration", time.Since(stime)).WithField("estimate", estimate).Info("Completed backup estimate")
-	return nil
-}
-
-// CountWriter is a simple implementation of Writer that simply counts the bytes sent to it.
-type CountWriter struct {
-	BytesWritten uint64
-	Writes uint64
-}
-
-// Implements Writer.Write
-func (w *CountWriter) Write(p []byte) (n int, err error) {
-	lp := len(p)
-	w.BytesWritten += uint64(lp)
-	w.Writes++
-	//glog.Infof("%d bytes written to writer. Total is now %d.", lp, w.BytesWritten)
-	return lp, nil
-}
-
-
-// TODO: remove if not needed
-//func (f *Facade) SimulateDockerBackup(ctx datastore.Context, estimate *dao.BackupActual) error {
-//	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SimulateDockerBackup"))
-//
-//	// Do not DFSLock here, ControlPlaneDao does that
-//
-//	stime := time.Now()
-//	plog.Info("Started backup simulation")
-//
-//	_, images, err := f.GetServiceTemplatesAndImages(ctx)
-//	if err != nil {
-//		plog.WithError(err).Debug("Could not get service templates and images")
-//		return err
-//	}
-//	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
-//	// TODO: Remove if not needed
-//	//info, err := f.dfs.SimulateImagesBackup(images)
-//	//if err != nil {
-//	//	plog.WithError(err).Infof("Could not simulate Docker Images Backup.")
-//	//}
-//	//estimate.DockerBytesRequired = uint64(info.Size)
-//	return nil
-//}
 
 // BackupInfo returns metadata info about a backup
 func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo, error) {

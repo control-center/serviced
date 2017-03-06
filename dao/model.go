@@ -125,9 +125,3 @@ type BackupRequest struct {
 	SnapshotSpacePercent int
 	Excludes             []string
 }
-
-type BackupActual struct {
-	FilesystemBytesRequired  uint64
-	DockerBytesRequired      uint64
-	TotalBytesRequired      uint64
-}

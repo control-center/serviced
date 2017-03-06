@@ -45,7 +45,6 @@ type ConfigReader interface {
 	IntVal(key string, dflt int) int
 	BoolVal(key string, dflt bool) bool
 	GetConfigValues() map[string]ConfigValue
-	Float64Val(key string, dflt float64) float64
 }
 
 type EnvironConfigReader struct {
@@ -187,19 +186,6 @@ func (p *EnvironConfigReader) BoolVal(name string, defaultval bool) bool {
 	}
 	entry, _ := p.configValues[name]
 	entry.Value = fmt.Sprintf("%v", defaultval)
-	p.configValues[name] = entry
-	return defaultval
-}
-
-func (p *EnvironConfigReader) Float64Val(name string, defaultval float64) float64 {
-	strval := p.StringVal(name, "")
-	if strval != "" {
-		if val, err := strconv.ParseFloat(strval,32); err == nil {
-			return val
-		}
-	}
-	entry, _ := p.configValues[name]
-	entry.Value = fmt.Sprintf("%f", defaultval)
 	p.configValues[name] = entry
 	return defaultval
 }
