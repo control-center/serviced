@@ -29,7 +29,7 @@ func (a *api) Backup(dirpath string, excludes []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// TODO: (?) add check for space here (or just handle error from client.Backup call?)
+
 	var path string
 	req := dao.BackupRequest{
 		Dirpath:              dirpath,
