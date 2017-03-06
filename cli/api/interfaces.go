@@ -105,7 +105,7 @@ type API interface {
 	DeployServiceTemplate(DeployTemplateConfig) ([]service.ServiceDetails, error)
 
 	// Backup & Restore
-	GetBackupEstimate(string, []string) (*dao.BackupEstimate, error)
+	GetBackupEstimate(string, []string) (*BackupDetails, error)
 	Backup(string, []string) (string, error)
 	Restore(string) error
 

@@ -20,9 +20,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
-	"path/filepath"
-	"strings"
-	"os"
 )
 
 func importJSON(r io.ReadCloser, v interface{}) error {
@@ -59,27 +56,4 @@ func readSnapshotInfo(vol volume.Volume, info *volume.SnapshotInfo) (*SnapshotIn
 		return nil, err
 	}
 	return &SnapshotInfo{info, images, svcs}, nil
-}
-
-
-func DfPath(path string, excludes []string) (uint64, error) {
-	plog.WithField("path", path).WithField("excludes", excludes).Info("Begin DfPath")
-	var size uint64
-	var fqexcludes []string
-	for _, exc := range(excludes) {
-		fqexcludes = append(fqexcludes, filepath.Join(path, exc))
-	}
-	err := filepath.Walk(path, func(walkpath string, info os.FileInfo, err error) error {
-		for _, exclude := range(fqexcludes) {
-			if strings.HasPrefix(walkpath,exclude)  {
-				plog.WithField("walkpath", walkpath).WithField("info", info).Info("Excluding path from size count.")
-				return filepath.SkipDir
-			}
-		}
-		if !info.IsDir() {
-			size += uint64(info.Size())
-		}
-		return err
-	})
-	return size, err
 }

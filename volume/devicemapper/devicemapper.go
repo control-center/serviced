@@ -1714,11 +1714,14 @@ func resize2fs(dmDevice string) error {
 }
 
 func exportDirectoryAsTar(path, prefix string, out *tar.Writer, excludes []string) error {
+	glog.Infof("PATH: %s", path)
+	glog.Infof("EXCLUDES: %+v", excludes)
 	cmdString := []string{"-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix)}
 	for _, excludeDir := range excludes {
 		cmdString = append(cmdString, []string{"--exclude", excludeDir, "--exclude", fmt.Sprintf(".%s.serviced.initialized", excludeDir)}...)
 	}
 	cmdString = append(cmdString, ".")
+	glog.Infof("TAR COMMAND: tar + %+v", cmdString)
 	cmd := exec.Command("tar", cmdString...)
 	defer cmd.Wait()
 	pipe, err := cmd.StdoutPipe()

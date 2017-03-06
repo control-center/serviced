@@ -246,7 +246,7 @@ func (c *ServicedCli) initService() {
 						Usage: "time duration for logstash to flush log messages",
 					},
 					cli.StringFlag{
-						Name:  "logstash-settle-time",
+						Name:  "serlogstash-settle-time",
 						Value: "5s",
 						Usage: "time duration to wait for logstash to flush log messages before closing",
 					},

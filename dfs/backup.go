@@ -24,8 +24,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/volume"
-	"os"
-	"strings"
 )
 
 const (
@@ -271,29 +269,34 @@ func (dfs *DistributedFilesystem) GetImageInfo(image string) (*ImageInfo, error)
 	return &result, nil
 }
 
+//TODO: Remove this if not needed
+//func (dfs *DistributedFilesystem) SimulateImagesBackup(images []string) (*ImageInfo, error) {
+//	ibLogger := plog.WithField("images", images)
+//	stime := time.Now()
+//	info := ImageInfo{}
+//
+//	// dump the images from all the snapshots into the backup
+//	imageReader, errchan := dfs.dockerSavePipe(images...)
+//	ibLogger.Info("Starting simulated export of images to backup")
+//	written, err := io.Copy(ioutil.Discard, imageReader)
+//	if err != nil {
+//		// be a good citizen and clean up any running threads
+//		<-errchan
+//		ibLogger.WithError(err).Error("Could not write images to backup")
+//		return nil, err
+//	} else if err := <-errchan; err != nil {
+//		ibLogger.WithError(err).Error("Could not export images for backup")
+//		return nil, err
+//	}
+//	ibLogger.WithFields(log.Fields{
+//		"elapsed":       time.Since(stime),
+//		"bytesWritten":  written,
+//	}).Info("Simulated backup of images")
+//	info.Size = written
+//	return &info, nil
+//}
 
-func (dfs *DistributedFilesystem) EstimateImagePullSize(images []string) (uint64, error) {
+
+func (dfs *DistributedFilesystem) GetImagePullSize(images []string) (uint64, error) {
 	return dfs.docker.GetImagePullSize(images)
-}
-
-func (dfs *DistributedFilesystem) DfPath(path string, excludes []string) (uint64, error) {
-	plog.WithField("path", path).WithField("excludes", excludes).Info("Begin DfPath")
-	var size uint64
-	var fqexcludes []string
-	for _, exc := range(excludes) {
-		fqexcludes = append(fqexcludes, filepath.Join(path, exc))
-	}
-	err := filepath.Walk(path, func(walkpath string, info os.FileInfo, err error) error {
-		for _, exclude := range(fqexcludes) {
-			if strings.HasPrefix(walkpath,exclude)  {
-				plog.WithField("walkpath", walkpath).WithField("info", info).Info("Excluding path from size count.")
-				return filepath.SkipDir
-			}
-		}
-		if !info.IsDir() {
-			size += uint64(info.Size())
-		}
-		return err
-	})
-	return size, err
 }

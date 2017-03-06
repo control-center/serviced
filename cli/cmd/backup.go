@@ -1,4 +1,5 @@
 // Copyright 2014 The Serviced Authors.
+// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,6 +19,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"time"
 )
 
 // Initializer for serviced backup and serviced restore
@@ -54,29 +56,28 @@ func (c *ServicedCli) initBackup() {
 func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "backup")
 		return
 	}
 	fmt.Printf("Checking for space...\n")
+	start := time.Now()
 	if backupSpace, err := c.driver.GetBackupEstimate(args[0], ctx.StringSlice("exclude")); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to estimate backup size: %s", err)
+		fmt.Println("Error with check:")
+		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	} else {
-		if ! backupSpace.AllowBackup {
-			fmt.Fprintf(os.Stderr, "Unable to backup: estimated space required (%s) exceeds space available (%s) on %s\n", backupSpace.EstimatedString, backupSpace.AvailableString, backupSpace.BackupPath)
-			return
-		}
-		fmt.Printf("Okay to backup. Estimated space required: %s, Available: %s\n", backupSpace.EstimatedString, backupSpace.AvailableString)
+		fmt.Printf("backup data: %+v\nBackup check took %s\n", backupSpace, time.Since(start))
 	}
 	// if check flag specified, do check
 	if ctx.Bool("check") {
-		fmt.Printf("Check only - not taking backup\n")
+		fmt.Printf("Check specified.\n")
 		return
 	}
 
 	// do backup
-	fmt.Printf("Taking backup\n")
+	fmt.Printf("taking backup\n")
 	if path, err := c.driver.Backup(args[0], ctx.StringSlice("exclude")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if path == "" {
