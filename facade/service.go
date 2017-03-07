@@ -1833,13 +1833,30 @@ func (m Ports) List() (ports []uint16) {
 }
 
 func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
+	logger := plog.WithFields(log.Fields{
+		"servicename": svc.Name,
+		"serviceid":   svc.ID,
+	})
+
 	for _, ep := range svc.Endpoints {
 		if addrAssign := ep.AddressAssignment; addrAssign.IPAddr != "" {
-			glog.Infof("Found an address assignment at %s:%d to endpoint %s for service %s (%s)", addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, svc.Name, svc.ID)
+			eplogger := logger.WithFields(log.Fields{
+				"ipaddress": addrAssign.IPAddr,
+				"port":      ep.AddressConfig.Port,
+				"endpoint":  ep.Name,
+			})
+			eplogger.Info("Found an address assignment")
 			ip, err := f.getManualAssignment(ctx, svc.PoolID, addrAssign.IPAddr, ep.AddressConfig.Port)
 			if err != nil {
-				glog.Warningf("Could not assign ip %s:%d to endpoint %s for service %s (%s): %s", addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, svc.Name, svc.ID, err)
-				continue
+				eplogger.WithError(err).Warning("Could not restore existing IP assignment, trying auto-assignment")
+
+				// Try an auto-assignment
+				ip, err = f.getAutoAssignment(ctx, svc.PoolID, ep.AddressConfig.Port)
+				if err != nil {
+					eplogger.WithError(err).Warning("Could not auto-assign IP")
+					continue
+				}
+				eplogger = eplogger.WithField("newip", ip.IP)
 			}
 			newAddrAssign := addressassignment.AddressAssignment{
 				AssignmentType: ip.Type,
@@ -1851,10 +1868,10 @@ func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
 				EndpointName:   ep.Name,
 			}
 			if _, err := f.assign(ctx, newAddrAssign); err != nil {
-				glog.Errorf("Could not restore address assignment for service %s (%s) at %s:%d for endpoint %s: %s", svc.Name, svc.ID, addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, err)
+				eplogger.WithError(err).Debug("Could not restore address assignment")
 				return err
 			}
-			glog.Infof("Restored address assignment for service %s (%s) at %s:%d for endpoint %s", svc.Name, svc.ID, addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name)
+			eplogger.Info("Restored address assignment")
 		}
 	}
 	return nil
