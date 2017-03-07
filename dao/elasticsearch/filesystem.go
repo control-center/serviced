@@ -27,6 +27,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	gzip "github.com/klauspost/pgzip"
 	"github.com/zenoss/glog"
+	"errors"
 )
 
 // InProgress prompts which backup is currently backing up or restoring
@@ -88,18 +89,33 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
 
-	dirpath := backupRequest.Dirpath
+
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
 	defer dfslocker.Unlock()
 
+
+	if backupRequest.Dirpath == "" {
+		backupRequest.Dirpath = dao.backupsPath
+	}
+	// CC-2421: Check for space before doing backup
+	est := model.BackupEstimate{}
+	err = dao.facade.EstimateBackup(ctx, backupRequest, &est)
+	if err != nil {
+		glog.Errorf("Could not estimate backup size: %s", err)
+		return
+	} else if !est.AllowBackup {
+		message := fmt.Sprintf("Could not take backup - insufficient space on %s (%s estimated backup size, %s available)", est.BackupPath, est.EstimatedString, est.AvailableString)
+		err := errors.New(message)
+		glog.Errorf("No space for backup: %s", err)
+		return err
+	}
+
 	// set the progress of the backup file
 	*filename = time.Now().UTC().Format("backup-2006-01-02-150405.tgz")
-	backupfilename := filepath.Join(dirpath, *filename)
-	if dirpath == "" {
-		backupfilename = filepath.Join(dao.backupsPath, *filename)
-	}
+	backupfilename := filepath.Join(backupRequest.Dirpath, *filename)
+
 	inprogress.SetProgress(backupfilename, "backup")
 	defer func() {
 		if err != nil {
@@ -124,6 +140,22 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	defer w.Close()
 	err = dao.facade.Backup(ctx, w, backupRequest.Excludes, backupRequest.SnapshotSpacePercent)
 	return
+}
+
+func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest, backupEstimate *model.BackupEstimate) (err error) {
+	ctx := datastore.Get()
+	start := time.Now()
+	if backupRequest.Dirpath == "" {
+		glog.Infof("Dirpath was empty. Updating to dao.BackupsPath value of %s\n", dao.backupsPath)
+		backupRequest.Dirpath = dao.backupsPath
+	}
+	err = dao.facade.EstimateBackup(ctx, backupRequest, backupEstimate)
+	if err != nil {
+		return err
+	}
+	glog.Infof("Done with Estimatebackup. elapsed = %s", time.Since(start))
+
+	return nil
 }
 
 // AsyncBackup is the same as backup, but asynchronous
