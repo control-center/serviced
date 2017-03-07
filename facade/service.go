@@ -468,6 +468,15 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 	return nil
 }
 
+// validateServiceStop determines whether the service can actually be set to stop.
+func (f *Facade) validateServiceStop(ctx datastore.Context, svc *service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceStop"))
+	if svc.EmergencyShutdown {
+		return ErrEmergencyShutdownNoOp
+	}
+	return nil
+}
+
 // syncService syncs service data from the database into the coordinator.
 func (f *Facade) syncService(ctx datastore.Context, tenantID, serviceID string, setLockOnCreate, setLockOnUpdate bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.syncService"))
@@ -1312,9 +1321,18 @@ func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, 
 			if desiredState != service.SVCStop {
 				// Verify that all of the services are ready to be started
 				if err := f.validateServiceStart(ctx, svc); err != nil {
-					logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+					logger.WithError(err).WithFields(log.Fields{
+						"servicename": svc.Name,
+						"serviceid":   svc.ID,
+					}).Warn("Service failed validation for start")
 					return err
 				}
+			} else if err := f.validateServiceStop(ctx, svc); err != nil {
+				logger.WithError(err).WithFields(log.Fields{
+					"servicename": svc.Name,
+					"serviceid":   svc.ID,
+				}).Warn("Service failed validation for stop")
+				return err
 			}
 			svcs = append(svcs, svc)
 			svcIDs = append(svcIDs, svc.ID)
