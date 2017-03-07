@@ -276,6 +276,36 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart(c *C) {
 	c.Assert(err, IsNil)
 }
 
+func (ft *FacadeIntegrationTest) setup_validateServiceStop(c *C) *service.Service {
+	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: "test-pool"})
+	c.Assert(err, IsNil)
+	svc := service.Service{
+		ID:                "validate-service-stop",
+		Name:              "TestFacade_validateServiceStop",
+		DeploymentID:      "deployment-id",
+		PoolID:            "test-pool",
+		Launch:            "auto",
+		DesiredState:      int(service.SVCStop),
+		EmergencyShutdown: false,
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svc), IsNil)
+	return &svc
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyShutdownFlagged(c *C) {
+	svc := ft.setup_validateServiceStop(c)
+	// Make service have EmergencyShutdown flagged
+	svc.EmergencyShutdown = true
+	err := ft.Facade.validateServiceStop(ft.CTX, svc)
+	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop(c *C) {
+	svc := ft.setup_validateServiceStop(c)
+	err := ft.Facade.validateServiceStop(ft.CTX, svc)
+	c.Assert(err, IsNil)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_validateService_badServiceID(t *C) {
 	_, err := ft.Facade.validateServiceUpdate(ft.CTX, &service.Service{ID: "badID"})
 	t.Assert(err, ErrorMatches, "No such entity {kind:service, id:badID}")
