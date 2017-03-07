@@ -5,8 +5,8 @@
     'use strict';
 
     angular.module('serviceActions', [])
-    .directive("serviceActions", ["svcActions",
-    function(svcActions){
+    .directive("serviceActions", ["svcActions", "$notification",
+    function(svcActions, $notification){
 
         class ServiceActionsController {
 
@@ -19,19 +19,27 @@
             }
 
             start(force) {
-                this.service.start();
+                this.service.start().error(function (data, status) {
+                    $notification.create("Unable to start service", data.Detail).error();
+                });
             }
 
             restart(force) {
-                this.service.restart();
+                this.service.restart().error(function (data, status) {
+                    $notification.create("Unable to restart service", data.Detail).error();
+                });
             }
 
             stop(force) {
-                this.service.stop();
+                this.service.stop().error(function (data, status) {
+                    $notification.create("Unable to stop service", data.Detail).error();
+                });
             }
 
             cancel() {
-                this.service.cancelPending();
+                this.service.cancelPending().error(function (data, status) {
+                    $notification.create("Unable to cancel pending action", data.Detail).error();
+                });
             }
 
             update(){
