@@ -1406,12 +1406,24 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []servicestate
 			if desiredState != service.SVCStop {
 				// Verify that the service is ready to be started
 				if err := f.validateServiceStart(ctx, svc.Service); err != nil {
-					logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+					logger.WithError(err).WithFields(log.Fields{
+						"servicename": svc.Name,
+						"serviceid":   svc.ID,
+					}).Error("Service failed validation for start")
 					lock.Lock()
 					failedServices = append(failedServices, svc.ID)
 					lock.Unlock()
 					return
 				}
+			} else if err := f.validateServiceStop(ctx, svc.Service); err != nil {
+				logger.WithError(err).WithFields(log.Fields{
+					"servicename": svc.Name,
+					"serviceid":   svc.ID,
+				}).Error("Service failed validation for stop")
+				lock.Lock()
+				failedServices = append(failedServices, svc.ID)
+				lock.Unlock()
+				return
 			}
 
 			err := f.updateDesiredState(ctx, svc, desiredState)
