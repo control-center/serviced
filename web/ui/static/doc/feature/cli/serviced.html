@@ -55,14 +55,7 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
-               <ul class="nav navbar-nav navbar-right hidden-xs">
-                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
-                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
-                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
-                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
-                     </ul>
-                  </li>
-               </ul>
+               <ul class="nav navbar-nav navbar-right hidden-xs"></ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -84,6 +77,7 @@
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
                      <li class=" collapsible  collapsed"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
                            <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
+                           <li class=" no-child "><a href="../../feature/manage/NAT-overview.html">Using Control Center with a NAT device</a></li>
                            <li class=" collapsible  collapsed"><a href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
                                  <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
                                  <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
@@ -114,6 +108,10 @@
                            </li>
                            <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
                                  <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/rolling-restart-overview.html">Rolling restart of services </a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/change-rolling-restart.html">Changing rolling restart</a></li>
                               </ul>
                            </li>
                         </ul>
@@ -160,7 +158,7 @@
                         <div class="body refbody">
                            
                            
-                           <div class="section"><a name="referenceid-d7746e35" id="referenceid-d7746e35" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e35" id="referenceid-d8407e35" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">NAME</h2>
                               
@@ -172,7 +170,7 @@
                               
                            
                            
-                           <div class="section"><a name="referenceid-d7746e46" id="referenceid-d7746e46" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e46" id="referenceid-d8407e46" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">SYNTAX</h2>
                               
@@ -183,7 +181,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7746e76" id="referenceid-d7746e76" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e76" id="referenceid-d8407e76" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">DESCRIPTION</h2>
                               
@@ -196,7 +194,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7746e91" id="referenceid-d7746e91" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e91" id="referenceid-d8407e91" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">GLOBAL OPTIONS</h2>
                               
@@ -1126,7 +1124,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7746e1627" id="referenceid-d7746e1627" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e1627" id="referenceid-d8407e1627" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">COMMANDS</h2>
                               
@@ -1294,7 +1292,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7746e1866" id="referenceid-d7746e1866" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e1866" id="referenceid-d8407e1866" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">INVOCATION</h2>
                               
@@ -1309,7 +1307,7 @@
                               </div>
                            
                            
-                           <div class="section"><a name="referenceid-d7746e1893" id="referenceid-d7746e1893" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e1893" id="referenceid-d8407e1893" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">MISCELLANEOUS</h2>
                               
@@ -1344,7 +1342,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7746e1955" id="referenceid-d7746e1955" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e1955" id="referenceid-d8407e1955" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">ENVIRONMENT</h2>
                               
@@ -1367,7 +1365,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d7746e1980" id="referenceid-d7746e1980" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d8407e1980" id="referenceid-d8407e1980" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">FILES</h2>
                               
