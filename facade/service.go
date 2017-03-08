@@ -469,11 +469,14 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 }
 
 // validateServiceStop determines whether the service can actually be set to stop.
-func (f *Facade) validateServiceStop(ctx datastore.Context, svc *service.Service) error {
+func (f *Facade) validateServiceStop(ctx datastore.Context, svc *service.Service, emergency bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceStop"))
-	if svc.EmergencyShutdown {
+	// svc.EmergencyShutdown is set when the service is pending emergency shutdown,
+	// but we validate again when we actually perform the stop, so we use the emergency arg
+	if svc.EmergencyShutdown && !emergency {
 		return ErrEmergencyShutdownNoOp
 	}
+
 	return nil
 }
 
@@ -1327,10 +1330,11 @@ func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, 
 					}).Warn("Service failed validation for start")
 					return err
 				}
-			} else if err := f.validateServiceStop(ctx, svc); err != nil {
+			} else if err := f.validateServiceStop(ctx, svc, emergency); err != nil {
 				logger.WithError(err).WithFields(log.Fields{
 					"servicename": svc.Name,
 					"serviceid":   svc.ID,
+					"emergency":   emergency,
 				}).Warn("Service failed validation for stop")
 				return err
 			}
@@ -1407,18 +1411,21 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []servicestate
 				// Verify that the service is ready to be started
 				if err := f.validateServiceStart(ctx, svc.Service); err != nil {
 					logger.WithError(err).WithFields(log.Fields{
-						"servicename": svc.Name,
-						"serviceid":   svc.ID,
+						"servicename":  svc.Name,
+						"serviceid":    svc.ID,
+						"servicestate": svc.CurrentState,
 					}).Error("Service failed validation for start")
 					lock.Lock()
 					failedServices = append(failedServices, svc.ID)
 					lock.Unlock()
 					return
 				}
-			} else if err := f.validateServiceStop(ctx, svc.Service); err != nil {
+			} else if err := f.validateServiceStop(ctx, svc.Service, svc.EmergencyShutdown); err != nil {
 				logger.WithError(err).WithFields(log.Fields{
-					"servicename": svc.Name,
-					"serviceid":   svc.ID,
+					"servicename":  svc.Name,
+					"serviceid":    svc.ID,
+					"servicestate": svc.CurrentState,
+					"emergency":    svc.EmergencyShutdown,
 				}).Error("Service failed validation for stop")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)

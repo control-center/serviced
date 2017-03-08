@@ -294,15 +294,23 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStop(c *C) *service.Servic
 
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyShutdownFlagged(c *C) {
 	svc := ft.setup_validateServiceStop(c)
-	// Make service have EmergencyShutdown flagged
+	// Test stopping a service that has been emergency stopped
 	svc.EmergencyShutdown = true
-	err := ft.Facade.validateServiceStop(ft.CTX, svc)
+	err := ft.Facade.validateServiceStop(ft.CTX, svc, false)
 	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop(c *C) {
+	// Test stopping a service that has not been emergency stopped
 	svc := ft.setup_validateServiceStop(c)
-	err := ft.Facade.validateServiceStop(ft.CTX, svc)
+	err := ft.Facade.validateServiceStop(ft.CTX, svc, false)
+	c.Assert(err, IsNil)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyTrue(c *C) {
+	// Test emergency stopping a service that has been stopped
+	svc := ft.setup_validateServiceStop(c)
+	err := ft.Facade.validateServiceStop(ft.CTX, svc, true)
 	c.Assert(err, IsNil)
 }
 
