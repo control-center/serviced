@@ -468,6 +468,18 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 	return nil
 }
 
+// validateServiceStop determines whether the service can actually be set to stop.
+func (f *Facade) validateServiceStop(ctx datastore.Context, svc *service.Service, emergency bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceStop"))
+	// svc.EmergencyShutdown is set when the service is pending emergency shutdown,
+	// but we validate again when we actually perform the stop, so we use the emergency arg
+	if svc.EmergencyShutdown && !emergency {
+		return ErrEmergencyShutdownNoOp
+	}
+
+	return nil
+}
+
 // syncService syncs service data from the database into the coordinator.
 func (f *Facade) syncService(ctx datastore.Context, tenantID, serviceID string, setLockOnCreate, setLockOnUpdate bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.syncService"))
@@ -1312,9 +1324,19 @@ func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, 
 			if desiredState != service.SVCStop {
 				// Verify that all of the services are ready to be started
 				if err := f.validateServiceStart(ctx, svc); err != nil {
-					logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+					logger.WithError(err).WithFields(log.Fields{
+						"servicename": svc.Name,
+						"serviceid":   svc.ID,
+					}).Warn("Service failed validation for start")
 					return err
 				}
+			} else if err := f.validateServiceStop(ctx, svc, emergency); err != nil {
+				logger.WithError(err).WithFields(log.Fields{
+					"servicename": svc.Name,
+					"serviceid":   svc.ID,
+					"emergency":   emergency,
+				}).Warn("Service failed validation for stop")
+				return err
 			}
 			svcs = append(svcs, svc)
 			svcIDs = append(svcIDs, svc.ID)
@@ -1388,12 +1410,27 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []servicestate
 			if desiredState != service.SVCStop {
 				// Verify that the service is ready to be started
 				if err := f.validateServiceStart(ctx, svc.Service); err != nil {
-					logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+					logger.WithError(err).WithFields(log.Fields{
+						"servicename":  svc.Name,
+						"serviceid":    svc.ID,
+						"servicestate": svc.CurrentState,
+					}).Error("Service failed validation for start")
 					lock.Lock()
 					failedServices = append(failedServices, svc.ID)
 					lock.Unlock()
 					return
 				}
+			} else if err := f.validateServiceStop(ctx, svc.Service, svc.EmergencyShutdown); err != nil {
+				logger.WithError(err).WithFields(log.Fields{
+					"servicename":  svc.Name,
+					"serviceid":    svc.ID,
+					"servicestate": svc.CurrentState,
+					"emergency":    svc.EmergencyShutdown,
+				}).Error("Service failed validation for stop")
+				lock.Lock()
+				failedServices = append(failedServices, svc.ID)
+				lock.Unlock()
+				return
 			}
 
 			err := f.updateDesiredState(ctx, svc, desiredState)
@@ -1833,13 +1870,30 @@ func (m Ports) List() (ports []uint16) {
 }
 
 func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
+	logger := plog.WithFields(log.Fields{
+		"servicename": svc.Name,
+		"serviceid":   svc.ID,
+	})
+
 	for _, ep := range svc.Endpoints {
 		if addrAssign := ep.AddressAssignment; addrAssign.IPAddr != "" {
-			glog.Infof("Found an address assignment at %s:%d to endpoint %s for service %s (%s)", addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, svc.Name, svc.ID)
+			eplogger := logger.WithFields(log.Fields{
+				"ipaddress": addrAssign.IPAddr,
+				"port":      ep.AddressConfig.Port,
+				"endpoint":  ep.Name,
+			})
+			eplogger.Info("Found an address assignment")
 			ip, err := f.getManualAssignment(ctx, svc.PoolID, addrAssign.IPAddr, ep.AddressConfig.Port)
 			if err != nil {
-				glog.Warningf("Could not assign ip %s:%d to endpoint %s for service %s (%s): %s", addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, svc.Name, svc.ID, err)
-				continue
+				eplogger.WithError(err).Warning("Could not restore existing IP assignment, trying auto-assignment")
+
+				// Try an auto-assignment
+				ip, err = f.getAutoAssignment(ctx, svc.PoolID, ep.AddressConfig.Port)
+				if err != nil {
+					eplogger.WithError(err).Warning("Could not auto-assign IP")
+					continue
+				}
+				eplogger = eplogger.WithField("newip", ip.IP)
 			}
 			newAddrAssign := addressassignment.AddressAssignment{
 				AssignmentType: ip.Type,
@@ -1851,10 +1905,10 @@ func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
 				EndpointName:   ep.Name,
 			}
 			if _, err := f.assign(ctx, newAddrAssign); err != nil {
-				glog.Errorf("Could not restore address assignment for service %s (%s) at %s:%d for endpoint %s: %s", svc.Name, svc.ID, addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, err)
+				eplogger.WithError(err).Debug("Could not restore address assignment")
 				return err
 			}
-			glog.Infof("Restored address assignment for service %s (%s) at %s:%d for endpoint %s", svc.Name, svc.ID, addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name)
+			eplogger.Info("Restored address assignment")
 		}
 	}
 	return nil

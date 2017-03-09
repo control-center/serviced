@@ -293,7 +293,7 @@ func (s *MySuite) TestExpiredToken(c *C) {
 	c.Assert(err, IsNil)
 
 	// Make RPC call after token has expired
-	fakenow := time.Now().UTC().Add(1 * time.Second)
+	fakenow := time.Now().UTC().Add(auth.ClockDriftDelta).Add(1 * time.Second)
 	auth.At(fakenow, func() {
 		// Attempt RPC call with expired token
 		client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
