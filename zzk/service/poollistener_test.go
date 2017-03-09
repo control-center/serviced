@@ -62,24 +62,24 @@ func (s *PoolListenerTestSuite) SetUpTest(c *C) {
 	}
 
 	s.poolEvent = make(chan client.Event)
-	s.getWCall = connection.On("GetW", "/pools/test", mock.Anything, mock.Anything).
+	s.getWCall = connection.On("GetW", "/pools/test", mock.AnythingOfType("*service.PoolNode"), mock.AnythingOfType("<-chan struct {}")).
 		Return((<-chan client.Event)(s.poolEvent), nil).
 		Run(func(a mock.Arguments) {
 			node := a.Get(1).(*PoolNode)
 			node.ResourcePool = &s.pool
 		})
 
-	s.poolExistsEvent = make(chan client.Event)
-	s.poolExistsCall = connection.On("ExistsW", "/pools/test", mock.Anything).
-		Return(true, (<-chan client.Event)(s.poolExistsEvent), nil)
-
 	s.ipEvent = make(chan client.Event)
-	s.childrenWCall = connection.On("ChildrenW", "/pools/test/ips", mock.Anything).
+	s.childrenWCall = connection.On("ChildrenW", "/pools/test/ips", mock.AnythingOfType("<-chan struct {}")).
 		Return([]string{"host-1.2.3.4", "host-7.7.7.7"}, (<-chan client.Event)(s.ipEvent), nil)
 
 	s.ipsExistsEvent = make(chan client.Event)
-	s.ipsExistsCall = connection.On("ExistsW", "/pools/test/ips", mock.Anything).
+	s.ipsExistsCall = connection.On("ExistsW", "/pools/test/ips", mock.AnythingOfType("<-chan struct {}")).
 		Return(true, (<-chan client.Event)(s.ipsExistsEvent), nil)
+
+	s.poolExistsEvent = make(chan client.Event)
+	s.poolExistsCall = connection.On("ExistsW", "/pools/test", mock.AnythingOfType("<-chan struct {}")).
+		Return(true, (<-chan client.Event)(s.poolExistsEvent), nil)
 
 	s.syncCall = synchronizer.On("Sync", s.pool, mock.AnythingOfType("map[string]string"), s.shutdown).
 		Return(nil)
@@ -204,7 +204,7 @@ func (s *PoolListenerTestSuite) TestListenerShouldListenForPoolIfPoolDoesNotExis
 		Return(false, (<-chan client.Event)(s.poolExistsEvent), nil).
 		Run(func(a mock.Arguments) {
 			existsCalled <- struct{}{}
-		})
+		}).Once()
 
 	s.syncCall.Run(func(a mock.Arguments) {
 		synched <- struct{}{}
@@ -217,9 +217,36 @@ func (s *PoolListenerTestSuite) TestListenerShouldListenForPoolIfPoolDoesNotExis
 
 	select {
 	case <-existsCalled:
-		s.poolExistsCall.
-			Return(true, (<-chan client.Event)(s.poolExistsEvent), nil).
-			Run(func(a mock.Arguments) {})
+	case <-exited:
+		c.Fatalf("Pool Listener exited instead of watching for pool")
+	case <-synched:
+		c.Fatalf("Pool node does not exist so listener should not try to sync")
+	case <-time.After(time.Second):
+		c.Fatalf("Timed out waiting for listener to exit")
+	}
+}
+func (s *PoolListenerTestSuite) TestListenerShouldSyncAfterPoolExistsEvent(c *C) {
+	existsCalled := make(chan struct{})
+	synched := make(chan struct{})
+	exited := make(chan struct{})
+
+	s.poolExistsCall.
+		Return(true, (<-chan client.Event)(s.poolExistsEvent), nil).
+		Run(func(a mock.Arguments) {
+			existsCalled <- struct{}{}
+		}).Once()
+
+	s.syncCall.Run(func(a mock.Arguments) {
+		synched <- struct{}{}
+	})
+
+	go func() {
+		s.listener.Spawn(s.shutdown, "test")
+		exited <- struct{}{}
+	}()
+
+	select {
+	case <-existsCalled:
 		s.poolExistsEvent <- client.Event{Type: client.EventNodeCreated}
 		select {
 		case <-synched:
@@ -279,7 +306,7 @@ func (s *PoolListenerTestSuite) TestListenerWaitBeforeTryingAgainOnAFailedSync(c
 
 	s.syncCall.Return(errors.New("error")).Run(func(a mock.Arguments) {
 		done <- struct{}{}
-	}).Once()
+	})
 
 	go func() {
 		s.listener.Spawn(s.shutdown, "test")
@@ -287,9 +314,6 @@ func (s *PoolListenerTestSuite) TestListenerWaitBeforeTryingAgainOnAFailedSync(c
 
 	select {
 	case <-done:
-		s.syncCall.Return(nil).Run(func(a mock.Arguments) {
-			done <- struct{}{}
-		}).Once()
 		select {
 		case <-done:
 		case <-time.After(2 * time.Second):
