@@ -124,6 +124,7 @@ type BackupRequest struct {
 	Dirpath              string
 	SnapshotSpacePercent int
 	Excludes             []string
+	Force                bool
 }
 
 type BackupEstimate struct {
