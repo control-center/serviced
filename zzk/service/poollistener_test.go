@@ -226,15 +226,8 @@ func (s *PoolListenerTestSuite) TestListenerShouldListenForPoolIfPoolDoesNotExis
 	}
 }
 func (s *PoolListenerTestSuite) TestListenerShouldSyncAfterPoolExistsEvent(c *C) {
-	existsCalled := make(chan struct{})
 	synched := make(chan struct{})
 	exited := make(chan struct{})
-
-	s.poolExistsCall.
-		Return(true, (<-chan client.Event)(s.poolExistsEvent), nil).
-		Run(func(a mock.Arguments) {
-			existsCalled <- struct{}{}
-		}).Once()
 
 	s.syncCall.Run(func(a mock.Arguments) {
 		synched <- struct{}{}
@@ -246,7 +239,7 @@ func (s *PoolListenerTestSuite) TestListenerShouldSyncAfterPoolExistsEvent(c *C)
 	}()
 
 	select {
-	case <-existsCalled:
+	case <-synched:
 		s.poolExistsEvent <- client.Event{Type: client.EventNodeCreated}
 		select {
 		case <-synched:
@@ -257,8 +250,6 @@ func (s *PoolListenerTestSuite) TestListenerShouldSyncAfterPoolExistsEvent(c *C)
 		}
 	case <-exited:
 		c.Fatalf("Pool Listener exited instead of watching for pool")
-	case <-synched:
-		c.Fatalf("Pool node does not exist so listener should not try to sync")
 	case <-time.After(time.Second):
 		c.Fatalf("Timed out waiting for listener to exit")
 	}

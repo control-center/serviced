@@ -76,7 +76,11 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 		poolExists, poolExistsEvent, err := l.connection.ExistsW(poolPath.Path(), stop)
 		if poolExists && err == nil {
 			poolEvent, err = l.connection.GetW(poolPath.Path(), node, stop)
-			if err != nil {
+			if err == client.ErrNoNode {
+				close(stop)
+				stop = make(chan struct{})
+				continue
+			} else if err != nil {
 				logger.WithError(err).Error("Unable to watch pool")
 				return
 			}
@@ -106,12 +110,13 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 				return
 			}
 
+			// The sync will add nodes to the ips path which will trigger an ipsEvent
+			// causing the loop to occur twice.
 			err = l.synchronizer.Sync(*node.ResourcePool, assignments, shutdown)
 			if err != nil {
 				logger.WithError(err).Warn(err, "Unable to sync virtual IPs")
 				timeout.Reset(l.Timeout)
 			}
-
 		}
 
 		select {
