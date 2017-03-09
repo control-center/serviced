@@ -24,7 +24,8 @@ fi
 
 export START_TIMEOUT=300
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
+DEFAULT_INTERFACE=$(ip route | awk '/default/ { print $5 }')
+IP=$(ip -f inet -o addr show $DEFAULT_INTERFACE | awk '{print $4}' | cut -d / -f 1)
 HOSTNAME=$(hostname)
 
 export SERVICED_ETC_PATH=${TEST_VAR_PATH}/etc

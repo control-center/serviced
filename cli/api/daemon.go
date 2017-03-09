@@ -828,6 +828,10 @@ func (d *daemon) startAgent() error {
 					log.WithError(err).Warn("Unable to acquire delegate host information")
 					return "" // Try again
 				}
+
+				// Update the IPs for the host in case something has changed (like the interface name)
+				updatedHost.IPs = thisHost.IPs
+
 				err = masterClient.UpdateHost(updatedHost)
 				if err != nil {
 					log.WithError(err).Warn("Unable to update master with delegate host information. Retrying silently")
