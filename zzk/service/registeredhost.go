@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2017 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,16 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit integration
-
-package service_test
+package service
 
 import (
-	"testing"
-
-	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/host"
 )
 
-func Test(t *testing.T) {
-	TestingT(t)
+// RegisteredHostHandler can be used to get hosts that are registered.  Calls
+// to get the registered hosts should block until a host comes online.  The cancel
+// parameter can be used to stop the call.
+type RegisteredHostHandler interface {
+	GetRegisteredHosts(cancel <-chan interface{}) ([]host.Host, error)
 }

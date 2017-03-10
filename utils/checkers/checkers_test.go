@@ -1,9 +1,9 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2017 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit integration
+// +build unit
 
-package service_test
+package checkers_test
 
 import (
 	"testing"
@@ -21,6 +21,5 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func Test(t *testing.T) {
-	TestingT(t)
-}
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { TestingT(t) }

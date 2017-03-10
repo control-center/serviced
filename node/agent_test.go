@@ -13,11 +13,13 @@
 
 // +build unit
 
-package node
+package node_test
 
 import (
 	"encoding/json"
 	"testing"
+
+	. "github.com/control-center/serviced/node"
 )
 
 const example_state = `
