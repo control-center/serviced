@@ -152,16 +152,18 @@ func DfPath(path string, excludes []string) (uint64, error) {
 func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest, estimate *dao.BackupEstimate) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EstimateBackup"))
 
+	stime := time.Now()
+	plog.WithField("request", request).Info("Started backup estimate")
+
 	options := config.GetOptions()
 
 	// Do not DFSLock here, ControlPlaneDao does that
 
-	stime := time.Now()
-	plog.WithField("request", request).Info("Started backup estimate")
-
 	estimate.BackupPath = request.Dirpath
 	// Get Filesystem free space
-	estimate.FilesystemSpaceAvailable = volume.FilesystemBytesAvailable(request.Dirpath)
+	estimate.AvailableBytes = volume.FilesystemBytesAvailable(request.Dirpath)
+	estimate.AvailableString = humanize.Bytes(estimate.AvailableBytes)
+
 	plog.WithFields(logrus.Fields {
 		"dirpath": request.Dirpath,
 		"estimate": estimate,
@@ -173,6 +175,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 		plog.WithError(err).Debug("Could not get service templates and images")
 		return err
 	}
+
 	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
 
 	tenants, err := f.GetTenantIDs(ctx)
@@ -183,7 +186,9 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 
 	volumesPath := options.VolumesPath
 	var FilesystemBytesRequired, DockerBytesRequired uint64
+
 	plog.WithField("volpath", volumesPath).Info("Got VolumesPath")
+
 	for _, tenant := range tenants {
 		tenantPath := filepath.Join(volumesPath, tenant)
 		tenantLogger := plog.WithFields(logrus.Fields{
@@ -203,6 +208,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 
 		tenantLogger.WithField("elapsed", time.Since(stime)).Info("path sized")
 	}
+
 	plog.WithField("elapsed", time.Since(stime)).Info("Estimated tenants")
 
 	// Estimate Docker image bytes to backup
@@ -220,12 +226,14 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	CompressionEst := options.BackupEstimatedCompression
 	TotalBytesRequired := FilesystemBytesRequired + DockerBytesRequired
 	AdjustedBytesRequired := uint64(float64(TotalBytesRequired) / CompressionEst + 0.5) + MinOverheadBytes
-	estimate.TotalBytesRequired = AdjustedBytesRequired
+	estimate.EstimatedBytes = AdjustedBytesRequired
+	estimate.EstimatedString = humanize.Bytes(AdjustedBytesRequired)
+
 	plog.WithFields(logrus.Fields {
 		"elapsed":  time.Since(stime),
 		"filesystembytes": FilesystemBytesRequired,
 		"dockerbytes":    DockerBytesRequired,
-		"totalbytes": estimate.TotalBytesRequired,
+		"totalbytes": estimate.EstimatedBytes,
 		"BackupEstimatedCompression": CompressionEst,
 		"BackupMinOverhead": options.BackupMinOverhead,
 		"MinOverheadBytes": MinOverheadBytes,
