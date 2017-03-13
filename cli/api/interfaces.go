@@ -106,7 +106,7 @@ type API interface {
 
 	// Backup & Restore
 	GetBackupEstimate(string, []string) (*dao.BackupEstimate, error)
-	Backup(string, []string) (string, error)
+	Backup(string, []string, bool) (string, error)
 	Restore(string) error
 
 	// Docker
