@@ -21,13 +21,13 @@ import (
 	"sync"
 	"time"
 
+	"errors"
 	model "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/volume"
 	gzip "github.com/klauspost/pgzip"
 	"github.com/zenoss/glog"
-	"errors"
 )
 
 // InProgress prompts which backup is currently backing up or restoring
@@ -89,12 +89,10 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
 
-
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
 	defer dfslocker.Unlock()
-
 
 	if backupRequest.Dirpath == "" {
 		backupRequest.Dirpath = dao.backupsPath

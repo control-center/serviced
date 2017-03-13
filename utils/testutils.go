@@ -38,27 +38,27 @@ func (r TestConfigReader) StringSlice(name string, dflt []string) []string {
 }
 
 func (r TestConfigReader) StringNumberedList(name string, dflt []string) []string {
-    values := ""
-    i := 0
-    for {
-        if strval, ok := r[name + "_" + strconv.Itoa(i)]; ok {
-            if values == "" {
-                values = strval
-            } else {
-                values += "," + strval
-            }
-        } else {
-            if values == "" {
-                r[name] = strings.Join(dflt, ",")
-                return dflt
-            } else {
-                r[name] = values
-                return strings.Split(values, ",")
-            }
-        }
+	values := ""
+	i := 0
+	for {
+		if strval, ok := r[name+"_"+strconv.Itoa(i)]; ok {
+			if values == "" {
+				values = strval
+			} else {
+				values += "," + strval
+			}
+		} else {
+			if values == "" {
+				r[name] = strings.Join(dflt, ",")
+				return dflt
+			} else {
+				r[name] = values
+				return strings.Split(values, ",")
+			}
+		}
 
-        i += 1
-    }
+		i += 1
+	}
 }
 
 func (r TestConfigReader) IntVal(name string, dflt int) int {
@@ -94,7 +94,6 @@ func (r TestConfigReader) BoolVal(name string, dflt bool) bool {
 func (p TestConfigReader) GetConfigValues() map[string]ConfigValue {
 	return map[string]ConfigValue{}
 }
-
 
 func (r TestConfigReader) Float64Val(name string, dflt float64) float64 {
 	if val, _ := r[name]; val != "" {

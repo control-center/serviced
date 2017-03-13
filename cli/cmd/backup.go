@@ -36,11 +36,11 @@ func (c *ServicedCli) initBackup() {
 					Usage: "Subdirectory of the tenant volume to exclude from backup",
 				},
 				cli.BoolFlag{
-					Name: "check",
+					Name:  "check",
 					Usage: "check space, but do not do backup",
 				},
 				cli.BoolFlag{
-					Name: "force",
+					Name:  "force",
 					Usage: "attempt backup even if space check fails",
 				},
 			},
@@ -55,7 +55,7 @@ func (c *ServicedCli) initBackup() {
 }
 
 // serviced backup DIRPATH
-func (c *ServicedCli) cmdBackup(ctx *cli.Context)  {
+func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
@@ -70,7 +70,7 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context)  {
 			c.exit(1)
 			return
 		} else {
-			if ! backupSpace.AllowBackup {
+			if !backupSpace.AllowBackup {
 				fmt.Fprintf(os.Stdout, "Unable to backup: estimated space required (%s) exceeds space available (%s) on %s\n", backupSpace.EstimatedString, backupSpace.AvailableString, backupSpace.BackupPath)
 				c.exit(1)
 				return

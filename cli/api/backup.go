@@ -17,9 +17,9 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"errors"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
-	"errors"
 )
 
 // Dump all templates and services to a tgz file.
@@ -64,7 +64,6 @@ func (a *api) Restore(path string) error {
 
 	return client.Restore(filepath.Clean(fp), &unusedInt)
 }
-
 
 func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*dao.BackupEstimate, error) {
 	client, err := a.connectDAO()

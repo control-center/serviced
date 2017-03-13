@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -34,8 +34,8 @@ const (
 var DefaultBackupAPITest = BackupAPITest{}
 
 var (
-	ErrBackupFailed  = errors.New("backup failed")
-	ErrRestoreFailed = errors.New("restore failed")
+	ErrBackupFailed       = errors.New("backup failed")
+	ErrRestoreFailed      = errors.New("restore failed")
 	ErrBackupPathTooSmall = errors.New("not enough space in backup path")
 )
 
@@ -80,25 +80,25 @@ func (t BackupAPITest) Restore(path string) error {
 }
 
 func (t BackupAPITest) GetBackupEstimate(path string, _ []string) (*dao.BackupEstimate, error) {
-	switch path{
+	switch path {
 	case TooSmallPath:
 	case PathNotFound:
 		return &dao.BackupEstimate{
-			AvailableBytes:   1000,
-			EstimatedBytes:   10000,
-			AvailableString:  "1K",
-			EstimatedString:  "10K",
-			BackupPath:       path,
-			AllowBackup:      false,
+			AvailableBytes:  1000,
+			EstimatedBytes:  10000,
+			AvailableString: "1K",
+			EstimatedString: "10K",
+			BackupPath:      path,
+			AllowBackup:     false,
 		}, nil
 	default:
 		return &dao.BackupEstimate{
-			AvailableBytes:   1000000000,
-			EstimatedBytes:   1000000,
-			AvailableString:  "1G",
-			EstimatedString:  "1M",
-			BackupPath:       path,
-			AllowBackup:      true,
+			AvailableBytes:  1000000000,
+			EstimatedBytes:  1000000,
+			AvailableString: "1G",
+			EstimatedString: "1M",
+			BackupPath:      path,
+			AllowBackup:     true,
 		}, nil
 	}
 	return nil, nil
@@ -157,7 +157,6 @@ func ExampleServicedCLI_CmdBackup_noforce() {
 	// not enough space in backup path
 }
 
-
 func ExampleServicedCLI_CmdBackup_force() {
 	// Backup called with not enough space, --force argument
 	InitBackupAPITest("serviced", "backup", TooSmallPath, "--force")
@@ -200,4 +199,3 @@ func ExampleServicedCLI_CmdRestore_usage() {
 	//
 	// OPTIONS:
 }
-

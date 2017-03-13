@@ -33,8 +33,8 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
-	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/dustin/go-humanize"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 const (
@@ -139,8 +139,8 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	estimate.AvailableBytes = volume.FilesystemBytesAvailable(request.Dirpath)
 	estimate.AvailableString = humanize.Bytes(estimate.AvailableBytes)
 
-	plog.WithFields(logrus.Fields {
-		"dirpath": request.Dirpath,
+	plog.WithFields(logrus.Fields{
+		"dirpath":  request.Dirpath,
 		"estimate": estimate,
 	}).Info("Checked FilestystemSpaceAvailable")
 
@@ -165,7 +165,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	for _, tenant := range tenants {
 		tenantPath := filepath.Join(volumesPath, tenant)
 		tenantLogger := plog.WithFields(logrus.Fields{
-			"tenant": tenant,
+			"tenant":     tenant,
 			"tenantPath": tenantPath,
 		})
 		tpsize, err := f.dfs.DfPath(tenantPath, request.Excludes)
@@ -193,18 +193,18 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	}
 	CompressionEst := options.BackupEstimatedCompression
 	TotalBytesRequired := FilesystemBytesRequired + DockerBytesRequired
-	AdjustedBytesRequired := uint64(float64(TotalBytesRequired) / CompressionEst + 0.5) + MinOverheadBytes
+	AdjustedBytesRequired := uint64(float64(TotalBytesRequired)/CompressionEst+0.5) + MinOverheadBytes
 	estimate.EstimatedBytes = AdjustedBytesRequired
 	estimate.EstimatedString = humanize.Bytes(AdjustedBytesRequired)
 	estimate.AllowBackup = estimate.EstimatedBytes < estimate.AvailableBytes
 
 	plog.WithFields(logrus.Fields{
-		"duration": time.Since(stime),
-		"filesystembytes": FilesystemBytesRequired,
-		"dockerbytes":    DockerBytesRequired,
+		"duration":                   time.Since(stime),
+		"filesystembytes":            FilesystemBytesRequired,
+		"dockerbytes":                DockerBytesRequired,
 		"BackupEstimatedCompression": CompressionEst,
-		"BackupMinOverhead": options.BackupMinOverhead,
-		"estimate": estimate,
+		"BackupMinOverhead":          options.BackupMinOverhead,
+		"estimate":                   estimate,
 	}).Info("Completed backup estimate")
 	return nil
 }

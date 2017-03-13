@@ -128,10 +128,10 @@ type BackupRequest struct {
 }
 
 type BackupEstimate struct {
-	AvailableBytes   uint64
-	EstimatedBytes   uint64
-	AvailableString  string
-	EstimatedString  string
-	BackupPath	 string
-	AllowBackup      bool
+	AvailableBytes  uint64
+	EstimatedBytes  uint64
+	AvailableString string
+	EstimatedString string
+	BackupPath      string
+	AllowBackup     bool
 }

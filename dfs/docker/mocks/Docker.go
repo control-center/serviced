@@ -245,7 +245,6 @@ func (_m *Docker) GetImagePullSize(images []string) (uint64, error) {
 	return r0, r1
 }
 
-
 func (_m *Docker) EstimateImagePullSize(images []string) (uint64, error) {
 	ret := _m.Called(images)
 
