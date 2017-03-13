@@ -104,4 +104,3 @@ func (r TestConfigReader) Float64Val(name string, dflt float64) float64 {
 	}
 	return dflt
 }
-
