@@ -520,10 +520,12 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 	}
 	serviceids := make([]string, len(svcs))
 	servicesToStop := []*service.Service{}
+	var stoppedServiceIds []string
 	for i, _ := range svcs {
 		svc := &svcs[i]
 		if svc.DesiredState == int(service.SVCRun) {
 			servicesToStop = append(servicesToStop, svc)
+			stoppedServiceIds = append(stoppedServiceIds, svc.ID)
 			if !force {
 				logger.WithFields(logrus.Fields{
 					"servicename": svc.Name,
@@ -541,7 +543,11 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 		return err
 	}
 
-	defer scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCRun, false)
+	defer func() {
+		// Refresh service objects in case something has changed (like current state)
+		servicesToStop = f.GetServicesForScheduling(ctx, stoppedServiceIds)
+		scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCRun, false)
+	}()
 
 	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), false, serviceids...); err != nil {
 		logger.WithError(err).Debug("Could not wait for services to stop during rollback of snapshot")
