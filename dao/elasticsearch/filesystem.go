@@ -100,6 +100,8 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	if dirpath == "" {
 		backupfilename = filepath.Join(dao.backupsPath, *filename)
 	}
+	// TODO: (here?) Put call to Utils.FilesystemBytesAvailable(dirpath), and error out (or warn?) if less than threshold
+	// TODO: Determine good threshold for warning (and probably make configurable)
 	inprogress.SetProgress(backupfilename, "backup")
 	defer func() {
 		if err != nil {

@@ -130,12 +130,17 @@ func TouchFlagFile(root string) error {
 	return nil
 }
 
-func FilesystemBytesSize(path string) int64 {
+func FilesystemBytesSize(path string) uint64 {
 	s := syscall.Statfs_t{}
 	syscall.Statfs(path, &s)
-	return int64(s.Bsize) * int64(s.Blocks)
+	return uint64(s.Bsize) * uint64(s.Blocks)
 }
 
+func FilesystemBytesAvailable(path string) uint64 {
+	s := syscall.Statfs_t{}
+	syscall.Statfs(path, &s)
+	return uint64(s.Bavail) * uint64(s.Blocks)
+}
 func DefaultSnapshotLabel(tenant, label string) string {
 	prefix := tenant + "_"
 	if !strings.HasPrefix(label, prefix) {
