@@ -106,10 +106,14 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 		glog.Errorf("Could not estimate backup size: %s", err)
 		return
 	} else if !est.AllowBackup {
-		message := fmt.Sprintf("Could not take backup - insufficient space on %s (%s estimated backup size, %s available)", est.BackupPath, est.EstimatedString, est.AvailableString)
-		err := errors.New(message)
-		glog.Errorf("No space for backup: %s", err)
-		return err
+		if backupRequest.Force {
+			glog.Warningf("Backup not recommended, but proceeding because '--force' was specified. Estimated backup size: %s, Space available on %s: %s", est.EstimatedString, est.BackupPath, est.AvailableString)
+		} else {
+			message := fmt.Sprintf("Could not take backup - insufficient space on %s (%s estimated backup size, %s available)", est.BackupPath, est.EstimatedString, est.AvailableString)
+			err := errors.New(message)
+			glog.Errorf("No space for backup: %s", err)
+			return err
+		}
 	}
 
 	// set the progress of the backup file
