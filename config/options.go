@@ -115,7 +115,7 @@ type Options struct {
 	StorageMetricMonitorWindow int               // The amount of time in seconds for which serviced will consider storage availability metrics in order to predict future availability
 	StorageLookaheadPeriod     int               // The amount of time in the future in seconds serviced should predict storage availability for the purposes of emergency shutdown
 	StorageMinimumFreeSpace    string            // The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
-	BackupEstimatedCompression float64      // Best guess for tgz compression ratio (uncompressed size / compressed size) used to determine whether sufficient disk space is available for taking a backup
+	BackupEstimatedCompression float64           // Best guess for tgz compression ratio (uncompressed size / compressed size) used to determine whether sufficient disk space is available for taking a backup
 	BackupMinOverhead          string            // Warn user if estimated backup size would leave less than this amount of space free
 }
 
