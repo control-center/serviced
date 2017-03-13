@@ -1,4 +1,5 @@
 // Copyright 2014 The Serviced Authors.
+// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,6 +19,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"time"
 )
 
 // Initializer for serviced backup and serviced restore
@@ -35,6 +37,22 @@ func (c *ServicedCli) initBackup() {
 					Value: &cli.StringSlice{},
 					Usage: "Subdirectory of the tenant volume to exclude from backup",
 				},
+				cli.BoolFlag{
+					Name: "check",
+					Usage: "check space, but do not do backup",
+				},
+				cli.StringFlag{
+					Name: "backup-min-overhead",
+					//Value: "TBD", //defaultOps.BackupMinOverhead,
+					Usage: "warn if backup operation would leave less free space than this",
+				},
+				cli.Float64Flag{
+					Name: "backup-estimated-compression",
+					//Value: c.config.Float64Val("BACKUP_ESTIMATED_COMPRESSION", 3.1415),
+					//Value: 0.0, //defaultOps.BackupEstimatedCompression,
+					Usage:"estimated compression ratio for backup tgz",
+				},
+
 			},
 		},
 		cli.Command{
@@ -54,6 +72,26 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 		cli.ShowCommandHelp(ctx, "backup")
 		return
 	}
+	fmt.Printf("Checking for space...\n")
+	start := time.Now()
+	if backupSpace, err := c.driver.GetBackupSpace(args[0], ctx.StringSlice("exclude")); err != nil {
+		fmt.Println("Error with check:")
+		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else {
+		fmt.Printf("backup data: %+v\nBackup check took %s\n", backupSpace, time.Since(start))
+		fmt.Printf("Estimated Compression: %f\n", backupSpace.EstCompr)
+		fmt.Printf("MinOverhead: %s\n", backupSpace.MinOverhead)
+	}
+	// if check flag specified, do check
+	if ctx.Bool("check") {
+		fmt.Printf("Check specified.\n")
+		return
+	}
+
+	// do backup
+	fmt.Printf("taking backup\n")
 	if path, err := c.driver.Backup(args[0], ctx.StringSlice("exclude")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if path == "" {
