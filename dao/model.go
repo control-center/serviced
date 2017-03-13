@@ -124,10 +124,10 @@ type BackupRequest struct {
 	Dirpath              string
 	SnapshotSpacePercent int
 	Excludes             []string
+	Force                bool
 }
 
-type BackupActual struct {
-	FilesystemBytesRequired  uint64
-	DockerBytesRequired      uint64
-	TotalBytesRequired      uint64
+type BackupEstimate struct {
+	FilesystemSpaceAvailable uint64
+	TotalBytesRequired       uint64
 }
