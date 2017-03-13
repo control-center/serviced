@@ -44,6 +44,12 @@ func InitBackupAPITest(args ...string) {
 	New(DefaultBackupAPITest, utils.TestConfigReader{}, MockLogControl{}).Run(args)
 }
 
+func InitBackupAPITestNoExit(args ...string) {
+	c := New(DefaultBackupAPITest, utils.TestConfigReader{}, MockLogControl{})
+	c.exitDisabled = true
+	c.Run(args)
+}
+
 func (t BackupAPITest) Backup(dirpath string, excludes []string) (string, error) {
 	switch dirpath {
 	case PathNotFound:
@@ -64,11 +70,23 @@ func (t BackupAPITest) Restore(path string) error {
 	}
 }
 
-func ExampleServicedCli_cmdBackup() {
+func ExampleServicedCli_cmdBackup_InvalidPath() {
 	// Invalid path
-	InitBackupAPITest("serviced", "backup", PathNotFound)
+	pipeStderr(func() { InitBackupAPITestNoExit("serviced", "backup", PathNotFound) })
+
+	// Output:
+	// backup failed
+}
+
+func ExampleServicedCli_cmdBackup_ReturnEmptyPath() {
 	// Backup returns an empty file path
-	InitBackupAPITest("serviced", "backup", NilPath)
+	pipeStderr(func() { InitBackupAPITestNoExit("serviced", "backup", NilPath) })
+
+	// Output:
+	// received nil path to backup file
+}
+
+func ExampleServicedCli_cmdBackup() {
 	// Success
 	InitBackupAPITest("serviced", "backup", "path/to/dir")
 
@@ -77,7 +95,7 @@ func ExampleServicedCli_cmdBackup() {
 }
 
 func ExampleServicedCLI_CmdBackup_usage() {
-	InitBackupAPITest("serviced", "backup")
+	InitBackupAPITestNoExit("serviced", "backup")
 
 	// Output:
 	// Incorrect Usage.
