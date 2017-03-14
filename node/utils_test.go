@@ -18,7 +18,7 @@
 
 // +build integration
 
-package node
+package node_test
 
 import (
 	"testing"
@@ -35,6 +35,7 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/coordinator/client"
+	. "github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/zzk"
 	. "gopkg.in/check.v1"
 )
@@ -50,7 +51,7 @@ func Test(t *testing.T) {
 }
 
 // Test validOwnerSpec
-func TestValidOwnerSpec(t *testing.T) {
+func TestIsValidOwnerSpec(t *testing.T) {
 
 	invalidSpecs := []string{
 		"",
@@ -60,7 +61,7 @@ func TestValidOwnerSpec(t *testing.T) {
 		"test,test",
 	}
 	for _, spec := range invalidSpecs {
-		if validOwnerSpec(spec) {
+		if IsValidOwnerSpec(spec) {
 			t.Logf("%s should NOT be a valid owner spec", spec)
 			t.Fail()
 		}
@@ -72,7 +73,7 @@ func TestValidOwnerSpec(t *testing.T) {
 		"user-name:group-name",
 	}
 	for _, spec := range validSpecs {
-		if !validOwnerSpec(spec) {
+		if !IsValidOwnerSpec(spec) {
 			t.Logf("%s should be a valid owner spec", spec)
 			t.Fail()
 		}
@@ -118,7 +119,7 @@ func (ts *ZZKTest) TestCreateVolumeDir(t *C) {
 	}
 
 	conn := getTestConn(t, "/vinit")
-	if err := createVolumeDir(conn, v.hostPath, v.containerPath, v.image, v.user, v.perm); err != nil {
+	if err := CreateVolumeDir(conn, v.hostPath, v.containerPath, v.image, v.user, v.perm); err != nil {
 		t.Fatalf("unable to create volume %+v: %s", tmpPath, err)
 	}
 

@@ -24,6 +24,8 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/zzk"
 	. "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/service/mocks"
+	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
 )
@@ -50,8 +52,11 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	err = conn.Create(spth, s)
 	c.Assert(err, IsNil)
 
+	handler := &mocks.VirtualIPUnassignmentHandler{}
+	handler.On("UnassignAll", mock.Anything, mock.Anything).Return(nil)
+
 	// initialize the listener
-	listener := NewHostRegistryListener(p.ID)
+	listener := NewHostRegistryListener(p.ID, handler)
 	listener.SetConnection(conn)
 
 	// case 1: try to listen on a node that doesn't exist
