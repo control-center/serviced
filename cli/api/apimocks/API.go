@@ -260,19 +260,19 @@ func (_m *API) AuthenticateHost(_a0 string) (string, int64, error) {
 }
 
 // Backup provides a mock function with given fields: _a0, _a1
-func (_m *API) Backup(_a0 string, _a1 []string) (string, error) {
-	ret := _m.Called(_a0, _a1)
+func (_m *API) Backup(_a0 string, _a1 []string, _a2 bool) (string, error) {
+	ret := _m.Called(_a0, _a1, _a2)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, []string) string); ok {
-		r0 = rf(_a0, _a1)
+	if rf, ok := ret.Get(0).(func(string, []string, bool) string); ok {
+		r0 = rf(_a0, _a1, _a2)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, []string) error); ok {
-		r1 = rf(_a0, _a1)
+	if rf, ok := ret.Get(1).(func(string, []string, bool) error); ok {
+		r1 = rf(_a0, _a1, _a2)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1591,6 +1591,26 @@ func (_m *API) ClearEmergency(_a0 string) (int, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *API) GetBackupEstimate(_a0 string, _a1 []string) (*dao.BackupEstimate, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 *dao.BackupEstimate
+	if rf, ok := ret.Get(0).(func(string, []string) *dao.BackupEstimate); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Get(0).(*dao.BackupEstimate)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, []string) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}

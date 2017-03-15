@@ -1,0 +1,34 @@
+<div class="add-backup-modal {{backupCheck.ready}}" ng-if="backupCheck" >
+
+    <div class="form-group">
+        <div>
+            <p class="assist" translate>confirm_start_backup</p>
+            <p class="assist will-robinson" translate>backup_disabled</p>
+        </div>
+        <label class="path">{{ backupCheck.BackupPath }}</label>
+        <div class="barchartwrap">
+            <div class="chart-bar bar1">
+                <span>&nbsp;</span>
+            </div>
+            <div class="chart-bar bar2" style="width:{{ backupCheck.pct }}%">
+                <div>
+                    <span translate>backup_estimate</span>
+                    <span>:</span>
+                    <span class="storage-value">{{ backupCheck.EstimatedString }}</span>
+                </div>
+            </div>
+            <div class="chart-bar free-space">
+                <span translate>free</span>
+                <span>:</span>
+                <span class="storage-value">{{ backupCheck.AvailableString }}</span>
+            </div>
+        </div>
+    </div>
+
+    <table class="jelly-table">
+        <tr>
+            <td class="loader {{backupCheck.mcKraken}}"></td>
+        </tr>
+    </table>
+
+</div>

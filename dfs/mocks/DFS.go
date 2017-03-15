@@ -6,7 +6,9 @@ import "github.com/stretchr/testify/mock"
 import "io"
 import "time"
 
-import "github.com/control-center/serviced/domain/service"
+import (
+	"github.com/control-center/serviced/domain/service"
+)
 
 type DFS struct {
 	mock.Mock
@@ -341,4 +343,71 @@ func (_m *DFS) Override(newImage string, oldImage string) error {
 	}
 
 	return r0
+}
+
+// Get free disk space for a path
+func (_m *DFS) DfPath(path string, excludes []string) (uint64, error) {
+	ret := _m.Called(path, excludes)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(string, []string) uint64); ok {
+		r0 = rf(path, excludes)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uint64)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, []string) error); ok {
+		r1 = rf(path, excludes)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *DFS) EstimateImagePullSize(images []string) (uint64, error) {
+	ret := _m.Called(images)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func([]string) uint64); ok {
+		r0 = rf(images)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uint64)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(images)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *DFS) GetImageInfo(image string) (*dfs.ImageInfo, error) {
+	ret := _m.Called(image)
+
+	var r0 *dfs.ImageInfo
+	if rf, ok := ret.Get(0).(func(string) *dfs.ImageInfo); ok {
+		r0 = rf(image)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dfs.ImageInfo)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(image)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

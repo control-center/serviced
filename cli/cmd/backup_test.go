@@ -21,19 +21,22 @@ import (
 	"path"
 
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/utils"
 )
 
 const (
 	PathNotFound = "PathNotFound"
 	NilPath      = "NilPath"
+	TooSmallPath = "TooSmallPath"
 )
 
 var DefaultBackupAPITest = BackupAPITest{}
 
 var (
-	ErrBackupFailed  = errors.New("backup failed")
-	ErrRestoreFailed = errors.New("restore failed")
+	ErrBackupFailed       = errors.New("backup failed")
+	ErrRestoreFailed      = errors.New("restore failed")
+	ErrBackupPathTooSmall = errors.New("not enough space in backup path")
 )
 
 type BackupAPITest struct {
@@ -44,12 +47,24 @@ func InitBackupAPITest(args ...string) {
 	New(DefaultBackupAPITest, utils.TestConfigReader{}, MockLogControl{}).Run(args)
 }
 
-func (t BackupAPITest) Backup(dirpath string, excludes []string) (string, error) {
+func InitBackupAPITestNoExit(args ...string) {
+	c := New(DefaultBackupAPITest, utils.TestConfigReader{}, MockLogControl{})
+	c.exitDisabled = true
+	c.Run(args)
+}
+
+func (t BackupAPITest) Backup(dirpath string, excludes []string, force bool) (string, error) {
 	switch dirpath {
 	case PathNotFound:
 		return "", ErrBackupFailed
 	case NilPath:
 		return "", nil
+	case TooSmallPath:
+		if force {
+			return fmt.Sprintf("%s.tgz", path.Base(dirpath)), nil
+		} else {
+			return "", ErrBackupPathTooSmall
+		}
 	default:
 		return fmt.Sprintf("%s.tgz", path.Base(dirpath)), nil
 	}
@@ -64,11 +79,48 @@ func (t BackupAPITest) Restore(path string) error {
 	}
 }
 
-func ExampleServicedCli_cmdBackup() {
+func (t BackupAPITest) GetBackupEstimate(path string, _ []string) (*dao.BackupEstimate, error) {
+	switch path {
+	case TooSmallPath:
+	case PathNotFound:
+		return &dao.BackupEstimate{
+			AvailableBytes:  1000,
+			EstimatedBytes:  10000,
+			AvailableString: "1K",
+			EstimatedString: "10K",
+			BackupPath:      path,
+			AllowBackup:     false,
+		}, nil
+	default:
+		return &dao.BackupEstimate{
+			AvailableBytes:  1000000000,
+			EstimatedBytes:  1000000,
+			AvailableString: "1G",
+			EstimatedString: "1M",
+			BackupPath:      path,
+			AllowBackup:     true,
+		}, nil
+	}
+	return nil, nil
+}
+
+func ExampleServicedCli_cmdBackup_InvalidPath() {
 	// Invalid path
-	InitBackupAPITest("serviced", "backup", PathNotFound)
+	pipeStderr(func() { InitBackupAPITestNoExit("serviced", "backup", PathNotFound) })
+
+	// Output:
+	// backup failed
+}
+
+func ExampleServicedCli_cmdBackup_ReturnEmptyPath() {
 	// Backup returns an empty file path
-	InitBackupAPITest("serviced", "backup", NilPath)
+	pipeStderr(func() { InitBackupAPITestNoExit("serviced", "backup", NilPath) })
+
+	// Output:
+	// received nil path to backup file
+}
+
+func ExampleServicedCli_cmdBackup() {
 	// Success
 	InitBackupAPITest("serviced", "backup", "path/to/dir")
 
@@ -77,7 +129,7 @@ func ExampleServicedCli_cmdBackup() {
 }
 
 func ExampleServicedCLI_CmdBackup_usage() {
-	InitBackupAPITest("serviced", "backup")
+	InitBackupAPITestNoExit("serviced", "backup")
 
 	// Output:
 	// Incorrect Usage.
@@ -93,7 +145,34 @@ func ExampleServicedCLI_CmdBackup_usage() {
 	//
 	// OPTIONS:
 	//    --exclude '--exclude option --exclude option'	Subdirectory of the tenant volume to exclude from backup
-	//
+	//    --check						check space, but do not do backup
+	//    --force						attempt backup even if space check fails
+}
+
+func ExampleServicedCLI_CmdBackup_noforce() {
+	// Backup called with not enough space
+	InitBackupAPITestNoExit("serviced", "backup", TooSmallPath)
+
+	// Output:
+	// not enough space in backup path
+}
+
+func ExampleServicedCLI_CmdBackup_force() {
+	// Backup called with not enough space, --force argument
+	InitBackupAPITest("serviced", "backup", TooSmallPath, "--force")
+
+	// Output:
+	// TooSmallPath.tgz
+}
+
+func ExampleServicedCLI_CmdBackup_check() {
+	// Backup called with check-only flag
+	InitBackupAPITestNoExit("serviced", "backup", "path/to/dir", "--check")
+
+	// Output:
+	// Checking for space...
+	// Okay to backup. Estimated space required: 1M, Available: 1G
+	// Check only - not taking backup
 }
 
 func ExampleServicedCli_cmdRestore() {

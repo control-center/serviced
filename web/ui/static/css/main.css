@@ -305,7 +305,7 @@ table .btn,
 }
 
 .navbar-inverse li .item {
-    color: #999999;
+    color: #999;
 }
 
 .navbar {
@@ -1737,6 +1737,88 @@ input[type=file] {
     display: block;
     opacity: 0.5;
 }
+
+/* backup storage modal */
+.barchartwrap {
+  flex-direction: column;
+  font-family: sans-serif;
+  display: flex;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.chart-bar {
+  color: #fafafa;
+  font-size: 13px;
+  line-height: 28px;
+  flex-wrap: nowrap;
+  margin: 2px 0;
+}
+
+.chart-bar.free-space {
+    text-align: right;
+    margin: 0;
+}
+    .chart-bar.free-space span {
+        color: #999;
+        display: inline-block;
+        width: auto;
+    }
+
+.storage-value {
+    font-weight: bold;
+}
+
+.chart-bar > div {
+  display: flex;
+  text-indent: 6px;
+  width: 100vw;
+}
+
+.bar1 {
+  background-color: #777;
+  width: 100%;
+}
+
+.bar2 {
+  background-color: #4F83D1;
+  margin-top: -30px;
+  transition: width 2s;
+}
+    .danger .bar2 {
+        background-color: #9c1200;
+    }
+
+.add-backup-modal .barchartwrap {
+    visibility: hidden;
+}
+    .add-backup-modal.ready .barchartwrap {
+        visibility: visible;
+    }
+
+.add-backup-modal .assist {
+    color: #333;
+    padding: 20px 0;
+}
+
+.add-backup-modal .jelly-table {
+    height: calc(100% - 15px);
+    margin-top: -20px;
+    width: 100%;
+}
+.add-backup-modal .path {
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.add-backup-modal .will-robinson {
+    display: none;
+}
+    .add-backup-modal.danger .assist {
+        display: none;
+    }
+    .add-backup-modal.danger .will-robinson {
+        display: block;
+    }
 
 /* sticky service controls */
 .serviceDetails {

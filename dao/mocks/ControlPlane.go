@@ -527,3 +527,17 @@ func (_m *ControlPlane) ReadyDFS(serviceID string, unused *int) error {
 
 	return r0
 }
+
+func (_m *ControlPlane) GetBackupEstimate(backupRequest dao.BackupRequest, estimate *dao.BackupEstimate) (err error) {
+
+	ret := _m.Called(backupRequest, estimate)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.BackupRequest, *dao.BackupEstimate) error); ok {
+		r0 = rf(backupRequest, estimate)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

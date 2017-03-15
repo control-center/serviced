@@ -278,6 +278,10 @@
                 method: GET,
                 url: filename => `/backup/restore?filename=${filename}`
             },
+            getBackupCheck: {
+                method: GET,
+                url: "/backup/check"
+            },
             getBackupFiles: {
                 method: GET,
                 url: "/backup/list"
