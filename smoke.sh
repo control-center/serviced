@@ -223,10 +223,14 @@ test_service_run_command() {
 # defaults file.
 # Note: SERVICE_D_ISVCS_ENV_0 exists and is parsed as a list of entries.
 #       SERVICED_LOG_CONFIG documentation has been deferred as per Ian.
+#       SERVICED_BACKUP_ESTIMATED_COMPRESSION and SERVICED_BACKUP_MIN_OVERHEAD are
+#       intentionally undocumented (available to tweak backup estimates for CC-2421)
 whitelisted() {
     grep -Fqx "$1" <<EOF
 SERVICED_ISVCS_ENV
 SERVICED_LOG_CONFIG
+SERVICED_BACKUP_ESTIMATED_COMPRESSION
+SERVICED_BACKUP_MIN_OVERHEAD
 EOF
 }
 

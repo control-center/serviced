@@ -27,7 +27,7 @@
     "backup_complete": "Respaldo completo",
     "backup_create": "Crear respaldo",
     "backup_disabled": "La operación de respaldo se encuentra desactivada. No hay suficiente espacio en este volumen para un archivo de respaldo. Libere espacio en este volumen, incremente el tamaño de este volumen, o lleve a cabo esta operación en un volumen distinto.",
-    "backup_estimate": "Estimado de Archivo de Respaldo",
+    "backup_estimate": "Estimado de Archivo de Respaldo (Antes de la Compresi\u00f3n)",
     "backuprestore": "Respaldar / Restaurar",
     "backup_restore": "Restaurar respaldo",
     "backup_running": "Ejecutando restauracion",
