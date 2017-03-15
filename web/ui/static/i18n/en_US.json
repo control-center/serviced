@@ -27,7 +27,7 @@
     "backup_complete": "Backup Complete",
     "backup_create": "Create Backup",
     "backup_disabled": "Backup is disabled. There is not enough space on this volume for a backup file. Free up space on this volume, increase the size of this volume, or redirect new backups to a different volume.",
-    "backup_estimate": "Backup File Estimate",
+    "backup_estimate": "Backup File Estimate (Before Compression)",
     "backuprestore": "Backup / Restore",
     "backup_restore": "Restore Backup",
     "backup_running": "Creating Backup",
