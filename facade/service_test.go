@@ -2372,6 +2372,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
 		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
 		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
@@ -2382,6 +2383,14 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 			desiredStates[s.ID] = service.DesiredState(s.DesiredState)
 		}
 	})
+
+	p1 := &pool.ResourcePool{
+		ID:          "default",
+		Permissions: pool.DFSAccess | pool.AdminAccess,
+	}
+	if err := ft.Facade.AddResourcePool(ft.CTX, p1); err != nil {
+		c.Fatalf("Failed add pool %+v: %s", p1, err)
+	}
 
 	// add a service with 1 subservice
 	svc := service.Service{

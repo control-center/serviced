@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
@@ -683,16 +684,34 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	}
 	imagesMap := make(map[string]struct{})
 	images := make([]string, 0)
-	serviceids := make([]string, len(svcs))
+	serviceids := []string{}
 	servicesToPause := []*service.Service{}
+	poolmap := make(map[string]bool)
 	var pausedServiceIds []string
 	for i, _ := range svcs {
 		svc := &svcs[i]
-		if svc.DesiredState == int(service.SVCRun) {
-			servicesToPause = append(servicesToPause, svc)
-			pausedServiceIds = append(pausedServiceIds, svc.ID)
+
+		// only pause services that have access to the dfs
+		hasDFS, ok := poolmap[svc.PoolID]
+		if !ok {
+			p := &pool.ResourcePool{}
+			err := f.poolStore.Get(ctx, pool.Key(svc.PoolID), p)
+			if err != nil {
+				logger.WithField("poolid", svc.PoolID).WithError(err).Error("Could not get resource pool")
+				return "", err
+			}
+			hasDFS = p.HasDfsAccess()
+			poolmap[svc.PoolID] = hasDFS
 		}
-		serviceids[i] = svc.ID
+
+		if hasDFS {
+			if svc.DesiredState == int(service.SVCRun) {
+				servicesToPause = append(servicesToPause, svc)
+				pausedServiceIds = append(pausedServiceIds, svc.ID)
+			}
+			serviceids = append(serviceids, svc.ID)
+		}
+
 		if svc.ImageID != "" {
 			if _, ok := imagesMap[svc.ImageID]; !ok {
 				imagesMap[svc.ImageID] = struct{}{}
