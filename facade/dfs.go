@@ -700,7 +700,7 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 				logger.WithField("poolid", svc.PoolID).WithError(err).Error("Could not get resource pool")
 				return "", err
 			}
-			hasDFS = (p.Permissions & pool.DFSAccess) > 0
+			hasDFS = p.HasDfsAccess()
 			poolmap[svc.PoolID] = hasDFS
 		}
 
