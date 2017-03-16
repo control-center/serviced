@@ -470,29 +470,6 @@ func (_m *FacadeInterface) GetAllPublicEndpoints(ctx datastore.Context) ([]servi
 	return r0, r1
 }
 
-// GetAllServiceDetails provides a mock function with given fields: ctx, since
-func (_m *FacadeInterface) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx, since)
-
-	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context, time.Duration) []service.ServiceDetails); ok {
-		r0 = rf(ctx, since)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.ServiceDetails)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, time.Duration) error); ok {
-		r1 = rf(ctx, since)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetEvaluatedService provides a mock function with given fields: ctx, servicedID, instanceID
 func (_m *FacadeInterface) GetEvaluatedService(ctx datastore.Context, servicedID string, instanceID int) (*service.Service, error) {
 	ret := _m.Called(ctx, servicedID, instanceID)
@@ -1652,13 +1629,13 @@ func (_m *FacadeInterface) GetServiceNamePath(ctx datastore.Context, serviceID s
 	}
 
 	var r1 string
-        if rf, ok := ret.Get(0).(func(datastore.Context, string) string); ok {
-                r1 = rf(ctx, serviceID)
-        } else {
-                if ret.Get(0) != nil {
-                        r1 = ret.Get(0).(string)
-                }
-        }
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) string); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r1 = ret.Get(0).(string)
+		}
+	}
 
 	var r2 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
@@ -1668,4 +1645,26 @@ func (_m *FacadeInterface) GetServiceNamePath(ctx datastore.Context, serviceID s
 	}
 
 	return r0, r1, r2
+}
+
+func (_m *FacadeInterface) QueryServiceDetails(ctx datastore.Context, query service.Query) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, query)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, service.Query) []service.ServiceDetails); ok {
+		r0 = rf(ctx, query)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, service.Query) error); ok {
+		r1 = rf(ctx, query)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

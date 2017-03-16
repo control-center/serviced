@@ -67,7 +67,7 @@ func (s *Server) WaitService(request *WaitServiceRequest, throwaway *string) err
 
 // GetAllServiceDetails will return a list of all ServiceDetails
 func (s *Server) GetAllServiceDetails(since time.Duration, response *[]service.ServiceDetails) error {
-	svcs, err := s.f.GetAllServiceDetails(s.context(), since)
+	svcs, err := s.f.QueryServiceDetails(s.context(), service.Query{Since: since})
 	if err != nil {
 		return err
 	}

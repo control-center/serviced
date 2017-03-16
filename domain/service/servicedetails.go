@@ -15,6 +15,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
@@ -42,6 +43,8 @@ type ServiceDetails struct {
 	Launch            string
 	Tags              []string
 	EmergencyShutdown bool
+	UpdatedAt         time.Time
+	CreatedAt         time.Time
 	datastore.VersionedEntity
 }
 
