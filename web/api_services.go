@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/control-center/serviced/datastore"
@@ -28,21 +29,13 @@ import (
 func getAllServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
 	ctx := c.getDatastoreContext()
 
-	var err error
-	var details []service.ServiceDetails
-
-	tsince, err := getSinceParameter(r)
+	query, err := buildQuery(r)
 	if err != nil {
-		restServerError(w, err)
+		writeJSON(w, err, http.StatusBadRequest)
 		return
 	}
 
-	if _, ok := r.URL.Query()["tenants"]; ok {
-		details, err = c.getFacade().GetServiceDetailsByParentID(ctx, "", tsince)
-	} else {
-		details, err = c.getFacade().GetAllServiceDetails(ctx, tsince)
-	}
-
+	details, err := c.getFacade().QueryServiceDetails(ctx, query)
 	if err != nil {
 		restServerError(w, err)
 		return
@@ -222,4 +215,31 @@ func getSinceParameter(r *rest.Request) (time.Duration, error) {
 		tsince = time.Duration(tint) * time.Millisecond
 	}
 	return tsince, nil
+}
+
+func buildQuery(r *rest.Request) (service.Query, error) {
+	query := service.Query{
+		Name: r.URL.Query().Get("name"),
+	}
+
+	if r.URL.Query().Get("tags") != "" {
+		query.Tags = strings.Split(r.URL.Query().Get("tags"), ",")
+	} else {
+		query.Tags = []string{}
+	}
+
+	if _, ok := r.URL.Query()["tenants"]; ok {
+		query.Tenants = true
+	}
+
+	since := r.URL.Query().Get("since")
+	if since != "" {
+		i, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			return service.Query{}, err
+		}
+		query.Since = time.Duration(i) * time.Millisecond
+	}
+
+	return query, nil
 }

@@ -2420,7 +2420,7 @@ func (f *Facade) getExcludedVolumes(ctx datastore.Context, serviceID string) []s
 }
 
 func (f *Facade) SyncCurrentStates(ctx datastore.Context) error {
-	services, err := f.GetAllServiceDetails(ctx, time.Duration(0))
+	services, err := f.QueryServiceDetails(ctx, service.Query{})
 	if err != nil {
 		return err
 	}
@@ -2445,12 +2445,6 @@ func (f *Facade) SetServicesCurrentState(ctx datastore.Context, currentState ser
 
 func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error) {
 	return f.metricsClient.GetInstanceMemoryStats(startTime, instances...)
-}
-
-// Get all the service details
-func (f *Facade) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetAllServiceDetails"))
-	return f.serviceStore.GetAllServiceDetails(ctx, since)
 }
 
 // GetServiceDetails returns the details of a particular service
@@ -2487,7 +2481,7 @@ func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID str
 // Get the details of all services for the specified tenant
 func (f *Facade) GetServiceDetailsByTenantID(ctx datastore.Context, tenantID string) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceDetailsByTenantID"))
-	svcs, err := f.serviceStore.GetAllServiceDetails(ctx, 0)
+	svcs, err := f.serviceStore.Query(ctx, service.Query{})
 	if err != nil {
 		return nil, err
 	}
@@ -2745,4 +2739,9 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 
 func isEmptyPath(p string) bool {
 	return p == "" || p == "/"
+}
+
+func (f *Facade) QueryServiceDetails(ctx datastore.Context, request service.Query) ([]service.ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.QueryServiceDetails"))
+	return f.serviceStore.Query(ctx, request)
 }

@@ -16,6 +16,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -24,35 +25,13 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 )
 
-// GetAllServiceDetails returns service details for an id
-func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]ServiceDetails, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetAllServiceDetails"))
-	query := map[string]interface{}{}
-	existsQuery := map[string]string{
-		"query": "_exists_:ID",
-	}
-	if since > 0 {
-		t0 := time.Now().Add(-since)
-		query["bool"] = map[string]interface{}{
-			"must": []map[string]interface{}{
-				map[string]interface{}{
-					"query_string": existsQuery,
-				},
-				map[string]interface{}{
-					"range": map[string]interface{}{
-						"UpdatedAt": map[string]string{
-							"gte": t0.Format(time.RFC3339),
-						},
-					},
-				},
-			},
-		}
-	} else {
-		query["query_string"] = existsQuery
-	}
-
+func (s *storeImpl) Query(ctx datastore.Context, query Query) ([]ServiceDetails, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
-		"query":  query,
+		"query": map[string]interface{}{
+			"query_string": map[string]interface{}{
+				"query": "_exists_:ID",
+			},
+		},
 		"fields": serviceDetailsFields,
 		"size":   serviceDetailsLimit,
 	})
@@ -64,6 +43,16 @@ func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context, since time.Durat
 
 	parentMap := make(map[string]struct{})
 
+	var r *regexp.Regexp
+	if query.Name != "" {
+		r, _ = regexp.Compile(query.Name)
+	}
+
+	var since time.Time
+	if query.Since > 0 {
+		since = time.Now().Add(-query.Since)
+	}
+
 	details := []ServiceDetails{}
 	for results.HasNext() {
 		var d ServiceDetails
@@ -73,6 +62,32 @@ func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context, since time.Durat
 		}
 
 		parentMap[d.ParentServiceID] = struct{}{}
+
+		if r != nil && !r.MatchString(d.Name) {
+			continue
+		}
+
+		if query.Since > 0 && d.UpdatedAt.Before(since) {
+			continue
+		}
+
+		if query.Tenants && d.ParentServiceID != "" {
+			continue
+		}
+
+		if len(query.Tags) > 0 {
+			tagsMatch := true
+			for _, t := range query.Tags {
+				if !contains(d.Tags, t) {
+					tagsMatch = false
+					break
+				}
+			}
+			if !tagsMatch {
+				continue
+			}
+		}
+
 		s.fillDetailsVolatileInfo(&d)
 		details = append(details, d)
 	}
@@ -82,6 +97,15 @@ func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context, since time.Durat
 	}
 
 	return details, nil
+}
+
+func contains(slice []string, value string) bool {
+	for _, s := range slice {
+		if s == value {
+			return true
+		}
+	}
+	return false
 }
 
 // GetServiceDetails returns service details for an id
@@ -531,6 +555,8 @@ var serviceDetailsFields = []string{
 	"Launch",
 	"Tags",
 	"EmergencyShutdown",
+	"UpdatedAt",
+	"CreatedAt",
 }
 
 var serviceEndpointFields = []string{
