@@ -80,13 +80,13 @@ func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 		return err
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
 		return err
-	} else if err = f.zzk.updateResourcePool(entity); err != nil {
+	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
 		return err
 	}
 
 	if vips != nil && len(vips) > 0 {
 		entity.VirtualIPs = vips
-		return f.UpdateResourcePool(ctx, entity)
+		return f.updateResourcePool(ctx, entity)
 	}
 
 	f.poolCache.SetDirty()
