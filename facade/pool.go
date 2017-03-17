@@ -86,7 +86,7 @@ func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 
 	if vips != nil && len(vips) > 0 {
 		entity.VirtualIPs = vips
-		return f.UpdateResourcePool(ctx, entity)
+		return f.updateResourcePool(ctx, entity)
 	}
 
 	f.poolCache.SetDirty()
