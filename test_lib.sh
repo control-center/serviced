@@ -24,7 +24,7 @@ fi
 
 export START_TIMEOUT=300
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-DEFAULT_INTERFACE=$(ip route | awk '/default/ { print $5 }')
+DEFAULT_INTERFACE=$(ip route | awk '/default/ { print $5 }' | head -1)
 IP=$(ip -f inet -o addr show $DEFAULT_INTERFACE | awk '{print $4}' | cut -d / -f 1)
 HOSTNAME=$(hostname)
 
