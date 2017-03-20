@@ -94,25 +94,24 @@ func (d *DockerClient) FindImage(image string) (*dockerclient.Image, error) {
 	return d.dc.InspectImage(image)
 }
 
-
 func (d *DockerClient) GetImagePullSize(images []string) (uint64, error) {
 	type layerID struct {
-		Created int64
+		Created   int64
 		CreatedBy string
 	}
 	sizeMap := make(map[layerID]uint64)
 	totalSize := uint64(0)
 	calcSize := uint64(0)
 	dupSize := uint64(0)
-	for _, image := range(images){
+	for _, image := range images {
 		hist, err := d.dc.ImageHistory(image)
 		if err != nil {
 			plog.WithError(err).Infof("Unable to get history for image %s", image)
 			return totalSize, err
 		}
-		for _, histentry := range(hist) {
-			hk := layerID {
-				Created: histentry.Created,
+		for _, histentry := range hist {
+			hk := layerID{
+				Created:   histentry.Created,
 				CreatedBy: histentry.CreatedBy,
 			}
 			prevSize := sizeMap[hk]
@@ -129,7 +128,7 @@ func (d *DockerClient) GetImagePullSize(images []string) (uint64, error) {
 			totalSize += uint64(histentry.Size)
 		}
 	}
-	for _, s := range(sizeMap) {
+	for _, s := range sizeMap {
 		calcSize += s
 	}
 	plog.WithFields(log.Fields{"calcSize": calcSize, "totalSize": totalSize}).Debug("Done getting image pull size.")

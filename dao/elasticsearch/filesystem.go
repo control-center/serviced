@@ -21,14 +21,14 @@ import (
 	"sync"
 	"time"
 
+	"errors"
+	"github.com/Sirupsen/logrus"
 	model "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/volume"
 	gzip "github.com/klauspost/pgzip"
-	"errors"
-	"github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/logging"
 )
 
 var (
@@ -94,12 +94,10 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
 
-
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
 	defer dfslocker.Unlock()
-
 
 	if backupRequest.Dirpath == "" {
 		backupRequest.Dirpath = dao.backupsPath
@@ -114,15 +112,15 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 		if backupRequest.Force {
 			log.WithFields(logrus.Fields{
 				"EstimatedBackupSize": est.EstimatedString,
-				"BackupPath": est.BackupPath,
-				"AvailableSpace":est.AvailableString,
+				"BackupPath":          est.BackupPath,
+				"AvailableSpace":      est.AvailableString,
 			}).Warning("Backup not recommended, but proceeding because '--force' was specified.")
 		} else {
 			err := errors.New("No Space for backup")
 			log.WithError(err).WithFields(logrus.Fields{
 				"EstimatedBackupSize": est.EstimatedString,
-				"BackupPath": est.BackupPath,
-				"availablseSpace": est.AvailableString,
+				"BackupPath":          est.BackupPath,
+				"availablseSpace":     est.AvailableString,
 			}).Error("Could not take backup")
 			log.WithError(err).Error("No space for backup")
 			return err
