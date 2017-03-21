@@ -128,9 +128,19 @@ type BatchServiceStateManager struct {
 }
 
 type CurrentStateWait struct {
-	Cancel       chan<- interface{}
+	cancel       chan interface{}
 	WaitingState service.DesiredState
 	Done         <-chan struct{}
+}
+
+func (w CurrentStateWait) Cancel() {
+	// Make sure it isn't already closed
+	select {
+	case <-w.cancel:
+	default:
+		close(w.cancel)
+	}
+	<-w.Done
 }
 
 func NewCancellableService(svc *service.Service) CancellableService {
@@ -211,8 +221,7 @@ func (s *BatchServiceStateManager) Shutdown() {
 	s.currentStateLock.Lock()
 	defer s.currentStateLock.Unlock()
 	for _, thread := range s.currentStateWaits {
-		close(thread.Cancel)
-		<-thread.Done
+		thread.Cancel()
 	}
 }
 
@@ -347,8 +356,7 @@ func (s *BatchServiceStateManager) startCurrentStateWait(svc *service.Service, d
 			return
 		} else {
 			// Cancel this wait and start a new one
-			close(thread.Cancel)
-			<-thread.Done
+			thread.Cancel()
 			delete(s.currentStateWaits, svc.ID)
 		}
 	}
@@ -363,7 +371,7 @@ func (s *BatchServiceStateManager) startCurrentStateWait(svc *service.Service, d
 	cancel := make(chan interface{})
 	done := make(chan struct{})
 	thread := CurrentStateWait{
-		Cancel:       cancel,
+		cancel:       cancel,
 		Done:         done,
 		WaitingState: desiredState,
 	}
@@ -388,8 +396,7 @@ func (s *BatchServiceStateManager) updateServiceCurrentState(state service.Servi
 	// Cancel any existing waits
 	for _, sid := range serviceIDs {
 		if thread, ok := s.currentStateWaits[sid]; ok {
-			close(thread.Cancel)
-			<-thread.Done
+			thread.Cancel()
 			delete(s.currentStateWaits, sid)
 		}
 	}
