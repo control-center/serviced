@@ -109,20 +109,17 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 		log.WithError(err).Error("Could not estimate backup size")
 		return
 	} else if !est.AllowBackup {
+		estlog := log.WithFields(logrus.Fields{
+			"estimatedsize":  est.EstimatedString,
+			"destination":    est.BackupPath,
+			"availablespace": est.AvailableString,
+		})
 		if backupRequest.Force {
-			log.WithFields(logrus.Fields{
-				"EstimatedBackupSize": est.EstimatedString,
-				"BackupPath":          est.BackupPath,
-				"AvailableSpace":      est.AvailableString,
-			}).Warning("Backup not recommended, but proceeding because '--force' was specified.")
+			estlog.Warning("Backup not recommended, but proceeding because '-force' was specified")
 		} else {
-			err := errors.New("No Space for backup")
-			log.WithError(err).WithFields(logrus.Fields{
-				"EstimatedBackupSize": est.EstimatedString,
-				"BackupPath":          est.BackupPath,
-				"availablseSpace":     est.AvailableString,
-			}).Error("Could not take backup")
-			log.WithError(err).Error("No space for backup")
+			message := fmt.Sprintf("Could not take backup - insufficient space on %s (%s estimated backup size, %s available)", est.BackupPath, est.EstimatedString, est.AvailableString)
+			err := errors.New(message)
+			estlog.WithError(err).Error("Could not take backup")
 			return err
 		}
 	}
@@ -168,7 +165,10 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 	if err != nil {
 		return err
 	}
-	log.WithField("elapsed", time.Since(start)).Info("Done with Estimatebackup.")
+	log.WithFields(logrus.Fields{
+		"elapsed":  time.Since(start),
+		"estimate": backupEstimate,
+	}).Info("Backp estimate done")
 
 	return nil
 }

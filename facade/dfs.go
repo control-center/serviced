@@ -206,7 +206,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 		"BackupEstimatedCompression": CompressionEst,
 		"BackupMinOverhead":          options.BackupMinOverhead,
 		"estimate":                   estimate,
-	}).Info("Completed backup estimate")
+	}).Debug("Completed backup estimate")
 	return nil
 }
 
