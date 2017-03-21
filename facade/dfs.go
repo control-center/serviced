@@ -129,7 +129,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EstimateBackup"))
 
 	stime := time.Now()
-	plog.WithField("request", request).Info("Started backup estimate")
+	plog.WithField("request", request).Debug("Started backup estimate")
 
 	options := config.GetOptions()
 
@@ -143,7 +143,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	plog.WithFields(logrus.Fields{
 		"dirpath":  request.Dirpath,
 		"estimate": estimate,
-	}).Info("Checked FilestystemSpaceAvailable")
+	}).Debug("Checked FilestystemSpaceAvailable")
 
 	// Estimate bytes to backup from filesystem
 	_, images, err := f.GetServiceTemplatesAndImages(ctx)
@@ -152,7 +152,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 		return err
 	}
 
-	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
+	plog.WithField("elapsed", time.Since(stime)).Debug("Loaded templates and their images")
 
 	tenants, err := f.GetTenantIDs(ctx)
 	if err != nil {
@@ -206,7 +206,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 		"BackupEstimatedCompression": CompressionEst,
 		"BackupMinOverhead":          options.BackupMinOverhead,
 		"estimate":                   estimate,
-	}).Info("Completed backup estimate")
+	}).Debug("Completed backup estimate")
 	return nil
 }
 

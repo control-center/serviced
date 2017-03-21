@@ -21,13 +21,18 @@ import (
 	"sync"
 	"time"
 
+	"errors"
+	"github.com/Sirupsen/logrus"
 	model "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/volume"
 	gzip "github.com/klauspost/pgzip"
-	"github.com/zenoss/glog"
-	"errors"
+)
+
+var (
+	log = logging.PackageLogger()
 )
 
 // InProgress prompts which backup is currently backing up or restoring
@@ -89,12 +94,10 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
 
-
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
 	defer dfslocker.Unlock()
-
 
 	if backupRequest.Dirpath == "" {
 		backupRequest.Dirpath = dao.backupsPath
@@ -103,15 +106,20 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	est := model.BackupEstimate{}
 	err = dao.facade.EstimateBackup(ctx, backupRequest, &est)
 	if err != nil {
-		glog.Errorf("Could not estimate backup size: %s", err)
+		log.WithError(err).Error("Could not estimate backup size")
 		return
 	} else if !est.AllowBackup {
+		estlog := log.WithFields(logrus.Fields{
+			"estimatedsize":  est.EstimatedString,
+			"destination":    est.BackupPath,
+			"availablespace": est.AvailableString,
+		})
 		if backupRequest.Force {
-			glog.Warningf("Backup not recommended, but proceeding because '--force' was specified. Estimated backup size: %s, Space available on %s: %s", est.EstimatedString, est.BackupPath, est.AvailableString)
+			estlog.Warning("Backup not recommended, but proceeding because '-force' was specified")
 		} else {
 			message := fmt.Sprintf("Could not take backup - insufficient space on %s (%s estimated backup size, %s available)", est.BackupPath, est.EstimatedString, est.AvailableString)
 			err := errors.New(message)
-			glog.Errorf("No space for backup: %s", err)
+			estlog.WithError(err).Error("Could not take backup")
 			return err
 		}
 	}
@@ -123,7 +131,7 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	inprogress.SetProgress(backupfilename, "backup")
 	defer func() {
 		if err != nil {
-			glog.Errorf("Backup failed with error: %s", err)
+			log.WithError(err).Error("Backup failed with error")
 			os.Remove(backupfilename)
 		}
 		inprogress.SetError(err)
@@ -131,7 +139,7 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	// create the file and write
 	fh, err := os.Create(backupfilename)
 	if err != nil {
-		glog.Errorf("Could not create backup file at %s: %s", backupfilename, err)
+		log.WithError(err).WithField("backupfilename", backupfilename).Error("Could not create backup file")
 		return
 	}
 	defer fh.Close()
@@ -150,14 +158,17 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 	ctx := datastore.Get()
 	start := time.Now()
 	if backupRequest.Dirpath == "" {
-		glog.Infof("Dirpath was empty. Updating to dao.BackupsPath value of %s\n", dao.backupsPath)
+		log.WithField("backupspath", dao.backupsPath).Info("Dirpath was empty. Using value from dao.BackupsPath")
 		backupRequest.Dirpath = dao.backupsPath
 	}
 	err = dao.facade.EstimateBackup(ctx, backupRequest, backupEstimate)
 	if err != nil {
 		return err
 	}
-	glog.Infof("Done with Estimatebackup. elapsed = %s", time.Since(start))
+	log.WithFields(logrus.Fields{
+		"elapsed":  time.Since(start),
+		"estimate": backupEstimate,
+	}).Info("Backp estimate done")
 
 	return nil
 }
@@ -183,7 +194,7 @@ func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
 	inprogress.SetProgress(filename, "restore")
 	defer func() {
 		if err != nil {
-			glog.Errorf("Restore failed with error: %s", err)
+			log.WithError(err).Error("Restore failed with error")
 		}
 		inprogress.SetError(err)
 	}()
