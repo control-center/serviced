@@ -1989,7 +1989,38 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
 		c.Fatalf("Tenant 2 loop not running")
 	}
 
-	// Stop the manager
+	// Start some services, have at least one fail (needed for CC-3398 test below)
+	doneStarting := make(chan struct{})
+	startedCount := 0
+	var scmutex sync.Mutex
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string"))
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, mock.AnythingOfType("[]string"))
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		scmutex.Lock()
+		defer scmutex.Unlock()
+		startedCount++
+		if startedCount == 3 {
+			close(doneStarting)
+		}
+	})
+	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return(getTestServicesABC())
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]servicestatemanager.CancellableService"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("service.DesiredState")).Return([]string{}, nil).Twice()
+	s.facade.On("WaitSingleService", mock.AnythingOfType("*service.Service"),
+		mock.AnythingOfType("service.DesiredState"), mock.AnythingOfType("<-chan interface {}")).Return(nil)
+
+	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), "tenant1", service.SVCRun, false)
+	c.Assert(err, IsNil)
+
+	// Wait for the queue loop to finish processing this batch
+	timer.Reset(100 * time.Millisecond)
+	select {
+	case <-doneStarting:
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for services to start")
+	}
+
+	// Shutdown the servicestate manager
 	s.serviceStateManager.Shutdown()
 
 	// Make sure both loops were stopped
@@ -2006,6 +2037,16 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
 		c.Fatalf("Tenant loop 1 not terminated")
 	case <-timer.C:
 	}
+
+	// Test for CC-3398: Make sure it doesn't panic if we try to schedule services after shutting down
+
+	// Add tenant1 back in
+	s.serviceStateManager.AddTenant("tenant1")
+
+	// Try to stop the same set of services
+	err = s.serviceStateManager.ScheduleServices(getTestServicesABC(), "tenant1", service.SVCStop, false)
+	c.Assert(err, IsNil)
+
 }
 
 func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop_WaitScheduled(c *C) {
