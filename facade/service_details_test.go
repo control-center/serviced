@@ -25,15 +25,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-type FacadeServiceDetailsTest struct {
-	FacadeIntegrationTest
-}
-
-var _ = Suite(&FacadeServiceDetailsTest{})
-
-func (t *FacadeServiceDetailsTest) SetUpTest(c *C) {
-	t.FacadeIntegrationTest.SetUpTest(c)
-
+func (t *FacadeIntegrationTest) AddServices(c *C) {
 	zenossCore := service.Service{
 		ID:           "1111",
 		Name:         "Zenoss.Core",
@@ -81,7 +73,8 @@ func (t *FacadeServiceDetailsTest) SetUpTest(c *C) {
 	c.Assert(t.Facade.AddService(t.CTX, zenperfsnmp), IsNil)
 }
 
-func (t *FacadeServiceDetailsTest) TestQueryHasChildren(c *C) {
+func (t *FacadeIntegrationTest) TestQueryHasChildren(c *C) {
+	t.AddServices(c)
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, service.Query{})
 	c.Assert(details, HasLen, 4)
 
@@ -94,7 +87,8 @@ func (t *FacadeServiceDetailsTest) TestQueryHasChildren(c *C) {
 	}
 }
 
-func (t *FacadeServiceDetailsTest) TestQueryHasChildrenWorksIfChildrenNotReturned(c *C) {
+func (t *FacadeIntegrationTest) TestQueryHasChildrenWorksIfChildrenNotReturned(c *C) {
+	t.AddServices(c)
 	query := service.Query{Name: "Zenoss.Core"}
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, query)
 	c.Assert(details, HasLen, 1)
@@ -102,12 +96,14 @@ func (t *FacadeServiceDetailsTest) TestQueryHasChildrenWorksIfChildrenNotReturne
 	c.Assert(core.HasChildren, IsTrue)
 }
 
-func (t *FacadeServiceDetailsTest) TestQuery(c *C) {
+func (t *FacadeIntegrationTest) TestQuery(c *C) {
+	t.AddServices(c)
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, service.Query{})
 	c.Assert(details, HasLen, 4)
 }
 
-func (t *FacadeServiceDetailsTest) TestQueryName(c *C) {
+func (t *FacadeIntegrationTest) TestQueryName(c *C) {
+	t.AddServices(c)
 	query := service.Query{Name: "Zen"}
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, query)
 
@@ -116,7 +112,8 @@ func (t *FacadeServiceDetailsTest) TestQueryName(c *C) {
 	c.Assert(details[0].Name == "Zenoss.Core" || details[1].Name == "Zenoss.Core", IsTrue)
 }
 
-func (t *FacadeServiceDetailsTest) TestQuerySingleTag(c *C) {
+func (t *FacadeIntegrationTest) TestQuerySingleTag(c *C) {
+	t.AddServices(c)
 	query := service.Query{Tags: []string{"zenoss-application"}}
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, query)
 
@@ -124,7 +121,8 @@ func (t *FacadeServiceDetailsTest) TestQuerySingleTag(c *C) {
 	c.Assert(details[0].Name == "Zenoss", IsTrue)
 }
 
-func (t *FacadeServiceDetailsTest) TestQueryMultipleTag(c *C) {
+func (t *FacadeIntegrationTest) TestQueryMultipleTag(c *C) {
+	t.AddServices(c)
 	query := service.Query{Tags: []string{"daemon", "collector"}}
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, query)
 
@@ -133,7 +131,8 @@ func (t *FacadeServiceDetailsTest) TestQueryMultipleTag(c *C) {
 	c.Assert(details[0].Name == "zenperfsnmp", IsTrue)
 }
 
-func (t *FacadeServiceDetailsTest) TestQuerySince(c *C) {
+func (t *FacadeIntegrationTest) TestQuerySince(c *C) {
+	t.AddServices(c)
 	firstMaxUpdateTime := t.getLatestUpdatedAt()
 	time.Sleep(time.Second)
 
@@ -159,7 +158,8 @@ func (t *FacadeServiceDetailsTest) TestQuerySince(c *C) {
 	c.Assert(details[0].Name == "newzenperfsnmp", IsTrue)
 }
 
-func (t *FacadeServiceDetailsTest) TestQueryTenants(c *C) {
+func (t *FacadeIntegrationTest) TestQueryTenants(c *C) {
+	t.AddServices(c)
 	query := service.Query{Tenants: true}
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, query)
 
@@ -168,7 +168,7 @@ func (t *FacadeServiceDetailsTest) TestQueryTenants(c *C) {
 	c.Assert(details[0].Name == "Zenoss.Core" || details[1].Name == "Zenoss.Core", IsTrue)
 }
 
-func (t *FacadeServiceDetailsTest) getLatestUpdatedAt() time.Time {
+func (t *FacadeIntegrationTest) getLatestUpdatedAt() time.Time {
 	details, _ := t.Facade.QueryServiceDetails(t.CTX, service.Query{})
 	var max time.Time
 	for _, detail := range details {
