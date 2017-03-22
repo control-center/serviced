@@ -41,6 +41,10 @@ var (
 	ErrMissingQueue = errors.New("No queue found for tenant ID and desired state")
 	// ErrWaitTimeout occurs when we timeout waiting for a batch of services to reach the desired state
 	ErrWaitTimeout = errors.New("Timeout waiting for services")
+	// ErrNotRunning occurs when you try to perform an operation on a service state manager that is not running
+	ErrNotRunning = errors.New("Service state manager is not running")
+	// ErrAlreadyStarted occurs when you try to start a service state manager that has already been started
+	ErrAlreadyStarted = errors.New("Service state manager has already been started")
 )
 
 // ServiceStateManager provides a way to organize and manage services before scheduling them
@@ -122,9 +126,9 @@ type BatchServiceStateManager struct {
 	ServiceRunLevelTimeout time.Duration
 	TenantQueues           map[string]map[service.DesiredState]*ServiceStateQueue
 	TenantShutDowns        map[string]chan<- int
-
-	currentStateLock  sync.Mutex
-	currentStateWaits map[string]CurrentStateWait
+	currentStateLock       sync.Mutex
+	currentStateWaits      map[string]CurrentStateWait
+	shutdown               chan struct{}
 }
 
 type CurrentStateWait struct {
@@ -214,6 +218,7 @@ func NewBatchServiceStateManager(facade Facade, ctx datastore.Context, runLevelT
 func (s *BatchServiceStateManager) Shutdown() {
 	s.Lock()
 	defer s.Unlock()
+	close(s.shutdown)
 	for tenantID, _ := range s.TenantShutDowns {
 		s.removeTenant(tenantID)
 	}
@@ -230,6 +235,20 @@ func (s *BatchServiceStateManager) Shutdown() {
 
 // Start gets tenants from the facade and adds them to the service state manager
 func (s *BatchServiceStateManager) Start() error {
+
+	s.Lock()
+	if s.shutdown != nil {
+		select {
+		case <-s.shutdown:
+		default:
+			s.Unlock()
+			return ErrAlreadyStarted
+		}
+	}
+
+	s.shutdown = make(chan struct{})
+	s.Unlock()
+
 	tenantIDs, err := s.Facade.GetTenantIDs(s.ctx)
 	if err != nil {
 		return err
@@ -249,6 +268,17 @@ func (s *BatchServiceStateManager) Start() error {
 func (s *BatchServiceStateManager) AddTenant(tenantID string) error {
 	s.Lock()
 	defer s.Unlock()
+
+	// We can't start the queue loop if we have been shutdown, so don't allow adding a tenant
+	if s.shutdown == nil {
+		return ErrNotRunning
+	}
+
+	select {
+	case <-s.shutdown:
+		return ErrNotRunning
+	default:
+	}
 
 	if _, ok := s.TenantQueues[tenantID]; ok {
 		return ErrDuplicateTenantID
@@ -965,6 +995,7 @@ func (s *BatchServiceStateManager) queueLoop(tenantID, queueName string, queue *
 		"tenantid": tenantID,
 		"queue":    queueName,
 	})
+
 	logger.Info("Started loop for queue")
 	defer logger.Info("queue loop exited")
 	var badsids []string
