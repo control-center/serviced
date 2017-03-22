@@ -72,6 +72,12 @@ var serviceDetailsTestData = struct {
 	},
 }
 
+var allServices = []service.ServiceDetails{
+	serviceDetailsTestData.firstService,
+	serviceDetailsTestData.secondService,
+	serviceDetailsTestData.tenant,
+}
+
 func (s *TestWebSuite) TestRestPutServiceDetailsShouldReturnStatusOK(c *C) {
 	body := `
 	{
@@ -204,34 +210,87 @@ func (s *TestWebSuite) TestRestGetServiceDetailsShouldReturnStatusNotFoundIfNoSe
 }
 
 func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldReturnStatusOK(c *C) {
+	s.mockFacade.On("QueryServiceDetails",
+		mock.Anything,
+		mock.AnythingOfType("service.Query")).
+		Return(allServices, nil)
+
 	request := s.buildRequest("GET", "http://www.example.com/services", "")
-
-	s.mockFacade.
-		On("GetAllServiceDetails", s.ctx.getDatastoreContext(), time.Duration(0)).
-		Return([]service.ServiceDetails{
-			serviceDetailsTestData.firstService,
-			serviceDetailsTestData.secondService,
-			serviceDetailsTestData.tenant,
-		}, nil)
-
-	getAllServiceDetails(&(s.writer), &request, s.ctx)
-
-	c.Assert(s.recorder.Code, Equals, http.StatusOK)
-}
-
-func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldOnlyReturnTenants(c *C) {
-	request := s.buildRequest("GET", "http://www.example.com/services?tenants", "")
-
-	s.mockFacade.
-		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "", time.Duration(0)).
-		Return([]service.ServiceDetails{
-			serviceDetailsTestData.tenant,
-		}, nil)
 
 	getAllServiceDetails(&(s.writer), &request, s.ctx)
 
 	response := []service.ServiceDetails{}
 	s.getResult(c, &response)
 
-	c.Assert(response[0].ID, Equals, "tenant")
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+}
+
+func (s *TestWebSuite) TestRestQueryServiceDetailsShouldQueryForAll(c *C) {
+	s.mockFacade.On("QueryServiceDetails",
+		mock.Anything,
+		mock.AnythingOfType("service.Query")).
+		Return(allServices, nil)
+
+	request := s.buildRequest("GET", "http://www.example.com/services", "")
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	query := service.Query{Tags: []string{}}
+	s.mockFacade.AssertCalled(c, "QueryServiceDetails", s.ctx.getDatastoreContext(), query)
+}
+
+func (s *TestWebSuite) TestRestQueryServiceDetailsShouldQueryWithName(c *C) {
+	s.mockFacade.On("QueryServiceDetails",
+		mock.Anything,
+		mock.AnythingOfType("service.Query")).
+		Return(allServices, nil)
+
+	request := s.buildRequest("GET", "http://www.example.com/services?name=Service", "")
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	query := service.Query{Name: "Service", Tags: []string{}}
+	s.mockFacade.AssertCalled(c, "QueryServiceDetails", s.ctx.getDatastoreContext(), query)
+}
+
+func (s *TestWebSuite) TestRestQueryServiceDetailsShouldQueryForTenants(c *C) {
+	s.mockFacade.On("QueryServiceDetails",
+		mock.Anything,
+		mock.AnythingOfType("service.Query")).
+		Return(allServices, nil)
+
+	request := s.buildRequest("GET", "http://www.example.com/services?tenants", "")
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	query := service.Query{Tenants: true, Tags: []string{}}
+	s.mockFacade.AssertCalled(c, "QueryServiceDetails", s.ctx.getDatastoreContext(), query)
+}
+
+func (s *TestWebSuite) TestRestQueryServiceDetailsShouldQueryWithTags(c *C) {
+	s.mockFacade.On("QueryServiceDetails",
+		mock.Anything,
+		mock.AnythingOfType("service.Query")).
+		Return(allServices, nil)
+
+	request := s.buildRequest("GET", "http://www.example.com/services?tags=daemon,collector", "")
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	query := service.Query{Tags: []string{"daemon", "collector"}}
+	s.mockFacade.AssertCalled(c, "QueryServiceDetails", s.ctx.getDatastoreContext(), query)
+}
+
+func (s *TestWebSuite) TestRestQueryServiceDetailsShouldQueryForUpdated(c *C) {
+	s.mockFacade.On("QueryServiceDetails",
+		mock.Anything,
+		mock.AnythingOfType("service.Query")).
+		Return(allServices, nil)
+
+	request := s.buildRequest("GET", "http://www.example.com/services?since=5000", "")
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	query := service.Query{Tags: []string{}, Since: time.Duration(5 * time.Second)}
+	s.mockFacade.AssertCalled(c, "QueryServiceDetails", s.ctx.getDatastoreContext(), query)
 }

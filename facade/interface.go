@@ -142,8 +142,6 @@ type FacadeInterface interface {
 
 	FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error)
 
-	GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error)
-
 	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
 
 	GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
@@ -203,4 +201,6 @@ type FacadeInterface interface {
 	ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error)
 
 	PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error)
+
+	QueryServiceDetails(ctx datastore.Context, query service.Query) ([]service.ServiceDetails, error)
 }

@@ -315,22 +315,22 @@ func (s *S) Test_GetServiceDetailsWithSince(c *C) {
 	c.Assert(s.store.Put(s.ctx, svcb), IsNil)
 
 	// Query for all time, get both
-	details, err := s.store.GetAllServiceDetails(s.ctx, time.Duration(0))
+	details, err := s.store.Query(s.ctx, Query{Since: time.Duration(0)})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 2)
 
 	// Query for last hour, get both
-	details, err = s.store.GetAllServiceDetails(s.ctx, time.Hour)
+	details, err = s.store.Query(s.ctx, Query{Since: time.Hour})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 2)
 
 	// Query for last 30 seconds, get one
-	details, err = s.store.GetAllServiceDetails(s.ctx, 30*time.Second)
+	details, err = s.store.Query(s.ctx, Query{Since: 30 * time.Second})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 1)
 
 	// Query for last second, get none
-	details, err = s.store.GetAllServiceDetails(s.ctx, time.Second)
+	details, err = s.store.Query(s.ctx, Query{Since: time.Second})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 0)
 }
