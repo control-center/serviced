@@ -131,7 +131,7 @@ func (d *DockerClient) GetImagePullSize(images []string) (uint64, error) {
 	for _, s := range sizeMap {
 		calcSize += s
 	}
-	plog.WithFields(log.Fields{"calcSize": calcSize, "totalSize": totalSize}).Info("done.")
+	plog.WithFields(log.Fields{"calcsize": calcSize, "totalsize": totalSize}).Debug("Done getting image pull size.")
 	return calcSize, nil
 }
 
