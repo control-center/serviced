@@ -228,6 +228,9 @@ func (s *BatchServiceStateManager) Shutdown() {
 	for _, thread := range s.currentStateWaits {
 		thread.Cancel()
 	}
+
+	// Clear the current state wait list
+	s.currentStateWaits = make(map[string]CurrentStateWait)
 }
 
 // Start gets tenants from the facade and adds them to the service state manager
