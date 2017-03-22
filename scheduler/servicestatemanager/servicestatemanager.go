@@ -73,6 +73,7 @@ type ServiceStateChangeBatch struct {
 
 // CancellableService is a service whose scheduling may be canceled by a channel
 type CancellableService struct {
+	sync.Mutex
 	*service.Service
 	cancel chan interface{}
 	C      <-chan interface{}
@@ -132,12 +133,15 @@ type BatchServiceStateManager struct {
 }
 
 type CurrentStateWait struct {
+	sync.Mutex
 	cancel       chan interface{}
 	WaitingState service.DesiredState
 	Done         <-chan struct{}
 }
 
 func (w CurrentStateWait) Cancel() {
+	w.Lock()
+	defer w.Unlock()
 	// Make sure it isn't already closed
 	select {
 	case <-w.cancel:
@@ -150,13 +154,15 @@ func (w CurrentStateWait) Cancel() {
 func NewCancellableService(svc *service.Service) CancellableService {
 	cancel := make(chan interface{})
 	return CancellableService{
-		svc,
-		cancel,
-		cancel,
+		Service: svc,
+		cancel:  cancel,
+		C:       cancel,
 	}
 }
 
 func (s CancellableService) Cancel() {
+	s.Lock()
+	defer s.Unlock()
 	// Make sure it isn't already closed
 	select {
 	case <-s.cancel:
