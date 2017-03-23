@@ -8,8 +8,15 @@ mkdir -p /var/log/serviced
 chgrp serviced /var/log/serviced
 chmod 1770 /var/log/serviced
 
+#
+# NOTE: changing ownership/permissions here has the side-effect of causing
+#       "rpm -V serviced" to complain, but we could not get fpm to assign
+#       the ownership/permissions at build time.
+#
 chgrp serviced /etc/default/serviced
-chgrp -R serviced /opt/serviced
+chmod 640 /etc/default/serviced
+
+chgrp serviced /opt/serviced
 chmod 750 /opt/serviced
 
 LIBDEVMAPPER="$(ldconfig -p | grep libdevmapper.so.1.02 | awk {'print $4'})"
