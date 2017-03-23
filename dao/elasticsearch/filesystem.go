@@ -168,7 +168,7 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 	log.WithFields(logrus.Fields{
 		"elapsed":  time.Since(start),
 		"estimate": backupEstimate,
-	}).Info("Backp estimate done")
+	}).Info("Backup estimate done")
 
 	return nil
 }
