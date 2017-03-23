@@ -76,7 +76,7 @@ type CancellableService struct {
 	*service.Service
 	cancel     chan interface{}
 	C          <-chan interface{}
-	cancelLock sync.Mutex
+	cancelLock *sync.Mutex
 }
 
 // Types for sorting
@@ -111,29 +111,39 @@ func (s ByReverseStartLevel) Less(i, j int) bool {
 
 // ServiceStateQueue is a queue with a queueLoop processing it's batches
 type ServiceStateQueue struct {
-	lock         sync.RWMutex
+	lock         *sync.RWMutex
 	BatchQueue   []ServiceStateChangeBatch
 	CurrentBatch ServiceStateChangeBatch
 	Changed      chan bool
 	Facade       Facade
 }
 
+func NewServiceStateQueue(facade Facade) *ServiceStateQueue {
+	return &ServiceStateQueue{
+		lock:         &sync.RWMutex{},
+		BatchQueue:   []ServiceStateChangeBatch{},
+		CurrentBatch: ServiceStateChangeBatch{},
+		Changed:      make(chan bool),
+		Facade:       facade,
+	}
+}
+
 // BatchServiceStateManager schedules batches of services to start/stop/restart according to
 //  StartLevel
 type BatchServiceStateManager struct {
-	lock                   sync.RWMutex
+	lock                   *sync.RWMutex
 	Facade                 Facade
 	ctx                    datastore.Context
 	ServiceRunLevelTimeout time.Duration
 	TenantQueues           map[string]map[service.DesiredState]*ServiceStateQueue
 	TenantShutDowns        map[string]chan<- int
-	currentStateLock       sync.Mutex
+	currentStateLock       *sync.Mutex
 	currentStateWaits      map[string]*CurrentStateWait
 	shutdown               chan struct{}
 }
 
 type CurrentStateWait struct {
-	cancelLock   sync.Mutex
+	cancelLock   *sync.Mutex
 	cancel       chan interface{}
 	WaitingState service.DesiredState
 	Done         <-chan struct{}
@@ -154,9 +164,10 @@ func (w *CurrentStateWait) Cancel() {
 func NewCancellableService(svc *service.Service) *CancellableService {
 	cancel := make(chan interface{})
 	return &CancellableService{
-		Service: svc,
-		cancel:  cancel,
-		C:       cancel,
+		Service:    svc,
+		cancel:     cancel,
+		C:          cancel,
+		cancelLock: &sync.Mutex{},
 	}
 }
 
@@ -210,8 +221,10 @@ func (b ServiceStateChangeBatch) String() string {
 // NewBatchServiceStateManager creates a new, initialized ServiceStateManager
 func NewBatchServiceStateManager(facade Facade, ctx datastore.Context, runLevelTimeout time.Duration) *BatchServiceStateManager {
 	return &BatchServiceStateManager{
-		Facade: facade,
-		ctx:    ctx,
+		lock:             &sync.RWMutex{},
+		currentStateLock: &sync.Mutex{},
+		Facade:           facade,
+		ctx:              ctx,
 		ServiceRunLevelTimeout: runLevelTimeout,
 		TenantQueues:           make(map[string]map[service.DesiredState]*ServiceStateQueue),
 		TenantShutDowns:        make(map[string]chan<- int),
@@ -291,16 +304,8 @@ func (s *BatchServiceStateManager) AddTenant(tenantID string) error {
 
 	shutdown := make(chan int)
 	s.TenantQueues[tenantID] = make(map[service.DesiredState]*ServiceStateQueue)
-	s.TenantQueues[tenantID][service.SVCRun] = &ServiceStateQueue{
-		CurrentBatch: ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.Facade,
-	}
-	s.TenantQueues[tenantID][service.SVCStop] = &ServiceStateQueue{
-		CurrentBatch: ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.Facade,
-	}
+	s.TenantQueues[tenantID][service.SVCRun] = NewServiceStateQueue(s.Facade)
+	s.TenantQueues[tenantID][service.SVCStop] = NewServiceStateQueue(s.Facade)
 	s.TenantShutDowns[tenantID] = shutdown
 	for t, q := range s.TenantQueues[tenantID] {
 		go s.queueLoop(tenantID, t.String(), q, shutdown)
@@ -409,6 +414,7 @@ func (s *BatchServiceStateManager) startCurrentStateWait(svc *service.Service, d
 	cancel := make(chan interface{})
 	done := make(chan struct{})
 	thread := &CurrentStateWait{
+		cancelLock:   &sync.Mutex{},
 		cancel:       cancel,
 		Done:         done,
 		WaitingState: desiredState,

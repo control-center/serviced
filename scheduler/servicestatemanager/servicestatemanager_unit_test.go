@@ -138,18 +138,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	// and split by nomral start level
 	tenantID := "tenant"
 	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{
-		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.facade,
-	}
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{
-		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.facade,
-	}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = ssm.NewServiceStateQueue(s.facade)
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = ssm.NewServiceStateQueue(s.facade)
 
 	startQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCRun]
 	stopQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCStop]
@@ -847,18 +837,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 	// Add some non-emergency services to the start and stop queues
 	tenantID := "tenant"
 	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{
-		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.facade,
-	}
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{
-		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.facade,
-	}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = ssm.NewServiceStateQueue(s.facade)
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = ssm.NewServiceStateQueue(s.facade)
 
 	startQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCRun]
 	stopQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCStop]
@@ -1179,13 +1159,13 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Canc
 		pendingServices[s.ID] = ssm.NewCancellableService(s)
 	}
 
-	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.ServiceStateChangeBatch{
-			Services:     pendingServices,
-			DesiredState: 0,
-			Emergency:    false,
-		},
+	queue := ssm.NewServiceStateQueue(s.facade)
+	queue.CurrentBatch = ssm.ServiceStateChangeBatch{
+		Services:     pendingServices,
+		DesiredState: 0,
+		Emergency:    false,
 	}
+
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add a batch that gets cancelled by the pending batch
@@ -1292,14 +1272,14 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NonE
 		pendingServices[s.ID] = ssm.NewCancellableService(s)
 	}
 
-	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.ServiceStateChangeBatch{
-			Services:     pendingServices,
-			DesiredState: 0,
-			Emergency:    false,
-		},
+	queue := ssm.NewServiceStateQueue(s.facade)
+	queue.CurrentBatch = ssm.ServiceStateChangeBatch{
+		Services:     pendingServices,
+		DesiredState: 0,
+		Emergency:    false,
 	}
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{}
+
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = ssm.NewServiceStateQueue(s.facade)
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add a non-Emergency batch that cancels a pending batch
@@ -1386,14 +1366,13 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 		pendingServices[s.ID] = ssm.NewCancellableService(s)
 	}
 
-	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.ServiceStateChangeBatch{
-			Services:     pendingServices,
-			DesiredState: 0,
-			Emergency:    false,
-		},
+	queue := ssm.NewServiceStateQueue(s.facade)
+	queue.CurrentBatch = ssm.ServiceStateChangeBatch{
+		Services:     pendingServices,
+		DesiredState: 0,
+		Emergency:    false,
 	}
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = ssm.NewServiceStateQueue(s.facade)
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add an Emergency batch that cancels a pending batch
@@ -1485,14 +1464,14 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 		pendingServices[s.ID] = ssm.NewCancellableService(s)
 	}
 
-	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.ServiceStateChangeBatch{
-			Services:     pendingServices,
-			DesiredState: 0,
-			Emergency:    false,
-		},
+	queue := ssm.NewServiceStateQueue(s.facade)
+	queue.CurrentBatch = ssm.ServiceStateChangeBatch{
+		Services:     pendingServices,
+		DesiredState: 0,
+		Emergency:    false,
 	}
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{}
+
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = ssm.NewServiceStateQueue(s.facade)
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add an Emergency Pause batch that cancels a pending batch
@@ -1578,16 +1557,15 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 		pendingServices[s.ID] = ssm.NewCancellableService(s)
 	}
 
-	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.ServiceStateChangeBatch{
-			Services:     pendingServices,
-			DesiredState: 0,
-			Emergency:    false,
-		},
+	queue := ssm.NewServiceStateQueue(s.facade)
+	queue.CurrentBatch = ssm.ServiceStateChangeBatch{
+		Services:     pendingServices,
+		DesiredState: 0,
+		Emergency:    false,
 	}
 
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = queue
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = ssm.NewServiceStateQueue(s.facade)
 
 	// Add an Emergency Pause batch that cancels a pending batch
 	// Add an Emergency Pause batch that cancels a pending batch
@@ -1677,18 +1655,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Canc
 	// Set up a tenant with empty queues
 	tenantID := "tenant"
 	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{
-		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.facade,
-	}
-	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{
-		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-		Changed:      make(chan bool),
-		Facade:       s.facade,
-	}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = ssm.NewServiceStateQueue(s.facade)
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = ssm.NewServiceStateQueue(s.facade)
 
 	startQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCRun]
 	stopQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCStop]
@@ -1765,13 +1733,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_TwoT
 	tenantID2 := "tenant2"
 	s.serviceStateManager.TenantQueues[tenantID2] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
 
-	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-	}
-
-	queue2 := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.ServiceStateChangeBatch{},
-	}
+	queue := ssm.NewServiceStateQueue(s.facade)
+	queue2 := ssm.NewServiceStateQueue(s.facade)
 
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = queue
 	s.serviceStateManager.TenantQueues[tenantID2][service.SVCRun] = queue2
