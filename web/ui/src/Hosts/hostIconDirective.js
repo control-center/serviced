@@ -45,59 +45,28 @@
                 return {active, authed};
             }
 
-            getHostStatusClass(){
-                let {active, authed} = this._getHostStatus();
-
-                // stuff hasnt loaded, so unknown
-                if(active === null && authed === null){
-                    return "unknown";
-                }
-
+            getHostStatusClass() {
+                let { active, authed } = this._getHostStatus();
                 // connected and authenticated
-                if(active && authed){
+                if (active && authed) {
                     return "passed";
-
-                // connected but not yet authenticated
-                } else if(active && !authed){
-                    // TODO - something more clearly related to auth
-                    return "failed";
-
-                // not connected
-                } else {
-                    return "not_running";
                 }
+                // connected but not authenticated is fail
+                return active ? "failed" : "not_running";
             }
 
-            getHostActiveStatusClass(){
-                let {active} = this._getHostStatus(),
-                    status;
-
-                if(active === true){
-                    status = "passed";
-                } else if(active === false){
-                    status = "not_running";
-                } else {
-                    status = "unknown";
-                }
-
-                return status;
+            getHostActiveStatusClass() {
+                let { active } = this._getHostStatus();
+                return active ? "passed" : "not_running";
             }
 
-            getHostAuthStatusClass(){
-                let {active, authed} = this._getHostStatus(),
-                    status;
-
-                if(authed === true){
-                    status = "passed";
-                } else if(active === true && authed === false){
-                    status = "failed";
-                } else if(active === false && authed === false){
-                    status = "not_running";
-                } else {
-                    status = "unknown";
+            getHostAuthStatusClass() {
+                let { active, authed } = this._getHostStatus();
+                if (active && authed) {
+                    return "passed";
                 }
-
-                return status;
+                // connected but not authenticated is fail
+                return active ? "failed" : "not_running";
             }
 
             updatePopover(){
