@@ -1387,7 +1387,7 @@ func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context,
 	return len(svcs), nil
 }
 
-func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []servicestatemanager.CancellableService, tenantID string, desiredState service.DesiredState) ([]string, error) {
+func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestatemanager.CancellableService, tenantID string, desiredState service.DesiredState) ([]string, error) {
 	logger := plog.WithFields(log.Fields{
 		"numservices":  len(svcs),
 		"tenantid":     tenantID,
@@ -1401,7 +1401,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []servicestate
 	for _, s := range svcs {
 		wg.Add(1)
 		// Do this in a goroutine because rolling restarts could take awhile
-		go func(svc servicestatemanager.CancellableService) {
+		go func(svc *servicestatemanager.CancellableService) {
 			defer wg.Done()
 
 			if svc.DesiredState == int(desiredState) {
@@ -1474,7 +1474,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []servicestate
 	return failedServices, nil
 }
 
-func (f *Facade) updateDesiredState(ctx datastore.Context, svc servicestatemanager.CancellableService, desiredState service.DesiredState) error {
+func (f *Facade) updateDesiredState(ctx datastore.Context, svc *servicestatemanager.CancellableService, desiredState service.DesiredState) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":    svc.ID,
