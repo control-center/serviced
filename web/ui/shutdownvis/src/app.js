@@ -4,7 +4,7 @@ import {buildLegend} from "./legend";
 import {buildShutdownList} from "./shutdownlist";
 import {buildGraph} from "./graph";
 
-// colors come in pairs, one for actual data, 
+// colors come in pairs, one for actual data,
 // the other for calculated data
 const COLORS = [
     ["#a6cee3", "#1f78b4"],
@@ -21,14 +21,14 @@ const TARGET_DP_COUNT = 10000;
 
 let state = {
     model: {
-        margin: 15e10,
-        lookAhead: 20 * 60 * 1000,
-        theWindow: 30 * 60 * 1000 
+        margin: 3e9,
+        lookAhead: 6 * 60 * 1000,
+        theWindow: 5 * 60 * 1000
     },
     tsdb: {
-        url: "http://uiboss:4242",
-        tenantIDs: ["8noa8p8e84m3stayz1zqr3egx"],
-        start: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 7),
+        url: "http://localhost:4242",
+        tenantIDs: ["cvzobclup2kf9qxogojdleovn"],
+        start: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 5),
         end: new Date()
     },
     actual: undefined,
@@ -51,7 +51,7 @@ function buildTSDBQuery(url, metrics, start, end){
         params = [];
     params.push(`start=${start.getTime()}`);
     params.push(`end=${end.getTime()}`);
-    params = params.concat(metrics.map(m => `m=sum:${m}`));
+    params = params.concat(metrics.map(m => `m=mimmax:${m}`));
     return base + params.join("&");
 }
 
@@ -60,11 +60,9 @@ function fetchDiskUsage(config){
     let metrics = getDiskUsageMetrics(tenantIDs),
         tsdbURL = buildTSDBQuery(url, metrics, start, end);
 
-    // load up mock data
-    //tsdbURL = "available.json";
-
     return get(tsdbURL)
         .catch(e => {
+            alert("Unable to fetch TSDB data");
             console.error("probalo fetching data", e);
         });
 }
@@ -162,7 +160,7 @@ function updatePredictions(actual){
 }
 
 // NOTE - as a side effect this updates the graph. probably
-// shouldnt rely on that 
+// shouldnt rely on that
 function updateShutdowns(shutdowns){
     // flatten and sort list of shutdowns
     shutdowns = shutdowns
@@ -291,8 +289,8 @@ function init(data){
             type: "slider",
             label: "Margin",
             min: 0,
-            max: state.model.margin * 2,
-            step: 1,
+            max: state.model.margin * 10,
+            step: 1000000000,
             val: state.model.margin,
             units: "GB",
             toUnit: val => Math.floor(val / 1000000000),
@@ -315,11 +313,11 @@ function init(data){
             type: "slider",
             label: "Lookahead",
             min: 0,
-            max: state.model.lookAhead * 2,
-            step: 1,
+            max: state.model.lookAhead * 5,
+            step: 10000,
             val: state.model.lookAhead,
-            units: "Minutes",
-            toUnit: val => Math.floor(val / 1000 / 60),
+            units: "Seconds",
+            toUnit: val => Math.floor(val / 1000),
             events: {
                 input: debounce(newVal => {
                     if(CALCULATE_ON_INPUT){
@@ -340,8 +338,8 @@ function init(data){
             type: "slider",
             label: "Window",
             min: 0,
-            max: state.model.theWindow * 2,
-            step: 1,
+            max: state.model.theWindow * 5,
+            step: 10000,
             val: state.model.theWindow,
             units: "Seconds",
             toUnit: val => Math.floor(val / 1000),
@@ -362,7 +360,6 @@ function init(data){
                 }
             }
         }
-    
     ], shutdownControlsEl);
 
     // create graph
