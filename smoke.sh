@@ -11,14 +11,6 @@
 TEST_VAR_PATH=/tmp/serviced-smoke/var
 . test_lib.sh
 
-# Add a host
-add_host() {
-    HOST_ID=$(sudo ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
-    sleep 1
-    [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
-    return 0
-}
-
 add_template() {
     TEMPLATE_ID=$(${SERVICED} template compile ${DIR}/dao/testsvc | ${SERVICED} template add)
     sleep 1
@@ -280,7 +272,7 @@ echo "SERVICED=${SERVICED}"
 retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
-test_service_run           && succeed "Service run ran successfully"             || fail "Unable to run service run"
+retry 20 test_service_run  && succeed "Service run ran successfully"             || fail "Unable to run service run"
 start_service              && succeed "Started service"                          || fail "Unable to start service"
 retry 10 test_started      && succeed "Service containers started"               || fail "Unable to see service containers"
 

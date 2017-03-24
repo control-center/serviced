@@ -31,11 +31,7 @@ add_to_etc_hosts
 start_serviced             && succeed "Serviced started within timeout"    || fail "serviced failed to start within $START_TIMEOUT seconds."
 
 # add the local host as a CC host so there will be available IP assignments.
-${SERVICED} host add --register "${HOSTNAME}:4979" "default" --memory "100%" -k /dev/null
-if [ $? -ne 0 ]; then
-    echo "Failed to add CC host for api acceptance test, exiting";
-    exit 1;
-fi
+retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 
 # build/start mock agents
 cd ${DIR}
