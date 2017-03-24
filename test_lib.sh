@@ -116,6 +116,14 @@ start_serviced() {
     return $?
 }
 
+# Add a host
+add_host() {
+    HOST_ID=$(sudo ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
+    sleep 1
+    [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
+    return 0
+}
+
 retry() {
     TIMEOUT=$1
     shift
