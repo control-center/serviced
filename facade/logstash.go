@@ -168,7 +168,8 @@ func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[s
 			for _, filtName := range config.Filters {
 				//do not write duplicate types, logstash doesn't handle this
 				if !utils.StringInSlice(config.Type, *typeFilter) {
-					filters += fmt.Sprintf("\nif [type] == \"%s\" \n {\n  %s \n}", config.Type, filterDefs[filtName])
+					filters += fmt.Sprintf("\n  if [type] == \"%s\" {\n    %s\n  }\n",
+						config.Type, indent(filterDefs[filtName], "    "))
 					*typeFilter = append(*typeFilter, config.Type)
 				}
 			}
@@ -210,4 +211,13 @@ filter {
 	// generate the filters section
 	// write the log file
 	return ioutil.WriteFile(outputPath, newBytes, 0644)
+}
+
+func indent(src, tab string) string {
+	result := ""
+	lines := strings.Split(src, "\n")
+	for _, line := range lines {
+		result += tab + line + "\n"
+	}
+	return result
 }
