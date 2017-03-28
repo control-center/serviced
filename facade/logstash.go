@@ -60,7 +60,7 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 	} else if err != nil {
 		glog.Errorf("Could not write logstash configuration: %s", err)
 		return err
-	} 
+	}
 
 	glog.V(2).Infof("Starting logstash container")
 	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
@@ -94,8 +94,6 @@ func resourcesDir() string {
 //
 // This method returns nil of logstash configuration was replaced,
 // ErrLogstashUnchanged if the configuration is unchanged, or other errors if there was an I/O problem
-// FIXME: eventually this file should live in the DFS or the config should
-// live in zookeeper to allow the agents to get to this
 func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
@@ -110,8 +108,9 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	// filters will be a syntactically correct logstash filters section
 	filters := ""
 
+	typeFilter := []string{}
 	for _, template := range templates {
-		filters += getFilters(template.Services, filterDefs, []string{})
+		filters += getFilters(template.Services, filterDefs, &typeFilter)
 	}
 	newConfigFile := resourcesDir() + "/logstash/logstash.conf.new"
 	err := writeLogStashConfigFile(filters, newConfigFile)
@@ -162,15 +161,15 @@ func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[st
 	return filterDefs
 }
 
-func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, typeFilter []string) string {
+func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, typeFilter *[]string) string {
 	filters := ""
 	for _, service := range services {
 		for _, config := range service.LogConfigs {
 			for _, filtName := range config.Filters {
 				//do not write duplicate types, logstash doesn't handle this
-				if !utils.StringInSlice(config.Type, typeFilter) {
+				if !utils.StringInSlice(config.Type, *typeFilter) {
 					filters += fmt.Sprintf("\nif [type] == \"%s\" \n {\n  %s \n}", config.Type, filterDefs[filtName])
-					typeFilter = append(typeFilter, config.Type)
+					*typeFilter = append(*typeFilter, config.Type)
 				}
 			}
 		}
