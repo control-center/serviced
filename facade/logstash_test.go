@@ -42,9 +42,6 @@ func getTestingService() servicedefinition.ServiceDefinition {
 				Name:    "s1",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
 				ImageID: "ubuntu",
-				LogFilters: map[string]string{
-					"Pepe2": "My Second Filter",
-				},
 				ConfigFiles: map[string]servicedefinition.ConfigFile{
 					"/etc/my.cnf": servicedefinition.ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
@@ -71,6 +68,29 @@ func getTestingService() servicedefinition.ServiceDefinition {
 						},
 					},
 				},
+				LogFilters: map[string]string{
+					"Pepe2": "My Second Filter",
+				},
+				Services: []servicedefinition.ServiceDefinition{
+					servicedefinition.ServiceDefinition{
+						Name:    "s1child",
+						Command: "/usr/bin/python -m SimpleHTTPServer",
+						ImageID: "ubuntu",
+						LogConfigs: []servicedefinition.LogConfig{
+							servicedefinition.LogConfig{
+								Path: "/tmp/foo2",
+								Type: "foo2",
+								Filters: []string{
+									"Pepe4",
+								},
+							},
+						},
+						LogFilters: map[string]string{
+							"Pepe4": "My Fourth Filter",
+						},
+					},
+
+				},
 			},
 			servicedefinition.ServiceDefinition{
 				Name:    "s2",
@@ -88,6 +108,31 @@ func getTestingService() servicedefinition.ServiceDefinition {
 					servicedefinition.LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
+						Filters: []string{
+							"Pepe3",
+						},
+					},
+				},
+				LogFilters: map[string]string{
+					"Pepe3": "My Third Filter",
+				},
+				Services: []servicedefinition.ServiceDefinition{
+					servicedefinition.ServiceDefinition{
+						Name:    "s2child",
+						Command: "/usr/bin/python -m SimpleHTTPServer",
+						ImageID: "ubuntu",
+						LogConfigs: []servicedefinition.LogConfig{
+							servicedefinition.LogConfig{
+								Path: "/tmp/foo2",
+								Type: "foo2",
+								Filters: []string{
+									"Pepe4",
+								},
+							},
+						},
+						LogFilters: map[string]string{
+							"Pepe4": "My Fourth Filter",
+						},
 					},
 				},
 			},
@@ -108,8 +153,8 @@ func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
 	}
 
 	// make sure the number matches the number we define
-	if len(filterDefs) != 2 {
-		t.Error("Found " + string(len(filterDefs)) + " instead of 2 filter definitions")
+	if len(filterDefs) != 4 {
+		t.Error(fmt.Sprintf("Found %d instead of 2 filter definitions", len(filterDefs)))
 	}
 }
 
@@ -117,12 +162,26 @@ func TestConstructingFilterString(t *testing.T) {
 	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
-	filters := getFilters(services, filterDefs, []string{})
+	typeFilter := []string{}
+	filters := getFilters(services, filterDefs, &typeFilter)
 	testString := "My Test Filter"
 
 	// make sure our test filter definition is in the constructed filters
 	if !strings.Contains(filters, testString) {
 		t.Error(fmt.Sprintf("Was unable to find %s in the filters", testString))
+	}
+}
+
+func TestNoDuplicateFilters(t *testing.T) {
+	services := make([]servicedefinition.ServiceDefinition, 1)
+	services[0] = getTestingService()
+	filterDefs := getFilterDefinitions(services)
+	typeFilter := []string{}
+	filters := getFilters(services, filterDefs, &typeFilter)
+
+	filterCount := strings.Count(filters, "if [type] == \"foo2\"")
+	if filterCount != 1 {
+		t.Error(fmt.Sprintf("expected only 1 filter for 'foo2', but found %d: filters=%s", filterCount, filters))
 	}
 }
 
