@@ -262,6 +262,14 @@ def get_thinpool_data():
     return data
 
 
+def system_has_ha():
+    """
+    returns True if any of the HA utilities are installed.
+    """
+    result = subprocess.check_output("rpm -qa | egrep -w '^(pcs|pacemaker|corosync)' 2>/dev/null || true", shell=True).strip()
+    return len(result) > 0
+
+
 def app_is_deployed():
     """
     Returns True if an application has been deployed, otherwise False
@@ -325,7 +333,7 @@ def show_help():
 
     # Print the manual steps for restoring the previous docker version.
     print C_BOLD
-    print 'If that fails, you can manually downgrade docker-engine to version %s' % dockerinfo[1]
+    print 'If that fails, you can manually revert docker-engine to version %s' % dockerinfo[1]
     print '   1. rpm -e --nodeps %s' %  dockerinfo[0]
     print '   2. yum install -y %s-%s' % (dockerinfo[0], dockerinfo[1])
     print '\nYou\'ll need to restart docker and Control Center after rolling back the upgrade.'
@@ -334,9 +342,11 @@ def show_help():
     # Show the cc upgrade guide link.
     print '%s%s%s\n' % (C_BOLD, \
         'More information: https://www.zenoss.com/services-support/documentation/cc-upgrade-guide', C_RESET)
-    print '%s%s%s\n' % (C_WARN, 'To ignore warnings and install anyway, set the environment variable: NOCHECK=1, ' \
-        'and run this install again.', C_RESET)
 
+
+# Don't perform any of these checks if HA utilities are installed.
+if system_has_ha():
+    sys.exit(0)
 
 # If the os environment variable NOCHECK is set, skip this entirely.
 if os.environ.get('NOCHECK', None):
