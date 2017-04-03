@@ -100,7 +100,16 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 			tenantLogger.WithError(err).Debug("Could not snapshot tenant")
 			return err
 		}
-		defer f.DeleteSnapshot(ctx, snapshot)
+
+		defer func(tenant, snapshot, tag string) {
+			if err := f.DeleteSnapshot(ctx, snapshot); err != nil {
+				tenantLogger.WithError(err).Warn("Could not delete snapshot; untagging for consumption by TTL")
+				if _, err := f.RemoveSnapshotTag(ctx, tenant, tag); err != nil {
+					tenantLogger.WithError(err).Error("Could not untag snapshot.  Snapshot must be deleted manually!")
+				}
+			}
+		}(tenant, snapshot, tag)
+
 		snapshots[i] = snapshot
 		snapshotExcludes[snapshot] = append(excludes, f.getExcludedVolumes(ctx, tenant)...)
 		tenantLogger.WithField("snapshot", snapshot).Info("Created a snapshot for tenant")
