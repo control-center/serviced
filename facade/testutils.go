@@ -88,7 +88,6 @@ func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockZZK(c)
 	ft.setupMockDFS()
-	LogstashContainerReloader = reloadLogstashContainerStub
 	ft.ssm = servicestatemanager.NewBatchServiceStateManager(ft.Facade, ft.CTX, 10*time.Second)
 	ft.ssm.Start()
 	ft.Facade.SetServiceStateManager(ft.ssm)
@@ -132,6 +131,3 @@ func (ft *FacadeIntegrationTest) BeforeTest(suiteName, testName string) {
 	fmt.Printf("Starting test %s\n", testName)
 }
 
-func reloadLogstashContainerStub(_ datastore.Context, _ FacadeInterface) error {
-	return nil
-}

@@ -48,21 +48,10 @@ func initLogstash() {
 				filebeatPortBinding,
 				webserverPortBinding},
 			Volumes:    map[string]string{},
-			Notify:     notifyLogstashConfigChange,
 			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
 			StartGroup: 1,
 		})
 	if err != nil {
 		log.WithError(err).Fatal("Unable to initialize Logstash internal service container")
 	}
-}
-
-func notifyLogstashConfigChange(svc *IService, value interface{}) error {
-
-	if message, ok := value.(string); ok {
-		if message == "restart logstash" {
-			return svc.Restart()
-		}
-	}
-	return nil
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
 	"bytes"
 )
@@ -59,12 +58,6 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 		return nil
 	} else if err != nil {
 		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-
-	glog.V(2).Infof("Starting logstash container")
-	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
-		glog.Errorf("Could not start logstash container: %s", err)
 		return err
 	}
 	return nil
