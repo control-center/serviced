@@ -1,0 +1,368 @@
+##############################################################################
+#
+# Copyright (C) Zenoss, Inc. 2017, all rights reserved.
+#
+# This content is made available according to terms specified in
+# License.zenoss under the directory where your Zenoss product is installed.
+#
+##############################################################################
+#
+# Checks the free space for the thinpool/meta/tenants prior to upgrading
+# serviced.  Gives a message and fails if the upgrade would place the
+# system into an emergency shutdown mode.
+#
+# Note that these are all bash scripts, so the python has been inserted
+# inline.
+#
+##############################################################################
+
+python <<EOF
+import os
+import re
+import subprocess
+import sys
+
+
+SERVICED_CONFIG="/etc/default/serviced"
+C_RESET  = '\033[0m'
+C_BOLD   = C_RESET + '\033[1m'
+C_WARN   = C_RESET + '\033[93m'
+C_ERR    = C_RESET + '\033[91m'
+LANG = "LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8"
+
+# Parse a given file for key=value settings and return them as data.
+def parse(input_file):
+    config = {}
+    if os.path.isfile(input_file):
+        with open(input_file, 'r') as fd:
+            contents = fd.read()
+            for line in contents.split("\n"):
+                if "=" in line and not line.strip().startswith("#"):
+                    data = line.split("=", 1)
+                    config[data[0].strip()] = data[1].strip()
+    return config
+
+# Parses the serviced config file for values. Note that all values
+# are returned as strings.
+def parse_serviced_config():
+    config = parse(SERVICED_CONFIG)
+    # If the SERVICED_MASTER setting isn't there, it defaults to "1"
+    config['SERVICED_MASTER'] = config.get('SERVICED_MASTER', '1')
+    return config
+
+
+KB  = 1000
+MB  = 1000 * KB
+GB  = 1000 * MB
+TB  = 1000 * GB
+PB  = 1000 * TB
+
+KiB = 1024
+MiB = 1024 * KiB
+GiB = 1024 * MiB
+TiB = 1024 * GiB
+PiB = 1024 * TiB
+
+SIZES = {
+    'b': 1, 'kb': KiB, 'mb': MiB, 'gb': GiB, 'tb': TiB, 'pb': PiB,
+    'B': 1, 'Kb': KB, 'Mb': MB, 'Gb': GB, 'Tb': TB, 'Pb': PB,
+}
+decimapAbbrs = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+binaryAbbrs = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']
+sizeRegex = re.compile("^([-]?)(\d+(.\d+)?) ?([KkMmGgTtPp])?(i)?([Bb])?$")
+
+def parse_size(size):
+    """
+    Parses the human-readable size string into the amount it represents
+    as a float value. Upper case units are base 1000, lowercase base 1024.
+    If the unit has "i" in the middle it uses base 1024.
+
+    >>> parse_size("10K")
+    10000.0
+    >>> parse_size("-10K")
+    -10000.0
+    >>> parse_size("10 KB")
+    10000.0
+    >>> parse_size("10 G")
+    10000000000.0
+    >>> parse_size("10GB")
+    10000000000.0
+    >>> parse_size("10k")
+    10240.0
+    >>> parse_size("-10k")
+    -10240.0
+    >>> parse_size("10 kb")
+    10240.0
+    >>> parse_size("10gb")
+    10737418240.0
+    >>> parse_size("10g")
+    10737418240.0
+    >>> parse_size("10GiB")
+    10737418240.0
+    """
+    match = sizeRegex.match(size)
+    if not match:
+        return None
+    neg = -1 if match.group(1) else 1
+    m1 = float(match.group(2))
+    m2 = match.group(4) if match.group(4) else ''
+    if match.group(5): m2 = m2.lower()
+    m3 = match.group(6).lower() if match.group(6) else 'b'
+    return neg * m1 * SIZES[(m2 + m3)]
+
+
+def customsize(size, base, map):
+    neg = 1 if size >= 0 else -1
+    size = size * neg
+    i = 0
+    while size >= base and i < len(map)-1:
+        size = size / base
+        i = i + 1
+    size = str(round(size, 3) * neg).strip('0').strip('.') or "0"
+    return '%s %s' % (size, map[i])
+
+
+def humansize(size):
+    """
+    Converts the size string given into a human readable format
+    using 1000 as the base.
+
+    >>> humansize(0)
+    '0 B'
+    >>> humansize(-0)
+    '0 B'
+    >>> humansize(1234)
+    '1.234 KB'
+    >>> humansize(123456)
+    '123.456 KB'
+    >>> humansize(1234567890)
+    '1.235 GB'
+    >>> humansize(-1234567890)
+    '-1.235 GB'
+    """
+    if not isinstance(size, (int, float)):
+        raise ValueError('humansize() only takes int or float arguments')
+    return customsize(size, 1000.0, decimapAbbrs)
+
+
+def bytesize(size):
+    """
+    Converts the size string given into a human readable format
+    using 1024 as the base.
+
+    >>> bytesize(0)
+    '0 B'
+    >>> bytesize(-0)
+    '0 B'
+    >>> bytesize(1234)
+    '1.205 KiB'
+    >>> bytesize(123456)
+    '120.563 KiB'
+    >>> bytesize(1234567890)
+    '1.15 GiB'
+    >>> bytesize(-1234567890)
+    '-1.15 GiB'
+    >>> bytesize(1024*1024*1024)
+    '1 GiB'
+    """
+    if not isinstance(size, (int, float)):
+        raise ValueError('bytesize() only takes int or float arguments')
+    return customsize(size, 1024.0, binaryAbbrs)
+
+
+def get_serviced_settings(config):
+    """
+    Returns the min data and metadata storage sizes. CC interprets SERVICED_STORAGE_MIN_FREE
+    with base 1024, so we need to coerce the value when we parse it.
+    """
+    data = {}
+    s_storage_min_free = config.get("SERVICED_STORAGE_MIN_FREE", "3G")
+    data['SERVICED_STORAGE_MIN_FREE'] = s_storage_min_free
+    s_storage_min_free = s_storage_min_free.lower() # coerce to base 1024 to match CC interpretation.
+    storage_min_free = parse_size(s_storage_min_free) or (3 * GiB) # Default setting if we can't parse.
+    data['data_min_free'] = storage_min_free
+    data['meta_min_free'] = int(storage_min_free * 0.02)
+    return data
+
+
+def calc_tpool_stats(stats):
+    """
+    Calculates the thinpool stats based on the lvs output provided and returns them.
+
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['data_size']
+    107374182400.0
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['data_percent']
+    0.01
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['meta_size']
+    1073741824.0
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['meta_percent']
+    0.02
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['meta_free']
+    1052266987.52
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['meta_used']
+    21474836.48
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['data_free']
+    106300440576.0
+    >>> calc_tpool_stats('  100.00g 1.00   1.00g 2.00')['data_used']
+    1073741824.0
+    """
+    data = {}
+    stats = filter(None, stats.split(' '))
+    data['data_size'] = parse_size(stats[0])
+    data['data_percent'] = parse_size(stats[1]) / 100
+    data['data_used'] = data['data_size'] * data['data_percent']
+    data['data_free'] = data['data_size'] * (1-data['data_percent'])
+    data['meta_size'] = parse_size(stats[2])
+    data['meta_percent'] = parse_size(stats[3]) / 100
+    data['meta_used'] = data['meta_size'] * data['meta_percent']
+    data['meta_free'] = data['meta_size'] * (1-data['meta_percent'])
+    return data
+
+
+def get_tpool_stats(config):
+    """
+    Returns a mapping representing data for the serviced thinpool.
+    """
+    thinpooldev = config.get("SERVICED_DM_THINPOOLDEV", "serviced")
+    cmd = "%s lvs -o lv_size,data_percent,lv_metadata_size,metadata_percent %s 2>/dev/null | grep -vi lsize" % \
+        (LANG, thinpooldev)
+    stats = subprocess.check_output(cmd, shell=True).strip()
+    if not stats:
+        return {}
+    data = calc_tpool_stats(stats)
+    data['thinpooldev'] = thinpooldev
+    return data
+
+
+def get_tenant_stats():
+    """
+    Uses df to get free space for mounted tenant volumes (if any). df -h shows
+    base 1024 stats, so we need to parse these appropriately.
+    """
+    data = { 'tenants': [] }
+    cmd = "df -h --output=avail,target | grep /opt/serviced/var/volumes 2>/dev/null || true"
+    stats = subprocess.check_output(cmd, shell=True)
+    if not stats:
+        return data
+    for line in [s.strip() for s in stats.split('\n') if s != '']:
+        line = line.split(' ')
+        if len(line) != 2: continue
+        tenant = line[1].split('/')[-1]
+        free = parse_size(line[0].lower())
+        data['tenants'].append({ 'id': tenant, 'free': free })
+    return data
+
+
+def get_thinpool_data():
+    """
+    Returns a map of data for the serviced thin pool.
+    """
+    config = parse_serviced_config()
+    data = get_serviced_settings(config)
+    data.update(get_tpool_stats(config))
+    data.update(get_tenant_stats())
+    return data
+
+
+def system_has_ha():
+    """
+    returns True if any of the HA utilities are installed.
+    """
+    result = subprocess.check_output("rpm -qa | egrep -w '^(pcs|pacemaker|corosync)' 2>/dev/null || true", shell=True).strip()
+    return len(result) > 0
+
+
+def app_is_deployed():
+    """
+    Returns True if an application has been deployed, otherwise False
+    """
+    result = subprocess.check_output("serviced service list 2>/dev/null || true", shell=True).strip()
+    return len(result) > 0
+
+
+# Returns "" if there are no problems, otherwise returns a string explaining
+# what was too small.
+def check_thinpool(stats):
+    err = ""
+    if stats['data_free'] < stats['data_min_free']:
+        err += "\nError: The thinpool storage free (%s) is under the minimum threshold (%s)" % \
+            (bytesize(stats['data_free']), bytesize(stats['data_min_free']))
+    if stats['meta_free'] < stats['meta_min_free']:
+        err += "\nError: The thinpool metadata free (%s) is under the minimum threshold (%s)" % \
+            (bytesize(stats['meta_free']), bytesize(stats['meta_min_free']))
+        err += "\n%sThe metadata minimum threshold is calculated as 2 percent of the SERVICED_STORAGE_MIN_FREE value.%s" % \
+            (C_RESET, C_ERR)
+    if len(stats['tenants']):
+        for tenant in stats['tenants']:
+            if tenant['free'] < stats['data_min_free']:
+                err += "\nError: The tenant volume %s available space (%s) is under the minimum threshold (%s)" % \
+                    (tenant['id'], bytesize(tenant['free']), bytesize(stats['data_min_free']))
+    else:
+        # Only return an error here if an app has been deployed.
+        if app_is_deployed():
+            err += "\nError: No tenant devices are mounted. Unable to verify tenant free space."
+    return err
+
+
+def check_metasize(stats):
+    """
+    Gives a warning if the metadata size is smaller than 1% of the thinpool size.
+    """
+    metamin = stats['meta_size'] * 0.01
+    if metamin < stats['data_size']:
+        msg = 'Warning: The metadata size (%s) should be at least %s (1 percent of the thinpool size, %s)' % \
+            (bytesize(stats['meta_size']), bytesize(metamin), bytesize(stats['data_size']))
+        print '\n%s%s%s\n' % (C_WARN, msg, C_RESET)
+
+
+def show_help():
+    """
+    Displays steps for downgrading docker from the now upgraded version to the version
+    that the old installed (due to failure to upgrade) version expects.
+    """
+    # We can't get the yum history from inside of a yum command; just tell them how to undo this transaction.
+    print '%s%s' % (C_BOLD, 'To roll back this partial install:')
+    print '   1. yum history'
+    print '   2. yum history undo <#>'
+    print '%s%s' % ('Using the newest ID from the list', C_RESET)
+
+    # If that fails..
+    cmd = "rpm -qa | grep serviced | head -1 | xargs --no-run-if-empty rpm -qR | grep docker 2>/dev/null || true"
+    dockerinfo = subprocess.check_output(cmd, shell=True)
+    dockerinfo = [s.strip() for s in dockerinfo.split('=')]
+    if len(dockerinfo) != 2: # (could not get the docker dependency version; shouldn't happen)
+        dockerinfo = ['docker-engine', '<version>']
+
+    # Print the manual steps for restoring the previous docker version.
+    print C_BOLD
+    print 'If that fails, you can manually revert docker-engine to version %s' % dockerinfo[1]
+    print '   1. rpm -e --nodeps %s' %  dockerinfo[0]
+    print '   2. yum install -y %s-%s' % (dockerinfo[0], dockerinfo[1])
+    print '\nYou\'ll need to restart docker and Control Center after rolling back the upgrade.'
+    print C_RESET
+
+    # Show the cc upgrade guide link.
+    print '%s%s%s\n' % (C_BOLD, \
+        'More information: https://www.zenoss.com/services-support/documentation/cc-upgrade-guide', C_RESET)
+
+
+# Don't perform any of these checks if HA utilities are installed.
+if system_has_ha():
+    sys.exit(0)
+
+# If the os environment variable NOCHECK is set, skip this entirely.
+if os.environ.get('NOCHECK', None):
+    sys.exit(0)
+
+# Give a warning (but don't exit) if the meta size is too small.
+stats = get_thinpool_data()
+check_metasize(stats)
+
+# Check the serviced thinpool and tenant volumes (if any) for free space prior to upgrading.
+err = check_thinpool(stats)
+if err:
+    print '%s%s%s\n' % (C_ERR, 'Upgrading Control Center may result in the application ' \
+        'being put into Emergency Shutdown mode:', err)
+    show_help()
+    sys.exit(1) # Fail the upgrade.
+EOF
