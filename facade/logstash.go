@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,13 +24,11 @@ import (
 	"sync"
 	"strings"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
-	"bytes"
+	log "github.com/Sirupsen/logrus"
 )
 
 
@@ -51,20 +50,14 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 
 	templates, err := f.GetServiceTemplates(ctx)
 	if err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
+		plog.WithError(err).Error("Could not retrieve service templates")
 		return err
 	}
 	err = writeLogstashConfiguration(templates)
 	if err == ErrLogstashUnchanged {
 		return nil
 	} else if err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-
-	glog.V(2).Infof("Starting logstash container")
-	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
-		glog.Errorf("Could not start logstash container: %s", err)
+		plog.WithError(err).Error("Could not write logstash configuration: %s", err)
 		return err
 	}
 	return nil
@@ -113,22 +106,27 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 		filters += getFilters(template.Services, filterDefs, &typeFilter)
 	}
 	newConfigFile := resourcesDir() + "/logstash/logstash.conf.new"
+	originalFile := resourcesDir() + "/logstash/logstash.conf"
+	logger := plog.WithFields(log.Fields{
+		"newconfigfile": newConfigFile,
+		"currentconfigfile": originalFile,
+	})
+
 	err := writeLogStashConfigFile(filters, newConfigFile)
 	if err != nil {
-		glog.Errorf("Unable to create new logstash config file %s: %s", newConfigFile, err)
+		logger.WithError(err).Error("Unable to create new logstash config file")
 		return err
 	}
 
-	originalFile := resourcesDir() + "/logstash/logstash.conf"
 	originalContents, err := ioutil.ReadFile(originalFile)
 	if err != nil {
-		glog.Errorf("Unable to read current logstash config file %s: %s", originalFile, err)
+		logger.WithError(err).Error("Unable to read current logstash config file")
 		return err
 	}
 
 	newContents, err := ioutil.ReadFile(newConfigFile)
 	if err != nil {
-		glog.Errorf("Unable to read new logstash config file %s: %s", newConfigFile, err)
+		logger.WithError(err).Error("Unable to read new logstash config file")
 		return err
 	}
 
@@ -137,10 +135,10 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	if bytes.Equal(originalContents, newContents) {
 		return ErrLogstashUnchanged
 	} else if err := os.Rename(newConfigFile, originalFile); err != nil {
-		glog.Errorf("Unable to replace logstash config file: %s", err)
+		logger.WithError(err).Error("Unable to replace current logstash config file")
 		return err
 	}
-	glog.Infof("Updated logstash configuration")
+	plog.WithField("currentconfigfile", originalFile).Info("Updated logstash configuration")
 	return nil
 }
 
