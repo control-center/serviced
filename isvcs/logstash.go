@@ -18,7 +18,8 @@ var logstash *IService
 func initLogstash() {
 	var err error
 
-	command := "exec /opt/logstash/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
+	command := "exec /opt/logstash/bin/logstash agent " +
+		"-f /usr/local/serviced/resources/logstash/logstash.conf --auto-reload"
 	localFilePortBinding := portBinding{
 		HostIp:         "0.0.0.0",
 		HostIpOverride: "", // logstash should always be open
