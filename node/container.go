@@ -502,6 +502,21 @@ func (a *HostAgent) getService(serviceID string) (*service.Service, error) {
 	return svc, nil
 }
 
+func(a *HostAgent) getServicePath(svc *service.Service) (string, error) {
+	var err error
+	s := svc
+	svc_path := fmt.Sprintf("/%s", svc.Name)
+	for s.ParentServiceID != "" {
+		s, err = a.getService(s.ParentServiceID)
+		if err != nil {
+			return "", err
+		}
+		svc_path = fmt.Sprintf("/%s%s", s.Name, svc_path)
+	}
+
+	return svc_path, nil
+}
+
 // dockerLogsToFile dumps container logs to file
 func dockerLogsToFile(containerid string, numlines int) {
 	// TODO: need to get logs from api
@@ -732,6 +747,13 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		hcfg.Binds = append(hcfg.Binds, binding)
 	}
 
+	// Get service path
+	svc_path, err := a.getServicePath(svc)
+	if err != nil {
+		logger.WithError(err).Error("Unable to get service path")
+		return nil, nil, nil, err
+	}
+
 	// Get host IP
 	ips, err := utils.GetIPv4Addresses()
 	if err != nil {
@@ -766,6 +788,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
 		fmt.Sprintf("DOCKER_14203_FIX='%s'", fix),
 		// End temp fix part 2. See immediately above for part 1.
+		fmt.Sprintf("SERVICED_SVC_PATH='%s'", svc_path),
 	)
 
 	// add dns values to setup
