@@ -1,0 +1,45 @@
+mkdir -p /var/log/serviced
+chgrp root /var/log/serviced
+chmod 1750 /var/log/serviced
+
+#
+# CC-3482: preserve the existing access log
+#
+if [ -f /var/log/serviced.access.log ]; then
+    echo "Moving /var/log/serviced.access.log to /var/log/serviced/serviced.access.log"
+    mv /var/log/serviced.access.log /var/log/serviced
+fi
+
+#
+# CC-3482: If the current logrotate configuration file uses the old location, then
+#      replace it with the new configuration file. Otherwise, the log files might grow
+#      without bounds, potentially bringing down the system.
+#
+grep /var/log/serviced.access.log /opt/serviced/etc/logrotate.conf 2>/dev/null >/dev/null
+if [ $? -eq 0 ]; then
+    echo "Saving /opt/serviced/etc/logrotate.conf as /opt/serviced/etc/logrotate.conf.bak"
+    mv /opt/serviced/etc/logrotate.conf /opt/serviced/etc/logrotate.conf.bak
+
+    echo "Replacing /opt/serviced/etc/logrotate.conf with /opt/serviced/etc/logrotate.conf.rpmnew"
+    cp /opt/serviced/etc/logrotate.conf.rpmnew /opt/serviced/etc/logrotate.conf
+
+    echo " "
+    echo "WARNING: The location of serviced.access.log has moved to /var/log/serviced."
+    echo "         /opt/serviced/etc/logrotate.conf has been updated to reflect the new location."
+    echo "         Your original settings were saved in /opt/serviced/etc/logrotate.conf.bak"
+    echo "         Review both files to see if any settings from /opt/serviced/etc/logrotate.conf.bak"
+    echo "         need to be applied to /opt/serviced/etc/logrotate.conf"
+    echo "         See the Control Center Release Notes for more information."
+fi
+
+#
+# NOTE: changing ownership/permissions here has the side-effect of causing
+#       "rpm -V serviced" to complain, but we could not get fpm to assign
+#       the ownership/permissions at build time.
+#
+chgrp serviced /etc/default/serviced
+chmod 640 /etc/default/serviced
+
+chgrp serviced /opt/serviced
+chmod 750 /opt/serviced
+
