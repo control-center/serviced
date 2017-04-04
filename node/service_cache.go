@@ -32,8 +32,9 @@ type ServiceCache struct {
 }
 
 type cachedService struct {
-	Service  *service.Service
-	TenantID string
+	Service          *service.Service
+	TenantID         string
+	ServiceNamePath  string
 }
 
 func NewServiceCache(master string) *ServiceCache {
@@ -48,7 +49,7 @@ func NewServiceCache(master string) *ServiceCache {
 	return &serviceCache
 }
 
-func (sc *ServiceCache) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error) {
+func (sc *ServiceCache) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, string, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -59,23 +60,23 @@ func (sc *ServiceCache) GetEvaluatedService(serviceID string, instanceID int) (*
 	data, ok := sc.cache.Get(key)
 	if ok {
 		item, _ = data.(cachedService)
-		return item.Service, item.TenantID, nil
+		return item.Service, item.TenantID, item.ServiceNamePath, nil
 	}
 
 	masterClient, err := sc.getMasterClient()
 	if err != nil {
 		logger.WithField("master", sc.master).WithError(err).Error("Could not connect to the master")
-		return nil, "", err
+		return nil, "", "", err
 	}
 	defer masterClient.Close()
 
-	item.Service, item.TenantID, err = masterClient.GetEvaluatedService(serviceID, instanceID)
+	item.Service, item.TenantID, item.ServiceNamePath, err = masterClient.GetEvaluatedService(serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
-		return nil, "", err
+		return nil, "", "", err
 	}
 	sc.cache.Set(key, item)
-	return item.Service, item.TenantID, nil
+	return item.Service, item.TenantID, item.ServiceNamePath, nil
 }
 
 func (sc *ServiceCache) Invalidate(serviceID string, instanceID int) {

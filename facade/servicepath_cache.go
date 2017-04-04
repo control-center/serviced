@@ -27,10 +27,11 @@ type serviceCache struct {
 }
 
 type servicePath struct {
-	serviceID   string
-	tenantID    string
-	parentID    string
-	servicePath string
+	serviceID       string
+	tenantID        string
+	parentID        string
+	servicePath     string
+	serviceNamePath string
 }
 
 func NewServiceCache() *serviceCache {
@@ -67,6 +68,18 @@ func (sc *serviceCache) GetServicePath(serviceID string, getServiceFunc GetServi
 		return "", "", err
 	}
 	return cachedSvc.tenantID, cachedSvc.servicePath, nil
+}
+
+func (sc *serviceCache) GetServiceNamePath(serviceID string, getServiceFunc GetServiceDetails) (string, string, error) {
+        if cachedSvc, found := sc.lookUpService(serviceID); found {
+                return cachedSvc.tenantID, cachedSvc.serviceNamePath, nil
+        }
+
+        cachedSvc, err := sc.updateCache(serviceID, getServiceFunc)
+        if err != nil {
+                return "", "", err
+        }
+        return cachedSvc.tenantID, cachedSvc.serviceNamePath, nil
 }
 
 // RemoveIfParentChanged will remove all entries from the cache for this service and its children if the
@@ -132,9 +145,10 @@ func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePa
 	}
 	if svc.ParentServiceID == "" {
 		svcPath = servicePath{
-			serviceID:   serviceID,
-			tenantID:    serviceID,
-			servicePath: "/" + serviceID,
+			serviceID:       serviceID,
+			tenantID:        serviceID,
+			servicePath:     "/" + serviceID,
+			serviceNamePath: "/" + svc.Name,
 		}
 		*svcPaths = append(*svcPaths, svcPath)
 		return svcPath, nil
@@ -150,10 +164,11 @@ func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePa
 	}
 
 	svcPath = servicePath{
-		serviceID:   svc.ID,
-		tenantID:    parent.tenantID,
-		parentID:    svc.ParentServiceID,
-		servicePath: path.Join(parent.servicePath, svc.ID),
+		serviceID:       svc.ID,
+		tenantID:        parent.tenantID,
+		parentID:        svc.ParentServiceID,
+		servicePath:     path.Join(parent.servicePath, svc.ID),
+		serviceNamePath: path.Join(parent.serviceNamePath, svc.Name),
 	}
 	*svcPaths = append(*svcPaths, svcPath)
 	return svcPath, nil

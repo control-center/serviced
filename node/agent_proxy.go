@@ -77,13 +77,14 @@ func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response
 		"instanceID": request.InstanceID,
 	})
 
-	svc, tenantID, err := a.serviceCache.GetEvaluatedService(request.ServiceID, request.InstanceID)
+	svc, tenantID, svcPath, err := a.serviceCache.GetEvaluatedService(request.ServiceID, request.InstanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return err
 	}
 	response.Service = *svc
 	response.TenantID = tenantID
+	response.ServiceNamePath = svcPath
 	return nil
 }
 

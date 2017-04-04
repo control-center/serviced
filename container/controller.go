@@ -102,6 +102,8 @@ type ControllerOptions struct {
 	}
 	VirtualAddressSubnet string // The subnet of virtual addresses, 10.3
 	MetricForwarding     bool   // Whether or not the Controller should forward metrics
+	HostIPs		     string // The ip addresses of the host
+	ServiceNamePath	     string // Path of the service
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -133,11 +135,11 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
-func getService(lbClientPort string, serviceID string, instanceID int) (*service.Service, string, error) {
+func getService(lbClientPort string, serviceID string, instanceID int) (*service.Service, string, string, error) {
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return nil, "", err
+		return nil, "", "", err
 	}
 	defer client.Close()
 
@@ -146,11 +148,11 @@ func getService(lbClientPort string, serviceID string, instanceID int) (*service
 
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
-		return nil, "", err
+		return nil, "", "", err
 	}
 
-	glog.V(2).Infof("getService: serviceID=%s, tenantID=%s: %+v", serviceID, evaluatedServiceResponse.TenantID, evaluatedServiceResponse.Service)
-	return &evaluatedServiceResponse.Service, evaluatedServiceResponse.TenantID, nil
+	glog.V(2).Infof("getService: serviceID=%s, tenantID=%s, serviceNamePath=%s: %+v", serviceID, evaluatedServiceResponse.TenantID, evaluatedServiceResponse.ServiceNamePath, evaluatedServiceResponse.Service)
+	return &evaluatedServiceResponse.Service, evaluatedServiceResponse.TenantID, evaluatedServiceResponse.ServiceNamePath, nil
 }
 
 // getAgentHostID retrieves the agent's host id
@@ -255,10 +257,10 @@ func setupConfigFiles(svc *service.Service) error {
 }
 
 // setupLogstashFiles sets up logstash files
-func setupLogstashFiles(hostID string, service *service.Service, instanceID string, resourcePath string) error {
+func setupLogstashFiles(hostID string, hostIPs string, svcPath string, service *service.Service, instanceID string, resourcePath string) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(logstashContainerConfig, hostID, service, instanceID, resourcePath)
+		err := writeLogstashAgentConfig(logstashContainerConfig, hostID, hostIPs, svcPath, service, instanceID, resourcePath)
 		if err != nil {
 			return err
 		}
@@ -302,7 +304,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
 		return c, fmt.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
 	}
-	service, tenantID, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
+	service, tenantID, svcPath, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
 	if err != nil {
 		glog.Errorf("%+v", err)
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
@@ -310,6 +312,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 	c.healthChecks = service.HealthChecks
 	c.tenantID = tenantID
+	options.ServiceNamePath = svcPath
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
@@ -339,7 +342,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	if options.Logforwarder.Enabled {
-		if err := setupLogstashFiles(c.hostID, service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
+		if err := setupLogstashFiles(c.hostID, options.HostIPs, options.ServiceNamePath, service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}

@@ -203,4 +203,6 @@ type FacadeInterface interface {
 	ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error)
 
 	PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error)
+
+	GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error)
 }
