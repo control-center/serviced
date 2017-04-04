@@ -27,11 +27,14 @@ const (
 )
 
 //createFields makes the map of tags for the logstash config including the type
-func createFields(hostID string, service *service.Service, instanceID string, logConfig *servicedefinition.LogConfig) map[string]string {
+func createFields(hostID string, hostIPs string, svcPath string, service *service.Service, instanceID string, logConfig *servicedefinition.LogConfig) map[string]string {
 	fields := make(map[string]string)
 	fields["type"] = logConfig.Type
 	fields["service"] = service.ID
 	fields["instance"] = instanceID
+	fields["hostips"] = hostIPs
+	fields["poolid"] = service.PoolID
+	fields["servicepath"] = svcPath
 
 	// CC-2234: Note that logstash is hardcoded to inject a field named 'host' into to every message, but when run from within
 	// a docker container, the value is actually the container id, not the name of the docker host. So this tag is
@@ -59,7 +62,7 @@ func formatTagsForConfFile(tags map[string]string) string {
 }
 
 // writeLogstashAgentConfig creates the logstash forwarder config file
-func writeLogstashAgentConfig(confPath string, hostID string, service *service.Service, instanceID string, resourcePath string) error {
+func writeLogstashAgentConfig(confPath string, hostID string, hostIPs string, svcPath string, service *service.Service, instanceID string, resourcePath string) error {
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
@@ -72,7 +75,7 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
         - %s
       fields: %s`
 
-		filebeatLogConf = fmt.Sprintf(filebeatLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &logConfig)))
+		filebeatLogConf = fmt.Sprintf(filebeatLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, hostIPs, svcPath, service, instanceID, &logConfig)))
 	}
 
 	filebeatShipperConf :=

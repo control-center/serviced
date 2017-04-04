@@ -89,7 +89,7 @@ func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	if err := writeLogstashAgentConfig(confFileLocation, "host1", &service, "0", logstashContainerDirectory); err != nil {
+	if err := writeLogstashAgentConfig(confFileLocation, "host1", "192.168.1.1", "service/service/", &service, "0", logstashContainerDirectory); err != nil {
 		t.Errorf("Error writing config file %s", err)
 		return
 	}
@@ -142,7 +142,7 @@ func TestDontWriteToNilMap(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	if err := writeLogstashAgentConfig(confFileLocation, "host1", &service, "0", logstashContainerDirectory); err != nil {
+	if err := writeLogstashAgentConfig(confFileLocation, "host1", "192.168.1.1", "service/service/", &service, "0", logstashContainerDirectory); err != nil {
 		t.Errorf("Writing with empty tags produced an error %s", err)
 		return
 	}
