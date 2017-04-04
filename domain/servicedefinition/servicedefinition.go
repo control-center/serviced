@@ -136,6 +136,7 @@ type LogConfig struct {
 	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
 	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter,
 	LogTags []LogTag // Key value pair of tags that are sent to logstash for all entries coming out of this logfile
+	IsAudit bool    // Whether to send log entries to /var/log/serviced/application-audit.log or not for each LogConfig Type
 }
 
 // LogTag  no clue what this is. Maybe someone actually reads this
