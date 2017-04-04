@@ -224,10 +224,14 @@ rpm: stage_rpm
 		--before-upgrade rpm/preupgrade \
 		--before-install rpm/preinstall \
 		--after-install rpm/postinstall \
+		--after-upgrade rpm/postupgrade \
 		--before-remove rpm/preuninstall \
 		--after-remove rpm/postuninstall \
 		--rpm-pretrans rpm/pretrans \
 		--config-files /etc/default/serviced \
+		--config-files /opt/serviced/etc/logconfig-cli.yaml \
+		--config-files /opt/serviced/etc/logconfig-server.yaml \
+		--config-files /opt/serviced/etc/logrotate.conf \
 		.
 
 # Make a TGZ
