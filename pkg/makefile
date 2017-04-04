@@ -221,7 +221,6 @@ rpm: stage_rpm
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
-		--before-upgrade rpm/preupgrade \
 		--before-install rpm/preinstall \
 		--after-install rpm/postinstall \
 		--before-remove rpm/preuninstall \
