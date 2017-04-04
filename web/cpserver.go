@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -122,10 +123,26 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
-	accessLogPath := "/var/log/serviced.access.log"
+	accessLogDir := "/var/log/serviced"
+	if _, err := os.Stat(accessLogDir); os.IsNotExist(err) {
+		// This block of code is more for the zendev scenario (i.e. no rpm install).
+		// See the postinstall script in the RPM for the setting that typically occurs in production installs.
+		if err = os.Mkdir(accessLogDir, 0750); err != nil {
+			logger.WithError(err).WithField("accesslogdir", accessLogDir).
+				Error("Could not create directory for access log file")
+		} else {
+			logger.WithField("accesslogdir", accessLogDir).Info("Created directory for access log file")
+		}
+	} else if err != nil {
+		logger.WithError(err).WithField("accesslogdir", accessLogDir).
+			Error("Could not stat directory for access log file")
+	}
+
+	accessLogPath := path.Join(accessLogDir, "serviced.access.log")
 	accessLogFile, err := os.OpenFile(accessLogPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
 	if err != nil {
-		logger.WithField("accesslogpath", accessLogPath).Errorf("Could not create access log file.")
+		logger.WithError(err).WithField("accesslogpath", accessLogPath).
+			Error("Could not create access log file.")
 	}
 
 	uiHandler := rest.ResourceHandler{
@@ -149,7 +166,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 		logger.Debug("Calling CC uiHandler")
 		w.Header().Add("Strict-Transport-Security","max-age=31536000")
-		
+
 		if r.TLS == nil {
 			// bindPort has already been validated, so the Split/access below won't break.
 			http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)

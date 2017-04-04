@@ -1,5 +1,5 @@
 compress
-/var/log/serviced.access.log {
+/var/log/serviced/serviced.access.log {
 	su root root
 	rotate 5
 	weekly

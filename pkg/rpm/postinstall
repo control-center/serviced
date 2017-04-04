@@ -6,7 +6,7 @@ fi
 
 mkdir -p /var/log/serviced
 chgrp serviced /var/log/serviced
-chmod 1770 /var/log/serviced
+chmod 1750 /var/log/serviced
 
 #
 # NOTE: changing ownership/permissions here has the side-effect of causing
