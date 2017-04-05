@@ -5,3 +5,11 @@ compress
 	weekly
 	copytruncate
 }
+
+/var/log/serviced/application-audit.log {
+    su root root
+    size 400M
+    rotate 4
+    copytruncate
+    create 640 root root
+}
