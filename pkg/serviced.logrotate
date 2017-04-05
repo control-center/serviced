@@ -1,9 +1,10 @@
 compress
 /var/log/serviced/serviced.access.log {
 	su root root
-	rotate 5
-	weekly
+	size 400M
+	rotate 4
 	copytruncate
+	create 640 root root
 }
 
 /var/log/serviced/application-audit.log {
