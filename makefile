@@ -252,7 +252,7 @@ install_DIRS += $(_DESTDIR)$(prefix)/share/shell
 install_DIRS += $(_DESTDIR)$(prefix)/isvcs
 install_DIRS += $(_DESTDIR)$(sysconfdir)/default
 install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
-install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.daily
+install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.hourly
 install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.weekly
 
 # Specify the stuff to install as attributes of the various
@@ -264,7 +264,7 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.weekly
 #     $(dir)_TARGETS = src_filename:dest_filename
 #
 default_INSTCMD = cp
-$(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
+$(_DESTDIR)$(sysconfdir)/cron.hourly_TARGETS       = pkg/cron.hourly:serviced
 $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS       = pkg/serviced-fstrim:serviced-fstrim
 $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS      += pkg/serviced-zenossdbpack:serviced-zenossdbpack
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
