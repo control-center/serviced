@@ -285,22 +285,22 @@ def app_is_deployed():
 def check_thinpool(stats):
     err = ""
     if stats['data_free'] < stats['data_min_free']:
-        err += "\nError: The thinpool storage free (%s) is under the minimum threshold (%s)" % \
+        err += "\n  Error: The thinpool storage free (%s) is under the minimum threshold (%s)" % \
             (bytesize(stats['data_free']), bytesize(stats['data_min_free']))
     if stats['meta_free'] < stats['meta_min_free']:
-        err += "\nError: The thinpool metadata free (%s) is under the minimum threshold (%s)" % \
+        err += "\n  Error: The thinpool metadata free (%s) is under the minimum threshold (%s)" % \
             (bytesize(stats['meta_free']), bytesize(stats['meta_min_free']))
-        err += "\n%sThe metadata minimum threshold is calculated as 2 percent of the SERVICED_STORAGE_MIN_FREE value.%s" % \
+        err += "\n  %sThe metadata minimum threshold is calculated as 2 percent of the SERVICED_STORAGE_MIN_FREE value.%s" % \
             (C_RESET, C_ERR)
     if len(stats['tenants']):
         for tenant in stats['tenants']:
             if tenant['free'] < stats['data_min_free']:
-                err += "\nError: The tenant volume %s available space (%s) is under the minimum threshold (%s)" % \
+                err += "\n  Error: The tenant volume %s available space (%s) is under the minimum threshold (%s)" % \
                     (tenant['id'], bytesize(tenant['free']), bytesize(stats['data_min_free']))
     else:
         # Only return an error here if an app has been deployed.
         if app_is_deployed():
-            err += "\nError: No tenant devices are mounted. Unable to verify tenant free space."
+            err += "\n  Error: No tenant devices are mounted. Unable to verify tenant free space."
     return err
 
 
@@ -308,11 +308,34 @@ def check_metasize(stats):
     """
     Gives a warning if the metadata size is smaller than 1% of the thinpool size.
     """
-    metamin = stats['meta_size'] * 0.01
-    if metamin < stats['data_size']:
-        msg = 'Warning: The metadata size (%s) should be at least %s (1 percent of the thinpool size, %s)' % \
+    metamin = stats['data_size'] * 0.01
+    if stats['meta_size'] < metamin:
+        msg = 'Warning: current serviced thinpool metadata size (%s) should be at least %s (1 percent of the thinpool size, %s)' % \
             (bytesize(stats['meta_size']), bytesize(metamin), bytesize(stats['data_size']))
         print '\n%s%s%s\n' % (C_WARN, msg, C_RESET)
+
+
+def get_docker_version():
+    """
+    Returns the version of docker currently installed.  This is to compare against the version of docker
+    required by the currently installed serviced rpm.
+    """
+    # awk/grep isn't grabbing just the version.. parse it out.
+    version = subprocess.check_output("docker version | grep '^ Version' | head -1 || true", shell=True).strip()
+    version = [s for s in version.split(' ') if not s == '']
+    if len(version) > 1:
+        version = version[1].strip()
+    else:
+        version = version[0].strip()
+    if len(version) == 0:
+        # older version of docker.
+        version = subprocess.check_output("docker version | grep 'Server Version' | head -1 || true", shell=True).strip()
+        version = [s for s in version.split(' ') if not s == '']
+        if len(version) > 1:
+            version = version[1].strip()
+        else:
+            version = version[0].strip()
+    return version
 
 
 def show_help():
@@ -320,38 +343,41 @@ def show_help():
     Displays steps for downgrading docker from the now upgraded version to the version
     that the old installed (due to failure to upgrade) version expects.
     """
-    # We can't get the yum history from inside of a yum command; just tell them how to undo this transaction.
-    print '%s%s' % (C_BOLD, 'To roll back this partial install:')
-    print '   1. yum history'
-    print '   2. yum history undo <#>'
-    print '%s%s' % ('Using the newest ID from the list', C_RESET)
+    # Show the cc upgrade guide link.
+    print '%s%s\n' % (C_BOLD, 'Before upgrading, Control Center storage must be expanded to at least the minimum requirements.\n'\
+        'Refer to the Control Center Install Guide to correct storage problems, and run this upgrade again.')
 
-    # If that fails..
+    # Find out what version of docker the currently installed serviced rpm requires.
     cmd = "rpm -qa | grep serviced | head -1 | xargs --no-run-if-empty rpm -qR | grep docker 2>/dev/null || true"
     dockerinfo = subprocess.check_output(cmd, shell=True)
     dockerinfo = [s.strip() for s in dockerinfo.split('=')]
     if len(dockerinfo) != 2: # (could not get the docker dependency version; shouldn't happen)
         dockerinfo = ['docker-engine', '<version>']
 
-    # Print the manual steps for restoring the previous docker version.
-    print C_BOLD
-    print 'If that fails, you can manually revert docker-engine to version %s' % dockerinfo[1]
-    print '   1. rpm -e --nodeps %s' %  dockerinfo[0]
-    print '   2. yum install -y %s-%s' % (dockerinfo[0], dockerinfo[1])
-    print '\nYou\'ll need to restart docker and Control Center after rolling back the upgrade.'
-    print C_RESET
+    # Get the currently installed Docker version
+    docker_version = get_docker_version()
 
-    # Show the cc upgrade guide link.
-    print '%s%s%s\n' % (C_BOLD, \
-        'More information: https://www.zenoss.com/services-support/documentation/cc-upgrade-guide', C_RESET)
+    # Display info on rolling back docker if the current version isn't what the current serviced expects (meaning
+    # they've upgraded docker separately or yum upgraded it prior to this rpm).
+    if not docker_version == dockerinfo[1]:
+        # Print the manual steps for restoring the previous docker version.
+        print 'If you cannot immediately expand storage, you need to manually revert docker-engine to version %s' % dockerinfo[1]
+        print '   1. rpm -e --nodeps %s' %  dockerinfo[0]
+        print '   2. yum install -y %s-%s' % (dockerinfo[0], dockerinfo[1])
+        print '   3. Restore the backup files for /etc/sysconfig/docker and /etc/systemd/system/docker.service.d/docker'
+        print '\nIf you did not follow the Control Center Upgrade Guide and do not have those backup files, you\'ll need\n' \
+            'to refer to the original Control Center install instructions to configure docker %s as if it were a new install.' % dockerinfo[1]
+        print '\nDocker and Control Center need to be restarted after rolling back the upgrade.%s\n' % C_RESET
+    else:
+        print 'If you cannot immediately expand storage, you can start Control Center now without upgrading.%s\n' % C_RESET
 
-
-# Don't perform any of these checks if HA utilities are installed.
-if system_has_ha():
-    sys.exit(0)
 
 # If the os environment variable NOCHECK is set, skip this entirely.
 if os.environ.get('NOCHECK', None):
+    sys.exit(0)
+
+# Don't perform any of these checks if HA utilities are installed.
+if system_has_ha():
     sys.exit(0)
 
 # Give a warning (but don't exit) if the meta size is too small.
@@ -361,8 +387,8 @@ check_metasize(stats)
 # Check the serviced thinpool and tenant volumes (if any) for free space prior to upgrading.
 err = check_thinpool(stats)
 if err:
-    print '%s%s%s\n' % (C_ERR, 'Upgrading Control Center may result in the application ' \
-        'being put into Emergency Shutdown mode:', err)
+    print '%s%s%s\n' % (C_ERR, 'This upgrade is being aborted because it would result in the application ' \
+        'being put into Emergency Shutdown mode:\n', err)
     show_help()
     sys.exit(1) # Fail the upgrade.
 EOF
