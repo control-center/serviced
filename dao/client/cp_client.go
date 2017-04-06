@@ -30,6 +30,8 @@ package client
 // --------------------------------------------------------------------------------------------------
 
 import (
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -44,6 +46,7 @@ import (
 type ControlClient struct {
 	addr      string
 	rpcClient rpcutils.Client
+	timeout time.Duration
 }
 
 // Ensure that ControlClient implements the ControlPlane interface.
@@ -58,6 +61,14 @@ func NewControlClient(addr string) (s *ControlClient, err error) {
 	s = new(ControlClient)
 	s.addr = addr
 	s.rpcClient = client
+
+	s.timeout = 10*time.Second
+	timeoutvalue := os.Getenv("SERVICED_GETSERVICES_TIMEOUT")
+	itimeout, err := strconv.Atoi(timeoutvalue)
+	if err == nil {
+		s.timeout = time.Duration(itimeout) * time.Second
+	}
+
 	return s, nil
 }
 
@@ -135,7 +146,7 @@ func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unus
 }
 
 func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]dao.RunningService) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetRunningServices", request, runningServices, 10*time.Second)
+	return s.rpcClient.Call("ControlCenter.GetRunningServices", request, runningServices, s.timeout)
 }
 
 func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
