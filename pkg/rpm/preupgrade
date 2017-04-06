@@ -290,7 +290,7 @@ def check_thinpool(stats):
     if stats['meta_free'] < stats['meta_min_free']:
         err += "\n  Error: The thinpool metadata free (%s) is under the minimum threshold (%s)" % \
             (bytesize(stats['meta_free']), bytesize(stats['meta_min_free']))
-        err += "\n  %sThe metadata minimum threshold is calculated as 2 percent of the SERVICED_STORAGE_MIN_FREE value.%s" % \
+        err += "\n  %sThe metadata minimum threshold is calculated as 2 percent of the thinpool minimum threshold value.%s" % \
             (C_RESET, C_ERR)
     if len(stats['tenants']):
         for tenant in stats['tenants']:
@@ -345,7 +345,7 @@ def show_help():
     """
     # Show the cc upgrade guide link.
     print '%s%s\n' % (C_BOLD, 'Before upgrading, Control Center storage must be expanded to at least the minimum requirements.\n'\
-        'Refer to the Control Center Install Guide to correct storage problems, and run this upgrade again.')
+        'Refer to the Control Center Upgrade Guide to correct storage problems, and run this upgrade again.')
 
     # Find out what version of docker the currently installed serviced rpm requires.
     cmd = "rpm -qa | grep serviced | head -1 | xargs --no-run-if-empty rpm -qR | grep docker 2>/dev/null || true"
