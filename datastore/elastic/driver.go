@@ -14,10 +14,6 @@
 package elastic
 
 import (
-	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/api"
-	"github.com/zenoss/glog"
-
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -26,6 +22,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/control-center/serviced/datastore"
+	"github.com/zenoss/elastigo/api"
 )
 
 //ElasticDriver describes an the Elastic Search driver
@@ -81,9 +80,9 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 
 	select {
 	case <-healthy:
-		glog.V(4).Infof("Got response from Elastic")
+		plog.Debug("Got response from Elastic")
 	case <-time.After(timeout):
-		return errors.New("timed Out waiting for response from Elastic")
+		return errors.New("timed Out waiting for response from Elasticsearch")
 	}
 
 	if err := ed.postIndex(); err != nil {
@@ -99,9 +98,9 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 
 	select {
 	case <-healthy:
-		glog.V(4).Infof("Got response from Elastic")
+		plog.Debug("Got response from Elasticsearch")
 	case <-time.After(timeout):
-		return errors.New("timed Out waiting for response from Elastic")
+		return errors.New("timed Out waiting for response from Elasticsearch")
 	}
 
 	return nil
@@ -118,13 +117,14 @@ func (ed *elasticDriver) AddMapping(mapping Mapping) error {
 }
 
 func (ed *elasticDriver) AddMappingsFile(path string) error {
-	glog.Infof("AddMappingsFiles %v", path)
+	logger := plog.WithField("mappingfile", path)
+	logger.Info("Adding mapping to Elasticsearch")
 
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
+		logger.WithError(err).Error("Unable to read mapping file")
 		return err
 	}
-	glog.V(4).Infof("AddMappingsFiles: content %v", string(bytes))
 
 	type mapFile struct {
 		Mappings map[string]map[string]interface{}
@@ -133,6 +133,7 @@ func (ed *elasticDriver) AddMappingsFile(path string) error {
 	var allMappings mapFile
 	err = json.Unmarshal(bytes, &allMappings)
 	if err != nil {
+		logger.WithError(err).Error("Unable to decode JSON from mapping file")
 		return err
 	}
 	for key, val := range allMappings.Settings {
@@ -143,13 +144,14 @@ func (ed *elasticDriver) AddMappingsFile(path string) error {
 		var rawMapping = make(map[string]map[string]interface{})
 		rawMapping[key] = mapping
 		if value, err := newMapping(rawMapping); err != nil {
-			glog.Errorf("%v; could not create mapping from: %v", err, rawMapping)
+			logger.WithError(err).WithField("rawmapping", rawMapping).Error("Unable to create mapping")
 			return err
 		} else {
 			ed.AddMapping(value)
 		}
 	}
 
+	logger.Info("Successfully added mapping to Elasticsearch")
 	return nil
 }
 
@@ -164,7 +166,6 @@ func (ed *elasticDriver) indexURL() string {
 func (ed *elasticDriver) isUp() bool {
 	health, err := ed.getHealth()
 	if err != nil {
-		glog.Errorf("isUp() err=%v", err)
 		return false
 	}
 	status := health["status"]
@@ -187,14 +188,14 @@ func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		glog.Errorf("error reading elastic health: %v", err)
+		plog.WithError(err).Error("Unable to read healthcheck response from Elasticsearch")
 		return health, err
 	}
 	if err := json.Unmarshal(body, &health); err != nil {
-		glog.Errorf("error unmarshalling elastic health: %v; err: %v", string(body), err)
+		plog.WithError(err).WithField("response", string(body)).Error("Unable to decode JSON healthcheck response from Elasticsearch")
 		return health, err
 	}
-	glog.V(4).Infof("Elastic Health: %v; err: %v", string(body), err)
+	plog.WithError(err).WithField("response", string(body)).Debug("Received good healthcheck response from Elasticsearch")
 	return health, nil
 
 }
@@ -207,7 +208,7 @@ func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
 				healthy <- 1
 				return
 			}
-			glog.Infof("Waiting for Elastic Search")
+			plog.Info("Waiting for Elasticsearch")
 			time.Sleep(1000 * time.Millisecond)
 
 		case <-quit:
@@ -221,7 +222,8 @@ func (ed *elasticDriver) postMappings() error {
 
 	post := func(typeName string, mappingBytes []byte) error {
 		mapURL := fmt.Sprintf("%s/%s/_mapping", ed.indexURL(), typeName)
-		glog.V(4).Infof("Posting mapping to %s", mapURL)
+		logger := plog.WithField("mapurl", mapURL)
+		logger.WithField("mapping", string(mappingBytes)).Debug("Posting mapping")
 		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
 		if resp != nil {
 			defer resp.Body.Close()
@@ -229,9 +231,8 @@ func (ed *elasticDriver) postMappings() error {
 		if err != nil {
 			return fmt.Errorf("error mapping %s: %s", typeName, err)
 		}
-		glog.V(4).Infof("Response %v", resp)
 		body, err := ioutil.ReadAll(resp.Body)
-		glog.V(4).Infof("Post result %s", body)
+		logger.WithField("body", body).Debug("Received response")
 		if err != nil {
 			return err
 		}
@@ -247,7 +248,6 @@ func (ed *elasticDriver) postMappings() error {
 			return err
 		}
 
-		glog.V(4).Infof("mappping %v to  %v", mapping.Name, string(mappingBytes))
 		err = post(mapping.Name, mappingBytes)
 		if err != nil {
 			return err
@@ -259,7 +259,8 @@ func (ed *elasticDriver) postMappings() error {
 
 func (ed *elasticDriver) deleteIndex() error {
 	url := ed.indexURL()
-	glog.Infof("Deleting Index %v", url)
+	logger := plog.WithField("index", url)
+	logger.Info("Deleting Index")
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -271,21 +272,22 @@ func (ed *elasticDriver) deleteIndex() error {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	glog.V(4).Infof("Delete response %s", body)
+	logger.WithField("response", body).Debug("Delete response")
 	if err != nil {
 		return err
 	}
+	logger.Info("Index deleted")
 	return nil
 }
 
 func (ed *elasticDriver) postIndex() error {
 	url := ed.indexURL()
-	glog.V(4).Infof("Posting Index to %v", url)
+	logger := plog.WithField("index", url)
 
 	config := make(map[string]interface{})
 	config["settings"] = ed.settings
 	configBytes, err := json.Marshal(config)
-	glog.V(4).Infof("Config is %v", string(configBytes))
+	logger.WithField("config", string(configBytes)).Debug("Posting Index")
 
 	if err != nil {
 		return err
@@ -298,7 +300,7 @@ func (ed *elasticDriver) postIndex() error {
 	if err != nil {
 		return err
 	}
-	glog.V(4).Infof("Response %v", resp)
+	logger.WithField("response", resp).Debug("Received response from Elasticsearch")
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -306,13 +308,11 @@ func (ed *elasticDriver) postIndex() error {
 
 	errResponse := true
 	if resp.StatusCode == 400 {
-		glog.V(4).Info("400 response code")
 		//ignore if 400 and IndexAlreadyExistsException
 		var result map[string]interface{}
 		err = json.Unmarshal(body, &result)
 		if err == nil {
 			if errString, found := result["error"]; found {
-				glog.V(4).Infof("Found error in response: '%v'", errString)
 				switch errString.(type) {
 				case string:
 					if strings.Contains(errString.(string), "IndexAlreadyExistsException") {
@@ -325,7 +325,7 @@ func (ed *elasticDriver) postIndex() error {
 		errResponse = false
 	}
 	if errResponse {
-		glog.Errorf("Error creating index: %s", string(body))
+		logger.WithField("response", string(body)).Error("Unable to create index")
 		return fmt.Errorf("error posting index: %v", resp.Status)
 	}
 	return nil

@@ -14,8 +14,6 @@
 package elastic
 
 import (
-	"github.com/zenoss/glog"
-
 	"encoding/json"
 	"fmt"
 )
@@ -62,7 +60,7 @@ func NewMapping(mapping string) (Mapping, error) {
 	bytes := []byte(mapping)
 	var result Mapping
 	if err := json.Unmarshal(bytes, &result); err != nil {
-		glog.Errorf("error creating mapping: %v", err)
+		plog.WithError(err).Error("Unable to create mapping")
 		return result, err
 	}
 	return result, nil

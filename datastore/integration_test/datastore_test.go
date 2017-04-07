@@ -19,7 +19,6 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
 
 	. "gopkg.in/check.v1"
 
@@ -64,7 +63,7 @@ func (s *S) TestPutGetDelete(t *C) {
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
-	glog.Infof("tweet is %v", &storedtweet)
+	t.Logf("tweet is %v", &storedtweet)
 
 	if storedtweet.User != "kimchy" {
 		t.Errorf("Expected kimchy, found %s", storedtweet.User)
@@ -81,7 +80,7 @@ func (s *S) TestPutGetDelete(t *C) {
 	if err == nil {
 		t.Error("Expected error, not nil")
 	} else if !datastore.IsErrNoSuchEntity(err) {
-		glog.Infof("type is %s", reflect.ValueOf(err))
+		t.Logf("type is %s", reflect.ValueOf(err))
 		t.Fatalf("Unexpected: %v", err)
 	}
 }
