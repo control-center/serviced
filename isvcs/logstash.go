@@ -47,7 +47,7 @@ func initLogstash() {
 				localFilePortBinding,
 				filebeatPortBinding,
 				webserverPortBinding},
-			Volumes:    map[string]string{"UseServicedLogDir": "/var/log/serviced"},
+			Volumes:    map[string]string{UseServicedLogDir : "/var/log/serviced"},
 			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
 			StartGroup: 1,
 		})
