@@ -22,11 +22,14 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons/pool"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
+	"github.com/Sirupsen/logrus"
 )
 
 var dialTimeoutSecs = 30
+
+var plog = logging.PackageLogger()
 
 // SetDialTimeout time in seconds to timeout dialing a connection
 func SetDialTimeout(timeout int) {
@@ -36,17 +39,25 @@ func SetDialTimeout(timeout int) {
 type connectRPCFn func(add string) (*rpc.Client, error)
 
 func connectRPC(addr string) (*rpc.Client, error) {
-	glog.V(2).Infof("Connecting to %s", addr)
+	logger := plog.WithFields(logrus.Fields{
+		"address": addr,
+		"timeout": dialTimeoutSecs,
+	})
+	logger.Debug("Connecting to RPC server")
 	conn, err := net.DialTimeout("tcp", addr, time.Duration(dialTimeoutSecs)*time.Second)
 	if err != nil {
 		return nil, err
 	}
+	logger.Debug("Connected to RPC server")
 	return NewDefaultAuthClient(conn), nil
 }
 
 func connectRPCTLS(addr string) (*rpc.Client, error) {
-	glog.V(2).Infof("Connecting to %s", addr)
-
+	logger := plog.WithFields(logrus.Fields{
+		"address": addr,
+		"timeout": dialTimeoutSecs,
+	})
+	logger.Debug("Connecting to RPC server with TLS")
 	config := tls.Config{InsecureSkipVerify: !RPCCertVerify}
 	timeoutDialer := net.Dialer{Timeout: time.Duration(dialTimeoutSecs) * time.Second}
 	conn, err := tls.DialWithDialer(&timeoutDialer, "tcp4", addr, &config)
@@ -54,8 +65,10 @@ func connectRPCTLS(addr string) (*rpc.Client, error) {
 		return nil, err
 	}
 	cipher := conn.ConnectionState().CipherSuite
-	glog.V(2).Infof("RPC client connected with TLS cipher=%s (%d)\n", utils.GetCipherName(cipher), cipher)
-
+	logger.WithFields(logrus.Fields{
+		"ciphername":  utils.GetCipherName(cipher),
+		"cipher": cipher,
+	}).Debug("RPC client connected with TLS")
 	return NewDefaultAuthClient(conn), nil
 }
 
@@ -86,6 +99,7 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 	if timeout <= 0 {
 		timeout = 365 * 24 * time.Hour
 	}
+	logger := plog.WithField("method", serviceMethod)
 
 	start := time.Now()
 	item, err := rc.pool.BorrowWait(timeout)
@@ -114,7 +128,7 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 	wg.Add(1)
 	go func() {
 		wg.Done()
-		glog.V(2).Infof("rpcClient: Call %s", serviceMethod)
+		logger.Debug("rpcClient: making remote call")
 		rpcErr := rpcClient.Call(serviceMethod, args, reply)
 		errChan <- rpcErr
 	}()
@@ -147,11 +161,11 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 			return err
 		case <-time.After(rc.discardClientTimeout):
 			//log long calls and remove from pool to prevent blocks
-			glog.V(2).Infof("Long Running Call %s %s", serviceMethod, time.Now().Sub(start))
+			logger.WithField("elapsed", time.Now().Sub(start)).Debug("Detected long running call")
 			if !clientRemoved {
-				glog.V(2).Infof("Long Running Call removing client from pool %s after %s\n", serviceMethod, time.Now().Sub(start))
 				rc.pool.Remove(item)
 				clientRemoved = true
+				logger.WithField("elapsed", time.Now().Sub(start)).Debug("Removed client from pool")
 			}
 		}
 	}

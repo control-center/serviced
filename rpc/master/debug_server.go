@@ -14,14 +14,10 @@
 package master
 
 import (
-	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
 )
 
 var metricsTimer *metrics.MetricTimer
-
-// instantiate the package logger
-var plog = logging.PackageLogger()
 
 func (s *Server) DebugEnableMetrics(unused struct{}, results *string) error {
 	ctx := s.context()

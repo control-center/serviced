@@ -17,14 +17,17 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/service"
-	"github.com/zenoss/glog"
+	"github.com/Sirupsen/logrus"
 )
 
 // ServiceUse will use a new image for a given service - this will pull the image and tag it
 func (c *Client) ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
 	svcUseRequest := &ServiceUseRequest{ServiceID: serviceID, ImageID: imageID, ReplaceImgs: replaceImgs, Registry: registry, NoOp: noOp}
 	result := ""
-	glog.Infof("Pulling %s, tagging to latest, and pushing to registry %s - this may take a while", imageID, registry)
+	plog.WithFields(logrus.Fields{
+		"imageid": imageID,
+		"registry": registry,
+	}).Info("Pulling image, tagging to latest, and pushing to registry - this may take a while")
 	err := c.call("ServiceUse", svcUseRequest, &result)
 	if err != nil {
 		return "", err

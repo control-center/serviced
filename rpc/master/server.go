@@ -18,7 +18,11 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/logging"
 )
+
+// instantiate the package logger
+var plog = logging.PackageLogger()
 
 // NewServer creates a new serviced master rpc server
 func NewServer(f *facade.Facade, tokenExpiration time.Duration) *Server {

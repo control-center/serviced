@@ -16,8 +16,6 @@ package rpcutils
 import (
 	"sync"
 	"time"
-
-	"github.com/zenoss/glog"
 )
 
 // RPC_CLIENT_SIZE max number of rpc clients per address
@@ -52,7 +50,6 @@ func GetCachedClient(addr string) (Client, error) {
 
 func getClient(addr string) (Client, error) {
 	if _, found := localAddrs[addr]; found {
-		glog.V(3).Infof("Getting local client for %s", addr)
 		return localRpcClient, nil
 	}
 

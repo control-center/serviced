@@ -14,17 +14,19 @@
 package agent
 
 import (
+	"fmt"
+	"os/exec"
 	"time"
 
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/zzk"
-	"github.com/zenoss/glog"
-
-	"fmt"
-	"os/exec"
+	"github.com/Sirupsen/logrus"
 )
+
+var plog = logging.PackageLogger()
 
 // NewServer returns a new AgentServer
 func NewServer(staticIPs []string) *AgentServer {
@@ -54,11 +56,16 @@ type BuildHostRequest struct {
 func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Host) error {
 	*hostResponse = host.Host{}
 
-	glog.Infof("local static ips %v [%d]", a.staticIPs, len(a.staticIPs))
 	h, err := host.Build(request.IP, fmt.Sprintf("%d", request.Port), request.PoolID, request.Memory, a.staticIPs...)
 	if err != nil {
 		return err
 	}
+
+	plog.WithFields(logrus.Fields{
+		"poolid": request.PoolID,
+		"staticips": a.staticIPs,
+		"ipcount": len(a.staticIPs),
+	}).Info("Built Host record")
 	if h != nil {
 		*hostResponse = *h
 	}
@@ -70,7 +77,7 @@ func (a *AgentServer) GetDockerLogs(dockerID string, logs *string) error {
 	cmd := exec.Command("docker", "logs", "--tail=2000", dockerID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Unable to return logs because: %v", err)
+		plog.WithError(err).WithField("dockerid", dockerID).Error("Unable to retrieve logs from docker")
 		return err
 	}
 	*logs = string(output)
@@ -88,15 +95,19 @@ type PullImageRequest struct {
 // current image tag.
 func (a *AgentServer) PullImage(req PullImageRequest, image *string) error {
 
+	logger := plog.WithFields(logrus.Fields{
+		"image": req.Image,
+		"registry": req.Registry})
+
 	// set up the connections
 	docker, err := docker.NewDockerClient()
 	if err != nil {
-		glog.Errorf("Could not connect to docker client: %s", err)
+		logger.WithError(err).Error("Could not connect to docker client")
 		return err
 	}
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		glog.Errorf("Could not acquire coordinator connection: %s", err)
+		logger.WithError(err).Error("Could not acquire coordinator connection")
 		return err
 	}
 
@@ -106,14 +117,14 @@ func (a *AgentServer) PullImage(req PullImageRequest, image *string) error {
 	timer := time.NewTimer(req.Timeout)
 	defer timer.Stop()
 	if err := reg.PullImage(timer.C, req.Image); err != nil {
-		glog.Errorf("Could not pull image %s from registry %s: %s", req.Image, req.Registry, err)
+		logger.WithError(err).Error("Could not pull image from registry")
 		return err
 	}
 
 	// get the tag of the image pulled
 	*image, err = reg.ImagePath(req.Image)
 	if err != nil {
-		glog.Errorf("Could not get image id for %s from registry %s: %s", req.Image, req.Registry, err)
+		logger.WithError(err).Error("Could not get image id for image from registry")
 		return err
 	}
 
