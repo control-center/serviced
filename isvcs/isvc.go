@@ -30,9 +30,9 @@ var (
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v57"
+	IMAGE_TAG     = "v58"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG  = "v8"
+	ZK_IMAGE_TAG  = "v10"
 )
 
 type IServiceHealthResult struct {
