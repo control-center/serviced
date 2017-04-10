@@ -79,6 +79,9 @@
 # Set the BACKUPS path for serviced backups
 # SERVICED_BACKUPS_PATH=/opt/serviced/var/backups
 
+# Set the LOG_PATH for serviced logs
+# SERVICED_LOG_PATH=/var/log/serviced
+
 # Set the TLS keyfile
 # SERVICED_KEY_FILE=/etc/....
 
