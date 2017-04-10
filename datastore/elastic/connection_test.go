@@ -19,7 +19,6 @@ import (
 	"github.com/control-center/serviced/datastore"
 	. "github.com/control-center/serviced/datastore/elastic"
 	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 
 	"encoding/json"
@@ -68,10 +67,10 @@ func (s *S) TestPutGetDelete(t *C) {
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
-	glog.Infof("raw is %v", string(raw.Bytes()))
+	t.Logf("raw is %v", string(raw.Bytes()))
 	var tweetMap map[string]string
 	json.Unmarshal(raw.Bytes(), &tweetMap)
-	glog.Infof("tweet is %v", tweetMap)
+	t.Logf("tweet is %v", tweetMap)
 
 	if tweetMap["user"] != "kimchy" {
 		t.Errorf("Expected kimchy, found %s", tweetMap["user"])
@@ -91,7 +90,7 @@ func (s *S) TestPutGetDelete(t *C) {
 	if err == nil {
 		t.Error("Expected error, not nil")
 	} else if !datastore.IsErrNoSuchEntity(err) {
-		glog.Infof("type is %s", reflect.ValueOf(err))
+		t.Logf("type is %s", reflect.ValueOf(err))
 		t.Fatalf("Unexpected: %v", err)
 	}
 
