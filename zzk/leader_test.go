@@ -13,12 +13,13 @@
 
 // +build integration,!quick
 
-package zzk
+package zzk_test
 
 import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	. "github.com/control-center/serviced/zzk"
 
 	. "gopkg.in/check.v1"
 )

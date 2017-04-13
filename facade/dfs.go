@@ -30,11 +30,12 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
-	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/dustin/go-humanize"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 const (
@@ -128,7 +129,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EstimateBackup"))
 
 	stime := time.Now()
-	plog.WithField("request", request).Info("Started backup estimate")
+	plog.WithField("request", request).Debug("Started backup estimate")
 
 	options := config.GetOptions()
 
@@ -139,10 +140,10 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	estimate.AvailableBytes = volume.FilesystemBytesAvailable(request.Dirpath)
 	estimate.AvailableString = humanize.Bytes(estimate.AvailableBytes)
 
-	plog.WithFields(logrus.Fields {
-		"dirpath": request.Dirpath,
+	plog.WithFields(logrus.Fields{
+		"dirpath":  request.Dirpath,
 		"estimate": estimate,
-	}).Info("Checked FilestystemSpaceAvailable")
+	}).Debug("Checked FilestystemSpaceAvailable")
 
 	// Estimate bytes to backup from filesystem
 	_, images, err := f.GetServiceTemplatesAndImages(ctx)
@@ -151,7 +152,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 		return err
 	}
 
-	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
+	plog.WithField("elapsed", time.Since(stime)).Debug("Loaded templates and their images")
 
 	tenants, err := f.GetTenantIDs(ctx)
 	if err != nil {
@@ -165,7 +166,7 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	for _, tenant := range tenants {
 		tenantPath := filepath.Join(volumesPath, tenant)
 		tenantLogger := plog.WithFields(logrus.Fields{
-			"tenant": tenant,
+			"tenant":     tenant,
 			"tenantPath": tenantPath,
 		})
 		tpsize, err := f.dfs.DfPath(tenantPath, request.Excludes)
@@ -193,19 +194,19 @@ func (f *Facade) EstimateBackup(ctx datastore.Context, request dao.BackupRequest
 	}
 	CompressionEst := options.BackupEstimatedCompression
 	TotalBytesRequired := FilesystemBytesRequired + DockerBytesRequired
-	AdjustedBytesRequired := uint64(float64(TotalBytesRequired) / CompressionEst + 0.5) + MinOverheadBytes
+	AdjustedBytesRequired := uint64(float64(TotalBytesRequired)/CompressionEst+0.5) + MinOverheadBytes
 	estimate.EstimatedBytes = AdjustedBytesRequired
 	estimate.EstimatedString = humanize.Bytes(AdjustedBytesRequired)
 	estimate.AllowBackup = estimate.EstimatedBytes < estimate.AvailableBytes
 
 	plog.WithFields(logrus.Fields{
-		"duration": time.Since(stime),
-		"filesystembytes": FilesystemBytesRequired,
-		"dockerbytes":    DockerBytesRequired,
+		"duration":                   time.Since(stime),
+		"filesystembytes":            FilesystemBytesRequired,
+		"dockerbytes":                DockerBytesRequired,
 		"BackupEstimatedCompression": CompressionEst,
-		"BackupMinOverhead": options.BackupMinOverhead,
-		"estimate": estimate,
-	}).Info("Completed backup estimate")
+		"BackupMinOverhead":          options.BackupMinOverhead,
+		"estimate":                   estimate,
+	}).Debug("Completed backup estimate")
 	return nil
 }
 
@@ -608,10 +609,12 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 	}
 	serviceids := make([]string, len(svcs))
 	servicesToStop := []*service.Service{}
+	var stoppedServiceIds []string
 	for i, _ := range svcs {
 		svc := &svcs[i]
 		if svc.DesiredState == int(service.SVCRun) {
 			servicesToStop = append(servicesToStop, svc)
+			stoppedServiceIds = append(stoppedServiceIds, svc.ID)
 			if !force {
 				logger.WithFields(logrus.Fields{
 					"servicename": svc.Name,
@@ -629,7 +632,11 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 		return err
 	}
 
-	defer scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCRun, false)
+	defer func() {
+		// Refresh service objects in case something has changed (like current state)
+		servicesToStop = f.GetServicesForScheduling(ctx, stoppedServiceIds)
+		scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCRun, false)
+	}()
 
 	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), false, serviceids...); err != nil {
 		logger.WithError(err).Debug("Could not wait for services to stop during rollback of snapshot")
@@ -677,16 +684,34 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	}
 	imagesMap := make(map[string]struct{})
 	images := make([]string, 0)
-	serviceids := make([]string, len(svcs))
+	serviceids := []string{}
 	servicesToPause := []*service.Service{}
+	poolmap := make(map[string]bool)
 	var pausedServiceIds []string
 	for i, _ := range svcs {
 		svc := &svcs[i]
-		if svc.DesiredState == int(service.SVCRun) {
-			servicesToPause = append(servicesToPause, svc)
-			pausedServiceIds = append(pausedServiceIds, svc.ID)
+
+		// only pause services that have access to the dfs
+		hasDFS, ok := poolmap[svc.PoolID]
+		if !ok {
+			p := &pool.ResourcePool{}
+			err := f.poolStore.Get(ctx, pool.Key(svc.PoolID), p)
+			if err != nil {
+				logger.WithField("poolid", svc.PoolID).WithError(err).Error("Could not get resource pool")
+				return "", err
+			}
+			hasDFS = p.HasDfsAccess()
+			poolmap[svc.PoolID] = hasDFS
 		}
-		serviceids[i] = svc.ID
+
+		if hasDFS {
+			if svc.DesiredState == int(service.SVCRun) {
+				servicesToPause = append(servicesToPause, svc)
+				pausedServiceIds = append(pausedServiceIds, svc.ID)
+			}
+			serviceids = append(serviceids, svc.ID)
+		}
+
 		if svc.ImageID != "" {
 			if _, ok := imagesMap[svc.ImageID]; !ok {
 				imagesMap[svc.ImageID] = struct{}{}

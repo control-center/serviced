@@ -86,7 +86,7 @@ func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 
 	if vips != nil && len(vips) > 0 {
 		entity.VirtualIPs = vips
-		return f.UpdateResourcePool(ctx, entity)
+		return f.updateResourcePool(ctx, entity)
 	}
 
 	f.poolCache.SetDirty()
@@ -279,8 +279,7 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 		return ErrIPExists
 	}
 
-	// add virtual ip to zookeeper
-	return f.zzk.AddVirtualIP(vip)
+	return nil
 }
 
 // RemoveVirtualIP removes a virtual IP from a pool
@@ -344,7 +343,7 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 		return ErrIPNotExists
 	}
 
-	return f.zzk.RemoveVirtualIP(&pool.VirtualIP{PoolID: poolID, IP: ipAddr})
+	return nil
 }
 
 // RemoveResourcePool removes a resource pool

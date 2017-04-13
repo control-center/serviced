@@ -25,8 +25,8 @@ import (
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/script"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -106,7 +106,7 @@ type API interface {
 
 	// Backup & Restore
 	GetBackupEstimate(string, []string) (*dao.BackupEstimate, error)
-	Backup(string, []string) (string, error)
+	Backup(string, []string, bool) (string, error)
 	Restore(string) error
 
 	// Docker

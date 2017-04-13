@@ -225,10 +225,31 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 			return
 		}
 
+		var ipevt <-chan client.Event
+		if ssdat.AssignedIP != "" && !ssdat.Static {
+			req := IPRequest{
+				IPAddress: ssdat.AssignedIP,
+				HostID:    l.hostID,
+			}
+
+			ok, ipevt, err = l.conn.ExistsW(path.Join("/hosts", l.hostID, "ips", req.IPID()), done)
+			if err != nil {
+				logger.WithError(err).Error("Could not monitor ip")
+				return
+			}
+
+			if !ok {
+				logger.Debug("IP assignment was removed, exiting")
+				l.cleanUpContainers([]string{stateID}, true)
+				return
+			}
+		}
+
 		logger.Debug("Waiting for event on host state")
 		select {
 		case <-hsevt:
 		case <-ssevt:
+		case <-ipevt:
 		case timeExit := <-containerExit:
 			ssdat, ok = l.handleContainerExit(timeExit, ssdat, stateID, req, logger)
 			if !ok {

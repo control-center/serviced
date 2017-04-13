@@ -24,7 +24,8 @@ fi
 
 export START_TIMEOUT=300
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
+DEFAULT_INTERFACE=$(ip route | awk '/default/ { print $5 }' | head -1)
+IP=$(ip -f inet -o addr show $DEFAULT_INTERFACE | awk '{print $4}' | cut -d / -f 1)
 HOSTNAME=$(hostname)
 
 export SERVICED_ETC_PATH=${TEST_VAR_PATH}/etc
@@ -113,6 +114,14 @@ start_serviced() {
     echo "Waiting $START_TIMEOUT seconds for serviced to start ..."
     retry $START_TIMEOUT  wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
     return $?
+}
+
+# Add a host
+add_host() {
+    HOST_ID=$(sudo ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
+    sleep 1
+    [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
+    return 0
 }
 
 retry() {

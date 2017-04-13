@@ -276,6 +276,44 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart(c *C) {
 	c.Assert(err, IsNil)
 }
 
+func (ft *FacadeIntegrationTest) setup_validateServiceStop(c *C) *service.Service {
+	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: "test-pool"})
+	c.Assert(err, IsNil)
+	svc := service.Service{
+		ID:                "validate-service-stop",
+		Name:              "TestFacade_validateServiceStop",
+		DeploymentID:      "deployment-id",
+		PoolID:            "test-pool",
+		Launch:            "auto",
+		DesiredState:      int(service.SVCStop),
+		EmergencyShutdown: false,
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svc), IsNil)
+	return &svc
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyShutdownFlagged(c *C) {
+	svc := ft.setup_validateServiceStop(c)
+	// Test stopping a service that has been emergency stopped
+	svc.EmergencyShutdown = true
+	err := ft.Facade.validateServiceStop(ft.CTX, svc, false)
+	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop(c *C) {
+	// Test stopping a service that has not been emergency stopped
+	svc := ft.setup_validateServiceStop(c)
+	err := ft.Facade.validateServiceStop(ft.CTX, svc, false)
+	c.Assert(err, IsNil)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyTrue(c *C) {
+	// Test emergency stopping a service that has been stopped
+	svc := ft.setup_validateServiceStop(c)
+	err := ft.Facade.validateServiceStop(ft.CTX, svc, true)
+	c.Assert(err, IsNil)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_validateService_badServiceID(t *C) {
 	_, err := ft.Facade.validateServiceUpdate(ft.CTX, &service.Service{ID: "badID"})
 	t.Assert(err, ErrorMatches, "No such entity {kind:service, id:badID}")
@@ -2334,6 +2372,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
 		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
 		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
@@ -2344,6 +2383,14 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 			desiredStates[s.ID] = service.DesiredState(s.DesiredState)
 		}
 	})
+
+	p1 := &pool.ResourcePool{
+		ID:          "default",
+		Permissions: pool.DFSAccess | pool.AdminAccess,
+	}
+	if err := ft.Facade.AddResourcePool(ft.CTX, p1); err != nil {
+		c.Fatalf("Failed add pool %+v: %s", p1, err)
+	}
 
 	// add a service with 1 subservice
 	svc := service.Service{
