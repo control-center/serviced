@@ -282,7 +282,7 @@ func TestGetAuditLogSectionForServicesNotEnabledAudit(t *testing.T) {
 	auditableTypes := []string{}
 	auditLogSection := getAuditLogSection(services, &auditableTypes)
 	if len(auditLogSection) != 0 {
-		t.Error(fmt.Printf("expected am empty auditLogSection , but found %d size", len(auditLogSection)))
+		t.Error(fmt.Sprintf("expected am empty auditLogSection , but found %d size : AuditLogSection = %s", len(auditLogSection), auditLogSection))
 	}
 }
 func TestMultipleTypesForAuditLogging(t *testing.T){
@@ -292,7 +292,7 @@ func TestMultipleTypesForAuditLogging(t *testing.T){
 	auditLogSection := getAuditLogSection(services, &auditableTypes)
 	fieldTypeCount := strings.Count(auditLogSection, "if [fields][type]")
 	if fieldTypeCount !=2 {
-		t.Error(fmt.Printf("expected 2 for two different LogCoongfig Types, but found %d only", fieldTypeCount))
+		t.Error(fmt.Sprintf("expected 2 for two different LogCoongfig Types, but found %d : AuditLogSection = %s", fieldTypeCount, auditLogSection))
 	}
 }
 
@@ -303,7 +303,7 @@ func TestNoDuplicateAuditTypes(t *testing.T) {
 	auditLogSection := getAuditLogSection(services, &auditableTypes)
 	auditTypeCount := strings.Count(auditLogSection, "if [fields][type] == \"foo2\"")
 	if auditTypeCount !=1 {
-		t.Error(fmt.Sprintf("expected only 1 section for 'foo2' type, but found %d", auditTypeCount))
+		t.Error(fmt.Sprintf("expected only 1 section for 'foo2' type, but found %d: AuditLogSection = %s ", auditTypeCount, auditLogSection))
 	}
 }
 
