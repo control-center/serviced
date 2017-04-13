@@ -142,6 +142,101 @@ func getTestingService() servicedefinition.ServiceDefinition {
 	return service
 }
 
+
+func getTestingServiceWithAuditEnabled() servicedefinition.ServiceDefinition {
+	service := servicedefinition.ServiceDefinition{
+		Name:        "testsvc",
+		Description: "Top level service. This directory is part of a unit test.",
+		LogFilters: map[string]string{
+			"Pepe": "My Test Filter",
+		},
+		Services: []servicedefinition.ServiceDefinition{
+			servicedefinition.ServiceDefinition{
+				Name:    "s1",
+				Command: "/usr/bin/python -m SimpleHTTPServer",
+				ImageID: "ubuntu",
+				ConfigFiles: map[string]servicedefinition.ConfigFile{
+					"/etc/my.cnf": servicedefinition.ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
+				},
+				LogConfigs: []servicedefinition.LogConfig{
+					servicedefinition.LogConfig{
+						Path: "/tmp/foo",
+						Type: "foo",
+						Filters: []string{
+							"Pepe",
+						},
+						IsAudit: true,
+					},
+				},
+				LogFilters: map[string]string{
+					"Pepe2": "My Second Filter",
+				},
+				Services: []servicedefinition.ServiceDefinition{
+					servicedefinition.ServiceDefinition{
+						Name:    "s1child",
+						Command: "/usr/bin/python -m SimpleHTTPServer",
+						ImageID: "ubuntu",
+						LogConfigs: []servicedefinition.LogConfig{
+							servicedefinition.LogConfig{
+								Path: "/tmp/foo2",
+								Type: "foo2",
+								Filters: []string{
+									"Pepe4",
+								},
+								IsAudit: true,
+							},
+						},
+						LogFilters: map[string]string{
+							"Pepe4": "My Fourth Filter",
+						},
+					},
+
+				},
+			},
+			servicedefinition.ServiceDefinition{
+				Name:    "s2",
+				Command: "/usr/bin/python -m SimpleHTTPServer",
+				ImageID: "ubuntu",
+				LogConfigs: []servicedefinition.LogConfig{
+					servicedefinition.LogConfig{
+						Path: "/tmp/foo",
+						Type: "foo",
+						Filters: []string{
+							"Pepe3",
+						},
+					},
+				},
+				LogFilters: map[string]string{
+					"Pepe3": "My Third Filter",
+				},
+				Services: []servicedefinition.ServiceDefinition{
+					servicedefinition.ServiceDefinition{
+						Name:    "s2child",
+						Command: "/usr/bin/python -m SimpleHTTPServer",
+						ImageID: "ubuntu",
+						LogConfigs: []servicedefinition.LogConfig{
+							servicedefinition.LogConfig{
+								Path: "/tmp/foo2",
+								Type: "foo2",
+								Filters: []string{
+									"Pepe4",
+								},
+								IsAudit: true,
+							},
+						},
+						LogFilters: map[string]string{
+							"Pepe4": "My Fourth Filter",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return service
+}
+
+
 func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
 	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
@@ -172,6 +267,46 @@ func TestConstructingFilterString(t *testing.T) {
 	}
 }
 
+func TestGetAuditLogSectionForNoservice(t *testing.T) {
+	services := []servicedefinition.ServiceDefinition{}
+	auditLogTypes := []string{}
+	auditLogSection := getAuditLogSection(services, &auditLogTypes)
+	if len(auditLogSection) > 0 {
+		t.Error(fmt.Sprintf("Audit Log Section should be empty but it is not %d", len(auditLogSection)))
+	}
+}
+
+func TestGetAuditLogSectionForServicesNotEnabledAudit(t *testing.T) {
+	services := make([]servicedefinition.ServiceDefinition, 1)
+	services[0] = getTestingService()
+	auditableTypes := []string{}
+	auditLogSection := getAuditLogSection(services, &auditableTypes)
+	if len(auditLogSection) != 0 {
+		t.Error(fmt.Printf("expected am empty auditLogSection , but found %d size", len(auditLogSection)))
+	}
+}
+func TestMultipleTypesForAuditLogging(t *testing.T){
+	services := make([]servicedefinition.ServiceDefinition, 1)
+	services[0] = getTestingServiceWithAuditEnabled()
+	auditableTypes := []string{}
+	auditLogSection := getAuditLogSection(services, &auditableTypes)
+	fieldTypeCount := strings.Count(auditLogSection, "if [fields][type]")
+	if fieldTypeCount !=2 {
+		t.Error(fmt.Printf("expected 2 for two different LogCoongfig Types, but found %d only", fieldTypeCount))
+	}
+}
+
+func TestNoDuplicateAuditTypes(t *testing.T) {
+	services := make([]servicedefinition.ServiceDefinition, 1)
+	services[0] = getTestingServiceWithAuditEnabled()
+	auditableTypes := []string{}
+	auditLogSection := getAuditLogSection(services, &auditableTypes)
+	auditTypeCount := strings.Count(auditLogSection, "if [fields][type] == \"foo2\"")
+	if auditTypeCount !=1 {
+		t.Error(fmt.Sprintf("expected only 1 section for 'foo2' type, but found %d", auditTypeCount))
+	}
+}
+
 func TestNoDuplicateFilters(t *testing.T) {
 	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
@@ -187,6 +322,7 @@ func TestNoDuplicateFilters(t *testing.T) {
 
 func TestWritingConfigFile(t *testing.T) {
 	filters := "This is my test filter"
+	auditLogSection := "Audit Log Section string"
 	tmpfile, err := ioutil.TempFile("", "logstash_test.conf")
 	t.Logf("Created tempfile: %s", tmpfile.Name())
 	if err != nil {
@@ -196,6 +332,7 @@ func TestWritingConfigFile(t *testing.T) {
 	defer tmpfile.Close()
 	defer os.Remove(tmpfile.Name())
 	_, err = tmpfile.Write([]byte("${FILTER_SECTION}"))
+	_, err = tmpfile.Write([]byte("${AUDIT_SECTION"))
 	if err != nil {
 		t.Logf("%s", err)
 		t.FailNow()
@@ -206,7 +343,7 @@ func TestWritingConfigFile(t *testing.T) {
 		t.FailNow()
 	}
 
-	if err = writeLogStashConfigFile(filters, tmpfile.Name()); err != nil {
+	if err = writeLogStashConfigFile(filters, auditLogSection, tmpfile.Name()); err != nil {
 		t.Errorf("error calling writeLogStashConfigFile: %s", err)
 		t.Fail()
 	}
@@ -217,10 +354,11 @@ func TestWritingConfigFile(t *testing.T) {
 		t.Error(fmt.Sprintf("Unable to read output file %v", err))
 	}
 
-	// make sure our filter string is in it
-	if !strings.Contains(string(contents), filters) {
+	// make sure our filter and auditLogSection string is in it
+	if !strings.Contains(string(contents), filters) && !strings.Contains(string(contents), auditLogSection) {
 		t.Logf("Read in contents: %s", string(contents))
 		t.Log(filters)
 		t.Error("Was unable to write the logstash conf file")
+
 	}
 }
