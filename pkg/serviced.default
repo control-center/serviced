@@ -79,7 +79,7 @@
 # Set the BACKUPS path for serviced backups
 # SERVICED_BACKUPS_PATH=/opt/serviced/var/backups
 
-# Set the LOG_PATH for serviced logs
+# Set the LOG_PATH for serviced access and audit logs. Note that regular serviced operational messages are written to journald.
 # SERVICED_LOG_PATH=/var/log/serviced
 
 # Set the TLS keyfile
@@ -87,7 +87,6 @@
 
 # Set the TLS certfile
 # SERVICED_CERT_FILE=/etc/....
-
 # Set the minimum supported TLS version for HTTP connections, valid values VersionTLS10|VersionTLS11|VersionTLS12
 # SERVICED_TLS_MIN_VERSION=VersionTLS10
 
