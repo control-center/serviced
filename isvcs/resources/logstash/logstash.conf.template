@@ -21,4 +21,6 @@ output {
 		hosts => "elasticsearch:9100"
 		template_overwrite => true
 	}
+
+	#${AUDITLOG_SECTION}
 }
