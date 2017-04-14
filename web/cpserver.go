@@ -33,7 +33,6 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
-	"github.com/gorilla/mux"
 	"github.com/zenoss/go-json-rest"
 )
 
@@ -106,6 +105,29 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 	return &cfg
 }
 
+type epHandler struct {
+	handler func(w http.ResponseWriter, r *http.Request)
+}
+
+func (h epHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// If RawPath is given, Golang's url object has canonized the original URL.  We
+	// want to route the original url instead, so remake it with Opaque to allow
+	// any special characters that got translated. see: CC-3510
+	if len(r.URL.RawPath) > 0 {
+		plog.WithFields(logrus.Fields{
+			"r.URL.Path":    r.URL.Path,
+			"r.URL.RawPath": r.URL.RawPath,
+		}).Debug("handler: rewriting url")
+		r.URL = &url.URL{
+			RawPath: r.URL.RawPath,
+			Opaque:  r.URL.RawPath,
+			Scheme:  r.URL.Scheme,
+			Host:    r.URL.Host,
+		}
+	}
+	h.handler(w, r)
+}
+
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
@@ -148,8 +170,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		}
 
 		logger.Debug("Calling CC uiHandler")
-		w.Header().Add("Strict-Transport-Security","max-age=31536000")
-		
+		w.Header().Add("Strict-Transport-Security", "max-age=31536000")
+
 		if r.TLS == nil {
 			// bindPort has already been validated, so the Split/access below won't break.
 			http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)
@@ -158,7 +180,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		uiHandler.ServeHTTP(w, r)
 	}
 
-	r := mux.NewRouter()
+	// gorilla mux canonizes the url, breaking proxy urls that have special characters. See CC-3510.
 
 	if hnm, err := os.Hostname(); err == nil {
 		sc.hostaliases = append(sc.hostaliases, hnm)
@@ -171,11 +193,6 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	defaultHostAlias = sc.hostaliases[0]
 	uiConfig = sc.uiConfig
-
-	r.HandleFunc("/", httphandler)
-	r.HandleFunc("/{path:.*}", httphandler)
-
-	http.Handle("/", r)
 
 	// FIXME: bubble up these errors to the caller
 	certFile, keyFile := GetCertFiles(sc.certPEMFile, sc.keyPEMFile)
@@ -199,7 +216,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 			PreferServerCipherSuites: true,
 			CipherSuites:             utils.CipherSuites("http"),
 		}
-		server := &http.Server{Addr: sc.bindPort, TLSConfig: config}
+		server := &http.Server{Addr: sc.bindPort, TLSConfig: config, Handler: epHandler{httphandler}}
 		logger.WithField("ciphersuite", utils.CipherSuitesByName(config)).Info("Creating HTTP server")
 		err := server.ListenAndServeTLS(certFile, keyFile)
 		if err != nil {

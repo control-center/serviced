@@ -150,12 +150,9 @@ func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Li
 		return
 	}
 
-	// Create a new port server with a default handler.
-	portServer := http.NewServeMux()
-	portServer.HandleFunc("/", httphandler)
-
+	// Create a new port server with our own endpoint handler.
 	// HTTPS requires configuring the certificates for TLS.
-	server := &http.Server{Addr: address, Handler: portServer}
+	server := &http.Server{Addr: address, Handler: epHandler{httphandler}}
 
 	if tlsConfig != nil {
 		keepAliveListener := &TCPKeepAliveListener{
