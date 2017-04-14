@@ -102,8 +102,11 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	filters := ""
 
 	typeFilter := []string{}
+	auditableTypes := []string{}
+	auditLogSection := ""
 	for _, template := range templates {
 		filters += getFilters(template.Services, filterDefs, &typeFilter)
+		auditLogSection = getAuditLogSection(template.Services, &auditableTypes)
 	}
 	newConfigFile := resourcesDir() + "/logstash/logstash.conf.new"
 	originalFile := resourcesDir() + "/logstash/logstash.conf"
@@ -112,7 +115,7 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 		"currentconfigfile": originalFile,
 	})
 
-	err := writeLogStashConfigFile(filters, newConfigFile)
+	err := writeLogStashConfigFile(filters, auditLogSection, newConfigFile)
 	if err != nil {
 		logger.WithError(err).Error("Unable to create new logstash config file")
 		return err
@@ -180,9 +183,34 @@ func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[s
 	return filters
 }
 
+func getAuditLogSection(services []servicedefinition.ServiceDefinition, auditTypes *[]string) string {
+	auditSection := ""
+	fileSection := `
+file {
+  path => "/var/log/serviced/application-audit.log"
+  codec => line { format => "%{message}"}
+}
+`
+	for _, service := range services {
+		for _, config := range service.LogConfigs {
+			if config.IsAudit {
+				if !utils.StringInSlice(config.Type, *auditTypes){
+					auditSection += fmt.Sprintf("\n        if [fields][type] == \"%s\" {\n%s\n        }", config.Type,indent(fileSection, "            "))
+					*auditTypes = append(*auditTypes, config.Type)
+				}
+			}
+		}
+		if len(service.Services) > 0 {
+			subServiceOutput := getAuditLogSection(service.Services, auditTypes)
+			auditSection += subServiceOutput
+		}
+	}
+	return auditSection
+}
+
 // This method writes out the config file for logstash. It uses
 // the logstash.conf.template and does a variable replacement.
-func writeLogStashConfigFile(filters string, outputPath string) error {
+func writeLogStashConfigFile(filters string, auditLogSection string, outputPath string) error {
 	// read the log configuration template
 	templatePath := resourcesDir() + "/logstash/logstash.conf.template"
 
@@ -205,6 +233,9 @@ filter {
 }
 `
 	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterSection, 1)
+	if len(auditLogSection) > 0 {
+		newContents = strings.Replace(string(newContents),"${AUDITLOG_SECTION}", auditLogSection, 1)
+	}
 	newBytes := []byte(newContents)
 	// generate the filters section
 	// write the log file

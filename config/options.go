@@ -56,6 +56,7 @@ type Options struct {
 	IsvcsPath                  string
 	BackupsPath                string
 	ResourcePath               string
+	LogPath                    string   //Serviced logs directory 
 	Zookeepers                 []string
 	ReportStats                bool
 	HostStats                  string

@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
+	"github.com/control-center/serviced/config"
 	"github.com/zenoss/glog"
 )
 
@@ -76,5 +76,9 @@ func TempDir(p string) string {
 
 // ServicedLogDir gets the serviced log directory
 func ServicedLogDir() string {
-	return "/var/log/serviced"
+        if config.GetOptions().LogPath != "" {
+		return config.GetOptions().LogPath
+	} else{
+		return os.Getenv("SERVICED_LOG_PATH")
+	}
 }

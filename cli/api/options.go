@@ -207,6 +207,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 	varpath := filepath.Join(homepath, "var")
 
 	options.IsvcsPath = cfg.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
+	options.LogPath  = cfg.StringVal("LOG_PATH", "/var/log/serviced")
 	options.VolumesPath = cfg.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
 	options.BackupsPath = cfg.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
 	options.EtcPath = cfg.StringVal("ETC_PATH", filepath.Join(homepath, "etc"))

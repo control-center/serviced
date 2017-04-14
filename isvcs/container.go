@@ -39,6 +39,7 @@ import (
 )
 
 var isvcsVolumes map[string]string
+var UseServicedLogDir = "UseServicedLogDir"
 
 func loadvolumes() {
 	if isvcsVolumes == nil {
@@ -259,6 +260,7 @@ func (svc *IService) getResourcePath(p string) string {
 	if svc.root == "" {
 		svc.root = config.GetOptions().IsvcsPath
 	}
+
 	return filepath.Join(svc.root, svc.Name, p)
 }
 
@@ -352,7 +354,12 @@ func (svc *IService) create() (*docker.Container, error) {
 	// service-specific volumes
 	if svc.Volumes != nil && len(svc.Volumes) > 0 {
 		for src, dest := range svc.Volumes {
-			hostpath := svc.getResourcePath(src)
+			var hostpath string
+                        if src == UseServicedLogDir {
+				hostpath = utils.ServicedLogDir()
+			}else {
+				hostpath = svc.getResourcePath(src)
+			}
 			log := log.WithFields(logrus.Fields{
 				"hostpath":      hostpath,
 				"containerpath": dest,
