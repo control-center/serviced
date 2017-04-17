@@ -5,7 +5,7 @@ if [ $1 -eq 1 ] ; then
 fi
 
 mkdir -p /var/log/serviced
-chgrp serviced /var/log/serviced
+chgrp root /var/log/serviced
 chmod 1750 /var/log/serviced
 
 #
