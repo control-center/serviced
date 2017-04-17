@@ -1,6 +1,6 @@
 
 mkdir -p /var/log/serviced
-chgrp serviced /var/log/serviced
+chgrp root /var/log/serviced
 chmod 750 /var/log/serviced
 
 chgrp serviced /etc/default/serviced
