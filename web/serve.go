@@ -24,6 +24,20 @@ import (
 	"github.com/control-center/serviced/proxy"
 )
 
+// If RawPath is given, Golang's url object has canonized the original URL.  We
+// want to route the original url instead, so set the Opaque property to allow
+// any special characters that got translated. see: CC-3510
+func RouteOriginalURL(r *http.Request) {
+	// RawPath is only set if the url had special characters or was canonized.
+	if len(r.URL.RawPath) > 0 {
+		plog.WithFields(log.Fields{
+			"Path":    r.URL.Path,
+			"RawPath": r.URL.RawPath,
+		}).Debug("handler: rewriting url")
+		r.URL.Opaque = r.URL.RawPath
+	}
+}
+
 // ServeTCP sets up a tcp based server connection given a set of exports.
 func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Config, exports Exports) {
 	stopChan := make(chan bool)
@@ -97,6 +111,8 @@ func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Li
 	// Setup a handler for the port http(s) endpoint.  This differs from the
 	// handler for vhosts.
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
+		RouteOriginalURL(r)
+
 		// Notify any active connections that the endpoint is not available if
 		// they refresh the browser.
 		select {
@@ -152,7 +168,7 @@ func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Li
 
 	// Create a new port server with our own endpoint handler.
 	// HTTPS requires configuring the certificates for TLS.
-	server := &http.Server{Addr: address, Handler: epHandler{httphandler}}
+	server := &http.Server{Addr: address, Handler: http.HandlerFunc(httphandler)}
 
 	if tlsConfig != nil {
 		keepAliveListener := &TCPKeepAliveListener{

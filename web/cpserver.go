@@ -123,29 +123,6 @@ func cleanPath(p string) string {
 	return np
 }
 
-type epHandler struct {
-	handler func(w http.ResponseWriter, r *http.Request)
-}
-
-func (h epHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// If RawPath is given, Golang's url object has canonized the original URL.  We
-	// want to route the original url instead, so remake it with Opaque to allow
-	// any special characters that got translated. see: CC-3510
-	if len(r.URL.RawPath) > 0 {
-		plog.WithFields(logrus.Fields{
-			"r.URL.Path":    r.URL.Path,
-			"r.URL.RawPath": r.URL.RawPath,
-		}).Debug("handler: rewriting url")
-		r.URL = &url.URL{
-			RawPath: r.URL.RawPath,
-			Opaque:  r.URL.RawPath,
-			Scheme:  r.URL.Scheme,
-			Host:    r.URL.Host,
-		}
-	}
-	h.handler(w, r)
-}
-
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
@@ -235,7 +212,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 			PreferServerCipherSuites: true,
 			CipherSuites:             utils.CipherSuites("http"),
 		}
-		server := &http.Server{Addr: sc.bindPort, TLSConfig: config, Handler: epHandler{httphandler}}
+		server := &http.Server{Addr: sc.bindPort, TLSConfig: config, Handler: http.HandlerFunc(httphandler)}
 		logger.WithField("ciphersuite", utils.CipherSuitesByName(config)).Info("Creating HTTP server")
 		err := server.ListenAndServeTLS(certFile, keyFile)
 		if err != nil {
