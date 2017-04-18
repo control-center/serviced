@@ -24,7 +24,6 @@ import (
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	zzktest "github.com/control-center/serviced/zzk/test"
-	"github.com/zenoss/glog"
 )
 
 type testNodeT struct {
@@ -33,7 +32,7 @@ type testNodeT struct {
 }
 
 func (n *testNodeT) SetVersion(version interface{}) {
-	glog.Infof("seting version to: %v", version)
+	fmt.Printf("setting version to: %v", version)
 	n.version = version
 }
 func (n *testNodeT) Version() interface{} { return n.version }
