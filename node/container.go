@@ -658,6 +658,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 	}
 
 	// Bind mount the keys we need
+	// Note that /etc/serviced also contains logconfig-controller.yaml
 	addBindingToMap(bindsMap, "/etc/serviced", filepath.Dir(a.delegateKeyFile))
 
 	// specify temporary volume paths for docker to create
