@@ -208,6 +208,7 @@ def calc_tpool_stats(stats):
     """
     data = {}
     stats = filter(None, stats.split(' '))
+    if len(stats) < 4: return data
     data['data_size'] = parse_size(stats[0])
     data['data_percent'] = parse_size(stats[1]) / 100
     data['data_used'] = data['data_size'] * data['data_percent']
@@ -224,7 +225,7 @@ def get_tpool_stats(config):
     Returns a mapping representing data for the serviced thinpool.
     """
     thinpooldev = config.get("SERVICED_DM_THINPOOLDEV", "serviced")
-    cmd = "%s lvs -o lv_size,data_percent,lv_metadata_size,metadata_percent %s 2>/dev/null | grep -vi lsize" % \
+    cmd = "%s lvs -o lv_size,data_percent,lv_metadata_size,metadata_percent %s 2>/dev/null | grep -vi lsize || true" % \
         (LANG, thinpooldev)
     stats = subprocess.check_output(cmd, shell=True).strip()
     if not stats:
@@ -284,15 +285,15 @@ def app_is_deployed():
 # what was too small.
 def check_thinpool(stats):
     err = ""
-    if stats['data_free'] < stats['data_min_free']:
+    if stats.get('data_free', None) and stats.get('data_min_free', None) and stats['data_free'] < stats['data_min_free']:
         err += "\n  Error: The thinpool storage free (%s) is under the minimum threshold (%s)" % \
             (bytesize(stats['data_free']), bytesize(stats['data_min_free']))
-    if stats['meta_free'] < stats['meta_min_free']:
+    if stats.get('meta_free', None) and stats.get('meta_min_free', None) and stats['meta_free'] < stats['meta_min_free']:
         err += "\n  Error: The thinpool metadata free (%s) is under the minimum threshold (%s)" % \
             (bytesize(stats['meta_free']), bytesize(stats['meta_min_free']))
         err += "\n  %sThe metadata minimum threshold is calculated as 2 percent of the thinpool minimum threshold value.%s" % \
             (C_RESET, C_ERR)
-    if len(stats['tenants']):
+    if len(stats.get('tenants', {})):
         for tenant in stats['tenants']:
             if tenant['free'] < stats['data_min_free']:
                 err += "\n  Error: The tenant volume %s available space (%s) is under the minimum threshold (%s)" % \
@@ -308,6 +309,7 @@ def check_metasize(stats):
     """
     Gives a warning if the metadata size is smaller than 1% of the thinpool size.
     """
+    if not stats.get('data_size', None) or not stats.get('meta_size', None): return
     metamin = stats['data_size'] * 0.01
     if stats['meta_size'] < metamin:
         msg = 'Warning: current serviced thinpool metadata size (%s) should be at least %s (1 percent of the thinpool size, %s)' % \
@@ -374,6 +376,11 @@ def show_help():
 
 # If the os environment variable NOCHECK is set, skip this entirely.
 if os.environ.get('NOCHECK', None):
+    sys.exit(0)
+
+# Don't check thinpool/tenants on delegates.
+config = parse_serviced_config()
+if not config['SERVICED_MASTER'].lower() in ['1', 'true']:
     sys.exit(0)
 
 # Don't perform any of these checks if HA utilities are installed.
