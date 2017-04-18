@@ -13,10 +13,7 @@
 package zookeeper
 
 import (
-	"fmt"
-
 	zklib "github.com/control-center/go-zookeeper/zk"
-	"github.com/zenoss/glog"
 )
 
 type zkLogger struct {}
@@ -30,5 +27,5 @@ func RegisterZKLogger() {
 }
 
 func (logger zkLogger) Printf(format string, args ...interface{}) {
-	glog.V(1).Infof("zklib: %s", fmt.Sprintf(format, args))
+	plog.Debugf("zklib: " + format, args...)
 }

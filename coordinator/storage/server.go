@@ -21,11 +21,12 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/logging"
 )
 
 var (
 	ZkStorageClientsPath = "/storage/clients"
+	plog = logging.PackageLogger()
 )
 
 // Server manages the exporting of a file system to clients.
@@ -87,7 +88,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	defer close(leaderDone)
 	leaderW, err := leader.TakeLead(node, leaderDone)
 	if err != zookeeper.ErrDeadlock && err != nil {
-		glog.Errorf("Could not take storage lead: %s", err)
+		plog.WithError(err).Error("Could not take storage lead")
 		return err
 	}
 
@@ -99,19 +100,19 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	for {
 		clients, clientW, err := conn.ChildrenW(ZkStorageClientsPath, done)
 		if err != nil {
-			glog.Errorf("Could not set up watch for storage clients: %s", err)
+			plog.WithError(err).Error("Could not set up watch for storage clients")
 			return err
 		}
 
 		s.driver.SetClients(clients...)
 		if err := s.driver.Sync(); err != nil {
-			glog.Errorf("Error syncing driver: %s", err)
+			plog.WithError(err).Error("Error syncing driver")
 			return err
 		}
 
 		select {
 		case e := <-clientW:
-			glog.Info("storage.server: received event: %s", e)
+			plog.WithField("event", e).Debug("storage.server: received event")
 		case <-leaderW:
 			err := fmt.Errorf("storage.server: lost lead")
 			return err

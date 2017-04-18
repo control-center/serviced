@@ -19,7 +19,11 @@ import (
 
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/logging"
+)
+
+var (
+	plog = logging.PackageLogger() // the standard package logger
 )
 
 // Driver implements a Zookeeper based client.Driver interface
@@ -87,19 +91,17 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		case e := <-event:
 			if e.State == zklib.StateHasSession {
 				connected = true
-				glog.V(1).Infof("zk connection has session %v", e)
+				plog.WithField("session", e).Debug("zk connection has session")
 			} else {
-				glog.V(1).Infof("waiting for zk connection to have session %v", e)
+				plog.WithField("session", e).Debug("waiting for zk connection to have session")
 			}
 		}
 	}
 	go func() {
 		for {
 			select {
-			case e, ok := <-event:
-				glog.V(1).Infof("zk event %s", e)
+			case _, ok := <-event:
 				if !ok {
-					glog.V(1).Infoln("zk eventchannel closed")
 					return
 				}
 			}
