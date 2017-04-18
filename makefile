@@ -269,6 +269,7 @@ $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS       = pkg/serviced-fstrim:service
 $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS      += pkg/serviced-zenossdbpack:serviced-zenossdbpack
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-cli.yaml:logconfig-cli.yaml
+$(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-controller.yaml:logconfig-controller.yaml
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-server.yaml:logconfig-server.yaml
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = $(GOBIN)/serviced:serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += $(GOBIN)/serviced-controller:serviced-controller
