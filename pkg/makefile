@@ -230,6 +230,7 @@ rpm: stage_rpm
 		--rpm-pretrans rpm/pretrans \
 		--config-files /etc/default/serviced \
 		--config-files /opt/serviced/etc/logconfig-cli.yaml \
+		--config-files /opt/serviced/etc/logconfig-controller.yaml \
 		--config-files /opt/serviced/etc/logconfig-server.yaml \
 		--config-files /opt/serviced/etc/logrotate.conf \
 		.
