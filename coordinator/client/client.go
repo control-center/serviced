@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client/retry"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/logging"
 )
 
 // EventType is a numerical type to identify event types.
@@ -83,6 +83,10 @@ var (
 	ErrNothing                 = errors.New("coord-client: no server responsees to process")
 	ErrSessionMoved            = errors.New("coord-client: session moved to another server, so operation is ignored")
 	ErrNoServer                = errors.New("coord-client: could not connect to a server")
+)
+
+var (
+	plog = logging.PackageLogger()
 )
 
 // Dir is an empty path node
@@ -278,7 +282,7 @@ func (client *Client) loop() {
 				func() {
 					defer func() {
 						if r := recover(); r != nil {
-							glog.Errorf("recovered from: %s", r)
+							plog.Errorf("recovered from: %v", r)
 						}
 					}()
 					(*connections[id]).Close()

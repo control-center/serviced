@@ -27,7 +27,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	"github.com/zenoss/glog"
+	"github.com/Sirupsen/logrus"
 )
 
 type nfsMountT func(string, string) error
@@ -78,13 +78,16 @@ func NewClient(host *host.Host, localPath string) (*Client, error) {
 func removeDeprecated(path string) {
 	mounts, err := mp.ListAll()
 	if err != nil {
-		glog.Warningf("Could not get mounts: %s", err)
+		plog.WithError(err).Warning("Could not get mount points")
 		return
 	}
 	for _, mount := range mounts {
 		if strings.HasSuffix(mount.Device, ":"+path) {
 			if err := mp.Unmount(mount.Device); err != nil {
-				glog.Warningf("Could not unmount deprecated path %s (%s): %s", mount.Device, mount.MountPoint, err)
+				plog.WithError(err).WithFields(logrus.Fields{
+					"device": mount.Device,
+					"mountpoint": mount.MountPoint,
+				}).Warning("Could not unmount deprecated path")
 			}
 		}
 	}
@@ -175,50 +178,50 @@ func (c *Client) loop() {
 			}
 		}
 
-		glog.Infof("creating %s", nodePath)
+		logger := plog.WithField("nodepath", nodePath)
+		logger.Info("Creating node")
 		if err = c.conn.Create(nodePath, node); err != nil && err != client.ErrNodeExists {
-			glog.Errorf("could not create %s: %s", nodePath, err)
+			logger.WithError(err).Error("Unable to create node")
 			continue
 		}
 		if err == client.ErrNodeExists {
 			err = c.conn.Get(nodePath, node)
 			if err != nil && err != client.ErrEmptyNode {
-				glog.Errorf("could not get %s: %s", nodePath, err)
+				logger.WithError(err).Error("Unable to read data from node")
 				continue
 			}
 		}
 		node.Host = *c.host
 		if err := c.setNode(nodePath, node, false); err != nil {
-			glog.Errorf("problem updating %s: %s", nodePath, err)
+			logger.WithError(err).Error("Unable to update node")
 			continue
 		}
 
 		e, err = c.conn.GetW(nodePath, node, doneW)
 		if err != nil {
-			glog.Errorf("err getting node %s: %s", nodePath, err)
+			logger.WithError(err).Error("Unable to read data from node")
 			continue
 		}
 		if err = leader.Current(leaderNode); err != nil {
-			glog.Errorf("err getting current leader: %s", err)
+			logger.WithError(err).Error("Unable to get current leader")
 			continue
 		}
 
 		if leaderNode.IPAddr != c.host.IPAddr {
-			glog.Infof("Check nfs supported")
+			logger.Info("Checking if NFS is supported")
 			nfsd := &nfs.NFSDriver{}
 			err = nfsd.Installed()
 			if err != nil {
 				if err == nfs.ErrNfsMountingUnsupported {
-					glog.Errorf("Install the nfs-common package: %s", err)
+					logger.WithError(err).Error("Install the nfs-common package")
 				}
-				glog.Errorf("Problem determining NFS available %s", err)
+				logger.WithError(err).Error("Unable to determine if NFS is available")
 				continue
 			}
-
 		} else {
-			glog.Info("skipping nfs mounting, server is localhost")
+			logger.Info("skipping nfs mounting, server is localhost")
 		}
-		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
+		logger.WithField("leader", leaderNode.Host.IPAddr).Info("At this point, the leader is known")
 		select {
 		case doneC <- leaderNode.ExportPath:
 			c.exportedPath = leaderNode.ExportPath
@@ -229,7 +232,7 @@ func (c *Client) loop() {
 			remoteShutdown <- true
 			return
 		case evt := <-e:
-			glog.Errorf("got zk event: %v", evt)
+			logger.WithField("event", evt).Error("got unexpected zookeeper event")
 			continue
 		}
 
@@ -239,15 +242,13 @@ func (c *Client) loop() {
 }
 
 func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error {
-	glog.V(4).Infof("waiting on lock for node %s: %+v", nodePath, node)
 	c.setLock.Lock()
 	defer c.setLock.Unlock()
-	glog.V(4).Infof("got lock for node %s: %+v", nodePath, node)
 
 	if doGetBeforeSet {
 		err := c.conn.Get(nodePath, node)
 		if err != nil && err != client.ErrEmptyNode {
-			glog.Warningf("could not get %s: %s", nodePath, err)
+			plog.WithError(err).WithField("nodepath", nodePath).Warning("Unable to read data from node")
 			return err
 		}
 	}
@@ -258,6 +259,5 @@ func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error
 		return err
 	}
 
-	glog.V(4).Infof("updated node %s: %+v", nodePath, node)
 	return nil
 }

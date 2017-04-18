@@ -19,7 +19,6 @@ import (
 
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/zenoss/glog"
 )
 
 const (
@@ -64,8 +63,9 @@ func (t *Transaction) Commit() error {
 	for _, op := range t.ops {
 		path := path.Join(t.conn.basePath, op.Path)
 		data, err := json.Marshal(op.Node)
+		logger := plog.WithField("path", path)
 		if err != nil {
-			glog.Errorf("Could not serialize node at path %s (%+v): %s", path, op.Node, err)
+			logger.WithError(err).WithField("node", op.Node).Error("Could not serialize node at path")
 			return client.ErrSerialization
 		}
 		switch op.Type {
@@ -81,7 +81,7 @@ func (t *Transaction) Commit() error {
 			stat := zklib.Stat{}
 			if vers := op.Node.Version(); vers != nil {
 				if zstat, ok := vers.(*zklib.Stat); !ok {
-					glog.Errorf("Could not parse version of node at path %s (%+v): %s", path, op.Node, err)
+					logger.WithError(err).WithField("node", op.Node).Error("Could not parse version of node at path")
 					return client.ErrInvalidVersionObj
 				} else {
 					stat = *zstat
@@ -95,7 +95,7 @@ func (t *Transaction) Commit() error {
 		case multiDelete:
 			_, stat, err := t.conn.conn.Get(path)
 			if err != nil {
-				glog.Errorf("Could not find path %s for delete: %s", path, err)
+				logger.WithError(err).Error("Could not find path for delete")
 				return xlateError(err)
 			}
 			ops = append(ops, &zklib.DeleteRequest{
