@@ -607,6 +607,9 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		}
 	}
 	glog.Infof("Service migration completed successfully")
+
+	// CC-3514 - rebuild logstash config in case the set of auditable log files has changed
+	f.ReloadLogstashConfig(ctx)
 	return nil
 }
 
