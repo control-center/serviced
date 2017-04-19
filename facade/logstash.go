@@ -27,8 +27,10 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/dao"
 )
 
 
@@ -37,12 +39,25 @@ var (
 	ErrLogstashUnchanged = errors.New("logstash config unchanged")
 )
 
-// ReloadLogstashConfig will create a new logstash configuration based on the current
-// templates. If that configuration is different from the one currently used by logstash,
-// then it will restart the logstash container so it can use the new filter set.
 //
-// This method should be called anytime the available service definitions are modified
+// ReloadLogstashConfig will create a new logstash configuration based on the union of information from all
+// templates and all currently deployed services.  A union of values is used because scenarios like a service migration
+// can expand the scope of auditable logs or change log filters without touching the currently loaded templates.
+//
+// If the new configuration is different from the one currently used by logstash,
+// then it will rewrite the logstash.conf file, trusting that logstash will recognize the file change
+// and reload the new filter set.
+//
+// This method should be called anytime the available service templates are modified or deployed services are upgraded.
+//
 // This method depends on the elasticsearch container being up and running.
+//
+// Note that the strategy of using a union of fields from the templates and deployed services means that if a template
+// says a certain log file should be auditable, but the deployed service does not, then the field will still be
+// auditable.  Refactoring to update logstash soley on the basis of deployed services might resolve that problem, but
+// it still leaves the constraint that in cases where separate tenant applications have conflicting filters/auditable
+// types for the same file, the last one wins.
+//
 func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 	// serialize updates so that we don't have different threads overwriting the same file.
 	logstashConfigLock.Lock()
@@ -53,7 +68,26 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 		plog.WithError(err).Error("Could not retrieve service templates")
 		return err
 	}
-	err = writeLogstashConfiguration(templates)
+
+	tenantIDs, err := f.GetTenantIDs(ctx)
+	if err != nil {
+		plog.WithError(err).Error("Could not retrieve tenant IDs")
+		return err
+	}
+
+	services := []service.Service{}
+	for _, tenantID := range tenantIDs {
+		svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
+		if err != nil {
+			plog.WithError(err).
+				WithField("tenantid", tenantID).Error("Could not retrieve services for tenant")
+			return err
+		}
+
+		services = append(services, svcs...)
+	}
+
+	err = writeLogstashConfiguration(templates, services)
 	if err == ErrLogstashUnchanged {
 		return nil
 	} else if err != nil {
@@ -87,7 +121,7 @@ func resourcesDir() string {
 //
 // This method returns nil of logstash configuration was replaced,
 // ErrLogstashUnchanged if the configuration is unchanged, or other errors if there was an I/O problem
-func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
+func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate, services []service.Service) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
 	filterDefs := make(map[string]string)
@@ -104,10 +138,20 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	typeFilter := []string{}
 	auditableTypes := []string{}
 	auditLogSection := ""
+	plog.Debugf("Checking %d templates", len(templates))
 	for _, template := range templates {
-		filters += getFilters(template.Services, filterDefs, &typeFilter)
-		auditLogSection = getAuditLogSection(template.Services, &auditableTypes)
+		filters += getFiltersFromTemplates(template.Services, filterDefs, &typeFilter)
+		auditLogSection = getAuditLogSectionFromTemplates(template.Services, &auditableTypes)
 	}
+	plog.Debugf("after templates, auditLogSection=%s", auditLogSection)
+
+	plog.Debugf("Checking %d services", len(services))
+	for _, svc := range services {
+		filters += getFilters(svc.LogConfigs, filterDefs, &typeFilter)
+		auditLogSection += getAuditLogSection(svc.LogConfigs,  &auditableTypes)
+	}
+	plog.Debugf("after services, auditLogSection=%s", auditLogSection)
+
 	newConfigFile := resourcesDir() + "/logstash/logstash.conf.new"
 	originalFile := resourcesDir() + "/logstash/logstash.conf"
 	logger := plog.WithFields(log.Fields{
@@ -162,47 +206,59 @@ func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[st
 	return filterDefs
 }
 
-func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, typeFilter *[]string) string {
+func getFiltersFromTemplates(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, typeFilter *[]string) string {
 	filters := ""
-	for _, service := range services {
-		for _, config := range service.LogConfigs {
-			for _, filtName := range config.Filters {
-				//do not write duplicate types, logstash doesn't handle this
-				if !utils.StringInSlice(config.Type, *typeFilter) {
-					filters += fmt.Sprintf("\n  if [type] == \"%s\" {\n    %s\n  }\n",
-						config.Type, indent(filterDefs[filtName], "    "))
-					*typeFilter = append(*typeFilter, config.Type)
-				}
-			}
-		}
-		if len(service.Services) > 0 {
-			subFilts := getFilters(service.Services, filterDefs, typeFilter)
+	for _, svc := range services {
+		filters += getFilters(svc.LogConfigs, filterDefs, typeFilter)
+		if len(svc.Services) > 0 {
+			subFilts := getFiltersFromTemplates(svc.Services, filterDefs, typeFilter)
 			filters += subFilts
 		}
 	}
 	return filters
 }
 
-func getAuditLogSection(services []servicedefinition.ServiceDefinition, auditTypes *[]string) string {
-	auditSection := ""
-	fileSection := `
-file {
-  path => "/var/log/serviced/application-audit.log"
-  codec => line { format => "%{message}"}
-}
-`
-	for _, service := range services {
-		for _, config := range service.LogConfigs {
-			if config.IsAudit {
-				if !utils.StringInSlice(config.Type, *auditTypes){
-					auditSection += fmt.Sprintf("\n        if [fields][type] == \"%s\" {\n%s\n        }", config.Type,indent(fileSection, "            "))
-					*auditTypes = append(*auditTypes, config.Type)
-				}
+func getFilters(configs []servicedefinition.LogConfig, filterDefs map[string]string, typeFilter *[]string) string {
+	filters := ""
+	for _, config := range configs {
+		for _, filtName := range config.Filters {
+			//do not write duplicate types, logstash doesn't handle this
+			if !utils.StringInSlice(config.Type, *typeFilter) {
+				filters += fmt.Sprintf("\n  if [type] == \"%s\" {\n    %s\n  }\n",
+					config.Type, indent(filterDefs[filtName], "    "))
+				*typeFilter = append(*typeFilter, config.Type)
 			}
 		}
-		if len(service.Services) > 0 {
-			subServiceOutput := getAuditLogSection(service.Services, auditTypes)
+	}
+	return filters
+}
+
+func getAuditLogSectionFromTemplates(services []servicedefinition.ServiceDefinition, auditTypes *[]string) string {
+	auditSection := ""
+	for _, svc := range services {
+		auditSection += getAuditLogSection(svc.LogConfigs, auditTypes)
+		if len(svc.Services) > 0 {
+			subServiceOutput := getAuditLogSectionFromTemplates(svc.Services, auditTypes)
 			auditSection += subServiceOutput
+		}
+	}
+	return auditSection
+}
+
+func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]string) string {
+	auditSection := ""
+	fileSection := `file {
+  path => "/var/log/serviced/application-audit.log"
+  codec => line { format => "%{message}"}
+}`
+	for _, config := range configs {
+		if config.IsAudit {
+			if !utils.StringInSlice(config.Type, *auditTypes){
+				plog.Infof("found type %q enabled for audit, file=%s", config.Type, config.Path)
+				auditSection += fmt.Sprintf("\n        if [fields][type] == \"%s\" {\n%s        }",
+					config.Type, indent(fileSection, "            "))
+				*auditTypes = append(*auditTypes, config.Type)
+			}
 		}
 	}
 	return auditSection

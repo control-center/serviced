@@ -606,6 +606,12 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 			return err
 		}
 	}
+	// CC-3514 - rebuild logstash config in case the set of auditable log files has changed
+	if _, err := f.GetService(ctx, req.ServiceID); err == nil {
+		f.ReloadLogstashConfig(ctx)
+	} else {
+		glog.Errorf("Logstash configuration not reloaded; unable to read tenant service %s: %s", req.ServiceID, err)
+	}
 	glog.Infof("Service migration completed successfully")
 	return nil
 }

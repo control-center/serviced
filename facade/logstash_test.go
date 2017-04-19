@@ -258,7 +258,7 @@ func TestConstructingFilterString(t *testing.T) {
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
 	typeFilter := []string{}
-	filters := getFilters(services, filterDefs, &typeFilter)
+	filters := getFiltersFromTemplates(services, filterDefs, &typeFilter)
 	testString := "My Test Filter"
 
 	// make sure our test filter definition is in the constructed filters
@@ -270,7 +270,7 @@ func TestConstructingFilterString(t *testing.T) {
 func TestGetAuditLogSectionForNoservice(t *testing.T) {
 	services := []servicedefinition.ServiceDefinition{}
 	auditLogTypes := []string{}
-	auditLogSection := getAuditLogSection(services, &auditLogTypes)
+	auditLogSection := getAuditLogSectionFromTemplates(services, &auditLogTypes)
 	if len(auditLogSection) > 0 {
 		t.Error(fmt.Sprintf("Audit Log Section should be empty but it is not %d", len(auditLogSection)))
 	}
@@ -280,7 +280,7 @@ func TestGetAuditLogSectionForServicesNotEnabledAudit(t *testing.T) {
 	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
 	auditableTypes := []string{}
-	auditLogSection := getAuditLogSection(services, &auditableTypes)
+	auditLogSection := getAuditLogSectionFromTemplates(services, &auditableTypes)
 	if len(auditLogSection) != 0 {
 		t.Error(fmt.Sprintf("expected am empty auditLogSection , but found %d size : AuditLogSection = %s", len(auditLogSection), auditLogSection))
 	}
@@ -289,7 +289,7 @@ func TestMultipleTypesForAuditLogging(t *testing.T){
 	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingServiceWithAuditEnabled()
 	auditableTypes := []string{}
-	auditLogSection := getAuditLogSection(services, &auditableTypes)
+	auditLogSection := getAuditLogSectionFromTemplates(services, &auditableTypes)
 	fieldTypeCount := strings.Count(auditLogSection, "if [fields][type]")
 	if fieldTypeCount !=2 {
 		t.Error(fmt.Sprintf("expected 2 for two different LogCoongfig Types, but found %d : AuditLogSection = %s", fieldTypeCount, auditLogSection))
@@ -300,7 +300,7 @@ func TestNoDuplicateAuditTypes(t *testing.T) {
 	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingServiceWithAuditEnabled()
 	auditableTypes := []string{}
-	auditLogSection := getAuditLogSection(services, &auditableTypes)
+	auditLogSection := getAuditLogSectionFromTemplates(services, &auditableTypes)
 	auditTypeCount := strings.Count(auditLogSection, "if [fields][type] == \"foo2\"")
 	if auditTypeCount !=1 {
 		t.Error(fmt.Sprintf("expected only 1 section for 'foo2' type, but found %d: AuditLogSection = %s ", auditTypeCount, auditLogSection))
@@ -312,7 +312,7 @@ func TestNoDuplicateFilters(t *testing.T) {
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
 	typeFilter := []string{}
-	filters := getFilters(services, filterDefs, &typeFilter)
+	filters := getFiltersFromTemplates(services, filterDefs, &typeFilter)
 
 	filterCount := strings.Count(filters, "if [type] == \"foo2\"")
 	if filterCount != 1 {
