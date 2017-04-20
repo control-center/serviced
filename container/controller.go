@@ -109,6 +109,7 @@ type ControllerOptions struct {
 type Controller struct {
 	options            ControllerOptions
 	hostID             string
+	hostIPs            string
 	tenantID           string
 	dockerID           string
 	metricForwarder    *MetricForwarder
@@ -118,6 +119,7 @@ type Controller struct {
 	prereqs            []domain.Prereq
 	zkInfo             node.ZkInfo
 	zkConn             coordclient.Connection
+	svcPath		   string
 	PIDFile            string
 	exitStatus         int
 	endpoints          *ContainerEndpoints
@@ -255,10 +257,10 @@ func setupConfigFiles(svc *service.Service) error {
 }
 
 // setupLogstashFiles sets up logstash files
-func setupLogstashFiles(hostID string, service *service.Service, instanceID string, resourcePath string) error {
+func setupLogstashFiles(hostID string, hostIPs string, svcPath string, service *service.Service, instanceID string, resourcePath string) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(logstashContainerConfig, hostID, service, instanceID, resourcePath)
+		err := writeLogstashAgentConfig(logstashContainerConfig, hostID, hostIPs, svcPath, service, instanceID, resourcePath)
 		if err != nil {
 			return err
 		}
@@ -338,8 +340,14 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidHostID
 	}
 
+	// get host IPs
+	c.hostIPs = os.Getenv("CONTROLPLANE_HOST_IPS")
+
+	// get service path
+	c.svcPath = os.Getenv("SERVICED_SVC_PATH")
+
 	if options.Logforwarder.Enabled {
-		if err := setupLogstashFiles(c.hostID, service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
+		if err := setupLogstashFiles(c.hostID, c.hostIPs, c.svcPath, service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
