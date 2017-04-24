@@ -18,14 +18,14 @@
       
       <meta name="release" content="3">
       
-      <meta name="modification" content="0">
+      <meta name="modification" content="1">
       
       <meta name="DC.Publisher" content="Zenoss, Inc.">
       
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="refid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/manage\/admin.html","previousTopicHref":"feature\/vars\/vars.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/gui\/gui.html","previousTopicHref":"feature\/vars\/vars.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -45,14 +45,7 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
-               <ul class="nav navbar-nav navbar-right hidden-xs">
-                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
-                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
-                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
-                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
-                     </ul>
-                  </li>
-               </ul>
+               <ul class="nav navbar-nav navbar-right hidden-xs"></ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -70,40 +63,26 @@
                <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
                   <ul class="nav bs-docs-sidenav">
                      <li class=" no-child  active"><a class="selected" href="../../../book/help/front/about.html">About this guide</a></li>
-                     <li class=" collapsible  collapsed"><a href="../../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
-                           <li class=" no-child "><a href="../../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../../feature/backup/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../../feature/backup/cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
+                     <li class=" collapsible  collapsed"><a href="../../../feature/gui/gui.html"><span class="enumeration enumeration0">Chapter 1. </span>Browser interface overview</a><ul class="nav">
+                           <li class=" no-child "><a href="../../../feature/gui/nav-menubar.html">Main menu and navigation</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../../feature/gui/app.html">Applications page</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/gui/internal-svcs.html">Internal Services details</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../../feature/gui/app-detail.html">Application details</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../../feature/gui/app-detail-ip-assign.html">IP Assignments</a></li>
+                                       <li class=" no-child "><a href="../../../feature/gui/app-detail-config.html">Configuration Files</a></li>
+                                       <li class=" no-child "><a href="../../../feature/gui/app-detail-services.html">Services</a></li>
+                                       <li class=" no-child "><a href="../../../feature/gui/app-detail-schedule.html">Scheduled Tasks table</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
-                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../../feature/manage/snapshot.html">Creating a snapshot</a></li>
-                                 <li class=" no-child "><a href="../../../feature/manage/rollback.html">Rolling back to a snapshot</a></li>
+                           <li class=" no-child "><a href="../../../feature/gui/pools.html">Resource Pools page</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../../feature/gui/hosts.html">Hosts page</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/gui/hosts-details.html">Host details</a></li>
                               </ul>
                            </li>
-                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/intro-stop-start.html">Stopping and starting Control Center for maintenance</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../../feature/manage/stop-1.html">Stopping Control Center (single-host deployment)</a></li>
-                                 <li class=" no-child "><a href="../../../feature/manage/start-1.html">Starting Control Center (single-host deployment)</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../../feature/manage/stop-n.html">Stopping Control Center (multi-host deployment)</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../../feature/manage/stop-n-master.html">Stopping a master host (multi-host deployment)</a></li>
-                                       <li class=" no-child "><a href="../../../feature/manage/stop-n-delegate.html">Stopping a delegate host (multi-host deployment)</a></li>
-                                    </ul>
-                                 </li>
-                                 <li class=" no-child "><a href="../../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
-                              </ul>
-                           </li>
-                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
-                              </ul>
-                           </li>
+                           <li class=" no-child "><a href="../../../feature/gui/logs.html">Logs page</a></li>
+                           <li class=" no-child "><a href="../../../feature/gui/backup-restore-page.html">Backup/Restore page</a></li>
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="../../../feature/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Command-line interface reference</a><ul class="nav">
@@ -121,6 +100,53 @@
                            <li class=" no-child "><a href="../../../feature/cli/serviced-snapshot.html">serviced snapshot</a></li>
                            <li class=" no-child "><a href="../../../feature/cli/serviced-storage.html">serviced-storage</a></li>
                            <li class=" no-child "><a href="../../../feature/vars/file.html">Control Center configuration file</a></li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  collapsed"><a href="../../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 3. </span>Administration reference</a><ul class="nav">
+                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/thinpool-minimums.html">Control Center application data storage requirements</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/manage/thinpool-examine.html">Examining application data storage status</a></li>
+                                 <li class=" no-child "><a href="../../../feature/manage/resize-meta.html">Adding space to the metadata area of a Control Center thin pool</a></li>
+                                 <li class=" no-child "><a href="../../../feature/manage/resize-data.html">Adding space to the data area of a Control Center thin pool</a></li>
+                                 <li class=" no-child "><a href="../../../feature/manage/resize-tenant-vd.html">Adding space to a tenant volume</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
+                              </ul>
+                           </li>
+                           <li class=" no-child "><a href="../../../feature/manage/NAT-overview.html">Using Control Center with a NAT device</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" no-child "><a href="../../../feature/backup/restore.html">Restoring from a backup</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/snapshot-rollback.html">Creating snapshots and rolling back</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/manage/snapshot.html">Creating a snapshot</a></li>
+                                 <li class=" no-child "><a href="../../../feature/manage/rollback.html">Rolling back to a snapshot</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/intro-stop-start.html">Stopping and starting Control Center for maintenance</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/manage/stop-1.html">Stopping Control Center (single-host deployment)</a></li>
+                                 <li class=" no-child "><a href="../../../feature/manage/start-1.html">Starting Control Center (single-host deployment)</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../../feature/manage/stop-n.html">Stopping Control Center (multi-host deployment)</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../../feature/manage/stop-n-master.html">Stopping a master host (multi-host deployment)</a></li>
+                                       <li class=" no-child "><a href="../../../feature/manage/stop-n-delegate.html">Stopping a delegate host</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" no-child "><a href="../../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../../feature/manage/rolling-restart-overview.html">Rolling restart of services </a><ul class="nav">
+                                 <li class=" no-child "><a href="../../../feature/manage/change-rolling-restart.html">Changing rolling restart</a></li>
+                              </ul>
+                           </li>
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
@@ -148,7 +174,7 @@
                         <div class="body refbody">
                            
                            
-                           <div class="section"><a name="refid-d1036e25" id="refid-d1036e25" class="anchor"></a>
+                           <div class="section"><a name="refid-d1399e25" id="refid-d1399e25" class="anchor"></a>
                               
                               <p class="p"><cite class="cite">Control Center Reference Guide</cite> provides information and procedures for managing <span class="ph">Control Center</span>.
                               </p>
@@ -158,26 +184,26 @@
                            
                            
                            
-                           <div class="section"><a name="refid-d1036e36" id="refid-d1036e36" class="anchor"></a>
+                           <div class="section"><a name="refid-d1399e36" id="refid-d1399e36" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">Related publications</h2>
                               
                               
                               <div class="tablenoborder">
-                                 <table id="ID_d1036e41" class="table">
+                                 <table id="ID_d1399e41" class="table">
                                     
-                                    <col style="width:33.33333333333333%">
+                                    <col style="width:40%">
                                     
-                                    <col style="width:66.66666666666666%">
+                                    <col style="width:60%">
                                     
                                     <thead class="thead" style="text-align:left;">
                                        
                                        <tr class="row">
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1036e53">Title</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1399e53">Title</th>
                                           
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1036e56">Description&nbsp;</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1399e56">Description&nbsp;</th>
                                           
                                           
                                        </tr>
@@ -190,10 +216,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e53 "><cite class="cite">Control Center Release Notes</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e53 "><cite class="cite">Control Center Release Notes</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e56 ">Describes known issues, fixed issues, and late-breaking
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e56 ">Describes known issues, fixed issues, and late-breaking
                                              information not included in other publications.
                                           </td>
                                           
@@ -203,10 +229,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e53 "><cite class="cite">Control Center Planning Guide</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e53 "><cite class="cite">Control Center Planning Guide</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e56 ">Provides both general and specific information about
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e56 ">Provides both general and specific information about
                                              preparing to deploy a <span class="ph">Control Center</span> cluster.
                                           </td>
                                           
@@ -216,10 +242,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e53 "><cite class="cite">Control Center Installation Guide</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e53 "><cite class="cite">Control Center Installation Guide</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e56 ">Provides detailed procedures for installing
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e56 ">Provides detailed procedures for installing
                                              and configuring a <span class="ph">Control Center</span> cluster.
                                           </td>
                                           
@@ -229,10 +255,24 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e53 "><cite class="cite">Control Center Reference Guide</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e53 "><cite class="cite">Control Center Installation Guide for High-Availability Deployments</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e56 ">Provides information and procedures for managing
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e56 ">Provides detailed procedures for installing
+                                             and configuring <span class="ph">Control Center</span> in a 
+                                             high-availability deployment.
+                                          </td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e53 "><cite class="cite">Control Center Reference Guide</cite></td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e56 ">Provides information and procedures for managing
                                              <span class="ph">Control Center</span>. This information is also available
                                              as online help in the <span class="ph">Control Center</span> browser interface.
                                           </td>
@@ -243,12 +283,26 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e53 "><cite class="cite">Control Center Upgrade Guide</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e53 "><cite class="cite">Control Center Upgrade Guide</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e56 ">Provides detailed procedures for updating
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e56 ">Provides detailed procedures for updating
                                              a <span class="ph">Control Center</span> deployment to the 
                                              latest release.
+                                          </td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e53 "><cite class="cite">Control Center Upgrade Guide for High-Availability Deployments</cite></td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e56 ">Provides detailed procedures for updating
+                                             a high-availability deployment of <span class="ph">Control Center</span>
+                                             to the latest release.
                                           </td>
                                           
                                           
@@ -266,13 +320,13 @@
                            </div>
                            
                            
-                           <div class="section"><a name="refid-d1036e132" id="refid-d1036e132" class="anchor"></a>
+                           <div class="section"><a name="refid-d1399e159" id="refid-d1399e159" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">Documentation feedback</h2>
                               
                               <p class="p">To provide feedback about this document, or to report an error or omission, please send an
                                  email to <samp class="ph codeph">docs@controlcenter.io</samp>. In the email, please include the document
-                                 title (<cite class="cite">Control Center Reference Guide</cite>) and part number (1340.<span class="ph">17.061</span>)
+                                 title (<cite class="cite">Control Center Reference Guide</cite>) and part number (1340.<span class="ph">17.100</span>)
                                  and as much information as possible about the context of your feedback.
                               </p>
                               
@@ -281,7 +335,7 @@
                            
                            
                            
-                           <div class="section"><a name="refid-d1036e150" id="refid-d1036e150" class="anchor"></a>
+                           <div class="section"><a name="refid-d1399e177" id="refid-d1399e177" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">Supported clients and browsers</h2>
                               
@@ -292,7 +346,7 @@
                               
                               
                               <div class="tablenoborder">
-                                 <table id="ID_d1036e158" class="table">
+                                 <table id="ID_d1399e185" class="table">
                                     
                                     <col style="width:33.33333333333333%">
                                     
@@ -302,10 +356,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1036e170">Client OS</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1399e197">Client OS</th>
                                           
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1036e173">Supported Browsers</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1399e200">Supported Browsers</th>
                                           
                                           
                                        </tr>
@@ -318,10 +372,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" rowspan="4" style="text-align:left;vertical-align:top;" headers="d1036e170 ">Windows 7 and 8.1</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e197 ">Windows 7 and 8.1</td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Internet Explorer 11 (Enterprise mode only; compatibility mode is not
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Internet Explorer 11 (Enterprise mode only; compatibility mode is not
                                              supported.)
                                           </td>
                                           
@@ -331,7 +385,12 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Internet Explorer 10 (Compatibility mode is not supported.)</td>
+                                          <td class="entry cellrowborder" rowspan="4" style="text-align:left;vertical-align:top;" headers="d1399e197 ">Windows 10</td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Internet Explorer 11 (Enterprise mode only; compatibility mode is not
+                                             supported.)
+                                          </td>
                                           
                                           
                                        </tr>
@@ -339,7 +398,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Firefox 30 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Firefox 50 and later</td>
                                           
                                           
                                        </tr>
@@ -347,19 +406,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Chrome 30 and above</td>
-                                          
-                                          
-                                       </tr>
-                                       
-                                       
-                                       
-                                       <tr class="row">
-                                          
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1036e170 ">Windows Server 2012 R2</td>
-                                          
-                                          
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Firefox 30</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Chrome 54 and later</td>
                                           
                                           
                                        </tr>
@@ -367,7 +414,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Chrome 36</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Microsoft Edge</td>
                                           
                                           
                                        </tr>
@@ -376,30 +423,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1036e170 ">Macintosh OS/X 10.9</td>
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1399e197 ">Windows Server 2012 R2</td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Firefox 30 and above</td>
-                                          
-                                          
-                                       </tr>
-                                       
-                                       
-                                       <tr class="row">
-                                          
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Chrome 36 and above</td>
-                                          
-                                          
-                                       </tr>
-                                       
-                                       
-                                       
-                                       <tr class="row">
-                                          
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1036e170 ">Ubuntu 14.04 LTS</td>
-                                          
-                                          
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Firefox 30 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Firefox 30</td>
                                           
                                           
                                        </tr>
@@ -407,7 +434,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Chrome 37 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Chrome 36</td>
                                           
                                           
                                        </tr>
@@ -416,10 +443,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1036e170 ">Red Hat Enterprise Linux 6.5, CentOS 6.5</td>
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1399e197 ">Macintosh OS/X 10.9</td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Firefox 30 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Firefox 30 and above</td>
                                           
                                           
                                        </tr>
@@ -427,7 +454,47 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1036e173 ">Chrome 37 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Chrome 36 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1399e197 ">Ubuntu 14.04 LTS</td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Firefox 30 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Chrome 37 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1399e197 ">Red Hat Enterprise Linux 6.5, CentOS 6.5</td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Firefox 30 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1399e200 ">Chrome 37 and above</td>
                                           
                                           
                                        </tr>
@@ -452,7 +519,7 @@
                      <div class="row">
                         <footer id="topicsNPLinks">
                            <div id="footer_previous"><a href="../../../feature/vars/vars.html" class="previous" rel="internal" title=""><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only"></span></a></div>
-                           <div id="footer_next"><a href="../../../feature/manage/admin.html" class="next" rel="internal" title="Administration reference"><span class="sr-only">Administration reference</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_next"><a href="../../../feature/gui/gui.html" class="next" rel="internal" title="Browser interface overview"><span class="sr-only">Browser interface overview</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>

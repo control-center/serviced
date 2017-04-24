@@ -12,9 +12,9 @@
       
       <meta name="DC.Title" content="Backing up and restoring">
       
-      <meta name="abstract" content="Use Control Center to back up applications that Control Center manages. Having accurate and tested system backups can mitigate problems caused by software or hardware issues. The Control Center backup process creates a compressed tar archive file (.tgz) that can be restored on the same cluster or a similar cluster.">
+      <meta name="abstract" content="Use Control Center to back up applications that Control Center manages. Having accurate and tested system backups can mitigate problems caused by software or hardware issues.">
       
-      <meta name="description" content="Use Control Center to back up applications that Control Center manages. Having accurate and tested system backups can mitigate problems caused by software or hardware issues. The Control Center backup process creates a compressed tar archive file (.tgz) that can be restored on the same cluster or a similar cluster.">
+      <meta name="description" content="Use Control Center to back up applications that Control Center manages. Having accurate and tested system backups can mitigate problems caused by software or hardware issues.">
       
       <meta name="DC.Relation" scheme="URI" content="../manage/admin.html">
       
@@ -38,16 +38,16 @@
       
       <meta name="release" content="3">
       
-      <meta name="modification" content="0">
+      <meta name="modification" content="1">
       
-      <meta name="modification" content="0">
+      <meta name="modification" content="1">
       
       <meta name="DC.Publisher" content="Zenoss, Inc.">
       
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="referenceid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/backup\/best-practice.html","previousTopicHref":"feature\/manage\/resize.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/backup\/best-practice.html","previousTopicHref":"feature\/manage\/NAT-overview.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -67,14 +67,7 @@
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
-               <ul class="nav navbar-nav navbar-right hidden-xs">
-                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
-                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
-                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
-                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
-                     </ul>
-                  </li>
-               </ul>
+               <ul class="nav navbar-nav navbar-right hidden-xs"></ul>
             </div>
          </nav>
          <div id="msg-version"></div>
@@ -94,40 +87,26 @@
                <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
                   <ul class="nav bs-docs-sidenav">
                      <li class=" no-child "><a href="../../book/help/front/about.html">About this guide</a></li>
-                     <li class=" collapsible  active"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
-                           <li class=" no-child "><a href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
-                           <li class=" collapsible  active"><a class="selected" href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
-                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
-                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
-                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
+                     <li class=" collapsible  collapsed"><a href="../../feature/gui/gui.html"><span class="enumeration enumeration0">Chapter 1. </span>Browser interface overview</a><ul class="nav">
+                           <li class=" no-child "><a href="../../feature/gui/nav-menubar.html">Main menu and navigation</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/gui/app.html">Applications page</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/gui/internal-svcs.html">Internal Services details</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/gui/app-detail.html">Application details</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/gui/app-detail-ip-assign.html">IP Assignments</a></li>
+                                       <li class=" no-child "><a href="../../feature/gui/app-detail-config.html">Configuration Files</a></li>
+                                       <li class=" no-child "><a href="../../feature/gui/app-detail-services.html">Services</a></li>
+                                       <li class=" no-child "><a href="../../feature/gui/app-detail-schedule.html">Scheduled Tasks table</a></li>
                                     </ul>
                                  </li>
-                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
                               </ul>
                            </li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/snapshot.html">Creating a snapshot</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/rollback.html">Rolling back to a snapshot</a></li>
+                           <li class=" no-child "><a href="../../feature/gui/pools.html">Resource Pools page</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/gui/hosts.html">Hosts page</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/gui/hosts-details.html">Host details</a></li>
                               </ul>
                            </li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/intro-stop-start.html">Stopping and starting Control Center for maintenance</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/stop-1.html">Stopping Control Center (single-host deployment)</a></li>
-                                 <li class=" no-child "><a href="../../feature/manage/start-1.html">Starting Control Center (single-host deployment)</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/stop-n.html">Stopping Control Center (multi-host deployment)</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../feature/manage/stop-n-master.html">Stopping a master host (multi-host deployment)</a></li>
-                                       <li class=" no-child "><a href="../../feature/manage/stop-n-delegate.html">Stopping a delegate host (multi-host deployment)</a></li>
-                                    </ul>
-                                 </li>
-                                 <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
-                              </ul>
-                           </li>
-                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
-                              </ul>
-                           </li>
+                           <li class=" no-child "><a href="../../feature/gui/logs.html">Logs page</a></li>
+                           <li class=" no-child "><a href="../../feature/gui/backup-restore-page.html">Backup/Restore page</a></li>
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="../../feature/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Command-line interface reference</a><ul class="nav">
@@ -145,6 +124,53 @@
                            <li class=" no-child "><a href="../../feature/cli/serviced-snapshot.html">serviced snapshot</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-storage.html">serviced-storage</a></li>
                            <li class=" no-child "><a href="../../feature/vars/file.html">Control Center configuration file</a></li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  active"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 3. </span>Administration reference</a><ul class="nav">
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/thinpool-minimums.html">Control Center application data storage requirements</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/thinpool-examine.html">Examining application data storage status</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/resize-meta.html">Adding space to the metadata area of a Control Center thin pool</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/resize-data.html">Adding space to the data area of a Control Center thin pool</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/resize-tenant-vd.html">Adding space to a tenant volume</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/emer-sdown-overview.html">Emergency shutdown of services</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/clear-emerg.html">Resetting emergency shutdown flags</a></li>
+                              </ul>
+                           </li>
+                           <li class=" no-child "><a href="../../feature/manage/NAT-overview.html">Using Control Center with a NAT device</a></li>
+                           <li class=" collapsible  active"><a class="selected" href="../../feature/backup/overview.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/backup/best-practice.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/backup/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/backup/cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/backup/cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/backup/cli-exclude-multiple.html">Exclude multiple tenant volumes from the backup</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" no-child "><a href="../../feature/backup/restore.html">Restoring from a backup</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Creating snapshots and rolling back</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/snapshot.html">Creating a snapshot</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/rollback.html">Rolling back to a snapshot</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/intro-stop-start.html">Stopping and starting Control Center for maintenance</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/stop-1.html">Stopping Control Center (single-host deployment)</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/start-1.html">Starting Control Center (single-host deployment)</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/stop-n.html">Stopping Control Center (multi-host deployment)</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/manage/stop-n-master.html">Stopping a master host (multi-host deployment)</a></li>
+                                       <li class=" no-child "><a href="../../feature/manage/stop-n-delegate.html">Stopping a delegate host</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/rolling-restart-overview.html">Rolling restart of services </a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/change-rolling-restart.html">Changing rolling restart</a></li>
+                              </ul>
+                           </li>
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
@@ -172,19 +198,17 @@
                         <div class="body refbody">
                            <p class="shortdesc">Use <span class="ph">Control Center</span> to back up applications that <span class="ph">Control Center</span> manages.
                               Having accurate and tested system backups can mitigate problems caused by software or hardware
-                              issues. The <span class="ph">Control Center</span> backup process creates a compressed tar archive file
-                              (<span class="ph filepath">.tgz</span>) that can be restored on the same cluster or a similar
-                              cluster.
+                              issues. 
                            </p>
                            
                            
-                           <div class="section"><a name="referenceid-d2116e50" id="referenceid-d2116e50" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d19314e44" id="referenceid-d19314e44" class="anchor"></a>
                               
                               <p class="p">Backups include the current state of the system, the state of all services, configuration
-                                 information, and application data.  The backup process leverages snapshot
-                                 functionality. Therefore, when a backup is running, you can start and restart services;
-                                 there is no need to shut down the application or Docker containers. The services are only
-                                 momentarily suspended to enable reading the data.
+                                 information, and application data.  The backup process leverages snapshot functionality.
+                                 Therefore, when a backup is running, you can start and restart services; there is no need to
+                                 shut down the application or Docker containers. The services are only momentarily suspended
+                                 to enable reading the data.
                               </p>
                               
                               
@@ -192,6 +216,13 @@
                                  interface (CLI). Results are comparable; however, the CLI offers an option to exclude
                                  subdirectories from a backup.
                               </p>
+                              
+                              
+                              <p class="p">The <span class="ph">Control Center</span> backup process creates a compressed tar archive file
+                                 (<span class="ph filepath">.tgz</span>) that can be restored on the same cluster or a similar cluster.
+                                 <span class="ph" id="referenceid__backup-space-est">Before starting a backup, <span class="ph">Control Center</span>
+                                    estimates the size of the backup file and compares it to the amount of free space. If
+                                    storage space is insufficient, <span class="ph">Control Center</span> does not start a backup.</span></p>
                               
                               
                               <p class="p">The default directory for backup files is <span class="ph filepath">/opt/serviced/var/backups</span>.
@@ -232,7 +263,7 @@
                               </p>
                               
                               
-                              <p class="p">For more information, see <a class="xref" href="../manage/snapshot-rollback.html" title="Though backups are the most reliable and durable way to preserve Docker images and configurations, creating a backup of an entire application is not always practical. However, you need to safeguard against potential risk when changing the system. In these cases, you can create a snapshot of the system.">Snapshot and rollback</a> and <a class="xref" href="../cli/cli.html">Command-line interface reference</a>.
+                              <p class="p">For more information, see <a class="xref" href="../manage/snapshot-rollback.html" title="Though backups are the most reliable and durable way to preserve Docker images and configurations, creating a backup of an entire application is not always practical. However, you need to safeguard against potential risk when changing the system. In these cases, you can create a snapshot of the system.">Creating snapshots and rolling back</a> and <a class="xref" href="../cli/cli.html">Command-line interface reference</a>.
                               </p>
                               
                               
@@ -269,7 +300,7 @@
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../feature/manage/resize.html" class="previous" rel="internal" title="Adding space to a tenant device"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Adding space to a tenant device</span></a></div>
+                           <div id="footer_previous"><a href="../../feature/manage/NAT-overview.html" class="previous" rel="internal" title="Using Control Center with a NAT device"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Using Control Center with a NAT device</span></a></div>
                            <div id="footer_next"><a href="../../feature/backup/best-practice.html" class="next" rel="internal" title="Best practices for backup and restore"><span class="sr-only">Best practices for backup and restore</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
