@@ -2748,3 +2748,8 @@ func (f *Facade) QueryServiceDetails(ctx datastore.Context, request service.Quer
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.QueryServiceDetails"))
 	return f.serviceStore.Query(ctx, request)
 }
+
+func (f *Facade) GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, serviceNamePath string, err error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceNamePath"))
+	return f.getServiceNamePath(ctx, serviceID)
+}

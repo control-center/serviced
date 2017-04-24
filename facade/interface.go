@@ -203,4 +203,6 @@ type FacadeInterface interface {
 	PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error)
 
 	QueryServiceDetails(ctx datastore.Context, query service.Query) ([]service.ServiceDetails, error)
+
+	GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error)
 }

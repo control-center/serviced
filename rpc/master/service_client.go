@@ -78,7 +78,7 @@ func (c *Client) GetService(serviceID string) (*service.Service, error) {
 }
 
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
-func (c *Client) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error) {
+func (c *Client) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, string, error) {
 	request := EvaluateServiceRequest{
 		ServiceID:  serviceID,
 		InstanceID: instanceID,
@@ -86,9 +86,9 @@ func (c *Client) GetEvaluatedService(serviceID string, instanceID int) (*service
 	response := EvaluateServiceResponse{}
 	err := c.call("GetEvaluatedService", request, &response)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
-	return &response.Service, response.TenantID, err
+	return &response.Service, response.TenantID, response.ServiceNamePath, err
 }
 
 // GetTenantID returns the ID of the service's tenant (i.e. the root service's ID)

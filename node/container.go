@@ -144,7 +144,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	})
 
 	a.serviceCache.Invalidate(serviceID, instanceID)
-	evaluatedService, tenantID, err := a.serviceCache.GetEvaluatedService(serviceID, instanceID)
+	evaluatedService, tenantID, _, err := a.serviceCache.GetEvaluatedService(serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return nil, nil, err
@@ -501,6 +501,7 @@ func (a *HostAgent) getService(serviceID string) (*service.Service, error) {
 
 	return svc, nil
 }
+
 
 // dockerLogsToFile dumps container logs to file
 func dockerLogsToFile(containerid string, numlines int) {
