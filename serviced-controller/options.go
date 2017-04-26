@@ -42,6 +42,7 @@ type ControllerOptions struct {
 	LogstashURL             string // logstash endpoint
 	VirtualAddressSubnet    string // The subnet of virtual addresses, 10.3
 	MetricForwardingEnabled bool   // Enable metric forwarding from the container
+	HostIPs			string // The ip addresses of the host
 }
 
 func (c ControllerOptions) toContainerControllerOptions() (options container.ControllerOptions, err error) {
@@ -63,6 +64,7 @@ func (c ControllerOptions) toContainerControllerOptions() (options container.Con
 	options.MetricForwarding = c.MetricForwardingEnabled
 	options.Metric.RemoteEndoint = "http://localhost:8444/api/metrics/store"
 	options.VirtualAddressSubnet = c.VirtualAddressSubnet
+	options.HostIPs = c.HostIPs
 	options.Logforwarder.SettleTime, err = time.ParseDuration(c.LogstashSettleTime)
 	if err != nil {
 		return options, err

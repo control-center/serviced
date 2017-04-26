@@ -1638,3 +1638,34 @@ func (_m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Des
 
 	return r0
 }
+
+func (_m *FacadeInterface) GetServiceNamePath(ctx datastore.Context, serviceID string) (string, string, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) string); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
+	}
+
+	var r1 string
+        if rf, ok := ret.Get(0).(func(datastore.Context, string) string); ok {
+                r1 = rf(ctx, serviceID)
+        } else {
+                if ret.Get(0) != nil {
+                        r1 = ret.Get(0).(string)
+                }
+        }
+
+	var r2 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r2 = rf(ctx, serviceID)
+	} else {
+		r2 = ret.Error(1)
+	}
+
+	return r0, r1, r2
+}
