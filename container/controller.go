@@ -72,13 +72,12 @@ const (
 	containerTokenFile       = "/etc/serviced/auth.token"
 )
 
-// Logforwarder configuration
+// Logforwarder configuration for filebeat
 type LogforwarderOptions struct {
 	Enabled       bool          // True if enabled
-	Path          string        // Path to the logforwarder program
+	Path          string        // Path to the logforwarder program (e.g. filebeat)
 	ConfigFile    string        // Path to the config file for filebeat
-	IdleFlushTime time.Duration // period for log stash to flush its buffer
-	SettleTime    time.Duration // time to wait for logstash to flush its buffer before exiting
+	SettleTime    time.Duration // time to wait for forwarder to flush its buffer before exiting
 }
 
 // ControllerOptions are options to be run when starting a new proxy server
