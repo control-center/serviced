@@ -1,4 +1,5 @@
 // Copyright 2014 The Serviced Authors.
+// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -73,7 +74,6 @@ func getTestService() service.Service {
 	}
 }
 
-const logstashContainerDirectory = "/usr/local/serviced/resources/logstash"
 
 func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 	service := getTestService()
@@ -89,7 +89,8 @@ func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	if err := writeLogstashAgentConfig(confFileLocation, "host1", "192.168.1.1", "service/service/", &service, "0", logstashContainerDirectory); err != nil {
+	logforwarderOptions := LogforwarderOptions{Enabled: true, ConfigFile: confFileLocation}
+	if err := writeLogstashAgentConfig("host1", "192.168.1.1", "service/service/", &service, "0", logforwarderOptions); err != nil {
 		t.Errorf("Error writing config file %s", err)
 		return
 	}
@@ -142,7 +143,8 @@ func TestDontWriteToNilMap(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	if err := writeLogstashAgentConfig(confFileLocation, "host1", "192.168.1.1", "service/service/", &service, "0", logstashContainerDirectory); err != nil {
+	logforwarderOptions := LogforwarderOptions{Enabled: true, ConfigFile: confFileLocation}
+	if err := writeLogstashAgentConfig("host1", "192.168.1.1", "service/service/", &service, "0", logforwarderOptions); err != nil {
 		t.Errorf("Writing with empty tags produced an error %s", err)
 		return
 	}

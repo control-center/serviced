@@ -20,10 +20,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/glog"
-)
-
-const (
-	logstashContainerConfig = "/etc/filebeat.conf"
+	"path/filepath"
 )
 
 //createFields makes the map of tags for the logstash config including the type
@@ -62,7 +59,9 @@ func formatTagsForConfFile(tags map[string]string) string {
 }
 
 // writeLogstashAgentConfig creates the logstash forwarder config file
-func writeLogstashAgentConfig(confPath string, hostID string, hostIPs string, svcPath string, service *service.Service, instanceID string, resourcePath string) error {
+func writeLogstashAgentConfig(hostID string, hostIPs string, svcPath string, service *service.Service,
+	instanceID string, logforwarderOptions LogforwarderOptions) error {
+	resourcePath := filepath.Dir(logforwarderOptions.Path)
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
@@ -79,9 +78,10 @@ func writeLogstashAgentConfig(confPath string, hostID string, hostIPs string, sv
 	}
 
 	filebeatShipperConf :=
-		`filebeat:
+`filebeat:
   idle_timeout: 5s
   prospectors: %s
+
 output:
   logstash:
     enabled: true
@@ -94,6 +94,7 @@ output:
       certificate_authorities:
         - %s
     timeout: 15
+
 logging:
   level: warning
 `
@@ -107,7 +108,7 @@ logging:
 	)
 
 	config := servicedefinition.ConfigFile{
-		Filename: confPath,
+		Filename: logforwarderOptions.ConfigFile,
 		Content:  filebeatShipperConf,
 	}
 	err := writeConfFile(config)
