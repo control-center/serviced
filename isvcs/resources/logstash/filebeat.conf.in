@@ -1,0 +1,22 @@
+filebeat:
+  idle_timeout: 5s
+  prospectors: ${PROSPECTORS_SECTION}
+
+output:
+  logstash:
+    enabled: true
+    hosts:
+      - ${HOSTS_SECTION}
+    tls:
+      insecure: true
+      certificate: ${CERT_SECTION}
+      certificate_key: ${CERT_KEY_SECTION}
+      certificate_authorities:
+        - ${CERT_AUTH_SECTION}
+    timeout: 15
+
+logging:
+  level: warning
+# Uncomment selectors and change level to debug to get full debugging from filebeat
+#  selectors: ["*"]
+

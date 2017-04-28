@@ -16,11 +16,13 @@ package container
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
+	"strings"
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/glog"
-	"path/filepath"
 )
 
 //createFields makes the map of tags for the logstash config including the type
@@ -61,59 +63,46 @@ func formatTagsForConfFile(tags map[string]string) string {
 // writeLogstashAgentConfig creates the logstash forwarder config file
 func writeLogstashAgentConfig(hostID string, hostIPs string, svcPath string, service *service.Service,
 	instanceID string, logforwarderOptions LogforwarderOptions) error {
-	resourcePath := filepath.Dir(logforwarderOptions.Path)
-	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
-	// generate the json config.
-	filebeatLogConf := ``
+	// generate a prospector configuration for each service log file
+	prospectorsConf := ``
 	for _, logConfig := range service.LogConfigs {
-		filebeatLogConf = filebeatLogConf + `
+		prospectorsConf = prospectorsConf + `
     - ignore_older: 10s
       close_older: 5m
       paths:
         - %s
       fields: %s`
-
-		filebeatLogConf = fmt.Sprintf(filebeatLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, hostIPs, svcPath, service, instanceID, &logConfig)))
+		prospectorsConf = fmt.Sprintf(prospectorsConf, logConfig.Path,
+			formatTagsForConfFile(createFields(hostID, hostIPs, svcPath, service, instanceID, &logConfig)))
 	}
 
-	filebeatShipperConf :=
-`filebeat:
-  idle_timeout: 5s
-  prospectors: %s
+	resourcePath := filepath.Dir(logforwarderOptions.Path)
+	templatePath := filepath.Join(resourcePath, "filebeat.conf.in")
+	templateContent, err := ioutil.ReadFile(templatePath)
+	if err != nil {
+		glog.Errorf("Unable to read logforwarder configuration template %s: %s", templatePath, err)
+		return err
+	}
+	glog.Infof("Using logforwarder template from %s", templatePath)
 
-output:
-  logstash:
-    enabled: true
-    hosts:
-      - %s
-    tls:
-      insecure: true
-      certificate: %s
-      certificate_key: %s
-      certificate_authorities:
-        - %s
-    timeout: 15
-
-logging:
-  level: warning
-`
-
-	filebeatShipperConf = fmt.Sprintf(filebeatShipperConf,
-		filebeatLogConf,
-		"127.0.0.1:5043",
-		resourcePath+"/filebeat.crt",
-		resourcePath+"/filebeat.key",
-		resourcePath+"/filebeat.crt",
-	)
+	// Perform all of the template substitution to create the filebeat configuration file from the ".in" template
+	filebeatShipperConf := strings.Replace(string(templateContent), "${PROSPECTORS_SECTION}", prospectorsConf, 1)
+	filebeatShipperConf = strings.Replace(filebeatShipperConf, "${HOSTS_SECTION}", "127.0.0.1:5043", 1)
+	filebeatShipperConf = strings.Replace(filebeatShipperConf, "${CERT_SECTION}", resourcePath+"/filebeat.crt", 1)
+	filebeatShipperConf = strings.Replace(filebeatShipperConf, "${CERT_KEY_SECTION}", resourcePath+"/filebeat.key", 1)
+	filebeatShipperConf = strings.Replace(filebeatShipperConf, "${CERT_AUTH_SECTION}", resourcePath+"/filebeat.crt", 1)
 
 	config := servicedefinition.ConfigFile{
 		Filename: logforwarderOptions.ConfigFile,
 		Content:  filebeatShipperConf,
 	}
-	err := writeConfFile(config)
-	if err != nil {
+
+	if err := writeConfFile(config); err != nil {
+		glog.Errorf("Unable to create logforwarder configuration file %s: %s", config.Filename, err)
 		return err
 	}
+
+	glog.V(2).Infof("Created logforwarder configuration at %s", config.Filename)
 	return nil
 }

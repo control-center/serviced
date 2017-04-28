@@ -24,12 +24,14 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/utils"
 
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 	"time"
+	"path/filepath"
 )
 
 func getTestService() service.Service {
@@ -89,7 +91,8 @@ func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	logforwarderOptions := LogforwarderOptions{Enabled: true, ConfigFile: confFileLocation}
+	fileBeatBinary := filepath.Join(utils.ResourcesDir(), "logstash/filebeat")
+	logforwarderOptions := LogforwarderOptions{Enabled: true, Path: fileBeatBinary, ConfigFile: confFileLocation}
 	if err := writeLogstashAgentConfig("host1", "192.168.1.1", "service/service/", &service, "0", logforwarderOptions); err != nil {
 		t.Errorf("Error writing config file %s", err)
 		return
@@ -143,7 +146,8 @@ func TestDontWriteToNilMap(t *testing.T) {
 		os.Remove(confFileLocation)
 	}()
 
-	logforwarderOptions := LogforwarderOptions{Enabled: true, ConfigFile: confFileLocation}
+	fileBeatBinary := filepath.Join(utils.ResourcesDir(), "logstash/filebeat")
+	logforwarderOptions := LogforwarderOptions{Enabled: true, Path: fileBeatBinary, ConfigFile: confFileLocation}
 	if err := writeLogstashAgentConfig("host1", "192.168.1.1", "service/service/", &service, "0", logforwarderOptions); err != nil {
 		t.Errorf("Writing with empty tags produced an error %s", err)
 		return
