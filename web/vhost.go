@@ -148,8 +148,6 @@ func (h *VHostHandler) Handle(useTLS bool, w http.ResponseWriter, r *http.Reques
 		return true
 	}
 
-	RouteOriginalURL(r)
-
 	logger := plog.WithFields(log.Fields{
 		"application": export.Application,
 		"hostip":      export.HostIP,
@@ -168,7 +166,7 @@ func (h *VHostHandler) Handle(useTLS bool, w http.ResponseWriter, r *http.Reques
 		r.Header.Set("X-Forwarded-Proto", "https")
 	}
 
-	w.Header().Add("Strict-Transport-Security", "max-age=31536000")
+	w.Header().Add("Strict-Transport-Security","max-age=31536000")
 	rp.ServeHTTP(w, r)
 
 	return true
