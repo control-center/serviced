@@ -72,6 +72,14 @@ const (
 	containerTokenFile       = "/etc/serviced/auth.token"
 )
 
+// Logforwarder configuration for filebeat
+type LogforwarderOptions struct {
+	Enabled       bool          // True if enabled
+	Path          string        // Path to the logforwarder program (e.g. filebeat)
+	ConfigFile    string        // Path to the config file for filebeat
+	SettleTime    time.Duration // time to wait for forwarder to flush its buffer before exiting
+}
+
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
 	ServicedEndpoint string
@@ -89,13 +97,7 @@ type ControllerOptions struct {
 		KeyPEMFile  string // Path to the key file when TLS is used
 		CertPEMFile string // Path to the cert file when TLS is used
 	}
-	Logforwarder struct { // Logforwarder configuration
-		Enabled       bool          // True if enabled
-		Path          string        // Path to the logforwarder program
-		ConfigFile    string        // Path to the config file for filebeat
-		IdleFlushTime time.Duration // period for log stash to flush its buffer
-		SettleTime    time.Duration // time to wait for logstash to flush its buffer before exiting
-	}
+	Logforwarder LogforwarderOptions
 	Metric struct {
 		Address       string // TCP port to host the metric service, :22350
 		RemoteEndoint string // The url to forward metric queries
@@ -257,10 +259,10 @@ func setupConfigFiles(svc *service.Service) error {
 }
 
 // setupLogstashFiles sets up logstash files
-func setupLogstashFiles(hostID string, hostIPs string, svcPath string, service *service.Service, instanceID string, resourcePath string) error {
+func setupLogstashFiles(hostID string, hostIPs string, svcPath string, service *service.Service, instanceID string, logforwarderOptions LogforwarderOptions) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(logstashContainerConfig, hostID, hostIPs, svcPath, service, instanceID, resourcePath)
+		err := writeLogstashAgentConfig(hostID, hostIPs, svcPath, service, instanceID, logforwarderOptions)
 		if err != nil {
 			return err
 		}
@@ -342,10 +344,12 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	if options.Logforwarder.Enabled {
-		if err := setupLogstashFiles(c.hostID, options.HostIPs, options.ServiceNamePath, service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
+		if err := setupLogstashFiles(c.hostID, options.HostIPs, options.ServiceNamePath, service,
+				options.Service.InstanceID, options.Logforwarder); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
+
 		logforwarder, exited, err := subprocess.New(time.Second,
 			nil,
 			options.Logforwarder.Path,

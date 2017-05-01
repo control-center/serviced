@@ -43,7 +43,6 @@ type ShellConfig struct {
 	LogStash         struct {
 		Enable        bool
 		SettleTime    string
-		IdleFlushTime string
 	}
 }
 
@@ -188,11 +187,6 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 
 	cfg.LogStash.Enable = config.LogStash.Enable
 	cfg.LogStash.SettleTime, err = time.ParseDuration(config.LogStash.SettleTime)
-	if err != nil {
-		return 1, err
-	}
-
-	cfg.LogStash.IdleFlushTime, err = time.ParseDuration(config.LogStash.IdleFlushTime)
 	if err != nil {
 		return 1, err
 	}

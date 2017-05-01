@@ -404,7 +404,6 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 		"--autorestart=false",
 		"--disable-metric-forwarding",
 		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
-		fmt.Sprintf("--logstash-idle-flush-time=%s", cfg.LogStash.IdleFlushTime),
 		fmt.Sprintf("--logstash-settle-time=%s", cfg.LogStash.SettleTime),
 		svc.ID,
 		"0",
