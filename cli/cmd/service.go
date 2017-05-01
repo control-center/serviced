@@ -241,11 +241,6 @@ func (c *ServicedCli) initService() {
 						Usage: "enable/disable log stash (true by default)",
 					},
 					cli.StringFlag{
-						Name:  "logstash-idle-flush-time",
-						Value: "100ms",
-						Usage: "time duration for logstash to flush log messages",
-					},
-					cli.StringFlag{
 						Name:  "logstash-settle-time",
 						Value: "5s",
 						Usage: "time duration to wait for logstash to flush log messages before closing",
@@ -1332,7 +1327,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 
 	config.LogStash.Enable = ctx.GlobalBool("logstash")
 	config.LogStash.SettleTime = ctx.GlobalString("logstash-settle-time")
-	config.LogStash.IdleFlushTime = ctx.GlobalString("logstash-idle-flush-time")
 
 	exitcode := 1
 	if exitcode, err = c.driver.RunShell(config, stopChan); err != nil {
