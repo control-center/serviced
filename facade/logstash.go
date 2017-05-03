@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
-	"runtime"
 	"sync"
 	"strings"
 
@@ -31,6 +29,7 @@ import (
 	"github.com/control-center/serviced/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
+	"path/filepath"
 )
 
 
@@ -105,15 +104,6 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 	return f.ReloadLogstashConfig(ctx)
 }
 
-func resourcesDir() string {
-	homeDir := os.Getenv("SERVICED_HOME")
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		return path.Clean(path.Join(path.Dir(filename), "..", "isvcs", "resources"))
-
-	}
-	return path.Clean(path.Join(homeDir, "isvcs/resources"))
-}
 
 // writeLogstashConfiguration takes a map of ServiceTemplates and writes them to the
 // appropriate place in the logstash.conf.
@@ -152,8 +142,9 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	}
 	plog.Debugf("after services, auditLogSection=%s", auditLogSection)
 
-	newConfigFile := resourcesDir() + "/logstash/logstash.conf.new"
-	originalFile := resourcesDir() + "/logstash/logstash.conf"
+	logstashDir := getLogstashConfigDirectory()
+	newConfigFile := filepath.Join(logstashDir, "logstash.conf.new")
+	originalFile :=filepath.Join(logstashDir, "logstash.conf")
 	logger := plog.WithFields(log.Fields{
 		"newconfigfile": newConfigFile,
 		"currentconfigfile": originalFile,
@@ -268,7 +259,7 @@ func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]str
 // the logstash.conf.template and does a variable replacement.
 func writeLogStashConfigFile(filters string, auditLogSection string, outputPath string) error {
 	// read the log configuration template
-	templatePath := resourcesDir() + "/logstash/logstash.conf.template"
+	templatePath := filepath.Join(getLogstashConfigDirectory(), "logstash.conf.template")
 
 	contents, err := ioutil.ReadFile(templatePath)
 	if err != nil {
@@ -305,4 +296,8 @@ func indent(src, tab string) string {
 		result += tab + line + "\n"
 	}
 	return result
+}
+
+func getLogstashConfigDirectory() string {
+	return filepath.Join(utils.ResourcesDir(), "logstash")
 }

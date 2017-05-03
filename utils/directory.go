@@ -24,25 +24,32 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"github.com/control-center/serviced/config"
 	"github.com/zenoss/glog"
+	"runtime"
 )
 
-//ServiceDHome gets the home location of serviced by looking at the enviornment
+//ServiceDHome gets the home location of serviced by looking at the environment
 func ServiceDHome() string {
-	return os.Getenv("SERVICED_HOME")
+	homeDir := config.GetOptions().HomePath
+	if len(homeDir) == 0 {
+		// This fallback is used in unit-tests, but in actual practice,
+		// we should not hit this case, because there is a default
+		// value defined via code in cli/api/options.go.  But just in
+		// case that somehow get's undone in the future, the log message
+		// will let us know that we used a fallback.
+		_, filename, _, _ := runtime.Caller(1)
+		homeDir = strings.Replace(path.Dir(filename), "utils", "", 1)
+		plog.Warnf("SERVICED_HOME not set; defaulting to %s", homeDir)
+	}
+	return homeDir
 }
 
 //LocalDir gets the absolute path to a particular directory under ServiceDHome
 // if SERVICED_HOME is not defined then we use the location of the caller
 func LocalDir(p string) string {
 	homeDir := ServiceDHome()
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		homeDir = strings.Replace(path.Dir(filename), "utils", "", 1)
-	}
 	return path.Join(homeDir, p)
 }
 

@@ -343,7 +343,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidHostID
 	}
 
-	if options.Logforwarder.Enabled {
+	if options.Logforwarder.Enabled && len(service.LogConfigs) > 0 {
 		if err := setupLogstashFiles(c.hostID, options.HostIPs, options.ServiceNamePath, service,
 				options.Service.InstanceID, options.Logforwarder); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)

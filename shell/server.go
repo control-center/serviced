@@ -20,9 +20,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -51,22 +49,6 @@ const (
 	DOCKER_ENDPOINT        = "unix:///var/run/docker.sock"
 )
 
-var webroot string
-
-func init() {
-	servicedHome := os.Getenv("SERVICED_HOME")
-	if len(servicedHome) > 0 {
-		webroot = servicedHome + "/share/shell/static"
-	}
-}
-
-func staticRoot() string {
-	if len(webroot) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		return path.Join(path.Dir(path.Dir(filename)), "shell", "static")
-	}
-	return webroot
-}
 
 func NewProcessForwarderServer(addr string) *ProcessServer {
 	server := &ProcessServer{

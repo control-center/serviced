@@ -36,7 +36,9 @@ var (
 	log     = logging.PackageLogger()
 )
 
-// Options are the server options
+// Options are the server options.
+// Default values and environment variable overrides defined by api.GetDefaultOptions()
+// Command line overrides defined by cmd.New()
 type Options struct {
 	Endpoint                   string // the endpoint address to make RPC requests to
 	UIPort                     string
@@ -51,12 +53,13 @@ type Options struct {
 	MuxDisableTLS              string //  Disable TLS for MUX connections, string val of bool
 	KeyPEMFile                 string
 	CertPEMFile                string
+	HomePath                   string // serviced's root directory; e.g. /opt/serviced
 	VolumesPath                string
 	EtcPath                    string
 	IsvcsPath                  string
 	BackupsPath                string
 	ResourcePath               string
-	LogPath                    string   //Serviced logs directory 
+	LogPath                    string // Serviced logs directory
 	Zookeepers                 []string
 	ReportStats                bool
 	HostStats                  string
