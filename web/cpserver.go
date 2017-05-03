@@ -122,7 +122,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
-	accessLogDir := "/var/log/serviced"
+	accessLogDir := utils.ServicedLogDir()
 	if _, err := os.Stat(accessLogDir); os.IsNotExist(err) {
 		// This block of code is more for the zendev scenario (i.e. no rpm install).
 		// See the postinstall script in the RPM for the setting that typically occurs in production installs.

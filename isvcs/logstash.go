@@ -15,6 +15,9 @@ package isvcs
 
 var logstash *IService
 
+// The container-local path logstash uses to write the shared directory for serviced logs
+const LOGSTASH_LOCAL_SERVICED_LOG_DIR = "/var/log/serviced"
+
 func initLogstash() {
 	var err error
 
@@ -47,7 +50,7 @@ func initLogstash() {
 				localFilePortBinding,
 				filebeatPortBinding,
 				webserverPortBinding},
-			Volumes:    map[string]string{UseServicedLogDir : "/var/log/serviced"},
+			Volumes:    map[string]string{UseServicedLogDir : LOGSTASH_LOCAL_SERVICED_LOG_DIR},
 			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
 			StartGroup: 1,
 		})

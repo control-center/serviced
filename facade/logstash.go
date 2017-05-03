@@ -30,6 +30,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
 	"path/filepath"
+	"github.com/control-center/serviced/isvcs"
 )
 
 
@@ -239,9 +240,11 @@ func getAuditLogSectionFromTemplates(services []servicedefinition.ServiceDefinit
 func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]string) string {
 	auditSection := ""
 	fileSection := `file {
-  path => "/var/log/serviced/application-audit.log"
+  path => "%s"
   codec => line { format => "%{message}"}
 }`
+	auditLogFile := filepath.Join(isvcs.LOGSTASH_LOCAL_SERVICED_LOG_DIR, "application-audit.log")
+	fileSection = fmt.Sprintf(fileSection, auditLogFile)
 	for _, config := range configs {
 		if config.IsAudit {
 			if !utils.StringInSlice(config.Type, *auditTypes){
