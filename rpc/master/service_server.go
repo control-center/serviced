@@ -40,8 +40,9 @@ type EvaluateServiceRequest struct {
 }
 
 type EvaluateServiceResponse struct {
-	Service  service.Service
-	TenantID string
+	Service          service.Service
+	TenantID         string
+	ServiceNamePath  string
 }
 
 type ServiceDetailsByTenantIDRequest struct {
@@ -111,12 +112,13 @@ func (s *Server) GetEvaluatedService(request EvaluateServiceRequest, response *E
 		return err
 	}
 
-	tenantID, err := s.f.GetTenantID(s.context(), request.ServiceID)
+	tenantID, svcPath, err := s.f.GetServiceNamePath(s.context(), request.ServiceID)
 	if err != nil {
 		return err
 	}
 	response.Service = *svc
 	response.TenantID = tenantID
+	response.ServiceNamePath = svcPath
 	return nil
 }
 

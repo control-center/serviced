@@ -44,7 +44,7 @@ func (t *ServicePathCacheTest) TearDownTest(c *C) {
 
 func (t *ServicePathCacheTest) Test_GetTenantID_SeedsCacheForTenantService(c *C) {
 	tenantID := "mockTenantId"
-	expectedService := service.ServiceDetails{ID: tenantID}
+	expectedService := service.ServiceDetails{ID: tenantID, Name: tenantID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&expectedService, nil)
 
 	result, err := t.cache.GetTenantID(tenantID, t.getService)
@@ -55,12 +55,14 @@ func (t *ServicePathCacheTest) Test_GetTenantID_SeedsCacheForTenantService(c *C)
 	// Verify the cache contents
 	expectedCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 	}
+
 	t.assertExpectedCacheEntries(c, expectedCacheEntries)
 }
 
@@ -69,13 +71,13 @@ func (t *ServicePathCacheTest) Test_GetTenantID_SeedsCacheForNestedServices(c *C
 	childID := "mockChildId"
 	grandchildID := "mockGrandChildId"
 
-	tenant := service.ServiceDetails{ID: tenantID}
+	tenant := service.ServiceDetails{ID: tenantID, Name: tenantID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&tenant, nil)
 
-	child := service.ServiceDetails{ID: childID, ParentServiceID: tenantID}
+	child := service.ServiceDetails{ID: childID, Name: childID, ParentServiceID: tenantID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, childID).Return(&child, nil)
 
-	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	grandchild := service.ServiceDetails{ID: grandchildID, Name: grandchildID, ParentServiceID: childID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	result, err := t.cache.GetTenantID(grandchildID, t.getService)
@@ -86,22 +88,25 @@ func (t *ServicePathCacheTest) Test_GetTenantID_SeedsCacheForNestedServices(c *C
 	// Verify the cache contents
 	expectedCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 		servicePath{
-			serviceID:   grandchildID,
-			parentID:    childID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID + "/" + grandchildID,
+			serviceID:       grandchildID,
+			parentID:        childID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID + "/" + grandchildID,
+			serviceNamePath: "/" + tenantID + "/" + childID + "/" + grandchildID,
 		},
 	}
 	t.assertExpectedCacheEntries(c, expectedCacheEntries)
@@ -115,22 +120,25 @@ func (t *ServicePathCacheTest) Test_GetTenantID_UsesCachedValues(c *C) {
 	// Load the cache manually
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 		servicePath{
-			serviceID:   grandchildID,
-			parentID:    childID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID + "/" + grandchildID,
+			serviceID:       grandchildID,
+			parentID:        childID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID + "/" + grandchildID,
+			serviceNamePath: "/" + tenantID + "/" + childID + "/" + grandchildID,
 		},
 	}
 	for _, expected := range initialCacheEntries {
@@ -153,23 +161,25 @@ func (t *ServicePathCacheTest) Test_GetTenantID_UsesCachedValuesForParents(c *C)
 	// Load the cache manually
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 	}
 	for _, expected := range initialCacheEntries {
 		t.cache.paths[expected.serviceID] = expected
 	}
 
-	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	grandchild := service.ServiceDetails{ID: grandchildID, Name: grandchildID, ParentServiceID: childID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	// NOTE: Since no mock expectations are set for parentID or childID, the test will fail if there
@@ -179,10 +189,11 @@ func (t *ServicePathCacheTest) Test_GetTenantID_UsesCachedValuesForParents(c *C)
 	c.Assert(result, Equals, tenantID)
 	c.Assert(err, IsNil)
 	expectedCacheEntries := append(initialCacheEntries, servicePath{
-		serviceID:   grandchildID,
-		parentID:    childID,
-		tenantID:    tenantID,
-		servicePath: "/" + tenantID + "/" + childID + "/" + grandchildID,
+		serviceID:       grandchildID,
+		parentID:        childID,
+		tenantID:        tenantID,
+		servicePath:     "/" + tenantID + "/" + childID + "/" + grandchildID,
+		serviceNamePath: "/" + tenantID + "/" + childID + "/" + grandchildID,
 	})
 	t.assertExpectedCacheEntries(c, expectedCacheEntries)
 }
@@ -202,7 +213,7 @@ func (t *ServicePathCacheTest) Test_GetServicePath_SeedsCacheForTenantService(c 
 	tenantID := "mockTenantId"
 	expectedPath := "/" + tenantID
 
-	expectedService := service.ServiceDetails{ID: tenantID}
+	expectedService := service.ServiceDetails{ID: tenantID, Name: tenantID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&expectedService, nil)
 
 	tenantResult, pathResult, err := t.cache.GetServicePath(tenantID, t.getService)
@@ -214,10 +225,11 @@ func (t *ServicePathCacheTest) Test_GetServicePath_SeedsCacheForTenantService(c 
 	// Verify the cache contents
 	expectedCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 	}
 	t.assertExpectedCacheEntries(c, expectedCacheEntries)
@@ -229,13 +241,13 @@ func (t *ServicePathCacheTest) Test_GetServicePath_SeedsCacheForNestedServices(c
 	grandchildID := "mockGrandChildId"
 	expectedPath := "/" + tenantID + "/" + childID + "/" + grandchildID
 
-	tenant := service.ServiceDetails{ID: tenantID}
+	tenant := service.ServiceDetails{ID: tenantID, Name: tenantID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&tenant, nil)
 
-	child := service.ServiceDetails{ID: childID, ParentServiceID: tenantID}
+	child := service.ServiceDetails{ID: childID, Name: childID, ParentServiceID: tenantID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, childID).Return(&child, nil)
 
-	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	grandchild := service.ServiceDetails{ID: grandchildID, Name: grandchildID, ParentServiceID: childID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	tenantResult, pathResult, err := t.cache.GetServicePath(grandchildID, t.getService)
@@ -247,22 +259,25 @@ func (t *ServicePathCacheTest) Test_GetServicePath_SeedsCacheForNestedServices(c
 	// Verify the cache contents
 	expectedCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 		servicePath{
-			serviceID:   grandchildID,
-			parentID:    childID,
-			tenantID:    tenantID,
-			servicePath: expectedPath,
+			serviceID:       grandchildID,
+			parentID:        childID,
+			tenantID:        tenantID,
+			servicePath:     expectedPath,
+			serviceNamePath: expectedPath,
 		},
 	}
 	t.assertExpectedCacheEntries(c, expectedCacheEntries)
@@ -277,22 +292,25 @@ func (t *ServicePathCacheTest) Test_GetServicePath_UsesCachedValues(c *C) {
 	// Load the cache manually
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 		servicePath{
-			serviceID:   grandchildID,
-			parentID:    childID,
-			tenantID:    tenantID,
-			servicePath: expectedPath,
+			serviceID:       grandchildID,
+			parentID:        childID,
+			tenantID:        tenantID,
+			servicePath:     expectedPath,
+			serviceNamePath: expectedPath,
 		},
 	}
 	for _, expected := range initialCacheEntries {
@@ -317,23 +335,25 @@ func (t *ServicePathCacheTest) Test_GetServicePath_UsesCachedValuesForParents(c 
 	// Load the cache manually
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 	}
 	for _, expected := range initialCacheEntries {
 		t.cache.paths[expected.serviceID] = expected
 	}
 
-	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	grandchild := service.ServiceDetails{ID: grandchildID, Name: grandchildID, ParentServiceID: childID}
 	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	// NOTE: Since no mock expectations are set for parentID or childID, the test will fail if there
@@ -345,10 +365,11 @@ func (t *ServicePathCacheTest) Test_GetServicePath_UsesCachedValuesForParents(c 
 	c.Assert(err, IsNil)
 
 	expectedCacheEntries := append(initialCacheEntries, servicePath{
-		serviceID:   grandchildID,
-		parentID:    childID,
-		tenantID:    tenantID,
-		servicePath: expectedPath,
+		serviceID:       grandchildID,
+		parentID:        childID,
+		tenantID:        tenantID,
+		servicePath:     expectedPath,
+		serviceNamePath: expectedPath,
 	})
 
 	t.assertExpectedCacheEntries(c, expectedCacheEntries)
@@ -381,16 +402,18 @@ func (t *ServicePathCacheTest) Test_RemoveIfParentChanged_OnCacheMiss(c *C) {
 	expectedPath := "/" + tenantID + "/" + childID
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: expectedPath,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     expectedPath,
+			serviceNamePath: expectedPath,
 		},
 	}
 	for _, expected := range initialCacheEntries {
@@ -411,16 +434,18 @@ func (t *ServicePathCacheTest) Test_RemoveIfParentChanged_CachedParentMatches(c 
 	expectedPath := "/" + tenantID + "/" + childID
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: expectedPath,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     expectedPath,
+			serviceNamePath: expectedPath,
 		},
 	}
 	for _, expected := range initialCacheEntries {
@@ -439,16 +464,18 @@ func (t *ServicePathCacheTest) Test_RemoveIfParentChanged_CachedParentDifferent(
 	childID := "mockChildId"
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 	}
 	for _, expected := range initialCacheEntries {
@@ -471,28 +498,32 @@ func (t *ServicePathCacheTest) Test_RemoveIfParentChanged_RemoveMultipleEntries(
 	// Load the cache manually
 	initialCacheEntries := []servicePath{
 		servicePath{
-			serviceID:   tenantID,
-			parentID:    "",
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID,
+			serviceID:       tenantID,
+			parentID:        "",
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID,
+			serviceNamePath: "/" + tenantID,
 		},
 		servicePath{
-			serviceID:   childID,
-			parentID:    tenantID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID,
+			serviceID:       childID,
+			parentID:        tenantID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID,
+			serviceNamePath: "/" + tenantID + "/" + childID,
 		},
 		servicePath{
-			serviceID:   grandchildID1,
-			parentID:    childID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID + "/" + grandchildID1,
+			serviceID:       grandchildID1,
+			parentID:        childID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID + "/" + grandchildID1,
+			serviceNamePath: "/" + tenantID + "/" + childID + "/" + grandchildID1,
 		},
 		servicePath{
-			serviceID:   grandchildID2,
-			parentID:    childID,
-			tenantID:    tenantID,
-			servicePath: "/" + tenantID + "/" + childID + "/" + grandchildID2,
+			serviceID:       grandchildID2,
+			parentID:        childID,
+			tenantID:        tenantID,
+			servicePath:     "/" + tenantID + "/" + childID + "/" + grandchildID2,
+			serviceNamePath: "/" + tenantID + "/" + childID + "/" + grandchildID2,
 		},
 	}
 	for _, expected := range initialCacheEntries {
@@ -532,5 +563,6 @@ func (t *ServicePathCacheTest) assertExpectedCacheEntries(c *C, expectedCacheEnt
 		c.Assert(actual.tenantID, Equals, expected.tenantID)
 		c.Assert(actual.parentID, Equals, expected.parentID)
 		c.Assert(actual.servicePath, Equals, expected.servicePath)
+		c.Assert(actual.serviceNamePath, Equals, expected.serviceNamePath)
 	}
 }

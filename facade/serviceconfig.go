@@ -173,6 +173,13 @@ func (f *Facade) getServicePath(ctx datastore.Context, serviceID string) (tenant
 	return f.serviceCache.GetServicePath(serviceID, gs)
 }
 
+func (f *Facade) getServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, serviceNamePath string, err error) {
+        gs := func(id string) (*service.ServiceDetails, error) {
+                return f.GetServiceDetails(ctx, id)
+        }
+        return f.serviceCache.GetServiceNamePath(serviceID, gs)
+}
+
 // updateServiceConfigs adds or updates configuration files.  If forceDelete is
 // set to true, then remove any extranneous service configurations.
 func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, configFiles []servicedefinition.ConfigFile, forceDelete bool) error {

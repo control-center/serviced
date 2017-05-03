@@ -2746,3 +2746,8 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 func isEmptyPath(p string) bool {
 	return p == "" || p == "/"
 }
+
+func (f *Facade) GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, serviceNamePath string, err error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceNamePath"))
+	return f.getServiceNamePath(ctx, serviceID)
+}
