@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -106,6 +107,23 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 	return &cfg
 }
 
+// borrowed from gorilla mux, which was cleaning the public endpoint urls.
+func cleanPath(p string) string {
+	if p == "" {
+		return "/"
+	}
+	if p[0] != '/' {
+		p = "/" + p
+	}
+	np := path.Clean(p)
+	// path.Clean removes trailing slash except for root;
+	// put the trailing slash back if necessary.
+	if p[len(p)-1] == '/' && np != "/" {
+		np += "/"
+	}
+	return np
+}
+
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
@@ -148,13 +166,14 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		}
 
 		logger.Debug("Calling CC uiHandler")
-		w.Header().Add("Strict-Transport-Security","max-age=31536000")
-		
+		w.Header().Add("Strict-Transport-Security", "max-age=31536000")
+
 		if r.TLS == nil {
 			// bindPort has already been validated, so the Split/access below won't break.
 			http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)
 			return
 		}
+		r.URL.Path = cleanPath(r.URL.Path)
 		uiHandler.ServeHTTP(w, r)
 	}
 
