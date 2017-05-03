@@ -23,12 +23,13 @@ import (
 	"os"
 	"os/user"
 	"path"
-	"path/filepath"
+	"runtime"
 	"strings"
+
 	"github.com/control-center/serviced/config"
 	"github.com/zenoss/glog"
-	"runtime"
 )
+
 
 //ServiceDHome gets the home location of serviced by looking at the environment
 func ServiceDHome() string {
@@ -56,15 +57,6 @@ func LocalDir(p string) string {
 // ResourcesDir points to internal services resources directory
 func ResourcesDir() string {
 	return LocalDir("isvcs/resources")
-}
-
-// BackupDir gets the directory where backup files are stored
-func BackupDir(basepath string) string {
-	if backupDir := strings.TrimSpace(basepath); backupDir == "" {
-		return TempDir("backups")
-	} else {
-		return filepath.Join(filepath.Clean(backupDir), "backups")
-	}
 }
 
 // TempDir gets the temp serviced directory
