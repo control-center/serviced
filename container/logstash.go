@@ -95,7 +95,8 @@ output:
         - %s
     timeout: 15
 logging:
-  level: warning`
+  level: warning
+`
 
 	filebeatShipperConf = fmt.Sprintf(filebeatShipperConf,
 		filebeatLogConf,
