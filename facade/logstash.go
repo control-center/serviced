@@ -240,7 +240,7 @@ func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]str
 	auditSection := ""
 	fileSection := `file {
   path => "%s"
-  codec => line { format => "%{message}"}
+  codec => line { format => "%%{message}"}
 }`
 	auditLogFile := filepath.Join(utils.LOGSTASH_LOCAL_SERVICED_LOG_DIR, "application-audit.log")
 	fileSection = fmt.Sprintf(fileSection, auditLogFile)

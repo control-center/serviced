@@ -249,7 +249,7 @@ func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
 
 	// make sure the number matches the number we define
 	if len(filterDefs) != 4 {
-		t.Error(fmt.Sprintf("Found %d instead of 2 filter definitions", len(filterDefs)))
+		t.Error(fmt.Sprintf("Found %d instead of 4 filter definitions", len(filterDefs)))
 	}
 }
 
