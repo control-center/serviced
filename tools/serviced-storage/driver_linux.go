@@ -77,7 +77,7 @@ func (c *CheckOrphans) Execute(args []string) error {
 		for _, v := range orphans {
 			if c.Clean {
 				if err := drv.DeviceSet.DeleteDevice(v, false); err != nil {
-					log.Info("An error occurred while attempting to remove the device:", err)
+					log.WithError(err).Error("An error occurred while attempting to remove the device:")
 				} else {
 					fmt.Println("Removed orphaned snapshot", v)
 				}
