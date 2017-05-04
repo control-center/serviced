@@ -21,8 +21,8 @@ import (
 	// Need to do rsync driver initializations
 	_ "github.com/control-center/serviced/volume/rsync"
 
-	"github.com/control-center/serviced/volume/devicemapper"
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/volume/devicemapper"
 )
 
 // Execute displays orphaned volumes
@@ -76,16 +76,11 @@ func (c *CheckOrphans) Execute(args []string) error {
 		// delete the actual devices
 		for _, v := range orphans {
 			if c.Clean {
-				drv.DeviceSet.UnmountDevice(v, drv.Root())
-				drv.DeviceSet.Lock()
-				if err := drv.DeactivateDevice(v); err != nil {
-					log.Info("An error occurred while attempting to deactivate the device:", err)
-				}
-				drv.DeviceSet.Unlock()
 				if err := drv.DeviceSet.DeleteDevice(v, false); err != nil {
 					log.Info("An error occurred while attempting to remove the device:", err)
+				} else {
+					fmt.Println("Removed orphaned snapshot", v)
 				}
-				fmt.Println("Removed orphaned snapshot", v)
 			} else {
 				fmt.Println(v)
 			}
