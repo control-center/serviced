@@ -19,18 +19,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 	"strings"
 
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/dao"
-	"path/filepath"
-	"github.com/control-center/serviced/isvcs"
 )
 
 
@@ -243,7 +242,7 @@ func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]str
   path => "%s"
   codec => line { format => "%{message}"}
 }`
-	auditLogFile := filepath.Join(isvcs.LOGSTASH_LOCAL_SERVICED_LOG_DIR, "application-audit.log")
+	auditLogFile := filepath.Join(utils.LOGSTASH_LOCAL_SERVICED_LOG_DIR, "application-audit.log")
 	fileSection = fmt.Sprintf(fileSection, auditLogFile)
 	for _, config := range configs {
 		if config.IsAudit {

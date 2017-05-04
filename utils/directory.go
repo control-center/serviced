@@ -31,6 +31,17 @@ import (
 )
 
 
+// The container-local path to the resources directory.
+// This directory is bind mounted into both isvcs and service containers
+const RESOURCES_CONTAINER_DIRECTORY = "/usr/local/serviced/resources"
+
+// The container-local path to the directory for logstash/filebeat configuration.
+// This directory is bind mounted into both isvcs and service containers
+const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
+
+// The container-local path to the directory logstash uses to write application audit logs
+const LOGSTASH_LOCAL_SERVICED_LOG_DIR = "/var/log/serviced"
+
 //ServiceDHome gets the home location of serviced by looking at the environment
 func ServiceDHome() string {
 	homeDir := config.GetOptions().HomePath
@@ -81,3 +92,4 @@ func ServicedLogDir() string {
 		return os.Getenv("SERVICED_LOG_PATH")
 	}
 }
+

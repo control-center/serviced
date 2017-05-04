@@ -398,7 +398,8 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 		logger.WithError(err).Error("Docker not found")
 		return nil, err
 	}
-	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", utils.ResourcesDir() + ":" + "/usr/local/serviced/resources", "-u", "root", "-w", "/"}
+	resourceBinding := fmt.Sprintf("%s:%s", utils.ResourcesDir(), utils.RESOURCES_CONTAINER_DIRECTORY )
+	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", resourceBinding, "-u", "root", "-w", "/"}
 	for _, mount := range cfg.Mount {
 		hostPath, containerPath, err := parseMountArg(mount)
 		if err != nil {
