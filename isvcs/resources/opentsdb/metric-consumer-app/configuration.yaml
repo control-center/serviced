@@ -70,3 +70,4 @@ tagWhiteList:
 
 tagWhiteListPrefixes:
   - controlplane_
+  - zenoss_
