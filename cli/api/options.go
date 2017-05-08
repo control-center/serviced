@@ -203,14 +203,14 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
 	options.ControllerBinary = cfg.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
-	homepath := cfg.StringVal("HOME", DefaultHomeDir)
-	varpath := filepath.Join(homepath, "var")
+	options.HomePath = cfg.StringVal("HOME", DefaultHomeDir)
+	varpath := filepath.Join(options.HomePath, "var")
 
 	options.IsvcsPath = cfg.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 	options.LogPath  = cfg.StringVal("LOG_PATH", "/var/log/serviced")
 	options.VolumesPath = cfg.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
 	options.BackupsPath = cfg.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
-	options.EtcPath = cfg.StringVal("ETC_PATH", filepath.Join(homepath, "etc"))
+	options.EtcPath = cfg.StringVal("ETC_PATH", filepath.Join(options.HomePath, "etc"))
 	options.StorageArgs = getDefaultStorageOptions(options.FSType, cfg)
 
 	return options

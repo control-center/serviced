@@ -44,7 +44,7 @@ var UseServicedLogDir = "UseServicedLogDir"
 func loadvolumes() {
 	if isvcsVolumes == nil {
 		isvcsVolumes = map[string]string{
-			utils.ResourcesDir(): "/usr/local/serviced/resources",
+			utils.ResourcesDir(): utils.RESOURCES_CONTAINER_DIRECTORY,
 		}
 	}
 }

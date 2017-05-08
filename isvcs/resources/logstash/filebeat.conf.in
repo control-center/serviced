@@ -2,6 +2,10 @@ filebeat:
   idle_timeout: 5s
   prospectors: ${PROSPECTORS_SECTION}
 
+path:
+  data: /var/lib/beat
+  logs: /var/log/beat
+
 output:
   logstash:
     enabled: true

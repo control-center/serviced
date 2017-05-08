@@ -14,26 +14,14 @@
 package web
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"path"
-	"runtime"
 
 	"github.com/zenoss/go-json-rest"
+	"github.com/control-center/serviced/utils"
 )
 
-var webroot string
-
-func init() {
-	webrootDefault := ""
-	servicedHome := os.Getenv("SERVICED_HOME")
-	if len(servicedHome) > 0 {
-		webrootDefault = servicedHome + "/share/web/static"
-	}
-	flag.StringVar(&webroot, "webroot", webrootDefault, "static director for web content, defaults to GO runtime path of src")
-}
 
 /*******************************************************************************
  *
@@ -269,12 +257,7 @@ func noCache(w *rest.ResponseWriter) {
  * Hack to get us the location on the filesystem of our static files.
  */
 func staticRoot() string {
-	if len(webroot) == 0 {
-		// this should only be the case when running locally for dev out of the serviced directory
-		_, thisFilename, _, _ := runtime.Caller(0)
-		return path.Join(path.Dir(thisFilename), "ui/build")
-	}
-	return webroot
+	return utils.LocalDir("share/web/static")
 }
 
 const servicesURI = "/services"

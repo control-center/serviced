@@ -37,6 +37,7 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
+
 func (a *HostAgent) setInstanceState(serviceID string, instanceID int, state service.InstanceCurrentState) error {
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
@@ -653,9 +654,8 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 
 	// bind mount everything we need for filebeat
 	if len(svc.LogConfigs) != 0 {
-		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
-		logstashPath := utils.ResourcesDir() + "/logstash"
-		addBindingToMap(bindsMap, LOGSTASH_CONTAINER_DIRECTORY, logstashPath)
+		logstashPath := filepath.Join(utils.ResourcesDir(), "logstash")
+		addBindingToMap(bindsMap, utils.LOGSTASH_CONTAINER_DIRECTORY, logstashPath)
 	}
 
 	// Bind mount the keys we need
