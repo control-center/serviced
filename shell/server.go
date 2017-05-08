@@ -20,9 +20,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -51,22 +49,6 @@ const (
 	DOCKER_ENDPOINT        = "unix:///var/run/docker.sock"
 )
 
-var webroot string
-
-func init() {
-	servicedHome := os.Getenv("SERVICED_HOME")
-	if len(servicedHome) > 0 {
-		webroot = servicedHome + "/share/shell/static"
-	}
-}
-
-func staticRoot() string {
-	if len(webroot) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		return path.Join(path.Dir(path.Dir(filename)), "shell", "static")
-	}
-	return webroot
-}
 
 func NewProcessForwarderServer(addr string) *ProcessServer {
 	server := &ProcessServer{
@@ -416,7 +398,8 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 		logger.WithError(err).Error("Docker not found")
 		return nil, err
 	}
-	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", utils.ResourcesDir() + ":" + "/usr/local/serviced/resources", "-u", "root", "-w", "/"}
+	resourceBinding := fmt.Sprintf("%s:%s", utils.ResourcesDir(), utils.RESOURCES_CONTAINER_DIRECTORY )
+	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", resourceBinding, "-u", "root", "-w", "/"}
 	for _, mount := range cfg.Mount {
 		hostPath, containerPath, err := parseMountArg(mount)
 		if err != nil {

@@ -236,6 +236,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		MuxDisableTLS:              ctx.GlobalString("mux-disable-tls"),
 		MUXTLSCiphers:              ctx.GlobalStringSlice("mux-tls-ciphers"),
 		MUXTLSMinVersion:           ctx.GlobalString("mux-tls-min-version"),
+		HomePath:                   api.GetDefaultOptions(cfg).HomePath,
 		VolumesPath:                ctx.GlobalString("volumes-path"),
 		IsvcsPath:                  ctx.GlobalString("isvcs-path"),
 		BackupsPath:                ctx.GlobalString("backups-path"),

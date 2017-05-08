@@ -19,18 +19,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
-	"runtime"
+	"path/filepath"
 	"sync"
 	"strings"
 
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/dao"
 )
 
 
@@ -105,15 +104,6 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 	return f.ReloadLogstashConfig(ctx)
 }
 
-func resourcesDir() string {
-	homeDir := os.Getenv("SERVICED_HOME")
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		return path.Clean(path.Join(path.Dir(filename), "..", "isvcs", "resources"))
-
-	}
-	return path.Clean(path.Join(homeDir, "isvcs/resources"))
-}
 
 // writeLogstashConfiguration takes a map of ServiceTemplates and writes them to the
 // appropriate place in the logstash.conf.
@@ -152,8 +142,9 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	}
 	plog.Debugf("after services, auditLogSection=%s", auditLogSection)
 
-	newConfigFile := resourcesDir() + "/logstash/logstash.conf.new"
-	originalFile := resourcesDir() + "/logstash/logstash.conf"
+	logstashDir := getLogstashConfigDirectory()
+	newConfigFile := filepath.Join(logstashDir, "logstash.conf.new")
+	originalFile :=filepath.Join(logstashDir, "logstash.conf")
 	logger := plog.WithFields(log.Fields{
 		"newconfigfile": newConfigFile,
 		"currentconfigfile": originalFile,
@@ -248,9 +239,11 @@ func getAuditLogSectionFromTemplates(services []servicedefinition.ServiceDefinit
 func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]string) string {
 	auditSection := ""
 	fileSection := `file {
-  path => "/var/log/serviced/application-audit.log"
-  codec => line { format => "%{message}"}
+  path => "%s"
+  codec => line { format => "%%{message}"}
 }`
+	auditLogFile := filepath.Join(utils.LOGSTASH_LOCAL_SERVICED_LOG_DIR, "application-audit.log")
+	fileSection = fmt.Sprintf(fileSection, auditLogFile)
 	for _, config := range configs {
 		if config.IsAudit {
 			if !utils.StringInSlice(config.Type, *auditTypes){
@@ -268,7 +261,7 @@ func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]str
 // the logstash.conf.template and does a variable replacement.
 func writeLogStashConfigFile(filters string, auditLogSection string, outputPath string) error {
 	// read the log configuration template
-	templatePath := resourcesDir() + "/logstash/logstash.conf.template"
+	templatePath := filepath.Join(getLogstashConfigDirectory(), "logstash.conf.template")
 
 	contents, err := ioutil.ReadFile(templatePath)
 	if err != nil {
@@ -305,4 +298,8 @@ func indent(src, tab string) string {
 		result += tab + line + "\n"
 	}
 	return result
+}
+
+func getLogstashConfigDirectory() string {
+	return filepath.Join(utils.ResourcesDir(), "logstash")
 }

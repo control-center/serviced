@@ -17,10 +17,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 )
 
 func main() {
@@ -37,8 +39,10 @@ func main() {
 	app.Name = "serviced-controller"
 	app.Usage = "serviced container controller"
 	app.Version = fmt.Sprintf("%s - %s ", servicedversion.Version, servicedversion.Gitcommit)
+
+	filebeatPath := filepath.Join(utils.LOGSTASH_CONTAINER_DIRECTORY, "filebeat")
 	app.Flags = []cli.Flag{
-		cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/filebeat", "path to the filebeat binary"},
+		cli.StringFlag{"forwarder-binary", filebeatPath, "path to the filebeat binary"},
 		cli.StringFlag{"forwarder-config", "/etc/filebeat.conf", "path to the filebeat config file"},
 		cli.IntFlag{"muxport", defaultMuxPort, "multiplexing port to use"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},

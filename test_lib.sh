@@ -8,6 +8,10 @@
 # to perform common actions like setting up and tearing
 # a Control Center storage.
 #
+# The primary input to this script is the environment variable TEST_BASE_PATH
+# The value of that variable will be used as the setting for SERVICED_HOME.
+# See setup_serviced_config below.
+#
 #######################################################
 
 SERVICED=$(PATH=${GOPATH}/bin:${PATH} which serviced)
@@ -28,16 +32,19 @@ DEFAULT_INTERFACE=$(ip route | awk '/default/ { print $5 }' | head -1)
 IP=$(ip -f inet -o addr show $DEFAULT_INTERFACE | awk '{print $4}' | cut -d / -f 1)
 HOSTNAME=$(hostname)
 
-export SERVICED_ETC_PATH=${TEST_VAR_PATH}/etc
-export SERVICED_VOLUMES_PATH=${TEST_VAR_PATH}/volumes
-export SERVICED_ISVCS_PATH=${TEST_VAR_PATH}/isvcs
-export SERVICED_BACKUPS_PATH=${TEST_VAR_PATH}/backups
-export TEST_CONFIG_FILE=${TEST_VAR_PATH}/serviced.default
+export SERVICED_HOME=${TEST_BASE_PATH}
+export SERVICED_ETC_PATH=${SERVICED_HOME}/etc
+export SERVICED_VAR_PATH=${SERVICED_HOME}/var
+export SERVICED_VOLUMES_PATH=${SERVICED_VAR_PATH}/volumes
+export SERVICED_ISVCS_PATH=${SERVICED_VAR_PATH}/isvcs
+export SERVICED_BACKUPS_PATH=${SERVICED_VAR_PATH}/backups
+export TEST_CONFIG_FILE=${SERVICED_VAR_PATH}/serviced.default
 
-# Using an empty default file insulates the smoke tests from any random configuration on the current machine,
-# and, on the build slaves, it eliminates noise from the logs re: "could not read default configs"
+# Using a test-specific defaults file and SERVICED_HOME insulates the smoke tests from any
+# random configuration on the current machine, as well as on the build slaves.
 setup_serviced_config() {
-    mkdir -p ${TEST_VAR_PATH}
+    mkdir -p ${SERVICED_HOME}
+    mkdir -p ${SERVICED_VAR_PATH}
     rm -f ${TEST_CONFIG_FILE}
     touch ${TEST_CONFIG_FILE}
 
@@ -53,18 +60,24 @@ setup_serviced_config() {
     echo "SERVICED_MASTER=1"                              >> ${TEST_CONFIG_FILE}
     SERVICED="${SERVICED} --config-file ${TEST_CONFIG_FILE}"
 
-    cp ${DIR}/pkg/logconfig-cli.yaml    ${SERVICED_ETC_PATH}
-    cp ${DIR}/pkg/logconfig-server.yaml ${SERVICED_ETC_PATH}
-
     echo "Contents of TEST_CONFIG_FILE:"
     cat ${TEST_CONFIG_FILE}
+
+    cp ${DIR}/pkg/logconfig-cli.yaml    ${SERVICED_ETC_PATH}
+    cp ${DIR}/pkg/logconfig-server.yaml ${SERVICED_ETC_PATH}
+    cp ${DIR}/pkg/logconfig-controller.yaml ${SERVICED_ETC_PATH}
+
+    local SERVICED_RESOURCES_PATH=${SERVICED_HOME}/isvcs/resources
+    mkdir -p ${SERVICED_RESOURCES_PATH}
+    cp -r ${DIR}/isvcs/resources/* ${SERVICED_RESOURCES_PATH}
 }
 
 print_env_info() {
     echo ==== ENV INFO =====
     go version
     docker version
-    echo "TEST_VAR_PATH=${TEST_VAR_PATH}"
+    echo "TEST_BASE_PATH=${TEST_BASE_PATH}"
+    echo "SERVICED_HOME=${SERVICED_HOME}"
     echo "TEST_CONFIG_FILE=${TEST_CONFIG_FILE}"
     echo ===================
 }
@@ -101,13 +114,14 @@ add_to_etc_hosts() {
 }
 
 start_serviced() {
-    # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
-    #   all of to force the proper subdirectories to be created under TEST_VAR_PATH
     echo "Starting serviced ..."
 
+    # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
+    #   all of to force the proper subdirectories to be created under TEST_BASE_PATH
     setup_serviced_config
 
     sudo GOPATH=${GOPATH} PATH=${PATH} \
+        SERVICED_HOME=${SERVICED_HOME} \
         ${SERVICED} ${SERVICED_OPTS} \
         --allow-loop-back=true server &
 
@@ -181,7 +195,7 @@ cleanup() {
     echo "Cleaning up serviced storage ..."
     sudo ${SERVICED_STORAGE} -v disable ${SERVICED_VOLUMES_PATH}
 
-    echo "Removing up ${TEST_VAR_PATH} ..."
-    sudo rm -rf ${TEST_VAR_PATH}
+    echo "Removing up ${TEST_BASE_PATH} ..."
+    sudo rm -rf ${TEST_BASE_PATH}
     echo "Finished test cleanup"
 }

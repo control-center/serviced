@@ -20,50 +20,50 @@
 package utils
 
 import (
-	"os"
 	"strings"
 	"testing"
+	"github.com/control-center/serviced/config"
 )
 
 func TestLocalDir(t *testing.T) {
-	original := os.Getenv("SERVICED_HOME")
+	original := config.GetOptions()
 	// make sure we clean up after ourselves
 	defer func() {
-		os.Setenv("SERVICED_HOME", original)
+		config.LoadOptions(original)
 	}()
 
-	os.Setenv("SERVICED_HOME", "test")
+	config.LoadOptions(config.Options{HomePath: "/testRoot"})
 	testDir := LocalDir("test")
-	if testDir != "test/test" {
+	if testDir != "/testRoot/test" {
 		t.Errorf("Expected test directory to be test/test instead it was %s", testDir)
 	}
 }
 
 func TestResourcesDir(t *testing.T) {
-	original := os.Getenv("SERVICED_HOME")
+	original := config.GetOptions()
 	// make sure we clean up after ourselves
 	defer func() {
-		os.Setenv("SERVICED_HOME", original)
+		config.LoadOptions(original)
 	}()
 
-	os.Setenv("SERVICED_HOME", "test")
+	config.LoadOptions(config.Options{HomePath: "/testRoot"})
 	testDir := ResourcesDir()
-	if testDir != "test/isvcs/resources" {
+	if testDir != "/testRoot/isvcs/resources" {
 		t.Errorf("Resources directory was an unexpected value  %s", testDir)
 	}
 }
 
 func TestDefaultDir(t *testing.T) {
-	original := os.Getenv("SERVICED_HOME")
+	original := config.GetOptions()
 	// make sure we clean up after ourselves
 	defer func() {
-		os.Setenv("SERVICED_HOME", original)
+		config.LoadOptions(original)
 	}()
 
-	os.Setenv("SERVICED_HOME", "")
+	config.LoadOptions(config.Options{HomePath: ""})
 	testDir := LocalDir("test")
 	if !strings.Contains(testDir, "/serviced/") {
-		t.Errorf("Making sure the local directory includes serviced	 %s", testDir)
+		t.Errorf("Making sure the local directory includes serviced: %s", testDir)
 	}
 
 	if strings.Contains(testDir, "utils") {
