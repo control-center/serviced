@@ -70,6 +70,9 @@ setup_serviced_config() {
     local SERVICED_RESOURCES_PATH=${SERVICED_HOME}/isvcs/resources
     mkdir -p ${SERVICED_RESOURCES_PATH}
     cp -r ${DIR}/isvcs/resources/* ${SERVICED_RESOURCES_PATH}
+
+    mkdir -p ${SERVICED_HOME}/share/web
+    ln -s ${DIR}/web/ui/build ${SERVICED_HOME}/share/web/static
 }
 
 print_env_info() {
