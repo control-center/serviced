@@ -143,6 +143,26 @@ func LoadOptions(ops Options) {
 		}).Debug("Overriding Elastic startup timeout")
 		options.ESStartupTimeout = minTimeout
 	}
+
+	if options.ZKReconnectStartDelay < 1  {
+		log.WithFields(logrus.Fields{
+			"reconnectstartdelay": options.ZKReconnectStartDelay,
+		}).Debug("ZK_RECONNECT_START_DELAY too low; Resetting to 1 second")
+		options.ZKReconnectStartDelay = 1
+	}
+	if options.ZKReconnectMaxDelay < 1  {
+		log.WithFields(logrus.Fields{
+			"reconnectmaxdelay": options.ZKReconnectMaxDelay,
+		}).Debug("ZK_RECONNECT_MAX_DELAY too low; Resetting to 1 second")
+		options.ZKReconnectMaxDelay = 1
+	}
+	if options.ZKReconnectStartDelay > options.ZKReconnectMaxDelay {
+		log.WithFields(logrus.Fields{
+			"reconnectstartdelay": options.ZKReconnectStartDelay,
+			"reconnectmaxdelay": options.ZKReconnectMaxDelay,
+		}).Debug("ZK_RECONNECT_START_DELAY too large; Resetting to ZK_RECONNECT_MAX_DELAY")
+		options.ZKReconnectStartDelay = options.ZKReconnectMaxDelay
+	}
 }
 
 func MuxTLSIsEnabled() bool {
