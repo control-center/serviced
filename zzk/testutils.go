@@ -49,7 +49,13 @@ func (t *ZZKTestSuite) GetService(c *C) *isvcs.IService {
 }
 
 func (t *ZZKTestSuite) Create(c *C) {
-	dsn := zookeeper.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
+	dsn := zookeeper.NewDSN([]string{"127.0.0.1:2181"},
+		time.Second*15,
+		1*time.Second,
+		0,
+		1*time.Second,
+		1*time.Second,
+	).String()
 	c.Logf("zookeeper dsn: %s", dsn)
 	zclient, err := client.New("zookeeper", dsn, "", nil)
 	if err != nil {
