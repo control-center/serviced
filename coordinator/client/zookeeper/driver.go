@@ -15,7 +15,6 @@ package zookeeper
 
 import (
 	"encoding/json"
-	"math/rand"
 	"time"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
@@ -84,58 +83,6 @@ func ParseDSN(dsn string) (val DSN, err error) {
 	return val, err
 }
 
-// zkBackoff controls the exponential backoff used when connection attempts to all zookepers fail
-type zkBackoff struct {
-	initialDelay time.Duration	// the initial delay
-	maxDelay     time.Duration	// The maximum delay
-	delay        time.Duration	// the current delay
-}
-
-// GetDelay returns the amount of delay that should be used for the current connection attempt.
-// It will return a randomized value of initialDelay on the first call, and will increase the delay
-// randomly on each subsequent call up to maxDelay. The initial delay and each subsequent delay
-// are randomized to avoid a scenario where multiple instances on the same host all start trying
-// to reconnection. In scenarios like those, we don't want all instances reconnecting in lock-step
-// with each other.
-func (backoff *zkBackoff) GetDelay() time.Duration {
-	defer func() {
-		factor := 2.0
-		jitter := 6.0
-
-		backoff.delay = time.Duration(float64(backoff.delay) * factor)
-		backoff.delay += time.Duration(rand.Float64() * jitter * float64(time.Second))
-		if backoff.delay > backoff.maxDelay {
-			backoff.delay = backoff.maxDelay
-		}
-	}()
-
-	if backoff.delay == 0 {
-		backoff.Reset()
-	}
-	return backoff.delay
-}
-
-// Reset resets the backoff delay to some random value that is btwn 80-120% of the initialDelay.
-//     We want to randomize the initial delay so in cases where many instances simultaneously
-//     lose all ZK connections, they will not all start trying to reconnect at the same time.
-func (backoff *zkBackoff) Reset() {
-	start := backoff.initialDelay.Seconds()
-	minStart := 0.8 * start
-	maxStart := 1.2 * start
-	start = start + rand.NormFloat64()
-	if start < minStart {
-		start = minStart
-	} else if start > maxStart {
-		start = maxStart
-	}
-	backoff.delay = time.Duration(start * float64(time.Second))
-
-	// never exceeed maxDelay
-	if backoff.delay > backoff.maxDelay {
-		backoff.delay = backoff.maxDelay
-	}
-}
-
 // GetConnection returns a Zookeeper connection given the dsn. The caller is
 // responsible for closing the returned connection.
 func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, error) {
@@ -150,9 +97,9 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		zklib.WithConnectTimeout(dsnVal.ConnectTimeout),
 		zklib.WithReconnectDelay(dsnVal.ReconnectStartDelay),
 		zklib.WithPerHostConnectDelay(dsnVal.PerHostConnectDelay),
-		zklib.WithBackoff(&zkBackoff{
-			initialDelay: dsnVal.ReconnectStartDelay,
-			maxDelay:     dsnVal.ReconnectMaxDelay,
+		zklib.WithBackoff(&client.Backoff{
+			InitialDelay: dsnVal.ReconnectStartDelay,
+			MaxDelay:     dsnVal.ReconnectMaxDelay,
 		}))
 	if err != nil {
 		return nil, err
@@ -165,18 +112,21 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		case e := <-event:
 			if e.State == zklib.StateHasSession {
 				connected = true
-				plog.WithField("session", e).Debug("zk connection has session")
+				plog.WithField("event", e).Debug("zk connection has session")
 			} else {
-				plog.WithField("session", e).Debug("waiting for zk connection to have session")
+				plog.WithField("event", e).Debug("waiting for zk connection to have session")
 			}
 		}
 	}
 	go func() {
 		for {
 			select {
-			case _, ok := <-event:
+			case e, ok := <-event:
 				if !ok {
+					plog.WithField("event", e).Debug("zk event channel closed")
 					return
+				} else {
+					plog.WithField("event", e).Debug("zk state change event received")
 				}
 			}
 		}
