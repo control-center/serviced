@@ -15,6 +15,7 @@ package zookeeper
 
 import (
 	"encoding/json"
+	"math/rand"
 	"time"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
@@ -40,14 +41,27 @@ func init() {
 // serialized.
 type DSN struct {
 	Servers []string
-	Timeout time.Duration
+	SessionTimeout      time.Duration
+	ConnectTimeout      time.Duration
+	PerHostConnectDelay time.Duration
+	ReconnectStartDelay time.Duration
+	ReconnectMaxDelay   time.Duration
 }
 
 // NewDSN returns a new DSN object from servers and timeout.
-func NewDSN(servers []string, timeout time.Duration) DSN {
+func NewDSN(servers []string,
+	sessionTimeout time.Duration,
+	connectTimeout      time.Duration,
+	perHostConnectDelay time.Duration,
+	reconnectStartDelay time.Duration,
+	reconnectMaxDelay   time.Duration) DSN {
 	dsn := DSN{
 		Servers: servers,
-		Timeout: timeout,
+		SessionTimeout: sessionTimeout,
+		ConnectTimeout: connectTimeout,
+		PerHostConnectDelay: perHostConnectDelay,
+		ReconnectStartDelay: reconnectStartDelay,
+		ReconnectMaxDelay: reconnectMaxDelay,
 	}
 	if dsn.Servers == nil || len(dsn.Servers) == 0 {
 		dsn.Servers = []string{"127.0.0.1:2181"}
@@ -70,6 +84,58 @@ func ParseDSN(dsn string) (val DSN, err error) {
 	return val, err
 }
 
+// zkBackoff controls the exponential backoff used when connection attempts to all zookepers fail
+type zkBackoff struct {
+	initialDelay time.Duration	// the initial delay
+	maxDelay     time.Duration	// The maximum delay
+	delay        time.Duration	// the current delay
+}
+
+// GetDelay returns the amount of delay that should be used for the current connection attempt.
+// It will return a randomized value of initialDelay on the first call, and will increase the delay
+// randomly on each subsequent call up to maxDelay. The initial delay and each subsequent delay
+// are randomized to avoid a scenario where multiple instances on the same host all start trying
+// to reconnection. In scenarios like those, we don't want all instances reconnecting in lock-step
+// with each other.
+func (backoff *zkBackoff) GetDelay() time.Duration {
+	defer func() {
+		factor := 2.0
+		jitter := 6.0
+
+		backoff.delay = time.Duration(float64(backoff.delay) * factor)
+		backoff.delay += time.Duration(rand.Float64() * jitter * float64(time.Second))
+		if backoff.delay > backoff.maxDelay {
+			backoff.delay = backoff.maxDelay
+		}
+	}()
+
+	if backoff.delay == 0 {
+		backoff.Reset()
+	}
+	return backoff.delay
+}
+
+// Reset resets the backoff delay to some random value that is btwn 80-120% of the initialDelay.
+//     We want to randomize the initial delay so in cases where many instances simultaneously
+//     lose all ZK connections, they will not all start trying to reconnect at the same time.
+func (backoff *zkBackoff) Reset() {
+	start := backoff.initialDelay.Seconds()
+	minStart := 0.8 * start
+	maxStart := 1.2 * start
+	start = start + rand.NormFloat64()
+	if start < minStart {
+		start = minStart
+	} else if start > maxStart {
+		start = maxStart
+	}
+	backoff.delay = time.Duration(start * float64(time.Second))
+
+	// never exceeed maxDelay
+	if backoff.delay > backoff.maxDelay {
+		backoff.delay = backoff.maxDelay
+	}
+}
+
 // GetConnection returns a Zookeeper connection given the dsn. The caller is
 // responsible for closing the returned connection.
 func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, error) {
@@ -79,7 +145,15 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		return nil, err
 	}
 
-	conn, event, err := zklib.Connect(dsnVal.Servers, dsnVal.Timeout)
+	conn, event, err := zklib.Connect(dsnVal.Servers,
+		dsnVal.SessionTimeout,
+		zklib.WithConnectTimeout(dsnVal.ConnectTimeout),
+		zklib.WithReconnectDelay(dsnVal.ReconnectStartDelay),
+		zklib.WithPerHostConnectDelay(dsnVal.PerHostConnectDelay),
+		zklib.WithBackoff(&zkBackoff{
+			initialDelay: dsnVal.ReconnectStartDelay,
+			maxDelay:     dsnVal.ReconnectMaxDelay,
+		}))
 	if err != nil {
 		return nil, err
 	}

@@ -404,7 +404,13 @@ func (d *daemon) initContext() datastore.Context {
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 	options := config.GetOptions()
 	coordzk.RegisterZKLogger()
-	dsn := coordzk.NewDSN(zks, time.Duration(options.ZKSessionTimeout)*time.Second).String()
+	dsn := coordzk.NewDSN(zks,
+		time.Duration(options.ZKSessionTimeout)*time.Second,
+		time.Duration(options.ZKConnectTimeout) * time.Second,
+		time.Duration(options.ZKPerHostConnectDelay) * time.Second,
+		time.Duration(options.ZKReconnectStartDelay) * time.Second,
+		time.Duration(options.ZKReconnectMaxDelay) * time.Second,
+	).String()
 	log.WithFields(logrus.Fields{
 		"dsn":            dsn,
 		"sessiontimeout": options.ZKSessionTimeout,
@@ -953,6 +959,10 @@ func (d *daemon) startAgent() error {
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
 			ZKSessionTimeout:     options.ZKSessionTimeout,
+			ZKConnectTimeout:     options.ZKConnectTimeout,
+			ZKPerHostConnectDelay: options.ZKPerHostConnectDelay,
+			ZKReconnectStartDelay: options.ZKReconnectStartDelay,
+			ZKReconnectMaxDelay:  options.ZKReconnectMaxDelay,
 			DelegateKeyFile:      delegateKeyFile,
 			TokenFile:            tokenFile,
 		}

@@ -38,7 +38,7 @@ func TestLeader(t *testing.T) {
 
 	// setup the driver
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
