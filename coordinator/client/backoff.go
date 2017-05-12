@@ -62,7 +62,15 @@ func (backoff *Backoff) Reset() {
 	start := backoff.InitialDelay.Seconds()
 	minStart := 0.8 * start
 	maxStart := 1.2 * start
-	start = start + rand.NormFloat64()
+
+	rando := rand.Float64()		// Get a random fraction between [0.0,1.0)
+	sign := rand.NormFloat64()
+	if sign < 0.0 {
+		rando *= -1.0		// randomly adjust the sign of the fraction
+	}
+
+	// compute a random value between min and max start
+	start = start + (rando * (maxStart - minStart))
 	if start < minStart {
 		start = minStart
 	} else if start > maxStart {
@@ -70,7 +78,7 @@ func (backoff *Backoff) Reset() {
 	}
 	backoff.delay = time.Duration(start * float64(time.Second))
 
-	// never exceeed maxDelay
+	// never exceed maxDelay
 	if backoff.delay > backoff.MaxDelay {
 		backoff.delay = backoff.MaxDelay
 	}
