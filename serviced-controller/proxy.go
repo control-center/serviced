@@ -15,16 +15,19 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"os"
 	"strconv"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/container"
+	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	log "github.com/Sirupsen/logrus"
+	"github.com/zenoss/logri"
 )
 
 var plog = logging.PackageLogger()
@@ -82,6 +85,10 @@ func CmdServiceProxy(ctx *cli.Context) {
 }
 
 func StartProxy(options ControllerOptions) error {
+	logri.ApplyConfigFromFile(filepath.Join("/etc/serviced", "logconfig-controller.yaml"))
+	coordzk.RegisterZKLogger()
+
+	// TODO: CC-3061: Our use of logrus does not support a similar integration with logstash
 	glog.SetLogstashType("controller-" + options.ServiceID + "-" + options.InstanceID)
 	glog.SetLogstashURL(options.LogstashURL)
 
