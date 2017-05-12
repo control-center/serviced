@@ -61,6 +61,16 @@ type Logger interface {
 	Printf(string, ...interface{})
 }
 
+// Backoff is an interface that can be implemented to compute backoff delays during connection attempts
+type Backoff interface {
+	GetDelay() time.Duration
+	Reset()
+}
+
+type simpleBackoff struct {
+	delay time.Duration
+}
+
 type Conn struct {
 	lastZxid         int64
 	sessionID        int64
@@ -86,8 +96,9 @@ type Conn struct {
 	watchers     map[watchPathType][]chan Event
 	watchersLock sync.Mutex
 
-	// Debug (used by unit tests)
-	reconnectDelay time.Duration
+	reconnectDelay time.Duration   // optional delay to reconnect after all hosts disconnected; defaults to 0
+	backoff        Backoff         // function to compute back off time between hosts; see defaultBackoff()
+	perHostConnectDelay time.Duration // optional delay between connect attempts to each host; defaults to 0
 
 	logger Logger
 }
@@ -186,8 +197,9 @@ func Connect(servers []string, sessionTimeout time.Duration, options ...connOpti
 		passwd:         emptyPassword,
 		logger:         DefaultLogger,
 
-		// Debug
 		reconnectDelay: 0,
+		perHostConnectDelay: 0,
+		backoff:        &simpleBackoff{delay: 1 * time.Second},
 	}
 
 	// Set provided options.
@@ -221,6 +233,34 @@ func WithDialer(dialer Dialer) connOption {
 func WithHostProvider(hostProvider HostProvider) connOption {
 	return func(c *Conn) {
 		c.hostProvider = hostProvider
+	}
+}
+
+// WithConnectTimeout returns a connection option specifying a non-default connect timeout
+func WithConnectTimeout(timeout time.Duration) connOption {
+	return func(c *Conn) {
+		c.connectTimeout = timeout
+	}
+}
+
+// WithReconnectDelay returns a connection option specifying a non-default reconnect delay
+func WithReconnectDelay(delay time.Duration) connOption {
+	return func(c *Conn) {
+		c.reconnectDelay = delay
+	}
+}
+
+// WithPerHostConnectDelay returns a connection option specifying a non-default delay btwn connection attempts to different hosts
+func WithPerHostConnectDelay(delay time.Duration) connOption {
+	return func(c *Conn) {
+		c.perHostConnectDelay = delay
+	}
+}
+
+// WithBackoff returns a connection option specifying a non-default Backoff method
+func WithBackoff(backoff Backoff) connOption {
+	return func(c *Conn) {
+		c.backoff = backoff
 	}
 }
 
@@ -262,6 +302,12 @@ func (c *Conn) setState(state State) {
 
 func (c *Conn) connect() error {
 	var retryStart bool
+
+	useHostDelay := false   // At first, aggressively try to connect to any available host
+
+	c.logger.Printf("Starting connect, connectTimeout=%2.1f perHostConnectDelay=%2.1f",
+		c.connectTimeout.Seconds(), c.perHostConnectDelay.Seconds())
+
 	for {
 		c.serverMu.Lock()
 		c.server, retryStart = c.hostProvider.Next()
@@ -269,8 +315,12 @@ func (c *Conn) connect() error {
 		c.setState(StateConnecting)
 		if retryStart {
 			c.flushUnsentRequests(ErrNoServer)
+
+			// If none of ZK ensemble hosts can be reached, wait a moment and try again
+			backoffDelay := c.backoff.GetDelay()
+			useHostDelay = true
 			select {
-			case <-time.After(time.Second):
+			case <-time.After(backoffDelay):
 				// pass
 			case <-c.shouldQuit:
 				c.setState(StateDisconnected)
@@ -288,10 +338,14 @@ func (c *Conn) connect() error {
 		}
 
 		c.logger.Printf("Failed to connect to %s: %+v", c.Server(), err)
+		if useHostDelay && c.perHostConnectDelay > 0 {
+			time.Sleep(c.perHostConnectDelay)
+		}
 	}
 }
 
 func (c *Conn) loop() {
+	c.backoff.Reset()
 	for {
 		if err := c.connect(); err != nil {
 			// c.Close() was called
@@ -307,7 +361,8 @@ func (c *Conn) loop() {
 			c.logger.Printf("Authentication failed: %s", err)
 			c.conn.Close()
 		case err == nil:
-			c.logger.Printf("Authenticated: id=%d, timeout=%d", c.sessionID, c.sessionTimeoutMs)
+			c.backoff.Reset()                 // Don't reset the backoff until we get a connection we can use.
+			c.logger.Printf("Authenticated: id=%d, timeout=%d (seconds)", c.sessionID, c.sessionTimeoutMs/1000)
 			c.hostProvider.Connected()       // mark success
 			closeChan := make(chan struct{}) // channel to tell send loop stop
 			var wg sync.WaitGroup
@@ -336,6 +391,7 @@ func (c *Conn) loop() {
 		}
 
 		c.setState(StateDisconnected)
+		c.logger.Printf("StateDisconnected, reconnectDelay=%d (seconds)", int(c.reconnectDelay.Seconds()))
 
 		select {
 		case <-c.shouldQuit:
@@ -354,6 +410,7 @@ func (c *Conn) loop() {
 			case <-c.shouldQuit:
 				return
 			case <-time.After(c.reconnectDelay):
+				c.logger.Printf("reconnectDelay=%d (seconds) expired", int(c.reconnectDelay.Seconds()))
 			}
 		}
 	}
@@ -921,4 +978,13 @@ func (c *Conn) Server() string {
 	c.serverMu.Lock()
 	defer c.serverMu.Unlock()
 	return c.server
+}
+
+// The simple backoff strategy is a constant 1 second delay
+func (b *simpleBackoff) GetDelay() time.Duration {
+	return b.delay
+}
+
+func (b *simpleBackoff) Reset() {
+	return
 }

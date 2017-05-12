@@ -111,6 +111,10 @@ type Options struct {
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
+	ZKConnectTimeout           int               // The network connect timeout, in seconds, for a zookeeper client connection.
+	ZKPerHostConnectDelay      int               // The delay, in seconds, between connection attempts to other zookeeper servers.
+	ZKReconnectStartDelay      int               // The initial delay, in seconds, before attempting to reconnect after none of the zookeepers are reachable
+	ZKReconnectMaxDelay        int               // The maximum delay, in seconds, before attempting to reconnect after none of the zookeepers are reachable
 	TokenExpiration            int               // The time in seconds before an authentication token expires
 	ConntrackFlush             string            // Whether to flush the conntrack table when a service with an assigned IP is started
 	LogConfigFilename          string            // Path to the logri configuration
@@ -138,6 +142,26 @@ func LoadOptions(ops Options) {
 			"mintimeout": minTimeout,
 		}).Debug("Overriding Elastic startup timeout")
 		options.ESStartupTimeout = minTimeout
+	}
+
+	if options.ZKReconnectStartDelay < 1  {
+		log.WithFields(logrus.Fields{
+			"reconnectstartdelay": options.ZKReconnectStartDelay,
+		}).Debug("ZK_RECONNECT_START_DELAY too low; Resetting to 1 second")
+		options.ZKReconnectStartDelay = 1
+	}
+	if options.ZKReconnectMaxDelay < 1  {
+		log.WithFields(logrus.Fields{
+			"reconnectmaxdelay": options.ZKReconnectMaxDelay,
+		}).Debug("ZK_RECONNECT_MAX_DELAY too low; Resetting to 1 second")
+		options.ZKReconnectMaxDelay = 1
+	}
+	if options.ZKReconnectStartDelay > options.ZKReconnectMaxDelay {
+		log.WithFields(logrus.Fields{
+			"reconnectstartdelay": options.ZKReconnectStartDelay,
+			"reconnectmaxdelay": options.ZKReconnectMaxDelay,
+		}).Debug("ZK_RECONNECT_START_DELAY too large; Resetting to ZK_RECONNECT_MAX_DELAY")
+		options.ZKReconnectStartDelay = options.ZKReconnectMaxDelay
 	}
 }
 

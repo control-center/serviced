@@ -125,7 +125,13 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	dt.MappingsFile = "controlplane.json"
 	dt.FacadeIntegrationTest.SetUpSuite(c)
 
-	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
+	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"},
+		time.Second*15,
+		1*time.Second,
+		0,
+		1*time.Second,
+		1*time.Second,
+	).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
 	zClient, err := coordclient.New("zookeeper", dsn, "", nil)
 	if err != nil {
