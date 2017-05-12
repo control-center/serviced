@@ -1,9 +1,8 @@
 package mocks
 
-import "github.com/control-center/serviced/coordinator/client"
 import (
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/stretchr/testify/mock"
-	"github.com/zenoss/glog"
 )
 
 type Connection struct {
@@ -11,15 +10,12 @@ type Connection struct {
 }
 
 func (_m *Connection) Close() {
-	glog.Infof("Close() START")
 	_m.Called()
 }
 func (_m *Connection) SetID(_a0 int) {
-	glog.Infof("SetID(%d) START", _a0)
 	_m.Called(_a0)
 }
 func (_m *Connection) ID() int {
-	glog.Infof("ID() START")
 	ret := _m.Called()
 
 	var r0 int
@@ -35,7 +31,6 @@ func (_m *Connection) SetOnClose(_a0 func(int)) {
 	_m.Called(_a0)
 }
 func (_m *Connection) NewTransaction() client.Transaction {
-	glog.Infof("NewTransaction() START")
 	ret := _m.Called()
 
 	var r0 client.Transaction
@@ -48,7 +43,6 @@ func (_m *Connection) NewTransaction() client.Transaction {
 	return r0
 }
 func (_m *Connection) Create(path string, node client.Node) error {
-	glog.Infof("Create(%s,%v) START", path, node)
 	ret := _m.Called(path, node)
 
 	var r0 error
@@ -61,7 +55,6 @@ func (_m *Connection) Create(path string, node client.Node) error {
 	return r0
 }
 func (_m *Connection) CreateDir(path string) error {
-	glog.Infof("CreateDir(%s) START", path)
 	ret := _m.Called(path)
 
 	var r0 error
@@ -74,7 +67,6 @@ func (_m *Connection) CreateDir(path string) error {
 	return r0
 }
 func (_m *Connection) CreateEphemeral(path string, node client.Node) (string, error) {
-	glog.Infof("CreateEphemeral(%s,%v) START", path, node)
 	ret := _m.Called(path, node)
 
 	var r0 string
@@ -94,7 +86,6 @@ func (_m *Connection) CreateEphemeral(path string, node client.Node) (string, er
 	return r0, r1
 }
 func (_m *Connection) EnsurePath(path string) error {
-	glog.Infof("EnsurePath(%s) START", path)
 	ret := _m.Called(path)
 
 	var r0 error
@@ -107,7 +98,6 @@ func (_m *Connection) EnsurePath(path string) error {
 	return r0
 }
 func (_m *Connection) Exists(path string) (bool, error) {
-	glog.Infof("Exists(%s) START", path)
 	ret := _m.Called(path)
 
 	var r0 bool
@@ -127,7 +117,6 @@ func (_m *Connection) Exists(path string) (bool, error) {
 	return r0, r1
 }
 func (_m *Connection) Delete(path string) error {
-	glog.Infof("Delete(%s) START", path)
 	ret := _m.Called(path)
 
 	var r0 error
@@ -140,7 +129,6 @@ func (_m *Connection) Delete(path string) error {
 	return r0
 }
 func (_m *Connection) ChildrenW(path string, done <-chan struct{}) (children []string, event <-chan client.Event, err error) {
-	glog.Infof("Childrenw(%s,%v) START", path, done)
 	ret := _m.Called(path, done)
 
 	var r0 []string
@@ -173,7 +161,6 @@ func (_m *Connection) ChildrenW(path string, done <-chan struct{}) (children []s
 }
 
 func (_m *Connection) Children(p string) (children []string, err error) {
-	glog.Infof("Children(%s) START", p)
 	ret := _m.Called(p)
 
 	//var r0 []string
@@ -195,7 +182,6 @@ func (_m *Connection) Children(p string) (children []string, err error) {
 	return children, err
 }
 func (_m *Connection) Get(path string, node client.Node) error {
-	glog.Infof("Get(%s,%v) START", path, node)
 	ret := _m.Called(path, node)
 
 	var r0 error
@@ -208,7 +194,6 @@ func (_m *Connection) Get(path string, node client.Node) error {
 	return r0
 }
 func (_m *Connection) Set(path string, node client.Node) error {
-	glog.Infof("Set(%s,%v) START", path, node)
 	ret := _m.Called(path, node)
 
 	var r0 error
@@ -221,7 +206,6 @@ func (_m *Connection) Set(path string, node client.Node) error {
 	return r0
 }
 func (_m *Connection) NewLock(path string) client.Lock {
-	glog.Infof("NewLock(%s) START", path)
 	ret := _m.Called(path)
 
 	var r0 client.Lock
@@ -234,7 +218,6 @@ func (_m *Connection) NewLock(path string) client.Lock {
 	return r0
 }
 func (_m *Connection) NewLeader(path string, data client.Node) client.Leader {
-	glog.Infof("NewLeader(%s,%v) START", path, data)
 	ret := _m.Called(path, data)
 
 	var r0 client.Leader
@@ -248,7 +231,6 @@ func (_m *Connection) NewLeader(path string, data client.Node) client.Leader {
 }
 
 func (_m *Connection) GetW(path string, node client.Node, done <-chan struct{}) (<-chan client.Event, error) {
-	glog.Infof("GetW(%s,%v,%v) START", path, node, done)
 	ret := _m.Called(path, node, done)
 
 	var r0 <-chan client.Event

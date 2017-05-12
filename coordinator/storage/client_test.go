@@ -21,7 +21,6 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/test"
-	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"fmt"
@@ -78,7 +77,7 @@ func TestClient(t *testing.T) {
 
 	// therefore, we need to check that the client was added under the pool from root
 	nodePath := fmt.Sprintf("/storage/clients/%s", h.IPAddr)
-	glog.Infof("about to check for %s", nodePath)
+	t.Logf("about to check for %s", nodePath)
 	if exists, err := conn.Exists(nodePath); err != nil {
 		t.Fatalf("did not expect error checking for existence of %s: %s", nodePath, err)
 	} else {
