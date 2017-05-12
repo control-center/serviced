@@ -101,7 +101,13 @@ func (s *RegistryListenerSuite) SetUpSuite(c *C) {
 	}
 
 	// Connect to the zookeeper client
-	dsn := zookeeper.NewDSN([]string{fmt.Sprintf("localhost:%d", s.zzkServer.Port)}, 15*time.Second).String()
+	dsn := zookeeper.NewDSN([]string{fmt.Sprintf("localhost:%d", s.zzkServer.Port)},
+		15*time.Second,
+		1*time.Second,
+		0,
+		1*time.Second,
+		1*time.Second,
+	).String()
 	zkclient, err := coordclient.New("zookeeper", dsn, "/", nil)
 	if err != nil {
 		c.Fatalf("Could not establish the zookeeper client: %s", err)

@@ -218,8 +218,20 @@
 # free space for creating a snapshot.  Defaults to 20
 # SERVICED_SNAPSHOT_USE_PERCENT=20
 
-# Timeout in seconds for a zookeeper connection to timeout.  Defaults to 15.
+# Timeout in seconds for a zookeeper session to timeout.  Defaults to 15.
 # SERVICED_ZK_SESSION_TIMEOUT=15
+
+# Timeout in seconds for a zookeeper network connection. Defaults to 1.
+# SERVICED_ZK_CONNECT_TIMEOUT=1
+
+# Delay in seconds between connection attempts for different hosts when SERVICED_ZK contains addressses to multiple zookeepers. Defaults to 0
+# SERVICED_ZK_PER_HOST_CONNECT_DELAY=0
+
+# The initial delay in seconds before attempting to reconnect after failing to connect to all zookeepers identified by SERVICED_ZK. Defaults to 1
+# SERVICED_ZK_RECONNECT_START_DELAY=1
+
+# The max delay in seconds before attempting to reconnect after failing to connect to all zookeepers identified by SERVICED_ZK. Defaults to 1
+# SERVICED_ZK_RECONNECT_MAX_DELAY=1
 
 # Time (in seconds) to wait for elastic search to start
 # SERVICED_ES_STARTUP_TIMEOUT=240

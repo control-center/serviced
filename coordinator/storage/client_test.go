@@ -41,7 +41,7 @@ func TestClient(t *testing.T) {
 
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
-	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
