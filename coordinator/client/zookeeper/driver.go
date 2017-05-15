@@ -40,14 +40,27 @@ func init() {
 // serialized.
 type DSN struct {
 	Servers []string
-	Timeout time.Duration
+	SessionTimeout      time.Duration
+	ConnectTimeout      time.Duration
+	PerHostConnectDelay time.Duration
+	ReconnectStartDelay time.Duration
+	ReconnectMaxDelay   time.Duration
 }
 
 // NewDSN returns a new DSN object from servers and timeout.
-func NewDSN(servers []string, timeout time.Duration) DSN {
+func NewDSN(servers []string,
+	sessionTimeout time.Duration,
+	connectTimeout      time.Duration,
+	perHostConnectDelay time.Duration,
+	reconnectStartDelay time.Duration,
+	reconnectMaxDelay   time.Duration) DSN {
 	dsn := DSN{
 		Servers: servers,
-		Timeout: timeout,
+		SessionTimeout: sessionTimeout,
+		ConnectTimeout: connectTimeout,
+		PerHostConnectDelay: perHostConnectDelay,
+		ReconnectStartDelay: reconnectStartDelay,
+		ReconnectMaxDelay: reconnectMaxDelay,
 	}
 	if dsn.Servers == nil || len(dsn.Servers) == 0 {
 		dsn.Servers = []string{"127.0.0.1:2181"}
@@ -79,7 +92,15 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		return nil, err
 	}
 
-	conn, event, err := zklib.Connect(dsnVal.Servers, dsnVal.Timeout)
+	conn, event, err := zklib.Connect(dsnVal.Servers,
+		dsnVal.SessionTimeout,
+		zklib.WithConnectTimeout(dsnVal.ConnectTimeout),
+		zklib.WithReconnectDelay(dsnVal.ReconnectStartDelay),
+		zklib.WithPerHostConnectDelay(dsnVal.PerHostConnectDelay),
+		zklib.WithBackoff(&client.Backoff{
+			InitialDelay: dsnVal.ReconnectStartDelay,
+			MaxDelay:     dsnVal.ReconnectMaxDelay,
+		}))
 	if err != nil {
 		return nil, err
 	}
@@ -91,18 +112,21 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		case e := <-event:
 			if e.State == zklib.StateHasSession {
 				connected = true
-				plog.WithField("session", e).Debug("zk connection has session")
+				plog.WithField("event", e).Debug("zk connection has session")
 			} else {
-				plog.WithField("session", e).Debug("waiting for zk connection to have session")
+				plog.WithField("event", e).Debug("waiting for zk connection to have session")
 			}
 		}
 	}
 	go func() {
 		for {
 			select {
-			case _, ok := <-event:
+			case e, ok := <-event:
 				if !ok {
+					plog.WithField("event", e).Debug("zk event channel closed")
 					return
+				} else {
+					plog.WithField("event", e).Debug("zk state change event received")
 				}
 			}
 		}

@@ -48,7 +48,7 @@ func TestZkDriver(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
@@ -148,7 +148,7 @@ func TestZkDriver_Multi(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
@@ -323,7 +323,7 @@ func TestZkDriver_Ephemeral(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
@@ -401,7 +401,7 @@ func TestZkDriver_Watch(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}

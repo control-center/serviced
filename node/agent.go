@@ -96,13 +96,22 @@ type HostAgent struct {
 	vip                  VIP
 }
 
-func getZkDSN(zookeepers []string, timeout int) string {
+func getZkDSN(zookeepers []string,
+	sessionTimeout int,
+	connectTimeout int,
+	perHostConnectDelay int,
+	reconnectStartDelay int,
+	reconnectMaxDelay int) string {
 	if len(zookeepers) == 0 {
 		zookeepers = []string{"127.0.0.1:2181"}
 	}
 	dsn := coordzk.DSN{
 		Servers: zookeepers,
-		Timeout: time.Duration(timeout) * time.Second,
+		SessionTimeout: time.Duration(sessionTimeout) * time.Second,
+		ConnectTimeout: time.Duration(connectTimeout) * time.Second,
+		PerHostConnectDelay: time.Duration(perHostConnectDelay) * time.Second,
+		ReconnectStartDelay: time.Duration(reconnectStartDelay) * time.Second,
+		ReconnectMaxDelay: time.Duration(reconnectMaxDelay) * time.Second,
 	}
 	return dsn.String()
 }
@@ -130,6 +139,10 @@ type AgentOptions struct {
 	DockerLogDriver      string
 	DockerLogConfig      map[string]string
 	ZKSessionTimeout     int
+	ZKConnectTimeout     int
+	ZKPerHostConnectDelay int
+	ZKReconnectStartDelay int
+	ZKReconnectMaxDelay  int
 	DelegateKeyFile      string
 	TokenFile            string
 	ConntrackFlush       bool
@@ -164,7 +177,12 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.serviceCache = NewServiceCache(options.Master)
 
 	var err error
-	dsn := getZkDSN(options.Zookeepers, agent.zkSessionTimeout)
+	dsn := getZkDSN(options.Zookeepers,
+		agent.zkSessionTimeout,
+		options.ZKConnectTimeout,
+		options.ZKPerHostConnectDelay,
+		options.ZKReconnectStartDelay,
+		options.ZKReconnectMaxDelay)
 	if agent.zkClient, err = coordclient.New("zookeeper", dsn, "", nil); err != nil {
 		return nil, err
 	}
