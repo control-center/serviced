@@ -28,6 +28,8 @@ type Backoff struct {
 	InitialDelay time.Duration	// the initial delay
 	MaxDelay     time.Duration	// The maximum delay
 	delay        time.Duration	// the current delay
+	random       *rand.Rand
+
 }
 
 // GetDelay returns the amount of delay that should be used for the current connection attempt.
@@ -42,12 +44,15 @@ func (backoff *Backoff) GetDelay() time.Duration {
 		jitter := 6.0
 
 		backoff.delay = time.Duration(float64(backoff.delay) * factor)
-		backoff.delay += time.Duration(rand.Float64() * jitter * float64(time.Second))
+		backoff.delay += time.Duration(backoff.random.Float64() * jitter * float64(time.Second))
 		if backoff.delay > backoff.MaxDelay {
 			backoff.delay = backoff.MaxDelay
 		}
 	}()
 
+	if backoff.random == nil {
+		backoff.initialize()
+	}
 	if backoff.delay == 0 {
 		backoff.Reset()
 	}
@@ -63,19 +68,13 @@ func (backoff *Backoff) Reset() {
 	minStart := 0.8 * start
 	maxStart := 1.2 * start
 
-	rando := rand.Float64()		// Get a random fraction between [0.0,1.0)
-	sign := rand.NormFloat64()
-	if sign < 0.0 {
-		rando *= -1.0		// randomly adjust the sign of the fraction
+	if backoff.random == nil {
+		backoff.initialize()
 	}
 
 	// compute a random value between min and max start
-	start = start + (rando * (maxStart - minStart))
-	if start < minStart {
-		start = minStart
-	} else if start > maxStart {
-		start = maxStart
-	}
+	rando := backoff.random.Float64()
+	start = minStart + (rando * (maxStart - minStart))
 	backoff.delay = time.Duration(start * float64(time.Second))
 
 	// never exceed maxDelay
@@ -84,3 +83,6 @@ func (backoff *Backoff) Reset() {
 	}
 }
 
+func (backoff *Backoff) initialize() {
+	backoff.random = rand.New(rand.NewSource(time.Now().UnixNano()))
+}
