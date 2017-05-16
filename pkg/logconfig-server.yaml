@@ -1,2 +1,8 @@
 - logger: '*'
   level: info
+- logger: audit
+  level: warn
+  out:
+  - type: file
+    options:
+      file: /var/log/serviced/cc_server_audit.log
