@@ -335,3 +335,12 @@ func deleteSessionT(sid string) {
 
 	delete(sessions, sid)
 }
+
+func getUser(r *rest.Request) (string, error) {
+	for _, cookie := range r.Cookies() {
+		if cookie.Name == usernameCookie {
+			return cookie.Value, nil
+		}
+	}
+	return "", errors.New("Unable to retriever user name")
+}

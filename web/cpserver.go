@@ -338,7 +338,7 @@ func (sc *ServiceConfig) newRequestHandler(check checkFunc, realfunc ctxhandlerF
 		if !check(w, r) {
 			return
 		}
-		reqCtx := newRequestContext(sc)
+		reqCtx := newRequestContextFromRequest(sc, r)
 		defer reqCtx.end()
 		realfunc(w, r, reqCtx)
 	}
@@ -363,13 +363,25 @@ func (sc *ServiceConfig) noAuth(realfunc ctxhandlerFunc) handlerFunc {
 }
 
 type requestContext struct {
-	sc      *ServiceConfig
-	master  master.ClientInterface
-	dataCtx datastore.Context
+	sc       *ServiceConfig
+	master   master.ClientInterface
+	dataCtx  datastore.Context
+	username string
 }
 
 func newRequestContext(sc *ServiceConfig) *requestContext {
 	return &requestContext{sc: sc}
+}
+
+func newRequestContextFromRequest(sc *ServiceConfig, r *rest.Request) *requestContext {
+	context := &requestContext{sc: sc}
+
+	username, err := getUser(r)
+	if err == nil {
+		context.username = username
+	}
+
+	return context
 }
 
 func (ctx *requestContext) getMasterClient() (master.ClientInterface, error) {
@@ -389,11 +401,13 @@ func (ctx *requestContext) getFacade() facade.FacadeInterface {
 }
 
 func (ctx *requestContext) getDatastoreContext() datastore.Context {
-	//here in case we ever need to create a per request datastore context
-	if ctx.dataCtx == nil {
-		ctx.dataCtx = datastore.Get()
+	context := datastore.GetNewInstance()
+
+	if len(ctx.username) > 0 {
+		context.SetUser(ctx.username)
 	}
-	return ctx.dataCtx
+
+	return context
 }
 
 func (ctx *requestContext) end() error {

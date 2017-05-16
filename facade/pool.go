@@ -14,7 +14,9 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -47,12 +49,19 @@ var (
 // AddResourcePool adds a new resource pool
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddResourcePool"))
+
+	glog.Infof("Adding Resource Pool %s", entity.ID)
+
+	alog := f.auditLogger.Context(ctx).Message("Adding Resource Pool: " + entity.ID).
+		Action(audit.Add).ID(entity.ID).Type(domain.ResourcePoolType)
+
 	if err := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add resource pool: %s", err)
-		return err
+		return alog.Error(err)
 	}
 	defer f.DFSLock(ctx).Unlock()
-	return f.addResourcePool(ctx, entity)
+
+	return alog.Error(f.addResourcePool(ctx, entity))
 }
 
 func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
@@ -348,39 +357,43 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 
 // RemoveResourcePool removes a resource pool
 func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
+	alog := f.auditLogger.
+		Context(ctx).Message("Removing Resource Pool: " + id).
+		Action(audit.Remove).ID(id).Type(domain.ResourcePoolType)
+
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveResourcePool"))
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)
 	if err := f.DFSLock(ctx).LockWithTimeout("remove resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot remove resource pool: %s", err)
-		return err
+		return alog.Error(err)
 	}
 	defer f.DFSLock(ctx).Unlock()
 
 	// CC-2024: do not delete the default resource pool
 	if id == "default" {
 		glog.Errorf("Cannot delete default resource pool")
-		return ErrDefaultPool
+		return alog.Error(ErrDefaultPool)
 	}
 
 	if hosts, err := f.FindHostsInPool(ctx, id); err != nil {
-		return fmt.Errorf("could not verify hosts in pool %s: %s", id, err)
+		return alog.Error(fmt.Errorf("could not verify hosts in pool %s: %s", id, err))
 	} else if count := len(hosts); count > 0 {
-		return fmt.Errorf("cannot delete pool %s: found %d hosts", id, count)
+		return alog.Error(fmt.Errorf("cannot delete pool %s: found %d hosts", id, count))
 	}
 
 	if svcs, err := f.GetServicesByPool(ctx, id); err != nil {
-		return fmt.Errorf("could not verify services in pool %s: %s", id, err)
+		return alog.Error(fmt.Errorf("could not verify services in pool %s: %s", id, err))
 	} else if count := len(svcs); count > 0 {
-		return fmt.Errorf("cannot delete pool %s: found %d services", id, count)
+		return alog.Error(fmt.Errorf("cannot delete pool %s: found %d services", id, count))
 	}
 
 	if err := f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	f.poolCache.SetDirty()
 
-	return f.zzk.RemoveResourcePool(id)
+	return alog.Error(f.zzk.RemoveResourcePool(id))
 }
 
 // GetResourcePools returns a list of all resource pools
