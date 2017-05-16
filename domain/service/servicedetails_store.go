@@ -557,6 +557,7 @@ var serviceDetailsFields = []string{
 	"EmergencyShutdown",
 	"UpdatedAt",
 	"CreatedAt",
+        "Version",
 }
 
 var serviceEndpointFields = []string{
