@@ -17,7 +17,7 @@ compress
 
 /var/log/serviced/serviced-audit.log {
     su root root
-    size 600MB
+    size 600M
     rotate 4
     copytruncate
     create 640 root root
