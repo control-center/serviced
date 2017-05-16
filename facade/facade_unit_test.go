@@ -18,6 +18,7 @@ package facade_test
 import (
 	"time"
 
+	auditmocks "github.com/control-center/serviced/audit/mocks"
 	"github.com/control-center/serviced/auth"
 	authmocks "github.com/control-center/serviced/auth/mocks"
 	datastoremocks "github.com/control-center/serviced/datastore/mocks"
@@ -64,6 +65,8 @@ func (ft *FacadeUnitTest) SetUpSuite(c *C) {
 
 func (ft *FacadeUnitTest) SetUpTest(c *C) {
 	ft.ctx = &datastoremocks.Context{}
+
+	ft.Facade.SetAuditLogger(&auditmocks.Logger{})
 
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)

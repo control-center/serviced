@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	auditmocks "github.com/control-center/serviced/audit/mocks"
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
@@ -71,6 +72,16 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	ft.CTX = datastore.Get()
 
 	ft.Facade = New()
+	mockLogger := &auditmocks.Logger{}
+	mockLogger.On("Context", mock.AnythingOfType("*datastore.context")).Return(mockLogger)
+	mockLogger.On("Message", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Action", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Type", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("ID", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("WithField", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Error", mock.Anything)
+
+	ft.Facade.SetAuditLogger(mockLogger)
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockDFS()
@@ -130,4 +141,3 @@ func (ft *FacadeIntegrationTest) TearDownTest(c *gocheck.C) {
 func (ft *FacadeIntegrationTest) BeforeTest(suiteName, testName string) {
 	fmt.Printf("Starting test %s\n", testName)
 }
-
