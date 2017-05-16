@@ -20,8 +20,8 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/logging"
 )
 
 // initialize the package logger

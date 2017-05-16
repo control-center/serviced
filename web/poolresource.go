@@ -99,6 +99,7 @@ func restAddPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		restServerError(w, err)
 		return
 	}
+
 	glog.V(0).Info("Added pool ", payload.ID)
 	w.WriteJson(&simpleResponse{"Added resource pool", poolLinks(payload.ID)})
 }
