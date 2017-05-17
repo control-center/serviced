@@ -45,6 +45,7 @@ type ServiceDetails struct {
 	EmergencyShutdown bool
 	UpdatedAt         time.Time
 	CreatedAt         time.Time
+        Version           string
 	datastore.VersionedEntity
 }
 
