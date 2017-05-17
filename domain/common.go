@@ -70,3 +70,9 @@ type Prereq struct {
 	Name   string
 	Script string
 }
+
+const (
+	ResourcePoolType = "resourcepool"
+	HostType         = "host"
+	ServiceType      = "service"
+)
