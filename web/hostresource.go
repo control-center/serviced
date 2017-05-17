@@ -24,11 +24,12 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/rpc/agent"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/utils"
 )
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
@@ -416,7 +417,7 @@ func restGetAggregateServices(w *rest.ResponseWriter, r *rest.Request, ctx *requ
 	dataCtx := ctx.getDatastoreContext()
 
 	if len(serviceIDs) == 0 {
-		details, err := facade.GetAllServiceDetails(dataCtx, time.Duration(0))
+		details, err := facade.QueryServiceDetails(dataCtx, service.Query{})
 		if err != nil {
 			glog.Error("Could not look up aggregate service instances:", err)
 			restServerError(w, err)
@@ -555,7 +556,7 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		}
 	}
 
-	nat := utils.URL {
+	nat := utils.URL{
 		Host: natHostIP,
 		Port: natHostPort,
 	}

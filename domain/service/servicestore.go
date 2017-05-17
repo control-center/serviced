@@ -80,9 +80,6 @@ type Store interface {
 	// FindTenantByDeployment returns the tenant service for a given deployment id and service name
 	FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error)
 
-	// GetAllServiceDetails returns all service details
-	GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]ServiceDetails, error)
-
 	// GetServiceDetails returns the details for the given service
 	GetServiceDetails(ctx datastore.Context, serviceID string) (*ServiceDetails, error)
 
@@ -108,6 +105,8 @@ type Store interface {
 	// whose serviceID matches the query exactly or whose names contain the
 	// query as a substring
 	GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]ServiceDetails, error)
+
+	Query(ctx datastore.Context, query Query) ([]ServiceDetails, error)
 }
 
 // NewStore creates a Service store
