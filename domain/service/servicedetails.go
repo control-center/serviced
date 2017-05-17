@@ -42,6 +42,7 @@ type ServiceDetails struct {
 	Launch            string
 	Tags              []string
 	EmergencyShutdown bool
+        Version           string
 	datastore.VersionedEntity
 }
 
