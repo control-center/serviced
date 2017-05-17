@@ -28,7 +28,15 @@ C_RESET  = '\033[0m'
 C_BOLD   = C_RESET + '\033[1m'
 C_WARN   = C_RESET + '\033[93m'
 C_ERR    = C_RESET + '\033[91m'
-LANG = "LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8"
+
+def set_environ():
+    '''
+    Sets the language environment variables so that all calls
+    are returned using en_US localization.
+    '''
+    os.environ['LC_ALL']   = 'en_US.UTF-8'
+    os.environ['LC_LANG']  = 'en_US.UTF-8'
+    os.environ['LANGUAGE'] = 'en_US.UTF-8'
 
 # Parse a given file for key=value settings and return them as data.
 def parse(input_file):
@@ -225,8 +233,7 @@ def get_tpool_stats(config):
     Returns a mapping representing data for the serviced thinpool.
     """
     thinpooldev = config.get("SERVICED_DM_THINPOOLDEV", "serviced")
-    cmd = "%s lvs -o lv_size,data_percent,lv_metadata_size,metadata_percent %s 2>/dev/null | grep -vi lsize || true" % \
-        (LANG, thinpooldev)
+    cmd = "lvs -o lv_size,data_percent,lv_metadata_size,metadata_percent %s 2>/dev/null | grep -vi lsize || true" % thinpooldev
     stats = subprocess.check_output(cmd, shell=True).strip()
     if not stats:
         return {}
@@ -377,6 +384,8 @@ def show_help():
 # If the os environment variable NOCHECK is set, skip this entirely.
 if os.environ.get('NOCHECK', None):
     sys.exit(0)
+
+set_environ()
 
 # Don't check thinpool/tenants on delegates.
 config = parse_serviced_config()
