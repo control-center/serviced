@@ -11,25 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package audit
+package datastore
 
-// Context information necessary for audit logging.
-type Context interface {
-
-	// User returns the user performing the action.
-	User() string
-}
-
-// NewContext returns default implementation of the Context interface that has the
-// provided string for a user.
-func NewContext(user string) Context {
-	return &context{user: user}
-}
-
-type context struct {
-	user string
-}
-
-func (c *context) User() string {
-	return c.user
+// Entity is the interface for encapsulating an object's name
+// and type for use with modules such as a logger.
+type Entity interface {
+	GetID() string
+	GetType() string
 }

@@ -1,13 +1,14 @@
 package mocks
 
 import "github.com/control-center/serviced/audit"
+import "github.com/control-center/serviced/datastore"
 import "github.com/stretchr/testify/mock"
 
 type Logger struct {
 	mock.Mock
 }
 
-func (_m *Logger) Context(context audit.Context) audit.Logger {
+func (_m *Logger) Context(context datastore.Context) audit.Logger {
 	ret := _m.Called(context)
 
 	var r0 audit.Logger
@@ -31,8 +32,8 @@ func (_m *Logger) Action(action string) audit.Logger {
 
 	return r0
 }
-func (_m *Logger) Message(message string) audit.Logger {
-	ret := _m.Called(message)
+func (_m *Logger) Message(ctx datastore.Context, message string) audit.Logger {
+	ret := _m.Called(ctx, message)
 
 	var r0 audit.Logger
 	if rf, ok := ret.Get(0).(func() audit.Logger); ok {
@@ -57,6 +58,18 @@ func (_m *Logger) Type(theType string) audit.Logger {
 }
 func (_m *Logger) ID(id string) audit.Logger {
 	ret := _m.Called(id)
+
+	var r0 audit.Logger
+	if rf, ok := ret.Get(0).(func() audit.Logger); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(audit.Logger)
+	}
+
+	return r0
+}
+func (_m *Logger) Entity(entity datastore.Entity) audit.Logger {
+	ret := _m.Called(entity)
 
 	var r0 audit.Logger
 	if rf, ok := ret.Get(0).(func() audit.Logger); ok {

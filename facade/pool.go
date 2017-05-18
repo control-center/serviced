@@ -52,8 +52,8 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 
 	glog.Infof("Adding Resource Pool %s", entity.ID)
 
-	alog := f.auditLogger.Context(ctx).Message("Adding Resource Pool: " + entity.ID).
-		Action(audit.Add).ID(entity.ID).Type(domain.ResourcePoolType)
+	alog := f.auditLogger.Message(ctx, "Adding Resource Pool").
+		Action(audit.Add).Entity(entity)
 
 	if err := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add resource pool: %s", err)
@@ -358,7 +358,7 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 // RemoveResourcePool removes a resource pool
 func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	alog := f.auditLogger.
-		Context(ctx).Message("Removing Resource Pool: " + id).
+		Message(ctx, "Removing Resource Pool").
 		Action(audit.Remove).ID(id).Type(domain.ResourcePoolType)
 
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveResourcePool"))

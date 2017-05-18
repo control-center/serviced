@@ -15,27 +15,31 @@ package audit
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/logging"
 	"github.com/zenoss/logri"
 )
+
+var plog = logging.PackageLogger()
 
 // Logger is the interface for audit logging.  Any implementations for
 // audit logging should implement this interface.
 type Logger interface {
 
-	// Context sets contextual information on the logger.
-	Context(context Context) Logger
-
-	// Set the action that we auditing.
+	// Set the action that we are auditing.
 	Action(action string) Logger
 
-	// Set the action that we auditing.
-	Message(message string) Logger
+	// Set the message that we are writing to the audit log.
+	Message(ctx datastore.Context, message string) Logger
 
 	// Set the type of entity being modified.
 	Type(theType string) Logger
 
 	// Set the id of the entity being modified.
 	ID(id string) Logger
+
+	// Set the type of entity being modified.
+	Entity(entity datastore.Entity) Logger
 
 	// Add additional fields to the entry.
 	WithField(name string, value string) Logger
@@ -71,21 +75,12 @@ type logger struct {
 	message string
 }
 
-func (l *logger) Context(context Context) Logger {
-	if len(context.User()) > 0 {
-		return l.newLoggerWith("user", context.User())
-	}
-
-	return l.newLoggerWith("user", "system")
-}
-
 func (l *logger) Action(action string) Logger {
 	return l.newLoggerWith("action", action)
 }
 
-func (l *logger) Message(message string) Logger {
-	entry := logrus.NewEntry(l.entry.Logger)
-	return &logger{entry: entry, message: message}
+func (l *logger) Message(ctx datastore.Context, message string) Logger {
+	return &logger{entry: l.entry.WithField("user", ctx.User()), message: message}
 }
 
 func (l *logger) Type(theType string) Logger {
@@ -94,6 +89,13 @@ func (l *logger) Type(theType string) Logger {
 
 func (l *logger) ID(id string) Logger {
 	return l.newLoggerWith("id", id)
+}
+
+func (l *logger) Entity(entity datastore.Entity) Logger {
+	return &logger{entry: l.entry.WithFields(logrus.Fields{
+		"id":   entity.GetID(),
+		"type": entity.GetType()}),
+		message: l.message}
 }
 
 func (l *logger) WithField(name string, value string) Logger {
@@ -119,6 +121,10 @@ func (l *logger) Error(err error) error {
 
 func (l *logger) log(success bool) {
 	entry := l.entry.WithField("success", success)
+	if len(l.message) == 0 {
+		pkgLogger := plog.WithFields(entry.Data)
+		pkgLogger.Error("Attempting to audit log empty message")
+	}
 	if success {
 		entry.Info(l.message)
 	} else {

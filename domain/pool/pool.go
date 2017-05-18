@@ -153,3 +153,15 @@ func (a *ResourcePool) HasDfsAccess() bool {
 func (a *ResourcePool) HasAdminAccess() bool {
 	return a.Permissions&AdminAccess != 0
 }
+
+// GetID returns its ResourcePool's ID.
+// It return the ID as a string
+func (a *ResourcePool) GetID() string {
+	return a.ID
+}
+
+// GetType return a ResourcePool's Entity type or kind.
+// It returns the Kind as a string.
+func (a *ResourcePool) GetType() string {
+	return kind
+}
