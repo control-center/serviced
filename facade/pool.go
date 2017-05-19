@@ -16,7 +16,6 @@ package facade
 import (
 	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -359,7 +358,7 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	alog := f.auditLogger.
 		Message(ctx, "Removing Resource Pool").
-		Action(audit.Remove).ID(id).Type(domain.ResourcePoolType)
+		Action(audit.Remove).ID(id).Type(pool.GetType())
 
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveResourcePool"))
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)

@@ -165,3 +165,10 @@ func (a *ResourcePool) GetID() string {
 func (a *ResourcePool) GetType() string {
 	return kind
 }
+
+// GetType returns a ResourcePool's type or kind, can be used to get 
+// the string value of ResourcePool's type without a ResourcePool instance.
+// It returns the kind as a string.
+func GetType() string {
+	return kind
+}

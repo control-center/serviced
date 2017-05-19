@@ -71,8 +71,3 @@ type Prereq struct {
 	Script string
 }
 
-const (
-	ResourcePoolType = "resourcepool"
-	HostType         = "host"
-	ServiceType      = "service"
-)

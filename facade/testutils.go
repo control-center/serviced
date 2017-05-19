@@ -73,11 +73,11 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 
 	ft.Facade = New()
 	mockLogger := &auditmocks.Logger{}
-	mockLogger.On("Context", mock.AnythingOfType("*datastore.context")).Return(mockLogger)
-	mockLogger.On("Message", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Message", mock.AnythingOfType("*datastore.Context"), mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("Action", mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("Type", mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("ID", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*datastore.Entity")).Return(mockLogger)
 	mockLogger.On("WithField", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("Error", mock.Anything)
 
