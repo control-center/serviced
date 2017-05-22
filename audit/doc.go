@@ -47,28 +47,24 @@
 	The default implementation that is returned is a wrapped logri Logger.  Logri is a package owned by Zenoss that adds additional
 	functionality to Loggers from the third party package, logrus.
 
-	Contextual information can be passed into the Logger through the Context method.  The Context method will take a Context interface that is defined in
-	this package.   Currently the context only takes a user.  In the future, additional contextual information can be added to this object.  A new context
-	object can be retrieved through the NewContext method.
+	To log an entry , a message along with relavant contextual information must be set on the audit logger through the use of the "Message" method.  This will set the "msg" and "user" fields:
 
-		var ctx = audit.NewContext("Alice")
+		auditLogger = auditLogger.Message(ctx, "Adding Resource Pool")
 
-	The context, like the other fields is optional.  If one is not provied the user will default to "system".  To set the Context call the following.
-
-		auditLogger = auditLogger.Context(ctx)
-
-	A friendly message can be set on the audit logger through the use of the "Message" method.  This will set the "msg" field:
-
-		auditLogger = auditLogger.Message("Adding Resource Pool: " + entity.ID)
+	The Message method will take an implementation of the "datastore.context" interface.  Currently the audit logger only uses user field.  In the future, additional contextual information maybe utilized.
 
 	The "action field is set through the "Action" method.  Some constants are provided in this package to normalized the values.  Examples are "add", "update",
 	"delete", "start", "stop", etc.  If addition actions need to be added, new constants should be added to this package.
 
 		auditLogger = auditLogger.Action(audit.Add)
 
-	The type of entity being modified is set through the "Type" method.  To normalize these values, constants found in the domain package should be used.
+	The interface, "Entity", is added to the "datastore" package to provide a convenient method for encapsulating a domain object's ID and type. The "type" and "ID" of an audit log entry can be set via the "Entity" method. "Entity" is the preferred method for setting an audit log entry's "id" and "type", but if an implementation of the "Entity" is not available, the methods "ID" and "Type" are available.
 
-		auditLogger = auditLogger.Type(domain.ResourcePoolType)
+		auditLogger = auditLogger.Entity(entity)
+
+	The type of entity being modified is set through the "Type" method.  To get normalized type values for a domain object, use the package method "GetType" for a given domain object.
+
+		auditLogger = auditLogger.Type(pool.GetType())
 
 	To set the "id" field, use the "ID" method.
 
@@ -122,11 +118,9 @@
 	The API is designed to be fluent so the method calls can be chained together.  For example, setting the fields and logging success can be done
 	at the same time.  The following sets the context, message, action, id, type, and success:
 
-		auditLogger.Context(ctx).
-		            Message("Adding Resource Pool: " + entity.ID).
+		auditLogger.Message(ctx, "Adding Resource Pool").
 		            Action(audit.Add).
-		            ID(entity.ID).
-		            Type(domain.ResourcePoolType).
+		            Entity(entity).
 					Success()
 
 
@@ -134,10 +128,9 @@
 
 		func SomethingWeAuditing() {
 			alog := auditLogger.Context(ctx).
-						Message("Adding Resource Pool: " + entity.ID).
+						Message("Adding Resource Pool").
 						Action(audit.Add).
-						ID(entity.ID).
-						Type(domain.ResourcePoolType).
+						Entity(entity)
 
 
 			// Do processing
@@ -162,8 +155,8 @@
 
 			glog.Infof("Adding Resource Pool %s", entity.ID)
 
-			alog := f.auditLogger.Context(ctx).Message("Adding Resource Pool: " + entity.ID).
-				Action(audit.Add).ID(entity.ID).Type(domain.ResourcePoolType)
+			alog := f.auditLogger.Message(ctx, "Adding Resource Pool").
+				Action(audit.Add).Entity(entity)
 
 			if err := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); err != nil {
 				glog.Warningf("Cannot add resource pool: %s", err)
@@ -179,15 +172,15 @@
 			return err
 		}
 
-	Since this method return just an error, the "Error" method can be used to make things more concise.
+	Since this method returns just an error, the "Error" method can be used to make things more concise.
 
 		func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 			defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddResourcePool"))
 
 			glog.Infof("Adding Resource Pool %s", entity.ID)
 
-			alog := f.auditLogger.Context(ctx).Message("Adding Resource Pool: " + entity.ID).
-				Action(audit.Add).ID(entity.ID).Type(domain.ResourcePoolType)
+			alog := f.auditLogger.Message(ctx, "Adding Resource Pool").
+				Action(audit.Add).Entity(entity)
 
 			if err := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); err != nil {
 				glog.Warningf("Cannot add resource pool: %s", err)
