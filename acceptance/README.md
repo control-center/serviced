@@ -123,6 +123,7 @@ Both of the following commands run the test suite against Chrome:
 
 ```
 $ ./runUIAcceptance.sh -a <servicedURL> -u <userID> -p <password>
+# example: ./runUIAcceptance.sh -a https://10,1,2,3 -u my_id -p my_password, note the full URL
 or
 $ ./runUIAcceptance.sh -d selenium_chrome -a <servicedURL> -u <userID> -p <password>
 ```
