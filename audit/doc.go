@@ -70,9 +70,10 @@
 
 		auditLogger = auditLogger.ID("PoolID")
 
-	The API also provides a generic "WithFields" method.  If a custom, one-off field needs to be added to an entry, this method can be used.
+	The API also provides the methods "WithField" and "WithFields".  If custom, one-off fields needs to be added to an entry, these methods can be used.
 
 		auditLogger = auditLogger.WithField("FieldName", "ItsValue")
+		auditLogger = auditLogger.WithFields(logrus.Fields{"FieldName1": "Value1", "FieldName2":, "Value2"})
 
 	There are a number of ways that can be used to trigger logging which will also signal success or failure.  The signal success, use the "Success"
 	method.
