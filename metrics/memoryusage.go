@@ -82,6 +82,9 @@ func convertV2MemoryUsage(perfData map[string]*V2PerformanceData) []MemoryUsageS
 				continue
 			}
 			// fill in memStat
+			if len(result.Datapoints) < 1 {
+				continue
+			}
 			val := int64(result.Datapoints[0].Value())
 			switch agg {
 			case "max":
