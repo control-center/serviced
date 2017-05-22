@@ -15,9 +15,10 @@ package audit
 
 import (
 	"strconv"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/logging"
-	"github.com/Sirupsen/logrus"
 	"github.com/zenoss/logri"
 )
 
@@ -80,9 +81,9 @@ func (l *logger) Action(action string) Logger {
 }
 
 func (l *logger) Message(ctx datastore.Context, message string) Logger {
-    l.addField("user", ctx.User())
-    l.message = message
-    return l
+	l.addField("user", ctx.User())
+	l.message = message
+	return l
 }
 
 func (l *logger) Type(theType string) Logger {
@@ -97,35 +98,29 @@ func (l *logger) Entity(entity datastore.Entity) Logger {
 	return l.addFields(logrus.Fields{
 		"id":   entity.GetID(),
 		"type": entity.GetType(),
-		})
+	})
 }
 
 func (l *logger) WithField(name string, value string) Logger {
-    return l.addField(name, value)
+	return l.addField(name, value)
 }
 
 func (l *logger) addField(name string, value string) Logger {
-    if l.entry != nil {
-        l.entry = l.entry.WithField(name, value)
-    } else {
-        l.entry = l.loggeri.WithField(name, value)
-        l.entry.Logger.Hooks = make(map[logrus.Level][]logrus.Hook)
-    }
-    return l
+	return l.addFields(logrus.Fields{name: value})
 }
 
 func (l *logger) WithFields(fields logrus.Fields) Logger {
-    return l.addFields(fields)
+	return l.addFields(fields)
 }
 
-func (l *logger) addFields(fields logrus.Fields)  Logger {
-    if l.entry != nil {
-        l.entry = l.entry.WithFields(fields)
-    } else {
-        l.entry = l.loggeri.WithFields(fields)
-        l.entry.Logger.Hooks = make(map[logrus.Level][]logrus.Hook)
-    }
-    return l
+func (l *logger) addFields(fields logrus.Fields) Logger {
+	if l.entry != nil {
+		l.entry = l.entry.WithFields(fields)
+	} else {
+		l.entry = l.loggeri.WithFields(fields)
+		l.entry.Logger.Hooks = make(map[logrus.Level][]logrus.Hook)
+	}
+	return l
 }
 
 func (l *logger) Succeeded() {
@@ -146,8 +141,8 @@ func (l *logger) Error(err error) error {
 }
 
 func (l *logger) log(success bool) {
-    l.addField("success", strconv.FormatBool(success))
-    entry := l.entry
+	l.addField("success", strconv.FormatBool(success))
+	entry := l.entry
 	if len(l.message) == 0 {
 		pkgLogger := plog.WithFields(entry.Data)
 		pkgLogger.Error("Attempting to audit log empty message")
@@ -158,4 +153,3 @@ func (l *logger) log(success bool) {
 		entry.Warn(l.message)
 	}
 }
-
