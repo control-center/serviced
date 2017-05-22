@@ -16,6 +16,7 @@ package facade
 import (
 	"time"
 
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
@@ -36,6 +37,7 @@ type MetricsClient interface {
 	GetInstanceMemoryStats(time.Time, ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error)
 	GetAvailableStorage(time.Duration, string, ...string) (*metrics.StorageMetrics, error)
 }
+
 // instantiate the package logger
 var plog = logging.PackageLogger()
 
@@ -45,6 +47,7 @@ var _ FacadeInterface = &Facade{}
 // New creates an initialized Facade instance
 func New() *Facade {
 	return &Facade{
+		auditLogger:   audit.NewLogger(),
 		hostStore:     host.NewStore(),
 		hostkeyStore:  hostkey.NewStore(),
 		registryStore: registry.NewStore(),
@@ -72,6 +75,7 @@ type Facade struct {
 	configStore   serviceconfigfile.Store
 	userStore     user.Store
 
+	auditLogger   audit.Logger
 	zzk           ZZK
 	dfs           dfs.DFS
 	hcache        *health.HealthStatusCache
@@ -85,6 +89,8 @@ type Facade struct {
 
 	rollingRestartTimeout time.Duration
 }
+
+func (f *Facade) SetAuditLogger(logger audit.Logger) { f.auditLogger = logger }
 
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 

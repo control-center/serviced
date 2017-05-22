@@ -20,8 +20,8 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/logging"
 )
 
 // initialize the package logger
@@ -152,4 +152,23 @@ func (a *ResourcePool) HasDfsAccess() bool {
 
 func (a *ResourcePool) HasAdminAccess() bool {
 	return a.Permissions&AdminAccess != 0
+}
+
+// GetType returns a ResourcePool's type or kind, can be used to get
+// the string value of ResourcePool's type without a ResourcePool instance.
+// It returns the kind as a string.
+func GetType() string {
+	return kind
+}
+
+// GetID returns its ResourcePool's ID.
+// It return the ID as a string
+func (a *ResourcePool) GetID() string {
+	return a.ID
+}
+
+// GetType return a ResourcePool's Entity type or kind.
+// It returns the Kind as a string.
+func (a *ResourcePool) GetType() string {
+	return GetType()
 }

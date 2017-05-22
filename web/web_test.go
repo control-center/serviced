@@ -34,7 +34,7 @@ import (
 // Wire gocheck into the go test runner
 func TestWeb(t *testing.T) { TestingT(t) }
 
-type TestWebSuite struct{
+type TestWebSuite struct {
 	ctx        *requestContext
 	recorder   *httptest.ResponseRecorder
 	writer     rest.ResponseWriter
@@ -116,16 +116,16 @@ func (s *TestWebSuite) assertLinks(c *C, actual, expected []link) {
 
 func (s *TestWebSuite) assertBadRequest(c *C) {
 	c.Assert(s.recorder.Code, Equals, http.StatusInternalServerError)
-	s.assertSimpleResponse(c, "Bad Request: .*",  homeLink())
+	s.assertSimpleResponse(c, "Bad Request: .*", homeLink())
 }
 
 func (s *TestWebSuite) assertServerError(c *C, expectedError error) {
 	c.Assert(s.recorder.Code, Equals, http.StatusInternalServerError)
-	s.assertSimpleResponse(c, fmt.Sprintf("Internal Server Error: %s", expectedError),  homeLink())
+	s.assertSimpleResponse(c, fmt.Sprintf("Internal Server Error: %s", expectedError), homeLink())
 }
 
 // Some methods return a slightly different response on error
 func (s *TestWebSuite) assertAltServerError(c *C, expectedError error) {
 	c.Assert(s.recorder.Code, Equals, http.StatusInternalServerError)
-	s.assertSimpleResponse(c, expectedError.Error(),  homeLink())
+	s.assertSimpleResponse(c, expectedError.Error(), homeLink())
 }
