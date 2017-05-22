@@ -2,6 +2,7 @@ package mocks
 
 import "github.com/control-center/serviced/audit"
 import "github.com/control-center/serviced/datastore"
+import "github.com/Sirupsen/logrus"
 import "github.com/stretchr/testify/mock"
 
 type Logger struct {
@@ -82,6 +83,18 @@ func (_m *Logger) Entity(entity datastore.Entity) audit.Logger {
 }
 func (_m *Logger) WithField(name string, value string) audit.Logger {
 	ret := _m.Called(name, value)
+
+	var r0 audit.Logger
+	if rf, ok := ret.Get(0).(func() audit.Logger); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(audit.Logger)
+	}
+
+	return r0
+}
+func (_m *Logger) WithFields(fields logrus.Fields) audit.Logger {
+	ret := _m.Called(fields)
 
 	var r0 audit.Logger
 	if rf, ok := ret.Get(0).(func() audit.Logger); ok {
