@@ -77,32 +77,46 @@ type logger struct {
 }
 
 func (l *logger) Action(action string) Logger {
-	return l.addField("action", action)
+	return l.newLoggerWith("action", action)
 }
 
 func (l *logger) Message(ctx datastore.Context, message string) Logger {
-	l.addField("user", ctx.User())
-	l.message = message
-	return l
+	result := l.newLoggerWith("user", ctx.User())
+	result.message = message
+	return result
 }
 
 func (l *logger) Type(theType string) Logger {
-	return l.addField("type", theType)
+	return l.newLoggerWith("type", theType)
 }
 
 func (l *logger) ID(id string) Logger {
-	return l.addField("id", id)
+	return l.newLoggerWith("id", id)
 }
 
 func (l *logger) Entity(entity datastore.Entity) Logger {
-	return l.addFields(logrus.Fields{
-		"id":   entity.GetID(),
+	return l.newLoggerWithFields(logrus.Fields{
+		"id": entity.GetID(),
 		"type": entity.GetType(),
 	})
 }
 
 func (l *logger) WithField(name string, value string) Logger {
-	return l.addField(name, value)
+	return l.newLoggerWith(name, value)
+}
+
+func (l *logger) newLoggerWith(name string, value string) *logger {
+	return l.newLoggerWithFields(logrus.Fields{name: value})
+}
+
+func (l *logger) newLoggerWithFields(fields logrus.Fields) *logger {
+	result := &logger{
+		entry: l.entry,
+		message: l.message,
+		loggeri: l.loggeri,
+	}
+	result.addFields(fields)
+	return result
 }
 
 func (l *logger) addField(name string, value string) Logger {
@@ -110,7 +124,7 @@ func (l *logger) addField(name string, value string) Logger {
 }
 
 func (l *logger) WithFields(fields logrus.Fields) Logger {
-	return l.addFields(fields)
+	return l.newLoggerWithFields(fields)
 }
 
 func (l *logger) addFields(fields logrus.Fields) Logger {
