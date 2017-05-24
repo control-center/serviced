@@ -67,7 +67,7 @@ var (
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err error) {
 	var tenantID string
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddService"))
-	alog := f.auditLogger.Action("Add").Message(ctx, "Adding new Service: " + svc.Name).ID(svc.GetID()).Type(svc.GetType())
+	alog := f.auditLogger.Action(audit.Add).Message(ctx, "Adding new Service: " + svc.Name).ID(svc.GetID()).Type(svc.GetType())
 
 	if svc.ParentServiceID == "" {
 		tenantID = svc.ID
@@ -215,7 +215,7 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 // not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateService"))
-	alog :=f.auditLogger.Action("Update").Message(ctx,"Updating Service: " + svc.Name).ID(svc.GetID()).
+	alog :=f.auditLogger.Action(audit.Update).Message(ctx,"Updating Service: " + svc.Name).ID(svc.GetID()).
 		Type(svc.GetType())
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
@@ -231,7 +231,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 // not exist
 func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.MigrateService"))
-	alog := f.auditLogger.Action("Migrate").Message(ctx, "Migrating Service: " + svc.Name).ID(svc.GetID()).
+	alog := f.auditLogger.Action(audit.Migrate).Message(ctx, "Migrating Service: " + svc.Name).ID(svc.GetID()).
 		Type(svc.GetType())
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
@@ -625,7 +625,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 
 func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SyncServiceRegistry"))
-	alog := f.auditLogger.Action("Migrate").Message(ctx, "Syncing Service Registry for Service: " + svc.Name).ID(svc.GetID()).
+	alog := f.auditLogger.Action(audit.Migrate).Message(ctx, "Syncing Service Registry for Service: " + svc.Name).ID(svc.GetID()).
 		Type(svc.GetType())
 	tenantID, err := f.GetTenantID(datastore.Get(), svc.ID)
 	if err != nil {
@@ -1936,13 +1936,14 @@ func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
 func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.AssignmentRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AssignIPs"))
 	visitor := func(svc *service.Service) error {
+		alog := f.auditLogger.Action(audit.Update).Message(ctx, "Assigning IP for Service: " + svc.Name).ID(svc.GetID()).Type(svc.GetType())
 		// get all of the ports for the service
 		portmap, err := GetPorts(svc.Endpoints)
 		if err != nil {
 			glog.Errorf("Could not get ports for service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
+			return alog.Error(err)
 		} else if len(portmap) == 0 {
-			return nil
+			return alog.Error(nil)
 		}
 
 		glog.V(1).Infof("Found %+v ports for service %s (%s)", portmap.List(), svc.Name, svc.ID)
@@ -1951,7 +1952,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 		assignments, err := f.GetServiceAddressAssignments(ctx, svc.ID)
 		if err != nil {
 			glog.Errorf("Could not get address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
+			return alog.Error(err)
 		}
 
 		var ip ipinfo
@@ -1980,7 +1981,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				var err error
 				if ip, err = f.getAutoAssignment(ctx, svc.PoolID, allports...); err != nil {
 					glog.Errorf("Could not get an ip to assign to service %s (%s): %s", svc.Name, svc.ID, err)
-					return err
+					return alog.Error(err)
 				}
 			}
 		} else {
@@ -1995,7 +1996,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 			var err error
 			if ip, err = f.getManualAssignment(ctx, svc.PoolID, request.IPAddress, portmap.List()...); err != nil {
 				glog.Errorf("Could not get an ip to assign to service %s (%s): %s", svc.Name, svc.ID, err)
-				return err
+				return alog.Error(err)
 			}
 		}
 
@@ -2006,7 +2007,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				exclude[assignment.EndpointName] = struct{}{}
 			} else if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
 				glog.Errorf("Error removing address assignment %s for %s (%s): %s", assignment.EndpointName, svc.Name, svc.ID, err)
-				return err
+				return alog.Error(err)
 			}
 		}
 
@@ -2025,7 +2026,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 				if _, err := f.assign(ctx, newassign); err != nil {
 					glog.Errorf("Error creating address assignment for %s of service %s at %s:%d: %s", newassign.EndpointName, newassign.ServiceID, newassign.IPAddr, newassign.Port, err)
-					return err
+					return alog.Error(err)
 				}
 				glog.Infof("Created address assignment for endpoint %s of service %s at %s:%d", newassign.EndpointName, newassign.ServiceID, newassign.IPAddr, newassign.Port)
 				restart = true
@@ -2040,7 +2041,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				Synchronous: true,
 			})
 		}
-
+		alog.Succeeded()
 		return nil
 	}
 
