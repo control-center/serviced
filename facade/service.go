@@ -28,6 +28,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -64,17 +65,19 @@ var (
 
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddService"))
 	var tenantID string
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddService"))
+	alog := f.auditLogger.Action("Add").Message(ctx, "Adding new Service: " + svc.Name).ID(svc.GetID()).Type(svc.GetType())
+
 	if svc.ParentServiceID == "" {
 		tenantID = svc.ID
 	} else if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil {
-		return err
+		return alog.Error(err)
 	}
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.addService(ctx, tenantID, svc, false)
+	return alog.Error(f.addService(ctx, tenantID, svc, false))
 }
 
 func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.Service, setLockOnCreate bool) error {
@@ -212,28 +215,32 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 // not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateService"))
+	alog :=f.auditLogger.Action("Update").Message(ctx,"Updating Service: " + svc.Name).ID(svc.GetID()).
+		Type(svc.GetType())
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
-		return err
+		return alog.Error(err)
 	}
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, tenantID, svc, false, false)
+	return alog.Error(f.updateService(ctx, tenantID, svc, false, false))
 }
 
 // MigrateService migrates an existing service; return error if the service does
 // not exist
 func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.MigrateService"))
+	alog := f.auditLogger.Action("Migrate").Message(ctx, "Migrating Service: " + svc.Name).ID(svc.GetID()).
+		Type(svc.GetType())
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
-		return err
+		return alog.Error(err)
 	}
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, tenantID, svc, true, false)
+	return alog.Error(f.updateService(ctx, tenantID, svc, true, false))
 }
 
 func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc service.Service, migrate, setLockOnUpdate bool) error {
@@ -523,6 +530,8 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 	var traverse func(parentID string) error
 	traverse = func(parentID string) error {
 		for _, svc := range svcsmap[parentID] {
+			alog := f.auditLogger.Message( ctx, "Restoring Service : " + svc.Name).
+				Action(audit.Restore).ID(svc.GetID()).Type(svc.GetType())
 			svc.DatabaseVersion = 0
 			svc.DesiredState = int(service.SVCStop)
 			if _, ok := poolsmap[svc.PoolID]; !ok {
@@ -531,14 +540,15 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 			}
 			if err := f.addService(ctx, tenantID, svc, true); err != nil {
 				glog.Errorf("Could not restore service %s (%s): %s", svc.Name, svc.ID, err)
-				return err
+				return alog.Error(err)
 			}
 			if err := f.restoreIPs(ctx, &svc); err != nil {
 				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 			if err := traverse(svc.ID); err != nil {
-				return err
+				return alog.Error(err)
 			}
+			alog.Succeeded()
 			glog.Infof("Restored service %s (%s)", svc.Name, svc.ID)
 		}
 		return nil
@@ -615,16 +625,19 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 
 func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SyncServiceRegistry"))
+	alog := f.auditLogger.Action("Migrate").Message(ctx, "Syncing Service Registry for Service: " + svc.Name).ID(svc.GetID()).
+		Type(svc.GetType())
 	tenantID, err := f.GetTenantID(datastore.Get(), svc.ID)
 	if err != nil {
 		glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
+		return alog.Error(err)
 	}
 	err = f.zzk.SyncServiceRegistry(ctx, tenantID, svc)
 	if err != nil {
 		glog.Errorf("Could not sync public endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
+		return alog.Error(err)
 	}
+	alog.Succeeded()
 	return nil
 }
 
@@ -713,27 +726,30 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveService"))
+	alog := f.auditLogger.Message( ctx, "Removing Service" ).
+		Action(audit.Remove).ID(id)
 	tenantID, err := f.GetTenantID(ctx, id)
 	if err != nil {
 		glog.Errorf("Could not get tenant of service %s: %s", id, err)
-		return err
+		return alog.Error(err)
 	}
 	if err := f.lockTenant(ctx, tenantID); err != nil {
-		return err
+		return alog.Error(err)
 	}
 	defer f.retryUnlockTenant(ctx, tenantID, nil, time.Second)
 	if err := f.removeService(ctx, id); err != nil {
 		glog.Errorf("Could not remove service %s: %s", id, err)
-		return err
+		return alog.Error(err)
 	}
 	if tenantID == id {
-		if err := f.dfs.Destroy(tenantID); err != nil {
+		if err = f.dfs.Destroy(tenantID); err != nil {
 			glog.Errorf("Could not destroy volume for tenant %s: %s", tenantID, err)
-			return err
+			return alog.Error(err)
 		}
 		f.zzk.RemoveTenantExports(tenantID)
 		f.zzk.DeleteRegistryLibrary(tenantID)
 	}
+	alog.Succeeded()
 	return nil
 }
 
