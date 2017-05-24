@@ -96,7 +96,7 @@ func (l *logger) ID(id string) Logger {
 
 func (l *logger) Entity(entity datastore.Entity) Logger {
 	return l.newLoggerWithFields(logrus.Fields{
-		"id": entity.GetID(),
+		"id":   entity.GetID(),
 		"type": entity.GetType(),
 	})
 }
@@ -111,7 +111,7 @@ func (l *logger) newLoggerWith(name string, value string) *logger {
 
 func (l *logger) newLoggerWithFields(fields logrus.Fields) *logger {
 	result := &logger{
-		entry: l.entry,
+		entry:   l.entry,
 		message: l.message,
 		loggeri: l.loggeri,
 	}
