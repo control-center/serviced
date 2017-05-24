@@ -62,7 +62,7 @@ type Logger interface {
 	Error(err error) error
 }
 
-// NewLogger returns a default implmentation of the audit logger.  The "user" will default
+// NewLogger returns a default implementation of the audit logger.  The "user" will default
 // to "system" unless otherwise specified in the context.  This wraps a logri Logger,
 // and will write to the location specified in the logger config.
 func NewLogger() Logger {
@@ -96,7 +96,7 @@ func (l *logger) ID(id string) Logger {
 
 func (l *logger) Entity(entity datastore.Entity) Logger {
 	return l.newLoggerWithFields(logrus.Fields{
-		"id": entity.GetID(),
+		"id":   entity.GetID(),
 		"type": entity.GetType(),
 	})
 }
@@ -111,7 +111,7 @@ func (l *logger) newLoggerWith(name string, value string) *logger {
 
 func (l *logger) newLoggerWithFields(fields logrus.Fields) *logger {
 	result := &logger{
-		entry: l.entry,
+		entry:   l.entry,
 		message: l.message,
 		loggeri: l.loggeri,
 	}
