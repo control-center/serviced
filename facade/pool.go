@@ -20,9 +20,6 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/validation"
-
-	"github.com/Sirupsen/logrus"
-
 	"github.com/zenoss/glog"
 
 	"errors"
@@ -244,8 +241,8 @@ func (f *Facade) HasIP(ctx datastore.Context, poolID string, ipAddr string) (boo
 func (f *Facade) AddVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddVirtualIP"))
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
-	alog := f.auditLogger.Message(ctx, "Updating ResourcePool").
-		Action(audit.Update).WithFields(logrus.Fields{"secondary_action": audit.Add , "virtualip": vip.IP})
+	alog := f.auditLogger.Message(ctx, "Adding VirtualIP").
+		Action(audit.Update).WithField("virtualip", vip.IP)
 	if err != nil {
 		return alog.Error(err)
 	} else if entity == nil {
@@ -303,8 +300,8 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 // RemoveVirtualIP removes a virtual IP from a pool
 func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveVirtualIP"))
-	alog := f.auditLogger.Message(ctx, "Updating ResourcePool").Action(audit.Update).
-		WithFields(logrus.Fields{"secondary_action": audit.Remove, "virtualip": vip.IP})
+	alog := f.auditLogger.Message(ctx, "Removing VirtualIP").Action(audit.Update).
+		WithField("virtualip", vip.IP)
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
 	if err != nil {
 		return alog.Error(err)
