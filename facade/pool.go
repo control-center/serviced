@@ -21,6 +21,8 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/validation"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/zenoss/glog"
 
 	"errors"
@@ -105,13 +107,15 @@ func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 // UpdateResourcePool updates an existing resource pool
 func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateResourcePool"))
+	alog := f.auditLogger.Message(ctx, "Updating Resource Pool").
+		Action(audit.Update).Entity(entity)
 	if err := f.DFSLock(ctx).LockWithTimeout("update resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot update resource pool: %s", err)
-		return err
+		return alog.Error(err)
 	}
 	defer f.DFSLock(ctx).Unlock()
 
-	return f.updateResourcePool(ctx, entity)
+	return alog.Error(f.updateResourcePool(ctx, entity))
 }
 
 func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
@@ -196,19 +200,22 @@ func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.Resource
 func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.ResourcePool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestoreResourcePools"))
 	// Do not DFSLock here, ControlPlaneDao does that
+	var alog audit.Logger
 	for _, pool := range pools {
+		alog = f.auditLogger.Message(ctx, "Adding ResourcePool").Action(audit.Add).Entity(&pool)
 		pool.DatabaseVersion = 0
 		if err := f.addResourcePool(ctx, &pool); err != nil {
 			if err == ErrPoolExists {
 				if err := f.updateResourcePool(ctx, &pool); err != nil {
 					glog.Errorf("Could not restore resource pool %s via update: %s", pool.ID, err)
-					return err
+					return alog.Error(err)
 				}
 			} else {
 				glog.Errorf("Could not restore resource pool %s via add: %s", pool.ID, err)
-				return err
+				return alog.Error(err)
 			}
 		}
+		alog.Succeeded()
 	}
 	return nil
 }
@@ -237,14 +244,16 @@ func (f *Facade) HasIP(ctx datastore.Context, poolID string, ipAddr string) (boo
 func (f *Facade) AddVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddVirtualIP"))
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
+	alog := f.auditLogger.Message(ctx, "Updating ResourcePool").
+		Action(audit.Update).WithFields(logrus.Fields{"secondary_action": audit.Add , "virtualip": vip.IP})
 	if err != nil {
-		return err
+		return alog.Error(err)
 	} else if entity == nil {
-		return ErrPoolNotExists
+		return alog.Error(ErrPoolNotExists)
 	}
-
+	alog = alog.Entity(entity)
 	if err := f.addVirtualIP(ctx, &vip); err != nil {
-		return err
+		return alog.Error(err)
 	}
 	entity.VirtualIPs = append(entity.VirtualIPs, vip)
 	entity.UpdatedAt = time.Now()
@@ -253,13 +262,14 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 	err = f.beforeEvent(beforePoolUpdate, evtctx, entity)
 	defer f.afterEvent(afterPoolUpdate, evtctx, entity, err)
 	if err != nil {
-		return err
+		return alog.Error(err)
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
-		return err
+		return alog.Error(err)
 	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
+	alog.Succeeded()
 	return nil
 }
 
@@ -293,15 +303,17 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 // RemoveVirtualIP removes a virtual IP from a pool
 func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveVirtualIP"))
+	alog := f.auditLogger.Message(ctx, "Updating ResourcePool").Action(audit.Update).
+		WithFields(logrus.Fields{"secondary_action": audit.Remove, "virtualip": vip.IP})
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
 	if err != nil {
-		return err
+		return alog.Error(err)
 	} else if entity == nil {
-		return ErrPoolNotExists
+		return alog.Error(ErrPoolNotExists)
 	}
-
+	alog = alog.Entity(entity)
 	if err := f.removeVirtualIP(ctx, vip.PoolID, vip.IP); err != nil {
-		return err
+		return alog.Error(err)
 	}
 	for i, currentVIP := range entity.VirtualIPs {
 		if currentVIP.IP == vip.IP {
@@ -315,18 +327,18 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) erro
 	services, err := f.GetTaggedServices(ctx, query)
 	if err != nil {
 		glog.Errorf("Failed to grab services with endpoints assigned to ip %s: %s", vip.IP, err)
-		return err
+		return alog.Error(err)
 	}
 
 	evtctx := newEventCtx()
 	err = f.beforeEvent(beforePoolUpdate, evtctx, entity)
 	defer f.afterEvent(afterPoolUpdate, evtctx, entity, err)
 	if err != nil {
-		return err
+		return alog.Error(err)
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
-		return err
+		return alog.Error(err)
 	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	// update address assignments
@@ -338,9 +350,10 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) erro
 		}
 		if err = f.AssignIPs(ctx, request); err != nil {
 			glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
+			alog.Error(err)
 		}
 	}
-
+	alog.Succeeded()
 	return nil
 }
 
@@ -450,12 +463,16 @@ func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.Resour
 // CreateDefaultPool creates the default pool if it does not exist. It is idempotent.
 func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.CreateDefaultPool"))
+	alog := f.auditLogger.Message(ctx, "Adding ResourcePool").
+		ID(id).Type(pool.GetType()).Action(audit.Add)
 	entity, err := f.GetResourcePool(ctx, id)
 	if err != nil {
+		alog.Error(err)
 		return fmt.Errorf("could not create default pool %s: %v", id, err)
 	}
 	if entity != nil {
 		glog.V(4).Infof("'%s' resource pool already exists", id)
+		alog.Succeeded()
 		return nil
 	}
 
@@ -465,8 +482,9 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	entity.Description = "Default Pool"
 	entity.Permissions = pool.DFSAccess + pool.AdminAccess
 	if err := f.AddResourcePool(ctx, entity); err != nil {
-		return err
+		return alog.Error(err)
 	}
+	alog.Succeeded()
 	return nil
 }
 

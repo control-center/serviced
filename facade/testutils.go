@@ -74,12 +74,17 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	ft.Facade = New()
 	mockLogger := &auditmocks.Logger{}
 	mockLogger.On("Message", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Message", mock.AnythingOfType("*mocks.Context"), mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("Action", mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("Type", mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("ID", mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("Entity", mock.AnythingOfType("*pool.ResourcePool")).Return(mockLogger)
 	mockLogger.On("WithField", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("WithFields", mock.AnythingOfType("logrus.Fields")).Return(mockLogger)
 	mockLogger.On("Error", mock.Anything)
+	mockLogger.On("Succeeded", mock.Anything)
+	mockLogger.On("SucceededIf", mock.AnythingOfType("bool"))
+	mockLogger.On("Failed", mock.Anything)
 
 	ft.Facade.SetAuditLogger(mockLogger)
 	ft.dfs = &dfsmocks.DFS{}

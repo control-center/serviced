@@ -62,7 +62,7 @@ type Logger interface {
 	Error(err error) error
 }
 
-// NewLogger returns a default implmentation of the audit logger.  The "user" will default
+// NewLogger returns a default implementation of the audit logger.  The "user" will default
 // to "system" unless otherwise specified in the context.  This wraps a logri Logger,
 // and will write to the location specified in the logger config.
 func NewLogger() Logger {
