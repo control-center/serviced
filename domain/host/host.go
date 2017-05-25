@@ -258,3 +258,21 @@ func UpdateHostInfo(h Host) (Host, error) {
 
 	return h, nil
 }
+
+// GetType return the Host's type (also referred to as kind).
+// It return returns the type as a string.
+func GetType() string {
+	return kind
+}
+
+// GetID returns the receiver host's ID.
+// It returns the ID as a string
+func (h *Host) GetID() string {
+	return h.ID
+}
+
+// GetType returns the receiver host's type.
+// It returns the type as a string
+func (h *Host) GetType() string {
+	return GetType()
+}

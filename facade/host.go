@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -49,13 +50,15 @@ var (
 // Returns an error if host already exists or if the host's IP is a virtual IP.
 func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddHost"))
+	alog := f.auditLogger.Message(ctx, "Adding Host").Action(audit.Add).Entity(entity)
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	if err := f.DFSLock(ctx).LockWithTimeout("add host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add host: %s", err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 	defer f.DFSLock(ctx).Unlock()
-	return f.addHost(ctx, entity)
+	key, err := f.addHost(ctx, entity)
+	return key, alog.Error(err)
 }
 
 func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
@@ -153,25 +156,26 @@ func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) (
 // UpdateHost information for a registered host
 func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateHost"))
+	alog := f.auditLogger.Message(ctx, "Updating Host").Entity(entity).Action(audit.Update)
 	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
 	if err := f.DFSLock(ctx).LockWithTimeout("update host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot update host: %s", err)
-		return err
+		return alog.Error(err)
 	}
 	defer f.DFSLock(ctx).Unlock()
 
 	// validate the host exists
 	if host, err := f.GetHost(ctx, entity.ID); err != nil {
-		return err
+		return alog.Error(err)
 	} else if host == nil {
-		return fmt.Errorf("host does not exist: %s", entity.ID)
+		return alog.Error(fmt.Errorf("host does not exist: %s", entity.ID))
 	}
 
 	// validate the pool exists
 	if pool, err := f.GetResourcePool(ctx, entity.PoolID); err != nil {
-		return err
+		return alog.Error(err)
 	} else if pool == nil {
-		return fmt.Errorf("pool does not exist: %s", entity.PoolID)
+		return alog.Error(fmt.Errorf("pool does not exist: %s", entity.PoolID))
 	}
 
 	var err error
@@ -179,58 +183,59 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
 
 	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	entity.UpdatedAt = time.Now()
 	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	err = f.zzk.UpdateHost(entity)
 
 	f.poolCache.SetDirty()
 
-	return err
+	return alog.Error(err)
 }
 
 // RemoveHost removes a Host from serviced
 func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveHost"))
+	alog := f.auditLogger.Message(ctx, "Removing Host").Action(audit.Remove).ID(hostID).Type(host.GetType())
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
 	if err := f.DFSLock(ctx).LockWithTimeout("remove host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot remove host: %s", err)
-		return err
+		return alog.Error(err)
 	}
 	defer f.DFSLock(ctx).Unlock()
 
 	//assert valid host
 	var _host *host.Host
 	if _host, err = f.GetHost(ctx, hostID); err != nil {
-		return err
+		return alog.Error(err)
 	} else if _host == nil {
-		return fmt.Errorf("HostID %s does not exist", hostID)
+		return alog.Error(fmt.Errorf("HostID %s does not exist", hostID))
 	}
 
 	ec := newEventCtx()
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	//remove host from zookeeper
 	if err = f.zzk.RemoveHost(_host); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	// remove host from hostkey datastore
 	if err = f.hostkeyStore.Delete(ctx, _host.ID); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	//remove host from datastore
 	if err = f.hostStore.Delete(ctx, host.HostKey(hostID)); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
 	//grab all services that are address assigned the host's IPs
@@ -240,7 +245,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		svcs, err := f.GetTaggedServices(ctx, query)
 		if err != nil {
 			glog.Errorf("Failed to grab services with endpoints assigned to ip %s on host %s: %s", ip.IPAddress, _host.Name, err)
-			return err
+			return alog.Error(err)
 		}
 		services = append(services, svcs...)
 	}
@@ -265,6 +270,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 
 	f.poolCache.SetDirty()
 
+	alog.Succeeded()
 	return nil
 }
 
@@ -301,33 +307,43 @@ func (f *Facade) GetHostKey(ctx datastore.Context, hostID string) ([]byte, error
 func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResetHostKey"))
 	glog.V(2).Infof("Facade.ResetHostKey: id=%s", hostID)
+	alog := f.auditLogger.Message(ctx, "Resetting Host Key").
+		Action(audit.Update).ID(hostID).Type(host.GetType())
 
 	var value host.Host
 	if err := f.hostStore.Get(ctx, host.HostKey(hostID), &value); err != nil {
-		return nil, err
+		return nil, alog.Error(err)
 	}
-	return f.generateDelegateKey(ctx, &value)
+	key, err := f.generateDelegateKey(ctx, &value)
+	return key, alog.Error(err)
 }
 
 // RegisterHost attempts to register a host's keys over ssh, or locally if it's
 // the current host.
 func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, nat utils.URL, keys []byte, prompt bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RegisterHostKeys"))
-	return auth.RegisterRemoteHost(entity.ID, nat, entity.IPAddr, keys, prompt)
+	alog := f.auditLogger.Message(ctx, "Registering Host Keys").Entity(entity).Action(audit.Update)
+	return alog.Error(auth.RegisterRemoteHost(entity.ID, nat, entity.IPAddr, keys, prompt))
 }
 
 // SetHostExpiration sets a host's auth token
 // expiration time in the HostExpirationRegistry
 func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SetHostExpiration"))
+	alog := f.auditLogger.Message(ctx, "Setting Host Expiration Registry").
+		Action(audit.Update).ID(hostid).Type(host.GetType())
 	f.hostRegistry.Set(hostid, expiration)
+	alog.Succeeded()
 }
 
 // RemoveHostExpiration removes a host from the
 // HostExpirationRegistry
 func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveHostExpiration"))
+	alog := f.auditLogger.Message(ctx, "Removing Host Expiration Registry").
+		Action(audit.Update).ID(hostid).Type(host.GetType())
 	f.hostRegistry.Remove(hostid)
+	alog.Succeeded()
 }
 
 // HostIsAuthenticated checks whether a host has authenticated and has an unexpired
