@@ -804,6 +804,26 @@ func (se *ServiceEndpoint) GetAssignment() *addressassignment.AddressAssignment 
 	return &result
 }
 
+// GetType returns a Services's type or kind, can be used to get
+// the string value of ResourcePool's type without a ResourcePool instance.
+// It returns the kind as a string.
+func GetType() string {
+	return kind
+}
+
+// GetID returns its ResourcePool's ID.
+// It return the ID as a string
+func (a *Service) GetID() string {
+	return a.ID
+}
+
+// GetType return a ResourcePool's Entity type or kind.
+// It returns the Kind as a string.
+func (a *Service) GetType() string {
+	return GetType()
+}
+
+
 //Equals are they the same
 func (s *Service) Equals(b *Service) bool {
 	if s.ID != b.ID {
