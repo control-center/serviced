@@ -25,8 +25,8 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/hostkey"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -322,7 +322,8 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 // the current host.
 func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, nat utils.URL, keys []byte, prompt bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RegisterHostKeys"))
-	alog := f.auditLogger.Message(ctx, "Registering Host Keys").Entity(entity).Action(audit.Update)
+	alog := f.auditLogger.Message(ctx, "Registering Host Keys").
+		Entity(entity).Action(audit.Update).WithField("nat", nat.String())
 	return alog.Error(auth.RegisterRemoteHost(entity.ID, nat, entity.IPAddr, keys, prompt))
 }
 
@@ -331,7 +332,9 @@ func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, nat 
 func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SetHostExpiration"))
 	alog := f.auditLogger.Message(ctx, "Setting Host Expiration Registry").
-		Action(audit.Update).ID(hostid).Type(host.GetType())
+		Action(audit.Update).ID(hostid).Type(host.GetType()).
+		WithField("expiration",
+			fmt.Sprintf("%f hours", time.Duration(time.Duration(expiration)*time.Second).Hours()))
 	f.hostRegistry.Set(hostid, expiration)
 	alog.Succeeded()
 }
