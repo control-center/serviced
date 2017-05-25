@@ -1931,14 +1931,11 @@ func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
 func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.AssignmentRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AssignIPs"))
 	visitor := func(svc *service.Service) error {
-		alog := f.auditLogger.Action(audit.Update).Message(ctx, "IP Assignment").WithField("servicename",svc.Name).Entity(svc)
 		// get all of the ports for the service
 		portmap, err := GetPorts(svc.Endpoints)
 		if err != nil {
 			glog.Errorf("Could not get ports for service %s (%s): %s", svc.Name, svc.ID, err)
-			return alog.Error(err)
 		} else if len(portmap) == 0 {
-			alog.Succeeded()
 			return nil
 		}
 
@@ -1946,6 +1943,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 		// get all of the address assignments for the service
 		assignments, err := f.GetServiceAddressAssignments(ctx, svc.ID)
+		alog := f.auditLogger.Action(audit.Update).Message(ctx, "Assigning IP").WithField("servicename",svc.Name).Entity(svc)
 		if err != nil {
 			glog.Errorf("Could not get address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			return alog.Error(err)
@@ -2037,7 +2035,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				Synchronous: true,
 			})
 		}
-		alog.Succeeded()
+		alog.WithField("assignedIP", ip.IP).Succeeded()
 		return nil
 	}
 
