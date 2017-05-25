@@ -34,7 +34,6 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
-	"github.com/gorilla/mux"
 	"github.com/zenoss/go-json-rest"
 )
 
@@ -177,7 +176,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		uiHandler.ServeHTTP(w, r)
 	}
 
-	r := mux.NewRouter()
+	// gorilla mux canonizes the url, breaking proxy urls that have special characters. See CC-3510.
 
 	if hnm, err := os.Hostname(); err == nil {
 		sc.hostaliases = append(sc.hostaliases, hnm)
@@ -190,11 +189,6 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	defaultHostAlias = sc.hostaliases[0]
 	uiConfig = sc.uiConfig
-
-	r.HandleFunc("/", httphandler)
-	r.HandleFunc("/{path:.*}", httphandler)
-
-	http.Handle("/", r)
 
 	// FIXME: bubble up these errors to the caller
 	certFile, keyFile := GetCertFiles(sc.certPEMFile, sc.keyPEMFile)
@@ -218,7 +212,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 			PreferServerCipherSuites: true,
 			CipherSuites:             utils.CipherSuites("http"),
 		}
-		server := &http.Server{Addr: sc.bindPort, TLSConfig: config}
+		server := &http.Server{Addr: sc.bindPort, TLSConfig: config, Handler: http.HandlerFunc(httphandler)}
 		logger.WithField("ciphersuite", utils.CipherSuitesByName(config)).Info("Creating HTTP server")
 		err := server.ListenAndServeTLS(certFile, keyFile)
 		if err != nil {
