@@ -164,7 +164,7 @@ deb: stage_deb
 		-d libdevmapper1.02.1 \
 		-d libdevmapper-event1.02.1 \
 		-d nfs-common \
-		-d 'docker-engine (= 17.03.1-ce)' \
+		-d 'docker-ce (= 17.03.1-ce)' \
 		-d logrotate \
 		-d conntrack \
 		-d rsync \
@@ -203,7 +203,7 @@ rpm: stage_rpm
 		-d device-mapper-event \
 		-d device-mapper-event-libs \
 		-d device-mapper-libs \
-		-d 'docker-engine = 17.03.1-ce' \
+		-d 'docker-ce = 17.03.1-ce' \
 		-d logrotate \
 		-d rsync \
 		-d sysstat \
