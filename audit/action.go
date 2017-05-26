@@ -30,4 +30,10 @@ const (
 
 	// Start is the string for the start action when logging.
 	Start = "start"
+
+	// Migrate is the string for the migrate action when logging.
+	Migrate = "migrate"
+
+	//Restore is the string for the restore action when logging.
+	Restore= "restore"
 )
