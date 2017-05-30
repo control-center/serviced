@@ -250,3 +250,21 @@ func BuildFromPath(path string) (*ServiceDefinition, error) {
 	}
 	return sd, sd.ValidEntity()
 }
+
+// GetType return the ServiceDefinition's type
+// It returns the type as a string
+func GetType() string {
+	return "servicedefinition"
+}
+
+// GetType returns the ServiceDefinition instance's type
+// It returns the type as a string
+func (s *ServiceDefinition) GetType() string {
+	return GetType()
+}
+
+// GetID return a ServiceDefinition instance's ID
+// It returns the ID as a string
+func (s *ServiceDefinition) GetID() string {
+	return s.Name
+}
