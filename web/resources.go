@@ -621,7 +621,7 @@ func restRestartServices(w *rest.ResponseWriter, r *rest.Request, client *daocli
 }
 
 // restStartService starts the service with the given id and all of its children
-func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restStartService(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -640,12 +640,14 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 		autoLaunch = false
 	}
 
-	var affected int
-	err = client.StartService(dao.ScheduleServiceRequest{
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	_,err = serviceFacade.StartService(dataCtx,dao.ScheduleServiceRequest{
 		ServiceIDs:  []string{serviceID},
 		AutoLaunch:  autoLaunch,
 		Synchronous: false,
-	}, &affected)
+	})
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
 		logger.WithError(err).Error("Error starting service")
@@ -660,7 +662,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 }
 
 // restStartServices starts the services with the given ids and all of their children
-func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restStartServices(w *rest.ResponseWriter, r *rest.Request, ctx  *requestContext) {
 
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
@@ -673,8 +675,9 @@ func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 
 	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
 
-	var affected int
-	err = client.StartService(serviceRequest, &affected)
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	_,err = serviceFacade.StartService(dataCtx, serviceRequest)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
 		logger.WithError(err).Error("Error starting services")

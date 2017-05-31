@@ -205,4 +205,6 @@ type FacadeInterface interface {
 	QueryServiceDetails(ctx datastore.Context, query service.Query) ([]service.ServiceDetails, error)
 
 	GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error)
+
+	StartService(ctx datastore.Context, request dao.ScheduleServiceRequest)(int, error)
 }

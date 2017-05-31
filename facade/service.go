@@ -1431,6 +1431,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 					}).Error("Service failed validation for start")
 					lock.Lock()
 					failedServices = append(failedServices, svc.ID)
+					f.auditLogger.Action(audit.Start).Message(ctx, "Scheduling Service").Entity(svc).Failed()
 					lock.Unlock()
 					return
 				}
@@ -1443,6 +1444,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				}).Error("Service failed validation for stop")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
+				f.auditLogger.Action(audit.Stop).Message(ctx, "Scheduling Service").Entity(svc).Failed()
 				lock.Unlock()
 				return
 			}
@@ -1452,6 +1454,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error scheduling service")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
+				f.auditLogger.Action(desiredState.String()).Message(ctx, "Scheduling Service").Entity(svc).Failed()
 				lock.Unlock()
 				return
 			}
@@ -1465,13 +1468,16 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error filling service address")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
+				f.auditLogger.Action(desiredState.String()).Message(ctx, "Scheduling Service").Entity(svc).Failed()
 				lock.Unlock()
 				return
 			}
+
 			logger.WithFields(log.Fields{
 				"servicename": svc.Name,
 				"serviceid":   svc.ID,
 			}).Debug("Scheduled service")
+			f.auditLogger.Action(desiredState.String()).Message(ctx, "Scheduling Service").WithField("servicename", svc.Name).Entity(svc).Succeeded()
 			lock.Lock()
 			servicesToSchedule = append(servicesToSchedule, svc.Service)
 			lock.Unlock()
@@ -1788,7 +1794,9 @@ func (f *Facade) WaitSingleService(svc *service.Service, dstate service.DesiredS
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StartService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
+	alog := f.auditLogger.Action(audit.Start).Message(ctx, "Starting Service").Type(service.GetType()).ID(strings.Join(request.ServiceIDs, ", "))
+	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
+	return successCount, alog.Error(err)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
