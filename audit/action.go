@@ -29,7 +29,7 @@ const (
 	Stop = "stop"
 
 	// Start is the string for the start action when logging.
-	Start = "start"
+	Start = "go"
 
 	// Migrate is the string for the migrate action when logging.
 	Migrate = "migrate"
