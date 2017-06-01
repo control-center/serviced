@@ -1470,19 +1470,19 @@ func (_m *FacadeInterface) SetHostExpiration(ctx datastore.Context, hostID strin
 }
 
 //StartService provides a mock function with given fields: ctx, ScheduleServiceRequest
-func (_m *FacadeInterface) StartService(ctx datastore.Context,  request *dao.ScheduleServiceRequest) (int, error) {
+func (_m *FacadeInterface) StartService(ctx datastore.Context,  request dao.ScheduleServiceRequest) (int, error) {
 
 	ret := _m.Called(ctx, request)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(datastore.Context, *dao.ScheduleServiceRequest) int); ok {
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.ScheduleServiceRequest) int); ok {
 		r0 = rf(ctx, request)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(0).(func(datastore.Context, *dao.ScheduleServiceRequest) error); ok {
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.ScheduleServiceRequest) error); ok {
 		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(0)
