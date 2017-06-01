@@ -93,7 +93,9 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 // that it is written to.
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
-
+	if len(backupRequest.Username) > 0 {
+		ctx.SetUser(backupRequest.Username)
+	}
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
@@ -150,7 +152,7 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	// Smaller blocks will allow other goroutines to get time more frequently.
 	w.SetConcurrency(100000, 2)
 	defer w.Close()
-	err = dao.facade.Backup(ctx, w, backupRequest.Excludes, backupRequest.SnapshotSpacePercent)
+	err = dao.facade.Backup(ctx, w, backupRequest.Excludes, backupRequest.SnapshotSpacePercent, backupfilename)
 	return
 }
 
@@ -176,6 +178,9 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 // AsyncBackup is the same as backup, but asynchronous
 func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
+	if len(backupRequest.Username) > 0 {
+		ctx.SetUser(backupRequest.Username)
+	}
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
 	inprogress.Reset()
@@ -185,24 +190,26 @@ func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filen
 }
 
 // Restore restores the full application stack from a backup file.
-func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
+func (dao *ControlPlaneDao) Restore(restoreRequest model.RestoreRequest, _ *int) (err error) {
 	ctx := datastore.Get()
-
+	if len(restoreRequest.Username) > 0 {
+		ctx.SetUser(restoreRequest.Username)
+	}
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("restore")
 	defer dfslocker.Unlock()
-	inprogress.SetProgress(filename, "restore")
+	inprogress.SetProgress(restoreRequest.Filename, "restore")
 	defer func() {
 		if err != nil {
 			log.WithError(err).Error("Restore failed with error")
 		}
 		inprogress.SetError(err)
 	}()
-	info, err := dfs.ExtractBackupInfo(filename)
+	info, err := dfs.ExtractBackupInfo(restoreRequest.Filename)
 	if err != nil {
 		return err
 	}
-	fh, err := os.Open(filename)
+	fh, err := os.Open(restoreRequest.Filename)
 	if err != nil {
 		return err
 	}
@@ -212,18 +219,21 @@ func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
 		return err
 	}
 	defer gz.Close()
-	err = dao.facade.Restore(ctx, gz, info)
+	err = dao.facade.Restore(ctx, gz, info, restoreRequest.Filename)
 	return err
 }
 
 // AsyncRestore is the same as restore, but asynchronous.
-func (dao *ControlPlaneDao) AsyncRestore(filename string, unused *int) (err error) {
+func (dao *ControlPlaneDao) AsyncRestore(restoreRequest model.RestoreRequest, unused *int) (err error) {
 	ctx := datastore.Get()
+	if len(restoreRequest.Username) > 0 {
+		ctx.SetUser(restoreRequest.Username)
+	}
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("restore")
 	inprogress.Reset()
 	dfslocker.Unlock()
-	go dao.Restore(filename, unused)
+	go dao.Restore(restoreRequest, unused)
 	return
 }
 
