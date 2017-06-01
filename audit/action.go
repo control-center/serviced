@@ -14,6 +14,7 @@
 package audit
 
 // Defined actions for audit logging.
+
 const (
 
 	// Add is the string for the add action when logging.
@@ -29,7 +30,13 @@ const (
 	Stop = "stop"
 
 	// Start is the string for the start action when logging.
-	Start = "go"
+	Start = "start"
+
+	// Restart is the string for restart action when logging.
+	Restart = "restart"
+
+	//Pause is the string for the pause action when logging.
+	Pause= "pause"
 
 	// Migrate is the string for the migrate action when logging.
 	Migrate = "migrate"
@@ -37,3 +44,18 @@ const (
 	//Restore is the string for the restore action when logging.
 	Restore= "restore"
 )
+
+func SVCState(svcState string) string {
+	switch svcState {
+	case "restart":
+		return Restart
+	case "go":
+		return Start
+	case "stop":
+		return Stop
+	case "pause":
+		return Pause
+	default:
+		return "unknown"
+	}
+}
