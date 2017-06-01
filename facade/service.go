@@ -1800,8 +1800,8 @@ func (f *Facade) WaitSingleService(svc *service.Service, dstate service.DesiredS
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StartService"))
-	alog := f.auditLogger.Action(audit.Start).Message(ctx, "Starting Service").Type(service.GetType()).ID(strings.Join(request.ServiceIDs, ", "))
 	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
+	alog := f.auditLogger.Action(audit.Start).Message(ctx, "Starting Service").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "successCount": successCount})
 	return successCount, alog.Error(err)
 }
 
