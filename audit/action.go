@@ -34,8 +34,11 @@ const (
 	// Migrate is the string for the migrate action when logging.
 	Migrate = "migrate"
 
+	// Backup is the string for the backup action when logging.
+	Backup = "backup"
+
 	// Restore is the string for the restore action when logging.
-	Restore= "restore"
+	Restore = "restore"
 
 	// Deploy is the string value for the deploy action when logging.
 	Deploy = "deploy"

@@ -62,7 +62,7 @@ func (a *api) Restore(path string) error {
 		return fmt.Errorf("could not convert '%s' to an absolute file path: %v", path, err)
 	}
 
-	return client.Restore(filepath.Clean(fp), &unusedInt)
+	return client.Restore(dao.RestoreRequest{Filename: filepath.Clean(fp)}, &unusedInt)
 }
 
 func (a *api) GetBackupEstimate(dirpath string, excludes []string) (*dao.BackupEstimate, error) {
