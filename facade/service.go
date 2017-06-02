@@ -1838,20 +1838,27 @@ func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceR
 
 func (f *Facade) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EmergencyStopService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, true)
+	alog := f.auditLogger.Message(ctx, "Emergency Stopping Services").Action(audit.Stop).
+		WithField("serviceids", strings.Trim(fmt.Sprintf("%v", request.ServiceIDs), "[]"))
+	numServices, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, true)
+	return numServices, alog.Error(err)
 }
 
 // ClearEmergencyStopFlag sets EmergencyStop to false for all services on the tenant that have it set to true
 func (f *Facade) ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ClearEmergencyStopFlag"))
+	alog := f.auditLogger.Message(ctx, "Clearing Emergency Stop Flag").
+		Action(audit.Update).ID(serviceID).Type(service.GetType())
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
-		return 0, err
+		return 0, alog.Error(err)
 	}
+	alog = alog.WithField("tenantid", tenantID)
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.clearEmergencyStopFlag(ctx, tenantID, serviceID)
+	cleared, err := f.clearEmergencyStopFlag(ctx, tenantID, serviceID)
+	return cleared, alog.Error(err)
 }
 
 type ipinfo struct {
