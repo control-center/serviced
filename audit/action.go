@@ -44,18 +44,3 @@ const (
 	//Restore is the string for the restore action when logging.
 	Restore= "restore"
 )
-
-func SVCState(svcState string) string {
-	switch svcState {
-	case "restart":
-		return Restart
-	case "go":
-		return Start
-	case "stop":
-		return Stop
-	case "pause":
-		return Pause
-	default:
-		return "unknown"
-	}
-}

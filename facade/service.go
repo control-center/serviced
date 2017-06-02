@@ -1431,7 +1431,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 					}).Error("Service failed validation for start")
 					lock.Lock()
 					failedServices = append(failedServices, svc.ID)
-					f.auditLogger.WithFields(log.Fields{"action": audit.SVCState(desiredState.String()), "servicename": svc.Name}).
+					f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
 						Message(ctx, "Service Scheduled").Entity(svc).Failed()
 					lock.Unlock()
 					return
@@ -1445,7 +1445,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				}).Error("Service failed validation for stop")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
-				f.auditLogger.WithFields(log.Fields{"action": audit.SVCState(desiredState.String()), "servicename": svc.Name}).
+				f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
 					Message(ctx, "Service Scheduled").Entity(svc).Failed()
 				lock.Unlock()
 				return
@@ -1456,7 +1456,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error scheduling service")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
-				f.auditLogger.WithFields(log.Fields{"action": audit.SVCState(desiredState.String()), "servicename": svc.Name}).
+				f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
 					Message(ctx, "Service Scheduled").Entity(svc).Failed()
 				lock.Unlock()
 				return
@@ -1471,7 +1471,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error filling service address")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
-				f.auditLogger.WithFields(log.Fields{"action": audit.SVCState(desiredState.String()), "servicename": svc.Name}).
+				f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
 					Message(ctx, "Service Scheduled").Entity(svc).Failed()
 				lock.Unlock()
 				return
@@ -1482,7 +1482,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				"serviceid":   svc.ID,
 			}).Debug("Scheduled service")
 
-			f.auditLogger.WithFields(log.Fields{"action": audit.SVCState(desiredState.String()), "servicename": svc.Name}).
+			f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
 				Message(ctx, "Service Scheduled").Entity(svc).Succeeded()
 			lock.Lock()
 			servicesToSchedule = append(servicesToSchedule, svc.Service)
@@ -1807,7 +1807,10 @@ func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleService
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRestart, false)
+	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRestart, false)
+	alog := f.auditLogger.Action(audit.Restart).Message(ctx, "Restarting Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	return successCount, alog.Error(err)
+
 }
 
 // RebalanceService does a hard restart:  All services are stopped, and then all services are started again
@@ -1847,7 +1850,9 @@ func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleService
 
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false)
+	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false)
+	alog := f.auditLogger.Action(audit.Stop).Message(ctx, "Stopping Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	return successCount, alog.Error(err)
 }
 
 func (f *Facade) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
