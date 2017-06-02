@@ -331,22 +331,14 @@ func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, nat 
 // expiration time in the HostExpirationRegistry
 func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SetHostExpiration"))
-	alog := f.auditLogger.Message(ctx, "Setting Host Expiration Registry").
-		Action(audit.Update).ID(hostid).Type(host.GetType()).
-		WithField("expiration",
-			fmt.Sprintf("%f hours", time.Duration(time.Duration(expiration)*time.Second).Hours()))
 	f.hostRegistry.Set(hostid, expiration)
-	alog.Succeeded()
 }
 
 // RemoveHostExpiration removes a host from the
 // HostExpirationRegistry
 func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveHostExpiration"))
-	alog := f.auditLogger.Message(ctx, "Removing Host Expiration Registry").
-		Action(audit.Update).ID(hostid).Type(host.GetType())
 	f.hostRegistry.Remove(hostid)
-	alog.Succeeded()
 }
 
 // HostIsAuthenticated checks whether a host has authenticated and has an unexpired

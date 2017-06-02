@@ -131,3 +131,21 @@ func BuildFromPath(path string) (*ServiceTemplate, error) {
 	}
 	return &st, nil
 }
+
+// GetType return the serviceTemplate's type
+// It returns the type as a string
+func GetType() string {
+	return kind
+}
+
+// GetType returns the ServiceTemplate instance's type
+// It returns the type as a string
+func (st *ServiceTemplate) GetType() string {
+	return GetType()
+}
+
+// GetID return a ServiceTemplate instance's ID
+// It returns the ID as a string
+func (st *ServiceTemplate) GetID() string {
+	return st.ID
+}

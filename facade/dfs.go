@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/statistics"
 	"github.com/control-center/serviced/config"
@@ -66,29 +67,36 @@ var registryVersionInfos = map[int]registryVersionInfo{
 }
 
 // Backup takes a backup of all installed applications
-func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, snapshotSpacePercent int) error {
+func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, snapshotSpacePercent int, backupFilename string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Backup"))
 	// Do not DFSLock here, ControlPlaneDao does that
-
 	stime := time.Now()
 	message := fmt.Sprintf("started backup at %s", stime.UTC())
 	plog.WithField("excludes", excludes).Info("Started backup")
+	alog := f.auditLogger.Message(ctx, "Started Backup").
+		Action(audit.Backup).
+		WithFields(logrus.Fields{
+				"starttime": stime.UTC().Format("2006-01-02-150405"),
+				"backupfile": backupFilename})
+	alog.Succeeded()
+	alog = f.auditLogger.Message(ctx, "Completed Backup").
+		Action(audit.Backup)
 	templates, images, err := f.GetServiceTemplatesAndImages(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get service templates and images")
-		return err
+		return alog.Error(err)
 	}
 	plog.WithField("elapsed", time.Since(stime)).Info("Loaded templates and their images")
 	pools, err := f.GetResourcePools(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get resource pools")
-		return err
+		return alog.Error(err)
 	}
 	plog.WithField("elapsed", time.Since(stime)).Info("Loaded resource pools")
 	tenants, err := f.GetTenantIDs(ctx)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get tenants")
-		return err
+		return alog.Error(err)
 	}
 	snapshots := make([]string, len(tenants))
 	snapshotExcludes := map[string][]string{}
@@ -98,7 +106,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 		snapshot, err := f.Snapshot(ctx, tenant, message, []string{tag}, snapshotSpacePercent)
 		if err != nil {
 			tenantLogger.WithError(err).Debug("Could not snapshot tenant")
-			return err
+			return alog.Error(err)
 		}
 
 		defer func(tenant, snapshot, tag string) {
@@ -127,9 +135,14 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 	plog.WithField("data", data).Info("Calling dfs.Backup")
 	if err := f.dfs.Backup(data, w); err != nil {
 		plog.WithError(err).Debug("Could not backup")
-		return err
+		return alog.Error(err)
 	}
-	plog.WithField("duration", time.Since(stime)).Info("Completed backup")
+	duration := time.Since(stime)
+	plog.WithField("duration", duration).Info("Completed backup")
+	alog.WithFields(logrus.Fields{
+				"backupfile": backupFilename,
+				"elasped": fmt.Sprintf("%fsec", duration.Seconds()),
+			}).Succeeded()
 	return nil
 }
 
@@ -562,33 +575,47 @@ func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 }
 
 // Restore restores application data from a backup.
-func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.BackupInfo) error {
+func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.BackupInfo, backupFilename string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Restore"))
 	// Do not DFSLock here, ControlPlaneDao does that
+	stime := time.Now()
 	plog.Info("Started restore from backup")
+	alog := f.auditLogger.Message(ctx, "Started Restoring from Backup").Action(audit.Restore).
+			WithFields(logrus.Fields{
+				"backupfile": backupFilename,
+				"starttime": stime.UTC().Format("2006-01-02-150405"),
+			})
+	alog.Succeeded()
 	if err := f.dfs.Restore(r, backupInfo.BackupVersion); err != nil {
 		plog.WithError(err).Debug("Could not restore from backup")
-		return err
+		return alog.Error(err)
 	}
 	if err := f.RestoreServiceTemplates(ctx, backupInfo.Templates); err != nil {
 		plog.WithError(err).Debug("Could not restore service templates from backup")
-		return err
+		return alog.Error(err)
 	}
 	plog.Infof("Restored service templates")
 	if err := f.RestoreResourcePools(ctx, backupInfo.Pools); err != nil {
 		plog.WithError(err).Debug("Could not restore resource pools from backup")
-		return err
+		return alog.Error(err)
 	}
 	plog.Info("Restored resource pools")
 	for _, snapshot := range backupInfo.Snapshots {
 		logger := plog.WithField("snapshot", snapshot)
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
 			logger.WithError(err).Debug("Could not rollback snapshot")
-			return err
+			return alog.Error(err)
 		}
 		logger.Info("Rolled back snapshot")
 	}
+	restoreDuration := time.Since(stime)
 	plog.Info("Completed restore from backup")
+	alog = f.auditLogger.Message(ctx, "Completed Restoring from Backup").Action(audit.Restore).
+		WithFields(logrus.Fields{
+			"backupfile": backupFilename,
+			"elapsed": fmt.Sprintf("%fsec", restoreDuration.Seconds()),
+		})
+	alog.Succeeded()
 	return nil
 }
 

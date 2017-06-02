@@ -907,9 +907,14 @@ func RestBackupCheck(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	dir := ""
 	filePath := ""
+	username, getUserErr := getUser(r)
+	if getUserErr != nil {
+		plog.WithError(getUserErr).Error("Unable to get user name")
+	}
 	req := dao.BackupRequest{
 		Dirpath:              dir,
 		SnapshotSpacePercent: snapshotSpacePercent,
+		Username:             username,
 	}
 	err := client.AsyncBackup(req, &filePath)
 	if err != nil {
@@ -930,8 +935,15 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	}
 
 	unused := 0
-
-	err = client.AsyncRestore(filePath, &unused)
+	username, getUserErr := getUser(r)
+	if getUserErr != nil {
+		plog.WithError(getUserErr).Error("Unable to get user name")
+	}
+	req := dao.RestoreRequest{
+		Filename: filePath,
+		Username: username,
+	}
+	err = client.AsyncRestore(req, &unused)
 	if err != nil {
 		plog.WithError(err).Error("Unexpected error during restore")
 		restServerError(w, err)

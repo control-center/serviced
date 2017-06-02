@@ -232,10 +232,10 @@ type ControlPlane interface {
 	AsyncBackup(backupRequest BackupRequest, filename *string) (err error)
 
 	// Restore reverts the full application stack from a backup file
-	Restore(filename string, unused *int) (err error)
+	Restore(restoreRequest RestoreRequest, unused *int) (err error)
 
 	// AsyncRestore is the same as restore but asynchronous
-	AsyncRestore(filename string, unused *int) (err error)
+	AsyncRestore(restoreRequest RestoreRequest, unused *int) (err error)
 
 	// Adds 1 or more tags to an existing snapshot
 	TagSnapshot(request TagSnapshotRequest, unused *int) error
