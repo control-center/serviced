@@ -35,6 +35,21 @@ type DesiredState int
 
 var protocolPrefixRegex = regexp.MustCompile("^(.+://)")
 
+func (state DesiredState) ToAuditAction() string{
+	switch state {
+	case SVCRestart:
+		return "restart"
+	case SVCStop:
+		return "stop"
+	case SVCRun:
+		return "start"
+	case SVCPause:
+		return "pause"
+	default:
+		return "unknown"
+	}
+}
+
 func (state DesiredState) String() string {
 	switch state {
 	case SVCRestart:

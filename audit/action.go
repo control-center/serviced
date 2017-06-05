@@ -14,6 +14,7 @@
 package audit
 
 // Defined actions for audit logging.
+
 const (
 
 	// Add is the string for the add action when logging.
@@ -30,6 +31,12 @@ const (
 
 	// Start is the string for the start action when logging.
 	Start = "start"
+
+	// Restart is the string for restart action when logging.
+	Restart = "restart"
+
+	//Pause is the string for the pause action when logging.
+	Pause= "pause"
 
 	// Migrate is the string for the migrate action when logging.
 	Migrate = "migrate"

@@ -205,4 +205,10 @@ type FacadeInterface interface {
 	PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error)
 
 	GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error)
+
+	StartService(ctx datastore.Context, request dao.ScheduleServiceRequest)(int, error)
+
+	RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest)(int, error)
+
+	StopService(ctx datastore.Context, request dao.ScheduleServiceRequest)(int, error)
 }

@@ -517,15 +517,16 @@ func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	w.WriteJson(&simpleResponse{"Updated service", serviceLinks(serviceID)})
 }
 
-func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
-	var unused int
+func restRemoveService(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
 	logger := plog.WithField("serviceid", serviceID)
-	err = client.RemoveService(serviceID, &unused)
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	err = serviceFacade.RemoveService(dataCtx, serviceID)
 	if err != nil {
 		logger.WithError(err).Error("Could not remove service")
 		restServerError(w, err)
@@ -553,7 +554,7 @@ func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 }
 
 // restRestartService restarts the service with the given id and all of its children
-func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restRestartService(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -572,12 +573,14 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 		autoLaunch = false
 	}
 
-	var affected int
-	err = client.RestartService(dao.ScheduleServiceRequest{
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	_, err = serviceFacade.RestartService( dataCtx, dao.ScheduleServiceRequest{
 		ServiceIDs:  []string{serviceID},
 		AutoLaunch:  autoLaunch,
 		Synchronous: false,
-	}, &affected)
+	})
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
 		logger.WithError(err).Error("Error restarting service")
@@ -592,7 +595,7 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 }
 
 // restRetartServices starts the services with the given ids and all of their children
-func restRestartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restRestartServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
@@ -604,9 +607,9 @@ func restRestartServices(w *rest.ResponseWriter, r *rest.Request, client *daocli
 	}
 
 	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
-
-	var affected int
-	err = client.RestartService(serviceRequest, &affected)
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	_, err = serviceFacade.RestartService(dataCtx, serviceRequest)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
 		logger.WithError(err).Error("Error restarting services")
@@ -621,7 +624,7 @@ func restRestartServices(w *rest.ResponseWriter, r *rest.Request, client *daocli
 }
 
 // restStartService starts the service with the given id and all of its children
-func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restStartService(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -640,12 +643,13 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 		autoLaunch = false
 	}
 
-	var affected int
-	err = client.StartService(dao.ScheduleServiceRequest{
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	_,err = serviceFacade.StartService(dataCtx,dao.ScheduleServiceRequest{
 		ServiceIDs:  []string{serviceID},
 		AutoLaunch:  autoLaunch,
 		Synchronous: false,
-	}, &affected)
+	})
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
 		logger.WithError(err).Error("Error starting service")
@@ -660,7 +664,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 }
 
 // restStartServices starts the services with the given ids and all of their children
-func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restStartServices(w *rest.ResponseWriter, r *rest.Request, ctx  *requestContext) {
 
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
@@ -672,9 +676,9 @@ func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	}
 
 	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
-
-	var affected int
-	err = client.StartService(serviceRequest, &affected)
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	_,err = serviceFacade.StartService(dataCtx, serviceRequest)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
 		logger.WithError(err).Error("Error starting services")
@@ -689,7 +693,7 @@ func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 }
 
 // restStopService stop the service with the given id and all of its children
-func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restStopService(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -708,8 +712,10 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 		autoLaunch = false
 	}
 
-	var affected int
-	if err := client.StopService(dao.ScheduleServiceRequest{[]string{serviceID}, autoLaunch, false}, &affected); err != nil {
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	_,err = serviceFacade.StopService(dataCtx, dao.ScheduleServiceRequest{[]string{serviceID}, autoLaunch, false})
+	if err != nil {
 		logger.WithError(err).Error("Unexpected error stopping service")
 		restServerError(w, err)
 		return
@@ -718,7 +724,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 }
 
 // restStopServices stops the services with the given ids and all of their children
-func restStopServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restStopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
@@ -731,8 +737,9 @@ func restStopServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 
 	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
 
-	var affected int
-	err = client.StopService(serviceRequest, &affected)
+	serviceFacade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	_,err = serviceFacade.StopService(dataCtx,serviceRequest)
 	// We handle this error differently because we don't want to return a 500
 	if err != nil {
 		logger.WithError(err).Error("Error stopping services")

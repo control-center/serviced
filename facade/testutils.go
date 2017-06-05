@@ -80,6 +80,7 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	mockLogger.On("ID", mock.AnythingOfType("string")).Return(mockLogger)
 	mockLogger.On("Entity", mock.AnythingOfType("*pool.ResourcePool")).Return(mockLogger)
 	mockLogger.On("Entity", mock.AnythingOfType("*service.Service")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*servicestatemanager.CancellableService")).Return(mockLogger)
 	mockLogger.On("Entity", mock.AnythingOfType("*host.Host")).Return(mockLogger)
 	mockLogger.On("Entity", mock.AnythingOfType("*servicetemplate.ServiceTemplate")).Return(mockLogger)
 	mockLogger.On("WithField", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(mockLogger)
