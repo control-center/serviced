@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -155,49 +156,67 @@ func (f *Facade) FindAssignmentByHostPort(ctx datastore.Context, poolID, ipAddr 
 // RemoveAddressAssignment Removes an AddressAssignment by id
 func (f *Facade) RemoveAddressAssignment(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveAddressAssignment"))
+	alog := f.auditLogger.Message(ctx, "Removing AddressAssignment").Action(audit.Remove).
+		ID(id).Type(addressassignment.GetType())
 	store := addressassignment.NewStore()
 	key := addressassignment.Key(id)
 
 	var assignment addressassignment.AddressAssignment
 	if err := store.Get(ctx, key, &assignment); err != nil {
-		return err
+		return alog.Error(err)
 	}
+	alog = alog.WithFields(log.Fields{
+		"ipaddr": assignment.IPAddr,
+		"port": assignment.Port,
+		"endpointname": assignment.EndpointName,
+		"assignmenttype": assignment.AssignmentType,
+	})
 
 	if err := store.Delete(ctx, key); err != nil {
-		return err
+		return alog.Error(err)
 	}
 
+	alog.Succeeded()
 	return nil
 }
 
 func (f *Facade) assign(ctx datastore.Context, assignment addressassignment.AddressAssignment) (string, error) {
+	alog := f.auditLogger.Message(ctx, "Adding AddressAssignment").Action(audit.Add).Entity(&assignment)
 	if err := assignment.ValidEntity(); err != nil {
-		return "", err
+		return "", alog.Error(err)
 	}
 
 	// Do not add if it already exists
 	if exists, err := f.FindAssignmentByServiceEndpoint(ctx, assignment.ServiceID, assignment.EndpointName); err != nil {
-		return "", err
+		return "", alog.Error(err)
 	} else if exists != nil {
-		return "", fmt.Errorf("found assignment for %s at %s", assignment.EndpointName, assignment.ServiceID)
+		return "", alog.Error(fmt.Errorf("found assignment for %s at %s", assignment.EndpointName, assignment.ServiceID))
 	}
 
 	// Do not add if already assigned
 	if exists, err := f.FindAssignmentByHostPort(ctx, assignment.PoolID, assignment.IPAddr, assignment.Port); err != nil {
-		return "", err
+		return "", alog.Error(err)
 	} else if exists != nil {
-		return "", fmt.Errorf("found assignment for port %d at %s", assignment.Port, assignment.IPAddr)
+		return "", alog.Error(fmt.Errorf("found assignment for port %d at %s", assignment.Port, assignment.IPAddr))
 	}
+
+	alog = alog.WithFields(log.Fields{
+		"ipaddr": assignment.IPAddr,
+		"port": assignment.Port,
+		"endpointname": assignment.EndpointName,
+		"assignmenttype": assignment.AssignmentType,
+	})
 
 	var err error
 	if assignment.ID, err = utils.NewUUID36(); err != nil {
-		return "", err
+		return "", alog.Error(err)
 	}
 
 	store := addressassignment.NewStore()
 	if err := store.Put(ctx, addressassignment.Key(assignment.ID), &assignment); err != nil {
-		return "", err
+		return "", alog.ID(assignment.ID).Error(err)
 	}
 
+	alog.Succeeded()
 	return assignment.ID, nil
 }

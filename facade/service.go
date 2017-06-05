@@ -1962,10 +1962,9 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 		// get all of the address assignments for the service
 		assignments, err := f.GetServiceAddressAssignments(ctx, svc.ID)
-		alog := f.auditLogger.Action(audit.Update).Message(ctx, "Assigning IP").WithField("servicename",svc.Name).Entity(svc)
 		if err != nil {
 			glog.Errorf("Could not get address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
-			return alog.Error(err)
+			return err
 		}
 
 		var ip ipinfo
@@ -1994,7 +1993,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				var err error
 				if ip, err = f.getAutoAssignment(ctx, svc.PoolID, allports...); err != nil {
 					glog.Errorf("Could not get an ip to assign to service %s (%s): %s", svc.Name, svc.ID, err)
-					return alog.Error(err)
+					return err
 				}
 			}
 		} else {
@@ -2009,7 +2008,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 			var err error
 			if ip, err = f.getManualAssignment(ctx, svc.PoolID, request.IPAddress, portmap.List()...); err != nil {
 				glog.Errorf("Could not get an ip to assign to service %s (%s): %s", svc.Name, svc.ID, err)
-				return alog.Error(err)
+				return err
 			}
 		}
 
@@ -2020,7 +2019,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				exclude[assignment.EndpointName] = struct{}{}
 			} else if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
 				glog.Errorf("Error removing address assignment %s for %s (%s): %s", assignment.EndpointName, svc.Name, svc.ID, err)
-				return alog.Error(err)
+				return err
 			}
 		}
 
@@ -2039,7 +2038,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 				if _, err := f.assign(ctx, newassign); err != nil {
 					glog.Errorf("Error creating address assignment for %s of service %s at %s:%d: %s", newassign.EndpointName, newassign.ServiceID, newassign.IPAddr, newassign.Port, err)
-					return alog.Error(err)
+					return err
 				}
 				glog.Infof("Created address assignment for endpoint %s of service %s at %s:%d", newassign.EndpointName, newassign.ServiceID, newassign.IPAddr, newassign.Port)
 				restart = true
@@ -2054,7 +2053,6 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				Synchronous: true,
 			})
 		}
-		alog.WithField("assignedIP", ip.IP).Succeeded()
 		return nil
 	}
 

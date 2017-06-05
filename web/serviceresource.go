@@ -16,7 +16,6 @@ package web
 import (
 	"time"
 
-	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/health"
 	"github.com/zenoss/glog"
@@ -26,7 +25,7 @@ import (
 )
 
 // restServiceAutomaticAssignIP rest resource for automatic assigning ips to a service
-func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)
@@ -34,8 +33,10 @@ func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, clien
 		return
 	}
 
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
 	request := addressassignment.AssignmentRequest{ServiceID: serviceID, IPAddress: "", AutoAssignment: true}
-	if err := client.AssignIPs(request, nil); err != nil {
+	if err := facade.AssignIPs(dataCtx, request); err != nil {
 		glog.Errorf("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w, err)
 		return
@@ -45,7 +46,7 @@ func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, clien
 }
 
 // restServiceManualAssignIP rest resource for manual assigning ips to a service
-func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)
@@ -61,7 +62,9 @@ func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *
 	}
 
 	request := addressassignment.AssignmentRequest{ServiceID: serviceID, IPAddress: ip, AutoAssignment: false}
-	if err := client.AssignIPs(request, nil); err != nil {
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	if err := facade.AssignIPs(dataCtx, request); err != nil {
 		glog.Errorf("Failed to manually assign IP: %+v -> %v", request, err)
 		restServerError(w, err)
 		return
