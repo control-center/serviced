@@ -19,12 +19,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/audit"
-	"github.com/Sirupsen/logrus"
 )
 
 var vhostNameRegex = regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]).)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$")
@@ -36,11 +36,11 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	alog := f.auditLogger.Message(ctx, "Adding Public Endpoint Port").Action(audit.Update).ID(serviceID).
 		WithFields(logrus.Fields{
 			"endpointname": endpointName,
-			"portaddr": portAddr,
-			"usetls": usetls,
-			"protocol": protocol,
-			"isenabled": true,
-	})
+			"portaddr":     portAddr,
+			"usetls":       usetls,
+			"protocol":     protocol,
+			"isenabled":    isEnabled,
+		})
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
 
@@ -148,10 +148,10 @@ func checkPort(network string, laddr string) error {
 func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemovePublicEndpointPort"))
 	alog := f.auditLogger.Message(ctx, "Removing Public Endpoint Port").ID(serviceid).Action(audit.Update).
-			WithFields(logrus.Fields{
-				"endpointname": endpointName,
-				"portaddr": portAddr,
-			})
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"portaddr":     portAddr,
+		})
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
 
@@ -195,9 +195,8 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	alog := f.auditLogger.Message(ctx, auditMsg).Action(audit.Update).ID(serviceid).
 		WithFields(logrus.Fields{
 			"endpointname": endpointName,
-			"portaddr": portAddr,
-			"isenabled": isEnabled,
-	})
+			"portaddr":     portAddr,
+		})
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
 
@@ -272,11 +271,11 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhostName string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddPublicEndpointVHost"))
 	alog := f.auditLogger.Message(ctx, "Adding Public Endpoint VHost").Action(audit.Update).ID(serviceid).
-			WithFields(logrus.Fields{
-				"endpointname": endpointName,
-				"vhostname": vhostName,
-				"isenabled": isEnabled,
-	})
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"vhostname":    vhostName,
+			"isenabled":    isEnabled,
+		})
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
@@ -352,9 +351,9 @@ func (f *Facade) RemovePublicEndpointVHost(ctx datastore.Context, serviceid, end
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemovePublicEndpointVHost"))
 	alog := f.auditLogger.Message(ctx, "Removing Public Endpoint VHost").Action(audit.Update).ID(serviceid).
 		WithFields(logrus.Fields{
-		"endpointname": endpointName,
-		"vhost": vhost,
-	})
+			"endpointname": endpointName,
+			"vhost":        vhost,
+		})
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
@@ -393,9 +392,9 @@ func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, end
 	}
 	alog := f.auditLogger.Message(ctx, auditMsg).Action(audit.Update).ID(serviceid).
 		WithFields(logrus.Fields{
-		"endpointname": endpointName,
-		"vhost": vhost,
-	})
+			"endpointname": endpointName,
+			"vhost":        vhost,
+		})
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
