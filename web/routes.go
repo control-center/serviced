@@ -90,8 +90,8 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"POST", "/services/:serviceId/endpoint/:application/ports/*portname", gz(sc.checkAuth(restPortEnable))},
 
 		// Services (IP)
-		rest.Route{"PUT", "/services/:serviceId/ip", gz(sc.authorizedClient(restServiceAutomaticAssignIP))},
-		rest.Route{"PUT", "/services/:serviceId/ip/*ip", gz(sc.authorizedClient(restServiceManualAssignIP))},
+		rest.Route{"PUT", "/services/:serviceId/ip", gz(sc.checkAuth(restServiceAutomaticAssignIP))},
+		rest.Route{"PUT", "/services/:serviceId/ip/*ip", gz(sc.checkAuth(restServiceManualAssignIP))},
 
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", gz(sc.checkAuth(restGetAppTemplates))},

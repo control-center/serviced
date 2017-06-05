@@ -56,3 +56,21 @@ func (assign AddressAssignment) EqualIP(b AddressAssignment) bool {
 	}
 	return true
 }
+
+// GetType returns the type for AddressAssignment objects
+// It returns the type as string
+func GetType() string {
+	return "addressassignment"
+}
+
+// GetType return the type for AddressAssignment objects
+// It returns the type as a string
+func (a *AddressAssignment) GetType() string {
+	return GetType()
+}
+
+// GetID returns an AddressAssignment's ID
+// It returns the ID as a string
+func (a *AddressAssignment) GetID() string {
+	return a.ID
+}
