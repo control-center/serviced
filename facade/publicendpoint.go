@@ -19,6 +19,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -31,7 +33,14 @@ var vhostNameRegex = regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*
 func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpointName, portAddr string,
 	usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddPublicEndpointPort"))
-
+	alog := f.auditLogger.Message(ctx, "Adding Public Endpoint Port").Action(audit.Update).ID(serviceID).
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"portaddr":     portAddr,
+			"usetls":       usetls,
+			"protocol":     protocol,
+			"isenabled":    isEnabled,
+		})
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
 
@@ -40,13 +49,13 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	if len(portParts) < 2 {
 		err := fmt.Errorf("Invalid port address. Port address must be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	if portAddr == "0" || strings.HasSuffix(portAddr, ":0") {
 		err := fmt.Errorf("Invalid port address. Port 0 is invalid.")
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	// Check to make sure the port is available.  Don't allow adding a port if it's already being used.
@@ -54,7 +63,7 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	// definition.
 	if err := checkPort("tcp", fmt.Sprintf("%s", portAddr)); err != nil {
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	// Get the service for this service id.
@@ -62,8 +71,9 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
+	alog = alog.Entity(svc)
 
 	// check other ports for redundancy
 	// FIXME: GetAllServices is really expensive. Can this be replaced
@@ -72,7 +82,7 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	if err != nil {
 		err = fmt.Errorf("Could not get the list of services: %s", err)
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	for _, service := range services {
@@ -85,7 +95,7 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 				if portAddr == epPort.PortAddr {
 					err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
 					glog.Error(err)
-					return nil, err
+					return nil, alog.Error(err)
 				}
 			}
 		}
@@ -95,7 +105,7 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	port, err := svc.AddPort(endpointName, portAddr, usetls, protocol, isEnabled)
 	if err != nil {
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	// Make sure no other service currently has zzk data for this port -- this would result
@@ -103,17 +113,18 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	if err := f.validateServiceStart(ctx, svc); err != nil {
 		// We don't call UpdateService() service here; effectively unwinding the svc.AddPort() call above.
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	glog.V(2).Infof("Added port public endpoint %s to service %s", portAddr, svc.Name)
 
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
+	alog.Succeeded()
 	return port, nil
 }
 
@@ -136,7 +147,11 @@ func checkPort(network string, laddr string) error {
 // Remove the port public endpoint from a service.
 func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemovePublicEndpointPort"))
-
+	alog := f.auditLogger.Message(ctx, "Removing Public Endpoint Port").ID(serviceid).Action(audit.Update).
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"portaddr":     portAddr,
+		})
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
 
@@ -145,31 +160,43 @@ func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
+	alog = alog.Entity(svc)
 
 	err = svc.RemovePort(endpointName, portAddr)
 	if err != nil {
 		err = fmt.Errorf("Error removing port %s from service (%s): %v", portAddr, svc.Name, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("Removed port public endpoint %s from service %s", portAddr, svc.Name)
 
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
+	alog.Succeeded()
 	return nil
 }
 
 // Enable/Disable a port public endpoint.
 func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EnablePublicEndpointPort"))
-
+	var auditMsg string
+	if isEnabled {
+		auditMsg = "Enabling Public Endpoint Port"
+	} else {
+		auditMsg = "Disabling Public Endpoing Port"
+	}
+	alog := f.auditLogger.Message(ctx, auditMsg).Action(audit.Update).ID(serviceid).
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"portaddr":     portAddr,
+		})
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
 
@@ -178,22 +205,23 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
+	alog = alog.Entity(svc)
 
 	// Find the port so we can check the current enabled state.
 	port := svc.GetPort(endpointName, portAddr)
 	if port == nil {
 		err = fmt.Errorf("Port %s not found in service %s:%s", portAddr, svc.ID, svc.Name)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	// If the port is already in the same state, don't do anything.
 	if port.Enabled == isEnabled {
 		err = fmt.Errorf("Port %s enabled state is already set to %t for service (%s).", portAddr, isEnabled, svc.Name)
 		glog.Warning(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(0).Infof("Setting enabled=%t for service (%s) port %s", isEnabled, svc.Name, portAddr)
@@ -205,18 +233,18 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 		if len(portParts) < 2 {
 			err = fmt.Errorf("Invalid port address. Port address must be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
 			glog.Error(err)
-			return err
+			return alog.Error(err)
 		}
 
 		if portAddr == "0" || strings.HasSuffix(portAddr, ":0") {
 			err = fmt.Errorf("Invalid port address. Port 0 is invalid.")
 			glog.Error(err)
-			return err
+			return alog.Error(err)
 		}
 
 		if err = checkPort("tcp", fmt.Sprintf("%s", portAddr)); err != nil {
 			glog.Error(err)
-			return err
+			return alog.Error(err)
 		}
 	}
 
@@ -224,36 +252,44 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	if err != nil {
 		err = fmt.Errorf("Error setting enabled=%t for port %s, service (%s): %v", isEnabled, portAddr, svc.Name, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("Port (%s) enable state set to %t for service (%s)", portAddr, isEnabled, svc.Name)
 
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
+	alog.Succeeded()
 	return nil
 }
 
 // Adds a vhost public endpoint to a service
 func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhostName string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddPublicEndpointVHost"))
+	alog := f.auditLogger.Message(ctx, "Adding Public Endpoint VHost").Action(audit.Update).ID(serviceid).
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"vhostname":    vhostName,
+			"isenabled":    isEnabled,
+		})
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
+	alog = alog.Entity(svc)
 
 	// Make sure the name doesn't contain invalid characters.
 	if !vhostNameRegex.MatchString(vhostName) {
 		err = fmt.Errorf("Invalid virtual host name: %s", vhostName)
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	// check other virtual hosts for redundancy
@@ -265,7 +301,7 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 	if err != nil {
 		err = fmt.Errorf("Could not get the list of services: %s", err)
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	for _, otherService := range services {
@@ -277,7 +313,7 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 				if strings.ToLower(vhost.Name) == vhostLowerName {
 					err := fmt.Errorf("vhost %s already defined for service: %s", vhostName, otherService.Name)
 					glog.Error(err)
-					return nil, err
+					return nil, alog.Error(err)
 				}
 			}
 		}
@@ -287,7 +323,7 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 	if err != nil {
 		err := fmt.Errorf("Error adding vhost (%s) to service (%s): %v", vhostName, svc.Name, err)
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	// Make sure no other service currently has zzk data for this vhost -- this would result
@@ -295,72 +331,92 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 	if err := f.validateServiceStart(ctx, svc); err != nil {
 		// We don't call UpdateService() service here; effectively unwinding the svc.AddVirtualHost() call above.
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	glog.V(2).Infof("Added vhost public endpoint %s to service %s", vhost.Name, svc.Name)
 
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
-		return nil, err
+		return nil, alog.Error(err)
 	}
 
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
+	alog.Succeeded()
 	return vhost, nil
 }
 
 // Remove the vhost public endpoint from a service.
 func (f *Facade) RemovePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemovePublicEndpointVHost"))
+	alog := f.auditLogger.Message(ctx, "Removing Public Endpoint VHost").Action(audit.Update).ID(serviceid).
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"vhost":        vhost,
+		})
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
+	alog = alog.Entity(svc)
 
 	err = svc.RemoveVirtualHost(endpointName, vhost)
 	if err != nil {
 		err = fmt.Errorf("Error removing vhost %s from service (%s): %v", vhost, svc.Name, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("Removed vhost public endpoint %s from service %s", vhost, svc.Name)
 
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
+	alog.Succeeded()
 	return nil
 }
 
 func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EnablePublicEndpointVHost"))
+	var auditMsg string
+	if isEnabled {
+		auditMsg = "Enabling Public Endpoint VHost"
+	} else {
+		auditMsg = "Disabling Public Endpoing Vhost"
+	}
+	alog := f.auditLogger.Message(ctx, auditMsg).Action(audit.Update).ID(serviceid).
+		WithFields(logrus.Fields{
+			"endpointname": endpointName,
+			"vhost":        vhost,
+		})
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
+	alog = alog.Entity(svc)
 
 	// Find the vhost so we can check the current enabled state.
 	existingVHost := svc.GetVirtualHost(endpointName, vhost)
 	if existingVHost == nil {
 		err = fmt.Errorf("VHost %s not found in service %s:%s", vhost, svc.ID, svc.Name)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	// If the vhost is already in the same state, don't do anything.
 	if existingVHost.Enabled == isEnabled {
 		err = fmt.Errorf("VHost %s enabled state is already set to %t for service (%s).", vhost, isEnabled, svc.Name)
 		glog.Warning(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(0).Infof("Setting enabled=%t for service (%s) vhost %s", isEnabled, svc.Name, vhost)
@@ -369,17 +425,18 @@ func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, end
 	if err != nil {
 		err = fmt.Errorf("Error setting vhost (%s) enable state to %t for service (%s): %v", vhost, isEnabled, svc.Name, err)
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("VHost (%s) enable state set to %t for service (%s)", vhost, isEnabled, svc.Name)
 
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
-		return err
+		return alog.Error(err)
 	}
 
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
+	alog.Succeeded()
 	return nil
 }
 
