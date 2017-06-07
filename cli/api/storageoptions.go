@@ -36,7 +36,7 @@ func getDefaultStorageOptions(driverType volume.DriverType, config utils.ConfigR
 		addStorageOption(config, "DM_THINPOOLDEV", "", func(v string) {
 			options = append(options, fmt.Sprintf("dm.thinpooldev=%s", v))
 		})
-		addStorageOption(config, "DM_BASESIZE", "100G", func(v string) {
+		addStorageOption(config, "DM_BASESIZE", "", func(v string) {
 			options = append(options, fmt.Sprintf("dm.basesize=%s", v))
 		})
 		addStorageOption(config, "DM_LOOPDATASIZE", "", func(v string) {

@@ -78,7 +78,7 @@ func (s *TestAPISuite) TestGetDefaultBtrfsOptions(c *C) {
 func (s *TestAPISuite) TestGetDefaultDevicemapperOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
-	verifyOptions(c, options, []string{"dm.basesize=100G"})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestGetDefaultNFSOptionsWithDMOptionsSet(c *C) {
@@ -102,7 +102,7 @@ func (s *TestAPISuite) TestGetDefaultBrtrfsOptionsWithDMOptionsSet(c *C) {
 func (s *TestAPISuite) TestGetDefaultDevicemapperOptionsForThinpoolDevice(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
-	verifyOptions(c, options, []string{"dm.thinpooldev=foo", "dm.basesize=100G"})
+	verifyOptions(c, options, []string{"dm.thinpooldev=foo"})
 }
 
 func (s *TestAPISuite) TestGetDefaultDevicemapperOptionsForAll(c *C) {
