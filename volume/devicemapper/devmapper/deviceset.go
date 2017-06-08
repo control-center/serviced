@@ -198,6 +198,8 @@ type ThinpoolInitError struct {
 	msg string
 }
 
+var sizeAbbrs = []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+
 func (e ThinpoolInitError) Error() string {
 	return e.msg
 }
@@ -1127,7 +1129,9 @@ func (devices *DeviceSet) checkGrowBaseDeviceFS(info *devInfo) error {
 	}
 
 	if devices.baseFsSize < devices.getBaseDeviceSize() {
-		return fmt.Errorf("devmapper: Base device size cannot be smaller than %s", units.HumanSize(float64(devices.getBaseDeviceSize())))
+		return fmt.Errorf(
+			"devmapper: Base device size cannot be smaller than %s",
+			units.CustomSize("%.4g%s", float64(devices.getBaseDeviceSize()), 1024.0, sizeAbbrs))
 	}
 
 	if devices.baseFsSize == devices.getBaseDeviceSize() {
