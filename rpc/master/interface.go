@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
@@ -236,4 +237,13 @@ type ClientInterface interface {
 
 	// Disable internal metrics collection
 	DebugDisableMetrics() (string, error)
+
+	//--------------------------------------------------------------------------
+	// Assignment management functions
+
+	// Remove the IP assignment of a service's endpoints
+	RemoveIPs(args []string)  error
+
+	// Assigns an IP address to a services that haven't IP Assignment by default
+	SetIPs(request addressassignment.AssignmentRequest) error
 }

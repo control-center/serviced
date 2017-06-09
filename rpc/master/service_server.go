@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/addressassignment"
 )
 
 type ServiceUseRequest struct {
@@ -151,4 +152,12 @@ func (s *Server) ClearEmergency(serviceID string, count *int) error {
 	}
 	*count = c
 	return nil
+}
+
+func (s *Server) RemoveIPs(args []string, unused *string) error {
+	return s.f.RemoveIPs(s.context(), args)
+}
+
+func (s *Server) SetIPs(request addressassignment.AssignmentRequest, unused *string) error {
+	return s.f.SetIPs(s.context(), request)
 }

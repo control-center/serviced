@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/domain/addressassignment"
 )
 
 // ServiceUse will use a new image for a given service - this will pull the image and tag it
@@ -108,4 +109,14 @@ func (c *Client) ClearEmergency(serviceID string) (int, error) {
 	affected := 0
 	err := c.call("ClearEmergency", serviceID, &affected)
 	return affected, err
+}
+
+// Remove the IP assignment of a service's endpoints
+func (c *Client) RemoveIPs(args []string) error {
+	return c.call("RemoveIPs", args, new(string))
+}
+
+// Assigns an IP address to a services that haven't IP Assignment by default
+func (c *Client) SetIPs(r addressassignment.AssignmentRequest) error {
+	return c.call("SetIPs", r, new(string))
 }
