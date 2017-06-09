@@ -217,6 +217,34 @@ func (_m *API) AssignIP(_a0 api.IPConfig) error {
 	return r0
 }
 
+// RemoveIP provides a mock function with given fields: args
+func (_m *API) RemoveIP(args []string) error {
+	ret := _m.Called(args)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string) error); ok {
+		r0 = rf(args)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetIP provides a mock function with given fields: _a0
+func (_m *API) SetIP(_a0 api.IPConfig) error {
+        ret := _m.Called(_a0)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(api.IPConfig) error); ok {
+                r0 = rf(_a0)
+        } else {
+                r0 = ret.Error(0)
+        }
+
+        return r0
+}
+
 // AttachServiceInstance provides a mock function with given fields: serviceID, instanceID, command, args
 func (_m *API) AttachServiceInstance(serviceID string, instanceID int, command string, args []string) error {
 	ret := _m.Called(serviceID, instanceID, command, args)

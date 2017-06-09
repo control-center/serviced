@@ -183,6 +183,34 @@ func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	return nil
 }
 
+// SetAddressConfig sets the AddressConfig to the endpoint
+func (f *Facade) SetAddressConfig(ctx datastore.Context, serviceid, endpointName string, sa servicedefinition.AddressResourceConfig) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SetAddressConfig"))
+	svc, err := f.GetService(ctx, serviceid)
+	if err != nil {
+		return err
+        }
+
+	alog := f.auditLogger.Action(audit.Update).Message(ctx, "Remove IP Assignment").
+		WithFields(logrus.Fields{
+			"servicename": svc.Name,
+			"endpoint": endpointName,
+		}).Entity(svc)
+
+	err = svc.SetAddressConfig(endpointName, sa)
+	if err != nil {
+		err = fmt.Errorf("error setting AddressConfig to the service (%s): %v", svc.Name, err)
+		return alog.Error(err)
+	}
+
+	if err = f.UpdateService(ctx, *svc); err != nil {
+		return alog.Error(err)
+	}
+
+	alog.Succeeded()
+	return nil
+}
+
 // Enable/Disable a port public endpoint.
 func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EnablePublicEndpointPort"))
@@ -250,8 +278,7 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 
 	err = svc.EnablePort(endpointName, portAddr, isEnabled)
 	if err != nil {
-		err = fmt.Errorf("Error setting enabled=%t for port %s, service (%s): %v", isEnabled, portAddr, svc.Name, err)
-		glog.Error(err)
+		err = fmt.Errorf("error setting enabled=%t for port %s, service (%s): %v", isEnabled, portAddr, svc.Name, err)
 		return alog.Error(err)
 	}
 

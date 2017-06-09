@@ -102,7 +102,7 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *request
 	for _, tenantID := range tenantIDs {
 		// FIXME: Business logic like assigning IPs does NOT belong in the REST tier.
 		//        This logic should be moved into the Facade.
-		assignmentRequest := addressassignment.AssignmentRequest{tenantID, "", true}
+		assignmentRequest := addressassignment.AssignmentRequest{tenantID, "", true, 0, "", ""}
 		if err := ctx.getFacade().AssignIPs(ctx.getDatastoreContext(), assignmentRequest); err != nil {
 			// FIXME: This error is never reported to the client
 			glog.Errorf("Could not automatically assign IPs: %v", err)

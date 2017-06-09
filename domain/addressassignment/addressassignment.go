@@ -36,6 +36,9 @@ type AssignmentRequest struct {
 	ServiceID      string
 	IPAddress      string
 	AutoAssignment bool
+	Port           uint16
+	Proto          string
+	EndpointName   string
 }
 
 // initialize the package logger

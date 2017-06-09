@@ -60,6 +60,10 @@ type FacadeInterface interface {
 
 	AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error)
 
+	RemoveIPs(ctx datastore.Context, args []string) error
+
+	SetIPs(ctx datastore.Context, request addressassignment.AssignmentRequest) error
+
 	AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate, reloadLogstashConfig bool) (string, error)
 
 	GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error)

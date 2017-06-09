@@ -195,3 +195,13 @@ func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest,
 	*serviceID, err = this.facade.DeployService(datastore.Get(), request.PoolID, request.ParentID, request.Overwrite, request.Service)
 	return
 }
+
+// Remove the IP assignment of a service's endpoints
+func (this *ControlPlaneDao) RemoveIPs(args []string, unused *int) error {
+	return this.facade.RemoveIPs(datastore.Get(), args)
+}
+
+// Assigns an IP address to a services that haven't IP Assignment by default
+func (this *ControlPlaneDao) SetIPs(request addressassignment.AssignmentRequest, _ *int) error {
+	return this.facade.SetIPs(datastore.Get(), request)
+}
