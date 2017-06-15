@@ -164,7 +164,7 @@ deb: stage_deb
 		-d libdevmapper1.02.1 \
 		-d libdevmapper-event1.02.1 \
 		-d nfs-common \
-		-d 'docker-engine (= 1.12.1)' \
+		-d 'docker-ce (= 17.03.1.ce)' \
 		-d logrotate \
 		-d conntrack \
 		-d rsync \
@@ -203,7 +203,7 @@ rpm: stage_rpm
 		-d device-mapper-event \
 		-d device-mapper-event-libs \
 		-d device-mapper-libs \
-		-d 'docker-engine = 1.12.1' \
+		-d 'docker-ce = 17.03.1.ce' \
 		-d logrotate \
 		-d rsync \
 		-d sysstat \
@@ -228,6 +228,10 @@ rpm: stage_rpm
 		--after-remove rpm/postuninstall \
 		--rpm-pretrans rpm/pretrans \
 		--config-files /etc/default/serviced \
+		--config-files /opt/serviced/etc/logconfig-cli.yaml \
+		--config-files /opt/serviced/etc/logconfig-controller.yaml \
+		--config-files /opt/serviced/etc/logconfig-server.yaml \
+		--config-files /opt/serviced/etc/logrotate.conf \
 		.
 
 # Make a TGZ

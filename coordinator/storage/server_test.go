@@ -23,7 +23,6 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/test"
-	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"fmt"
@@ -80,7 +79,7 @@ func TestServer(t *testing.T) {
 
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
-	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
@@ -99,7 +98,7 @@ func TestServer(t *testing.T) {
 
 	var local, remote string
 	nfsMount = func(driver nfs.Driver, a, b string) error {
-		glog.Infof("client is mounting %s to %s", a, b)
+		t.Logf("client is mounting %s to %s", a, b)
 		remote = a
 		local = b
 		return nil
@@ -179,7 +178,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("remote should be %s, not %s", remote, shareName)
 	}
 
-	glog.Info("about to call c1.Close()")
+	t.Logf("about to call c1.Close()")
 	c1.Close()
 }
 

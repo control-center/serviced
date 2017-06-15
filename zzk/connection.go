@@ -15,7 +15,6 @@ package zzk
 
 import (
 	"errors"
-	"math/rand"
 	"path"
 	"sync"
 	"time"
@@ -40,33 +39,11 @@ var (
 // GetConnection describes a generic function for acquiring a connection object
 type GetConnection func(string) (client.Connection, error)
 
-type delay struct {
-	backoff time.Duration
-}
 
-func (d *delay) GetDelay() time.Duration {
-	// original delay value (set in d.Reset or newDelay function) should be
-	// returned on first call
-	defer func() {
-		factor := 1.25
-		jitter := 0.1
-
-		d.backoff = time.Duration(float64(d.backoff) * factor)
-		d.backoff += time.Duration(rand.NormFloat64() * jitter * float64(time.Second))
-		if d.backoff > MaxDelay {
-			d.backoff = MaxDelay
-		}
-	}()
-	return d.backoff
-}
-
-func (d *delay) Reset(baseBackoff time.Duration) {
-	d.backoff = baseBackoff
-}
-
-func newDelay(baseBackoff time.Duration) *delay {
-	return &delay{
-		backoff: baseBackoff,
+func newDelay(baseBackoff time.Duration) *client.Backoff {
+	return &client.Backoff{
+		InitialDelay: baseBackoff,
+		MaxDelay: baseBackoff,
 	}
 }
 
@@ -197,7 +174,7 @@ func (zconn *zconn) monitor(path string) {
 		connC chan<- client.Connection
 		conn  client.Connection
 		err   error
-		d     *delay
+		d     *client.Backoff
 	)
 
 	defer func() {
@@ -215,7 +192,7 @@ func (zconn *zconn) monitor(path string) {
 		case <-zconn.shutdownC:
 			return
 		}
-		d.Reset(time.Second)
+		d.Reset()
 
 	retry:
 		// create a connection if it doesn't exist or ping the existing connection

@@ -531,6 +531,7 @@ var serviceDetailsFields = []string{
 	"Launch",
 	"Tags",
 	"EmergencyShutdown",
+        "Version",
 }
 
 var serviceEndpointFields = []string{

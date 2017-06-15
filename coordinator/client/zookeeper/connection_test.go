@@ -24,7 +24,6 @@ import (
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	zzktest "github.com/control-center/serviced/zzk/test"
-	"github.com/zenoss/glog"
 )
 
 type testNodeT struct {
@@ -33,7 +32,7 @@ type testNodeT struct {
 }
 
 func (n *testNodeT) SetVersion(version interface{}) {
-	glog.Infof("seting version to: %v", version)
+	fmt.Printf("setting version to: %v", version)
 	n.version = version
 }
 func (n *testNodeT) Version() interface{} { return n.version }
@@ -49,7 +48,7 @@ func TestZkDriver(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
@@ -149,7 +148,7 @@ func TestZkDriver_Multi(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
@@ -324,7 +323,7 @@ func TestZkDriver_Ephemeral(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
@@ -402,7 +401,7 @@ func TestZkDriver_Watch(t *testing.T) {
 	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
-	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, SessionTimeout: time.Second * 15})
 	if err != nil {
 		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}

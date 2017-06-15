@@ -128,6 +128,7 @@ func configureLoggingForLogstash(logstashURL string) {
 	if err != nil {
 		hostname = "unknown"
 	}
+	// TODO: CC-3061: Our use of logrus does not support a similar integration with logstash
 	glog.SetLogstashType("serviced-" + hostname)
 	glog.SetLogstashURL(logstashURL)
 }
