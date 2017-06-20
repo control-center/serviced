@@ -58,7 +58,7 @@ install CC UI dev dependencies using yarn
 
 use our local npm repo by adding the following line to your `$HOME/.npmrc`:
 
-    registry = http://nexus.zendev.org:8081/nexus/content/repositories/npm
+    registry = http://nexus.zenoss.eng:8081/nexus/content/repositories/npm
 
 And now you're all set to develop the CC UI app locally. The previous steps are all (mostly) one-time setup. To develop the web app, open either Chrome (recommended) or Firefox's dev tools, make sure caching is off (you should be able to specifically disable caching when dev tools is open), and run the following in a terminal:
 
@@ -75,11 +75,11 @@ on the user's path. Therefore, bypassing the Docker container will speed up your
 
 If you are building locally, please create (or update) your `$HOME/.nmprc` file to contain the following line:
 ```
-registry = http://nexus.zendev.org:8081/nexus/content/repositories/npm
+registry = http://nexus.zenoss.eng:8081/nexus/content/repositories/npm
 ```
 This will direct NPM to pull artifacts from the Zenoss-local NPM repo on our
 [Nexus server](http://www.sonatype.com/nexus-repository-sonatype) -
-http://nexus.zendev.org:8081/nexus/#view-repositories
+http://nexus.zenoss.eng:8081/nexus/#view-repositories
 
 Regardless of whether you are using the `zenoss/serviced-build` container or installing the tools locally, the tool chain for UI builds is divided into two parts:
   * pre-requisite tools
@@ -101,7 +101,7 @@ incompatible tool versions, you may have to delete this directory and download a
 
 ### Updating dev tool versions
 To change a version of one of the prerequisite tools (node.js, npm, yarn, gulp or babeljs), you must edit [`serviced/build/Dockerfile`](../../build/Dockerfile) to include the necessary changes.
-Be sure that your `$HOME/.npmrc` file is pointed at `http://nexus.zendev.org:8081/nexus/content/repositories/npm`
+Be sure that your `$HOME/.npmrc` file is pointed at `http://nexus.zenoss.eng:8081/nexus/content/repositories/npm`
 Be sure to test with a clean build, removing `serviced/web/ui/node_modules` just to be safe.
 
 To change a version of one of the other tools, edit [`serviced/web/ui/package.json`](./package.json).
