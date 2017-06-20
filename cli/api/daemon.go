@@ -63,6 +63,7 @@ import (
 
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
+	zzkservice "github.com/control-center/serviced/zzk/service"
 
 	"crypto/tls"
 	"encoding/json"
@@ -406,10 +407,10 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 	coordzk.RegisterZKLogger()
 	dsn := coordzk.NewDSN(zks,
 		time.Duration(options.ZKSessionTimeout)*time.Second,
-		time.Duration(options.ZKConnectTimeout) * time.Second,
-		time.Duration(options.ZKPerHostConnectDelay) * time.Second,
-		time.Duration(options.ZKReconnectStartDelay) * time.Second,
-		time.Duration(options.ZKReconnectMaxDelay) * time.Second,
+		time.Duration(options.ZKConnectTimeout)*time.Second,
+		time.Duration(options.ZKPerHostConnectDelay)*time.Second,
+		time.Duration(options.ZKReconnectStartDelay)*time.Second,
+		time.Duration(options.ZKReconnectMaxDelay)*time.Second,
 	).String()
 	log.WithFields(logrus.Fields{
 		"dsn":            dsn,
@@ -552,6 +553,7 @@ func (d *daemon) startMaster() (err error) {
 	d.initWeb()
 	d.addTemplates()
 	d.startScheduler()
+	d.startPoolListener()
 
 	log.Info("Started serviced master")
 
@@ -936,35 +938,35 @@ func (d *daemon) startAgent() error {
 		conntrackFlush, _ := strconv.ParseBool(options.ConntrackFlush)
 
 		agentOptions := node.AgentOptions{
-			IPAddress:            agentIP,
-			PoolID:               thisHost.PoolID,
-			Master:               options.Endpoint,
-			UIPort:               options.UIPort,
-			RPCPort:              options.RPCPort,
-			RPCDisableTLS:        rpcutils.RPCDisableTLS,
-			DockerDNS:            options.DockerDNS,
-			VolumesPath:          options.VolumesPath,
-			Mount:                options.Mount,
-			FSType:               options.FSType,
-			Zookeepers:           options.Zookeepers,
-			Mux:                  mux,
-			MuxPort:              fmt.Sprintf("%d", options.MuxPort),
-			UseTLS:               !muxDisableTLS,
-			DockerRegistry:       options.DockerRegistry,
-			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
-			VirtualAddressSubnet: options.VirtualAddressSubnet,
-			ControllerBinary:     options.ControllerBinary,
-			ConntrackFlush:       conntrackFlush,
-			LogstashURL:          options.LogstashURL,
-			DockerLogDriver:      options.DockerLogDriver,
-			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
-			ZKSessionTimeout:     options.ZKSessionTimeout,
-			ZKConnectTimeout:     options.ZKConnectTimeout,
+			IPAddress:             agentIP,
+			PoolID:                thisHost.PoolID,
+			Master:                options.Endpoint,
+			UIPort:                options.UIPort,
+			RPCPort:               options.RPCPort,
+			RPCDisableTLS:         rpcutils.RPCDisableTLS,
+			DockerDNS:             options.DockerDNS,
+			VolumesPath:           options.VolumesPath,
+			Mount:                 options.Mount,
+			FSType:                options.FSType,
+			Zookeepers:            options.Zookeepers,
+			Mux:                   mux,
+			MuxPort:               fmt.Sprintf("%d", options.MuxPort),
+			UseTLS:                !muxDisableTLS,
+			DockerRegistry:        options.DockerRegistry,
+			MaxContainerAge:       time.Duration(int(time.Second) * options.MaxContainerAge),
+			VirtualAddressSubnet:  options.VirtualAddressSubnet,
+			ControllerBinary:      options.ControllerBinary,
+			ConntrackFlush:        conntrackFlush,
+			LogstashURL:           options.LogstashURL,
+			DockerLogDriver:       options.DockerLogDriver,
+			DockerLogConfig:       convertStringSliceToMap(options.DockerLogConfigList),
+			ZKSessionTimeout:      options.ZKSessionTimeout,
+			ZKConnectTimeout:      options.ZKConnectTimeout,
 			ZKPerHostConnectDelay: options.ZKPerHostConnectDelay,
 			ZKReconnectStartDelay: options.ZKReconnectStartDelay,
-			ZKReconnectMaxDelay:  options.ZKReconnectMaxDelay,
-			DelegateKeyFile:      delegateKeyFile,
-			TokenFile:            tokenFile,
+			ZKReconnectMaxDelay:   options.ZKReconnectMaxDelay,
+			DelegateKeyFile:       delegateKeyFile,
+			TokenFile:             tokenFile,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.reg)
@@ -1382,6 +1384,24 @@ func (d *daemon) addTemplates() {
 			// have changed.
 			log.Info("Loaded service templates")
 			d.facade.ReloadLogstashConfig(d.dsContext)
+		}
+	}()
+}
+
+func (d *daemon) startPoolListener() {
+	go func() {
+		for {
+			var conn coordclient.Connection
+			select {
+			case conn = <-zzk.Connect("/", zzk.GetLocalConnection):
+				if conn != nil {
+					log.Debug("Starting Pool Listener")
+					zzkservice.StartPoolListener(d.shutdown, conn)
+					return
+				}
+			case <-d.shutdown:
+				return
+			}
 		}
 	}()
 }

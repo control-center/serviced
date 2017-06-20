@@ -58,6 +58,11 @@ func (p *ZKPath) IPs() *ZKPath {
 	return p.concat("ips")
 }
 
+// Locked appends the node name for locked to the zookeeper path.
+func (p *ZKPath) Locked() *ZKPath {
+	return p.concat("locked")
+}
+
 // ID appends the given id to the zookeeper path.  If the string is empty,
 // the method will add nothing to the path.  If this behavior is not desired,
 // then checks for a empty string should be done before this method is called.

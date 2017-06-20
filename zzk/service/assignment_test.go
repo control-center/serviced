@@ -67,7 +67,7 @@ func (s *ZKAssignmentHandlerTestSuite) SetUpTest(c *C) {
 		s.connection)
 	s.assignmentHandler.Timeout = time.Second
 
-	s.registeredHostHandler.On("GetRegisteredHosts", s.cancel).
+	s.registeredHostHandler.On("GetRegisteredHosts", "poolid").
 		Return([]h.Host{s.testHost}, nil)
 
 	err = s.connection.Create(

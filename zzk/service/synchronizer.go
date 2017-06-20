@@ -19,7 +19,7 @@ import (
 
 type SyncError []error
 
-func (e *SyncError) Error() string {
+func (e SyncError) Error() string {
 	return "errors encountered while syncing"
 }
 
@@ -60,7 +60,7 @@ func (s *ZKVirtualIPSynchronizer) Sync(pool p.ResourcePool, assignments map[stri
 	}
 
 	if len(errorList) > 0 {
-		return &errorList
+		return errorList
 	}
 
 	return nil

@@ -340,9 +340,33 @@ func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]
 		return nil, errors.New("connection is not initialized")
 	}
 
+	for {
+		hosts, err := GetRegisteredHostsForPool(conn, h.poolid)
+		if err != nil {
+			return nil, err
+		}
+
+		if count := len(hosts); count > 0 {
+			return hosts, nil
+		}
+
+		logger.Warn("No active hosts registered, waiting")
+
+		select {
+		case <-h.isOnline:
+			logger.Info("At least one active host detected, checking")
+		case <-cancel:
+			return []host.Host{}, nil
+		}
+	}
+}
+
+func GetRegisteredHostsForPool(conn client.Connection, poolID string) ([]host.Host, error) {
+	logger := plog.WithField("poolid", poolID)
+
 	hosts := []host.Host{}
 	for {
-		hostids, err := GetCurrentHosts(conn, h.poolid)
+		hostids, err := GetCurrentHosts(conn, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -351,7 +375,7 @@ func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]
 			hstlog := logger.WithField("hostid", hostid)
 
 			// only return hosts that are not locked
-			ch, err := conn.Children(h.GetPath(hostid, "locked"))
+			ch, err := conn.Children(Base().Pools().ID(poolID).Hosts().ID(hostid).Locked().Path())
 			if err != nil && err != client.ErrNoNode {
 
 				hstlog.WithError(err).Debug("Could not check if host is locked")
@@ -363,7 +387,7 @@ func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]
 			isLocked := len(ch) > 0
 			if !isLocked {
 				hdat := host.Host{}
-				err := conn.Get(h.GetPath(hostid), &HostNode{Host: &hdat})
+				err := conn.Get(Base().Pools().ID(poolID).Hosts().ID(hostid).Path(), &HostNode{Host: &hdat})
 				if err == client.ErrNoNode {
 					continue
 				} else if err != nil {
@@ -377,19 +401,9 @@ func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]
 			}
 		}
 
-		if count := len(hosts); count > 0 {
+		logger.WithField("hostcount", len(hosts)).Debug("Loaded active hosts")
 
-			logger.WithField("hostcount", count).Debug("Loaded active hosts")
-			return hosts, nil
-		}
-
-		logger.Warn("No active hosts registered, waiting")
-		select {
-		case <-h.isOnline:
-			logger.Info("At least one active host detected, checking")
-		case <-cancel:
-			return []host.Host{}, nil
-		}
+		return hosts, nil
 	}
 }
 

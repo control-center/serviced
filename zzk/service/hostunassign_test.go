@@ -59,7 +59,7 @@ func (s *ZKHostUnassignHandlerTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 
 	s.registeredHostHandler = mocks.RegisteredHostHandler{}
-	s.registeredHostHandler.On("GetRegisteredHosts", s.cancel).
+	s.registeredHostHandler.On("GetRegisteredHosts", "poolid").
 		Return([]h.Host{s.testHost}, nil)
 
 	s.assignmentHandler = NewZKAssignmentHandler(

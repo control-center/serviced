@@ -15,6 +15,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,12 +54,7 @@ type ZKAssignmentHandler struct {
 	hostHandler           RegisteredHostHandler
 	hostSelectionStrategy HostSelectionStrategy
 	mu                    *sync.Mutex
-	exclude               map[string]excludeHost
-}
-
-type excludeHost struct {
-	hostID  string
-	timeout time.Time
+	timeouts              map[string]map[string]time.Time
 }
 
 // NewZKAssignmentHandler returns a new ZKAssignmentHandler with the provided
@@ -70,9 +66,9 @@ func NewZKAssignmentHandler(strategy HostSelectionStrategy,
 		hostSelectionStrategy: strategy,
 		hostHandler:           handler,
 		connection:            connection,
-		exclude:               make(map[string]excludeHost),
 		mu:                    &sync.Mutex{},
 		Timeout:               time.Second * 10,
+		timeouts:              make(map[string]map[string]time.Time),
 	}
 }
 
@@ -136,48 +132,102 @@ func (h *ZKAssignmentHandler) getAssignedHostID(poolID, ipAddress string) (strin
 	return "", ErrNoAssignedHost
 }
 
+func getIDString(hosts []host.Host) string {
+	hostIDs := []string{}
+
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID+":"+h.PoolID)
+	}
+
+	return strings.Join(hostIDs, ",")
+}
+
 func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	hosts, err := h.hostHandler.GetRegisteredHosts(cancel)
+	logger := plog.WithFields(log.Fields{
+		"poolid":    poolID,
+		"ipAddress": ipAddress,
+	})
+
+	logger.Debug("Assigning IP")
+
+	hosts, err := h.hostHandler.GetRegisteredHosts(poolID)
 	if err != nil {
 		return err
 	}
 
-	// Filter out any excluded hosts from the registered hosts list.  For example,
-	// if a host failed to bind to the IP.
-	if excludeHost, ok := h.exclude[ipAddress]; ok {
-		if excludeHost.timeout.After(time.Now()) {
-			includeHosts := []host.Host{}
-			for _, host := range hosts {
-				if host.ID != excludeHost.hostID {
-					includeHosts = append(includeHosts, host)
-				}
-			}
-			hosts = includeHosts
-		} else {
-			delete(h.exclude, ipAddress)
-		}
+	logger.WithFields(log.Fields{
+		"count":     len(hosts),
+		"ipAddress": getIDString(hosts),
+	}).Debug("Found hosts")
+
+	hosts = h.filterOutExcludedHosts(ipAddress, hosts)
+	if len(hosts) == 0 {
+		return ErrNoHosts
 	}
+
+	logger.WithFields(log.Fields{
+		"count":     len(hosts),
+		"ipAddress": getIDString(hosts),
+	}).Debug("Selecting from hosts")
 
 	host, err := h.hostSelectionStrategy.Select(hosts)
 	if err != nil {
 		return err
 	}
 
-	// Add to exclude list so we don't try to assign that ip to the same host for ten seconds
-	h.exclude[ipAddress] = excludeHost{
-		hostID:  host.ID,
-		timeout: time.Now().Add(h.Timeout),
-	}
+	h.addExcludeHost(ipAddress, host)
 
-	plog.WithFields(log.Fields{
-		"poolid":    poolID,
-		"ipAddress": ipAddress,
-		"host":      host.ID,
-	}).Debug("Assigning IP")
+	plog.WithField("host", host.ID).Debug("Assigning IP")
 
 	request := IPRequest{PoolID: poolID, HostID: host.ID, IPAddress: ipAddress}
 	return CreateIP(h.connection, request, netmask, binding)
+}
+
+func (h *ZKAssignmentHandler) addExcludeHost(ipAddress string, host host.Host) {
+	if _, ok := h.timeouts[ipAddress]; !ok {
+		h.timeouts[ipAddress] = make(map[string]time.Time)
+	}
+
+	h.timeouts[ipAddress][host.ID] = time.Now().Add(h.Timeout)
+}
+
+func (h *ZKAssignmentHandler) getExcludedHostIDs(ipAddress string) []string {
+	excludedHostIDs := []string{}
+	now := time.Now()
+
+	if excludeHosts, ok := h.timeouts[ipAddress]; ok {
+		for hostID, timeout := range excludeHosts {
+			if timeout.After(now) {
+				excludedHostIDs = append(excludedHostIDs, hostID)
+			}
+		}
+	}
+
+	return excludedHostIDs
+}
+
+func (h *ZKAssignmentHandler) filterOutExcludedHosts(ipAddress string, hosts []host.Host) []host.Host {
+	excludedHostIDs := h.getExcludedHostIDs(ipAddress)
+	filteredHosts := []host.Host{}
+
+	for _, host := range hosts {
+		if !containsHostID(excludedHostIDs, host.ID) {
+			filteredHosts = append(filteredHosts, host)
+		}
+	}
+
+	return filteredHosts
+}
+
+func containsHostID(hostIDs []string, id string) bool {
+	for _, hostID := range hostIDs {
+		if hostID == id {
+			return true
+		}
+	}
+
+	return false
 }
