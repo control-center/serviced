@@ -55,7 +55,7 @@ ifeq "$(RELEASE_PHASE)" ""
     BUILD_LABEL = build-$(BUILD_NUMBER)
 else
     # This else portion is no longer used - replaced by:
-    #   http://jenkins.zendev.org/view/Promotions/job/serviced-promote/
+    #   http://jenkins.zenoss.eng/view/Promotions/job/serviced-promote/
     #   https://github.com/control-center/serviced/blob/develop/pkg/reversion/deb/reversion.sh
     #   https://github.com/control-center/serviced/blob/develop/pkg/reversion/rpm/reversion.sh
     # Included a RELEASE_PHASE - assume NOT a nightly build
