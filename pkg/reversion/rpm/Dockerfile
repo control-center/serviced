@@ -7,7 +7,7 @@ MAINTAINER Zenoss <dev@zenoss.com>
 RUN yum clean all
 
 # Add the docker repo
-RUN echo -e "[dockerrepo]\nname=Docker Repository\nbaseurl=https://yum.dockerproject.org/repo/main/centos/7\nenabled=1\ngpgcheck=1\ngpgkey=https://yum.dockerproject.org/gpg" > /etc/yum.repos.d/docker.repo
+RUN echo -e "[docker-ce-stable]\nname=Docker CE Stable - x86_64\nbaseurl=https://download.docker.com/linux/centos/7/x86_64/stable\nenabled=1\ngpgcheck=1\ngpgkey=https://download.docker.com/linux/centos/gpg" > /etc/yum.repos.d/docker-ce.repo
 RUN yum makecache fast
 
 RUN yum install -y wget rpm-build
