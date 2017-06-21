@@ -58,6 +58,21 @@ type ExportLogDriver interface {
 	ScrollSearch(scrollID string) (elastigocore.SearchResult, error)
 }
 
+// The export process produces 1 or more <nnn>.log files containing the exported log messages. The values of
+// ExportGroup control which messages are grouped together in a single <nnn>.log file:
+//   GroupByContainer   Each <nnn>.log contains messages for the same unique combination of container ID and
+//                      application log file name.
+//   GroupByDay         Each <nnn>.log contains messages for the same calendar day.
+//   GroupByService     Each <nnn>.log contains messages for the same logical service.
+type ExportGroup int
+
+const (
+	GroupByContainerID ExportGroup = iota
+	GroupByDay
+	GroupByService
+)
+
+
 // ExportLogsConfig is the deserialized object from the command-line
 type ExportLogsConfig struct {
 	// A list of one or more serviced IDs to export logs for (including children)
@@ -81,6 +96,9 @@ type ExportLogsConfig struct {
 
 	// the file opened for OutFileName
 	outFile *os.File
+
+	// Defines which messages are grouped together in each output file
+	GroupBy  ExportGroup
 }
 
 // logExporter is used internally to manage various operations required to export the application logs. It serves
@@ -111,6 +129,19 @@ type logExporter struct {
 	serviceMap map[string]service.ServiceDetails
 }
 
+func ExportGroupFromString(value string) ExportGroup {
+	switch value {
+	case "container":
+		return GroupByContainerID
+	case "day":
+		return GroupByDay
+	case "service":
+		return GroupByService
+	default:
+		return -1
+	}
+}
+
 // ExportLogs exports logs from ElasticSearch.
 func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	var e error
@@ -136,6 +167,8 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 
 	log := log.WithFields(logrus.Fields{
 		"tmpdir": exporter.tempdir,
+		"from":   exporter.FromDate,
+		"to":     exporter.ToDate,
 	})
 	log.Info("Starting part 1 of 3: Processing Logstash Elastic results")
 	foundIndexedDay, numWarnings, e = exporter.retrieveLogs()
@@ -266,7 +299,9 @@ func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.S
 		return nil, fmt.Errorf("could not determine range of days in the logstash repo: %s", err)
 	} else if exporter.Debug {
 		log.WithFields(logrus.Fields{
-			"days": len(exporter.days),
+			"ndays": len(exporter.days),
+			"to":    exporter.days[0],
+			"from":  exporter.days[len(exporter.days)-1],
 		}).Info("Found logs")
 	}
 
@@ -392,15 +427,12 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDet
 	return query, nil
 }
 
-// Retrieve log data from ES-logstash, writing the log messages to separate files based on each unique
-// combination of containerID and log-file-name. Depending on the lifespan of the container and the date range
-// defined by exporter.days, some of the files created by this method may have messages from multiple dates.
+// Retrieve log data from ES-logstash, writing the log messages to separate files based on the group-by criteria.
 func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings int, e error) {
 	numWarnings = 0
 	foundIndexedDay = false
-	// fileIndex is a map of containerID => map of app log filename => index into exporter.outputFiles
-	// for the info about that container/app-log instance
-	fileIndex := make(map[string]map[string]int)
+	// fileIndex is a map of parsedMessage to an index into exporter.outputFiles
+	var fileIndex FileIndex = NewFileIndex(exporter.GroupBy)
 	for _, yyyymmdd := range exporter.days {
 		// Skip the indexes that are filtered out by the date range
 		if (exporter.FromDate != "" && yyyymmdd < exporter.FromDate) || (exporter.ToDate != "" && yyyymmdd > exporter.ToDate) {
@@ -414,6 +446,10 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 				"date": yyyymmdd,
 			}).Info("Querying logstash for given date")
 		}
+		log := log.WithFields(logrus.Fields{
+			"date": yyyymmdd,
+		})
+		log.Info("Retrieving Logstash Elastic results for one day")
 
 		result, e := exporter.Driver.StartSearch(yyyymmdd, exporter.query)
 		if e != nil {
@@ -450,18 +486,15 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 					continue
 				}
 
-				if _, found := fileIndex[message.ContainerID]; !found {
-					fileIndex[message.ContainerID] = make(map[string]int)
-				}
 				// add a new tempfile
-				if _, found := fileIndex[message.ContainerID][message.LogFileName]; !found {
+				if _, found := fileIndex.FindIndexForMessage(message); !found {
 					index := len(exporter.outputFiles)
 					filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
 					file, e := os.Create(filename)
 					if e != nil {
 						return foundIndexedDay, numWarnings, fmt.Errorf("failed to create file %s: %s", filename, e)
 					}
-					fileIndex[message.ContainerID][message.LogFileName] = index
+					fileIndex.AddIndexForMessage(index, message)
 					outputFile := outputFileInfo{
 						File:        file,
 						Name:        filename,
@@ -471,14 +504,8 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 						ServiceID:   message.ServiceID,
 					}
 					exporter.outputFiles = append(exporter.outputFiles, outputFile)
-					if exporter.Debug {
-						log.WithFields(logrus.Fields{
-							"containerid": outputFile.ContainerID,
-							"logfile":     outputFile.LogFileName,
-						}).Info("Writing messages")
-					}
 				}
-				index := fileIndex[message.ContainerID][message.LogFileName]
+				index, _ := fileIndex.FindIndexForMessage(message)
 				exporter.outputFiles[index].LineCount += len(message.Lines)
 				file := exporter.outputFiles[index].File
 				filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
@@ -499,6 +526,38 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 		}
 	}
 	return foundIndexedDay, numWarnings, nil
+}
+
+type FileIndex interface {
+	FindIndexForMessage(message *parsedMessage) (index int, found bool)
+	AddIndexForMessage(index int, message *parsedMessage)
+}
+
+func NewFileIndex(groupBy ExportGroup) FileIndex {
+	return NewContainerFileIndex()
+}
+
+// ContainerFileIndex maintains an index of separate files based on each unique combination of container ID and
+// application log file name. Depending on the lifespan of the container and the date range
+// defined by exporter.days, some of the files created by this method may have messages from multiple dates.
+type ContainerFileIndex struct {
+	fileIndex map[string]map[string]int
+}
+
+func NewContainerFileIndex() *ContainerFileIndex {
+	return &ContainerFileIndex{fileIndex: make(map[string]map[string]int)}
+}
+
+func (cfi *ContainerFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
+	if _, found := cfi.fileIndex[message.ContainerID]; !found {
+		cfi.fileIndex[message.ContainerID] = make(map[string]int)
+	}
+	index, found =  cfi.fileIndex[message.ContainerID][message.LogFileName]
+	return index, found
+}
+
+func (cfi *ContainerFileIndex) AddIndexForMessage(index int, message *parsedMessage) {
+	cfi.fileIndex[message.ContainerID][message.LogFileName] = index
 }
 
 // Organize and cleanup the log messages retrieved from logstash.
