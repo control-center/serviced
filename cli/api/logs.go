@@ -442,6 +442,14 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 					return foundIndexedDay, numWarnings, e
 				}
 
+				// Ignore log messages sent directly from serviced and serviced-controller; only
+				// export logs from the applications themselves.  Note that filebeat is hard-coded
+				// to set the _type property to "log" and we only use filebeat for messages from the
+				// application services.
+				if message.Type != "log" {
+					continue
+				}
+
 				if _, found := fileIndex[message.ContainerID]; !found {
 					fileIndex[message.ContainerID] = make(map[string]int)
 				}
@@ -551,32 +559,57 @@ func (exporter *logExporter) getServiceName(serviceID string) string {
 
 }
 
-// NOTE: the logstash field named 'host' is hard-coded in logstash to be the value from `hostname`, only when
-//       executed inside a docker container, the value is actually the container ID, not the name of docker host.
-//       In later releases of CC, we added the field 'ccWorkerID' to have the hostID of the docker host. This
-//       means that some installations may have older log messages with no 'ccWorkerID' field.
+// TODO: make the code adaptable to export messages prior to filebeat which have different metadata.
+//       filebeat was first released with 1.2.0, so it's 1.1.x log data that this export can not read properly
+
+// beatProps are properties added to each message by filebeat itself
+type beatProps struct {
+	Name        string      `json:"name"`
+	Hostname    string      `json:"hostname"`      // Note this is actually the docker container id
+	Version     string      `json:"version"`
+}
+
+// fieldProps are properties added to each message by our container controller; see container/logstash.go
+type fieldProps struct {
+	CCWorkerID  string      `json:"ccWorkerID"`     // Note this is actually the host ID of the CC host
+	Type        string      `json:"type"`           // This is the 'type' from the LogConfig in the service def
+	Service     string      `json:"service"`        // This is the service id
+	Instance    json.Number `json:"instance"`       // This is the service instance id
+	HostIPs     string      `json:"hostips"`        // space-separated list of host-ips from the container
+	PoolID      string      `json:"poolid"`
+	ServicePath string      `json:"servicepath"`    // Fully qualified path to the service
+}
+
+// logSingleLine represents the data returned from elasticsearch for a single-line log message
 type logSingleLine struct {
-	HostID      string      `json:"ccWorkerID"`
-	ContainerID string      `json:"host"`
 	File        string      `json:"file"`
 	Timestamp   time.Time   `json:"@timestamp"`
 	Offset      json.Number `json:"offset"`
 	Message     string      `json:"message"`
-	ServiceID   string      `json:"service"`
+	Fields      fieldProps  `json:"fields"`
+	FileBeat    beatProps   `json:"beat"`
+
+	// This is the 'type' set by the logger. The values will vary depending on the source logger:
+	// 1. Application log messages forwarded by filebeat will have the value "log".
+	// 2. Messages forwarded directly from serviced via the glog library will have values starting with "serviced-".
+	// 3. Messages forwarded directly from serviced-controller via the glog library will have values starting
+	//    with "controller-"
+	Type        string      `json:"type"`
 }
 
+// logSingleLine represents the data returned from elasticsearch for a multi-line log message
 type logMultiLine struct {
-	HostID      string        `json:"ccWorkerID"`
-	ContainerID string        `json:"host"`
+	Type        string        `json:"type"`         // see note above for logSingleLine.Type
 	File        string        `json:"file"`
 	Timestamp   time.Time     `json:"@timestamp"`
 	Offset      []json.Number `json:"offset"`
 	Message     string        `json:"message"`
-	ServiceID   string        `json:"service"`
+	Fields      fieldProps    `json:"fields"`
+	FileBeat    beatProps     `json:"beat"`
 }
 
 type compactLogLine struct {
-	Timestamp int64 //nanoseconds since the epoch, truncated at the minute to hide jitter
+	Timestamp int64           // nanoseconds since the epoch, truncated at the minute to hide jitter
 	Offset    uint64
 	Message   string
 }
@@ -589,6 +622,7 @@ type parsedMessage struct {
 	Lines       []compactLogLine // One or more lines of log messages from the file.
 	Warnings    string           // Warnings from the our logstash results parser
 	ServiceID   string           // The service ID of the service
+	Type        string           // The type of the source log file.
 }
 
 // Represents one file output by this routine
@@ -665,6 +699,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 
 	// attempt to unmarshal into singleLine
 	var line logSingleLine
+
 	if e := json.Unmarshal(source, &line); e == nil {
 		offset := uint64(0)
 		if len(line.Offset) != 0 {
@@ -680,13 +715,13 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 			Message:   line.Message,
 		}
 		message := &parsedMessage{
-			HostID:      line.HostID,
-			ContainerID: line.ContainerID,
+			Type:        line.Type,
+			HostID:      line.Fields.CCWorkerID,
+			ContainerID: line.FileBeat.Hostname,
 			LogFileName: line.File,
 			Lines:       []compactLogLine{compactLine},
-			ServiceID:   line.ServiceID,
+			ServiceID:   line.Fields.Service,
 		}
-
 		return message, nil
 	}
 
@@ -707,7 +742,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	if len(offsets)+1 == len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s\n",
-			multiLine.ContainerID, multiLine.File, len(messages), len(offsets), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(offsets), source)
 		numLines := len(messages)
 		if numLines > 1 {
 			lastOffset := uint64(len(messages[numLines-2])) + offsets[numLines-2]
@@ -716,12 +751,12 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	} else if len(offsets) > len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s\n",
-			multiLine.ContainerID, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = offsets[0:len(messages)]
 	} else if len(offsets) < len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s\n",
-			multiLine.ContainerID, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = generateOffsets(messages, offsets)
 		warnings += fmt.Sprintf("new offsets: %v", offsets)
 	}
@@ -745,12 +780,13 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	}
 
 	message := &parsedMessage{
-		HostID:      multiLine.HostID,
-		ContainerID: multiLine.ContainerID,
+		Type:        line.Type,
+		HostID:      multiLine.Fields.CCWorkerID,
+		ContainerID: multiLine.FileBeat.Hostname,
 		LogFileName: multiLine.File,
 		Lines:       compactLines,
 		Warnings:    warnings,
-		ServiceID:   multiLine.ServiceID,
+		ServiceID:   multiLine.Fields.Service,
 	}
 	return message, nil
 }
