@@ -38,8 +38,6 @@ type ZKHostUnassignHandlerTestSuite struct {
 	assignmentHandler     *ZKAssignmentHandler
 	connection            client.Connection
 
-	// Data
-	cancel   <-chan interface{}
 	testHost h.Host
 }
 
@@ -47,7 +45,6 @@ func (s *ZKHostUnassignHandlerTestSuite) SetUpTest(c *C) {
 	s.ZZKTestSuite.SetUpTest(c)
 
 	s.testHost = h.Host{ID: "testHost", PoolID: "poolid"}
-	s.cancel = make(<-chan interface{})
 
 	var err error
 	s.connection, err = zzk.GetLocalConnection("/")
@@ -70,10 +67,10 @@ func (s *ZKHostUnassignHandlerTestSuite) SetUpTest(c *C) {
 }
 
 func (s *ZKHostUnassignHandlerTestSuite) TestUnassignsVirtualIPsFromHostCorrectly(c *C) {
-	err := s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	err := s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	c.Assert(err, IsNil)
 
-	err = s.assignmentHandler.Assign("poolid", "9.9.9.9", "netmask", "http", s.cancel)
+	err = s.assignmentHandler.Assign("poolid", "9.9.9.9", "netmask", "http")
 	c.Assert(err, IsNil)
 
 	unassignmentHandler := NewZKHostUnassignmentHandler(s.connection)

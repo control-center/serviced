@@ -37,7 +37,7 @@ var (
 // AssignmentHandler is used to assign, unassign, and watch virtual IP assignments
 // to hosts
 type AssignmentHandler interface {
-	Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error
+	Assign(poolID, ipAddress, netmask, binding string) error
 	Unassign(poolID, ipAddress string) error
 }
 
@@ -72,14 +72,13 @@ func NewZKAssignmentHandler(strategy HostSelectionStrategy,
 	}
 }
 
-// Assign will assign the provided virtual IP to a host.  If no host is present,
-// the call will block until host comes online.  The cancel channel parameter can be used
-// to cancel the assignment request.  If a IP address is already assigned to a host, ErrAlreadyAssigned
-// will be returned.
-func (h *ZKAssignmentHandler) Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
+// Assign will assign the provided virtual IP to a host. If an IP is assigned to host there is a 10s timeout until that
+// IP can be assigned to the host again.  This prevents spamming of errors. If a IP address is already assigned to a host,
+// ErrAlreadyAssigned will be returned.  If no hosts are availd, ErrNoHosts will be returned.
+func (h *ZKAssignmentHandler) Assign(poolID, ipAddress, netmask, binding string) error {
 	_, err := h.getAssignedHostID(poolID, ipAddress)
 	if err == ErrNoAssignedHost {
-		return h.assignToHost(poolID, ipAddress, netmask, binding, cancel)
+		return h.assignToHost(poolID, ipAddress, netmask, binding)
 	} else if err == nil {
 		return ErrAlreadyAssigned
 	}
@@ -96,7 +95,7 @@ func (h *ZKAssignmentHandler) Unassign(poolID, ipAddress string) error {
 
 	plog.WithFields(log.Fields{
 		"poolid":    poolID,
-		"ipAddress": ipAddress,
+		"ipaddress": ipAddress,
 		"host":      assignedHost,
 	}).Debug("Unassigning IP")
 
@@ -142,13 +141,13 @@ func getIDString(hosts []host.Host) string {
 	return strings.Join(hostIDs, ",")
 }
 
-func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
+func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	logger := plog.WithFields(log.Fields{
 		"poolid":    poolID,
-		"ipAddress": ipAddress,
+		"ipaddress": ipAddress,
 	})
 
 	logger.Debug("Assigning IP")
@@ -160,7 +159,7 @@ func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding s
 
 	logger.WithFields(log.Fields{
 		"count":     len(hosts),
-		"ipAddress": getIDString(hosts),
+		"ipaddress": getIDString(hosts),
 	}).Debug("Found hosts")
 
 	hosts = h.filterOutExcludedHosts(ipAddress, hosts)
@@ -170,7 +169,7 @@ func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding s
 
 	logger.WithFields(log.Fields{
 		"count":     len(hosts),
-		"ipAddress": getIDString(hosts),
+		"ipaddress": getIDString(hosts),
 	}).Debug("Selecting from hosts")
 
 	host, err := h.hostSelectionStrategy.Select(hosts)

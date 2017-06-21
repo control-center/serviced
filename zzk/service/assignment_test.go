@@ -41,8 +41,6 @@ type ZKAssignmentHandlerTestSuite struct {
 
 	selectHostCall *mock.Call
 
-	// Data
-	cancel   <-chan interface{}
 	testHost h.Host
 }
 
@@ -50,7 +48,6 @@ func (s *ZKAssignmentHandlerTestSuite) SetUpTest(c *C) {
 	s.ZZKTestSuite.SetUpTest(c)
 
 	s.testHost = h.Host{ID: "testHost", PoolID: "poolid"}
-	s.cancel = make(<-chan interface{})
 
 	var err error
 	s.connection, err = zzk.GetLocalConnection("/")
@@ -78,22 +75,22 @@ func (s *ZKAssignmentHandlerTestSuite) SetUpTest(c *C) {
 }
 
 func (s *ZKAssignmentHandlerTestSuite) TestAssignsCorrectly(c *C) {
-	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	s.assertNodeHasChildren(c, "pools/poolid/ips", []string{"testHost-7.7.7.7"})
 	s.assertNodeHasChildren(c, "pools/poolid/hosts/testHost/ips", []string{"testHost-7.7.7.7"})
 }
 
 func (s *ZKAssignmentHandlerTestSuite) TestMultipleAssignsReturnsError(c *C) {
-	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	s.assertNodeHasChildren(c, "pools/poolid/ips", []string{"testHost-7.7.7.7"})
 	s.assertNodeHasChildren(c, "pools/poolid/hosts/testHost/ips", []string{"testHost-7.7.7.7"})
 
-	err := s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	err := s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	c.Assert(err, Equals, ErrAlreadyAssigned)
 }
 
 func (s *ZKAssignmentHandlerTestSuite) TestUnassignsCorrectly(c *C) {
-	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	s.assertNodeHasChildren(c, "pools/poolid/ips", []string{"testHost-7.7.7.7"})
 	s.assertNodeHasChildren(c, "pools/poolid/hosts/testHost/ips", []string{"testHost-7.7.7.7"})
 
@@ -108,7 +105,7 @@ func (s *ZKAssignmentHandlerTestSuite) TestUnassignsWithNoAssignmentReturnsError
 }
 
 func (s *ZKAssignmentHandlerTestSuite) TestExcludesHostAfterAssigning(c *C) {
-	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	request := IPRequest{PoolID: "poolid", HostID: "testHost", IPAddress: "7.7.7.7"}
 	err := DeleteIP(s.connection, request)
 	c.Assert(err, IsNil)
@@ -118,7 +115,7 @@ func (s *ZKAssignmentHandlerTestSuite) TestExcludesHostAfterAssigning(c *C) {
 		c.Assert(hosts, HasLen, 0)
 	}).Once()
 
-	err = s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	err = s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	c.Assert(err, Equals, ErrNoHosts)
 
 	time.Sleep(time.Second)
@@ -128,7 +125,7 @@ func (s *ZKAssignmentHandlerTestSuite) TestExcludesHostAfterAssigning(c *C) {
 		c.Assert(hosts, HasLen, 1)
 	}).Once()
 
-	err = s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http", s.cancel)
+	err = s.assignmentHandler.Assign("poolid", "7.7.7.7", "netmask", "http")
 	c.Assert(err, IsNil)
 }
 

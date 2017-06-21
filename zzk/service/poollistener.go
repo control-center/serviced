@@ -113,7 +113,7 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 
 			// The sync will add nodes to the ips path which will trigger an ipsEvent
 			// causing the loop to occur twice.
-			err = l.synchronizer.Sync(*node.ResourcePool, assignments, shutdown)
+			err = l.synchronizer.Sync(*node.ResourcePool, assignments)
 			if syncError, ok := err.(SyncError); ok {
 				logger.WithError(syncError).WithField("count", len(syncError)).
 					Warn("Errors encountered while syncing virtual IPs")
