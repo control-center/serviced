@@ -14,6 +14,7 @@
 package service
 
 import (
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
 )
 
@@ -21,5 +22,17 @@ import (
 // to get the registered hosts should block until a host comes online.  The cancel
 // parameter can be used to stop the call.
 type RegisteredHostHandler interface {
-	GetRegisteredHosts(cancel <-chan interface{}) ([]host.Host, error)
+	GetRegisteredHosts(pool string) ([]host.Host, error)
+}
+
+func NewRegisteredHostHandler(conn client.Connection) RegisteredHostHandler {
+	return &DefaultRegisteredHostHandler{connection: conn}
+}
+
+type DefaultRegisteredHostHandler struct {
+	connection client.Connection
+}
+
+func (h *DefaultRegisteredHostHandler) GetRegisteredHosts(pool string) ([]host.Host, error) {
+	return GetRegisteredHostsForPool(h.connection, pool)
 }

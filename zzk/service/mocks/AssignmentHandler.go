@@ -21,12 +21,12 @@ type AssignmentHandler struct {
 	mock.Mock
 }
 
-func (_m *AssignmentHandler) Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
-	ret := _m.Called(poolID, ipAddress, netmask, binding, cancel)
+func (_m *AssignmentHandler) Assign(poolID, ipAddress, netmask, binding string) error {
+	ret := _m.Called(poolID, ipAddress, netmask, binding)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string, <-chan interface{}) error); ok {
-		r0 = rf(poolID, ipAddress, netmask, binding, cancel)
+	if rf, ok := ret.Get(0).(func(string, string, string, string) error); ok {
+		r0 = rf(poolID, ipAddress, netmask, binding)
 	} else {
 		r0 = ret.Error(0)
 	}

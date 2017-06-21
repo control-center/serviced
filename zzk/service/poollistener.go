@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/zzk"
 )
 
 // PoolListener implements zzk.Listener.  The PoolListener will watch
@@ -96,25 +97,34 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 			if ipsExists && err == nil {
 				children, ipsEvent, err = l.connection.ChildrenW(poolPath.IPs().Path(), stop)
 				if err != nil {
-					logger.WithError(err).Error(err, "Unable to watch IPs")
+					logger.WithError(err).Error("Unable to watch IPs")
 					return
 				}
 			} else if err != nil {
-				logger.WithError(err).Error(err, "Unable to watch IPs node")
+				logger.WithError(err).Error("Unable to watch IPs node")
 				return
 			}
 
 			assignments, err := l.getAssignmentMap(children)
 			if err != nil {
-				logger.WithError(err).Error(err, "Unable to get assignments")
+				logger.WithError(err).Error("Unable to get assignments")
 				return
 			}
 
 			// The sync will add nodes to the ips path which will trigger an ipsEvent
 			// causing the loop to occur twice.
-			err = l.synchronizer.Sync(*node.ResourcePool, assignments, shutdown)
-			if err != nil {
-				logger.WithError(err).Warn(err, "Unable to sync virtual IPs")
+			err = l.synchronizer.Sync(*node.ResourcePool, assignments)
+			if syncError, ok := err.(SyncError); ok {
+				logger.WithError(syncError).WithField("count", len(syncError)).
+					Warn("Errors encountered while syncing virtual IPs")
+
+				for _, e := range syncError {
+					logger.WithError(e).Debug("Sync error")
+				}
+
+				timeout.Reset(l.Timeout)
+			} else if err != nil {
+				logger.WithError(err).Warn("Error Syncing")
 				timeout.Reset(l.Timeout)
 			}
 		}
@@ -151,4 +161,16 @@ func (l *PoolListener) getAssignmentMap(hostIPs []string) (map[string]string, er
 		assignments[ip] = host
 	}
 	return assignments, nil
+}
+
+func StartPoolListener(shutdown <-chan interface{}, connection client.Connection) {
+	assignmentHandler := NewZKAssignmentHandler(
+		&RandomHostSelectionStrategy{},
+		NewRegisteredHostHandler(connection),
+		connection)
+
+	synchronizer := NewZKVirtualIPSynchronizer(assignmentHandler)
+	poolListener := NewPoolListener(synchronizer)
+
+	zzk.Start(shutdown, connection, poolListener)
 }

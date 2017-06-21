@@ -35,7 +35,7 @@ type SynchronizerTestSuite struct {
 func (s *SynchronizerTestSuite) SetUpTest(c *C) {
 	s.handler = mocks.AssignmentHandler{}
 
-	s.handler.On("Assign", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.handler.On("Assign", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.handler.On("Unassign", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	s.pool = p.ResourcePool{ID: "pool", VirtualIPs: []p.VirtualIP{}}
@@ -65,17 +65,16 @@ func (s *SynchronizerTestSuite) TestSyncsVirtualIPAssignments(c *C) {
 		"7.7.7.7": "host",
 	}
 
-	cancel := make(<-chan interface{})
-	s.synchronizer.Sync(s.pool, assignments, cancel)
+	s.synchronizer.Sync(s.pool, assignments)
 
 	// 1.2.3.4 has a virtual IP but is not assigned so Assign should be called
-	s.handler.AssertCalled(c, "Assign", s.pool.ID, "1.2.3.4", "255.255.255.0", "eth1", cancel)
+	s.handler.AssertCalled(c, "Assign", s.pool.ID, "1.2.3.4", "255.255.255.0", "eth1")
 
 	// 4.3.2.1 has an assignment but does not have a virtual IP so it should be unassigned
 	s.handler.AssertCalled(c, "Unassign", s.pool.ID, "4.3.2.1")
 
 	// 7.7.7.7 has an assignment and virtual IP so nothing should be done
-	s.handler.AssertNotCalled(c, "Assign", s.pool.ID, "7.7.7.7", "255.255.255.0", "eth1", cancel)
+	s.handler.AssertNotCalled(c, "Assign", s.pool.ID, "7.7.7.7", "255.255.255.0", "eth1")
 	s.handler.AssertNotCalled(c, "Unassign", s.pool.ID, "7.7.7.7")
 
 }
@@ -100,11 +99,10 @@ func (s *SynchronizerTestSuite) TestSyncsAssignsAllIfNoneAssigned(c *C) {
 	// No assignments
 	assignments := map[string]string{}
 
-	cancel := make(<-chan interface{})
-	s.synchronizer.Sync(s.pool, assignments, cancel)
+	s.synchronizer.Sync(s.pool, assignments)
 
-	s.handler.AssertCalled(c, "Assign", s.pool.ID, "1.2.3.4", "255.255.255.0", "eth1", cancel)
-	s.handler.AssertCalled(c, "Assign", s.pool.ID, "7.7.7.7", "255.255.255.0", "eth1", cancel)
+	s.handler.AssertCalled(c, "Assign", s.pool.ID, "1.2.3.4", "255.255.255.0", "eth1")
+	s.handler.AssertCalled(c, "Assign", s.pool.ID, "7.7.7.7", "255.255.255.0", "eth1")
 }
 
 func (s *SynchronizerTestSuite) TestSyncUnassignsAll(c *C) {
@@ -117,8 +115,7 @@ func (s *SynchronizerTestSuite) TestSyncUnassignsAll(c *C) {
 		"7.7.7.7": "host",
 	}
 
-	cancel := make(<-chan interface{})
-	s.synchronizer.Sync(s.pool, assignments, cancel)
+	s.synchronizer.Sync(s.pool, assignments)
 
 	s.handler.AssertCalled(c, "Unassign", s.pool.ID, "4.3.2.1")
 	s.handler.AssertCalled(c, "Unassign", s.pool.ID, "7.7.7.7")

@@ -39,11 +39,10 @@ var (
 // GetConnection describes a generic function for acquiring a connection object
 type GetConnection func(string) (client.Connection, error)
 
-
 func newDelay(baseBackoff time.Duration) *client.Backoff {
 	return &client.Backoff{
 		InitialDelay: baseBackoff,
-		MaxDelay: baseBackoff,
+		MaxDelay:     baseBackoff,
 	}
 }
 

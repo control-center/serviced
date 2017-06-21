@@ -49,20 +49,13 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	unassignmentHandler := zkservice.NewZKHostUnassignmentHandler(conn)
 	hreg := zkservice.NewHostRegistryListener(poolID, unassignmentHandler)
 
-	assignmentHandler := zkservice.NewZKAssignmentHandler(
-		&zkservice.RandomHostSelectionStrategy{}, hreg, conn)
-
-	plog.Info("Processing leader duties")
 	leader := leader{shutdown, conn, cpClient, facade, poolID, hreg}
-
-	synchronizer := zkservice.NewZKVirtualIPSynchronizer(assignmentHandler)
-	poolListener := zkservice.NewPoolListener(synchronizer)
 
 	// creates a listener for services
 	serviceListener := zkservice.NewServiceListener(poolID, &leader)
 
 	// starts all of the listeners
-	zzk.Start(shutdown, conn, serviceListener, hreg, poolListener)
+	zzk.Start(shutdown, conn, serviceListener, hreg)
 }
 
 // SelectHost chooses a host from the pool for the specified service. If the

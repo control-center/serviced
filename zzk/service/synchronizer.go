@@ -19,13 +19,13 @@ import (
 
 type SyncError []error
 
-func (e *SyncError) Error() string {
+func (e SyncError) Error() string {
 	return "errors encountered while syncing"
 }
 
 // VirtualIPSynchronizer will sync virtual IP assignments for a pool.
 type VirtualIPSynchronizer interface {
-	Sync(pool p.ResourcePool, assignments map[string]string, cancel <-chan interface{}) error
+	Sync(pool p.ResourcePool, assignments map[string]string) error
 }
 
 // ZKVirtualIPSynchronizer implements the VirtualIPSynchronizer interface for ZooKeeper.
@@ -41,12 +41,12 @@ func NewZKVirtualIPSynchronizer(handler AssignmentHandler) *ZKVirtualIPSynchroni
 // Sync will synchronize virtual IP assignments for a pool.  It will assign virtual IPs that
 // are not assigned to a host.  It will unassign any active assignments if the virtual IP as been
 // removed from the pool.
-func (s *ZKVirtualIPSynchronizer) Sync(pool p.ResourcePool, assignments map[string]string, cancel <-chan interface{}) error {
+func (s *ZKVirtualIPSynchronizer) Sync(pool p.ResourcePool, assignments map[string]string) error {
 	virtualIPMap := s.getVirtualIPMap(pool)
 
 	errorList := SyncError{}
 	for _, ip := range s.virtualIPsWithNoAssignment(virtualIPMap, assignments) {
-		err := s.handler.Assign(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface, cancel)
+		err := s.handler.Assign(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface)
 		if err != nil {
 			errorList = append(errorList, err)
 		}
@@ -60,7 +60,7 @@ func (s *ZKVirtualIPSynchronizer) Sync(pool p.ResourcePool, assignments map[stri
 	}
 
 	if len(errorList) > 0 {
-		return &errorList
+		return errorList
 	}
 
 	return nil

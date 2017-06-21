@@ -81,7 +81,7 @@ func (s *PoolListenerTestSuite) SetUpTest(c *C) {
 	s.poolExistsCall = connection.On("ExistsW", "/pools/test", mock.AnythingOfType("<-chan struct {}")).
 		Return(true, (<-chan client.Event)(s.poolExistsEvent), nil)
 
-	s.syncCall = synchronizer.On("Sync", s.pool, mock.AnythingOfType("map[string]string"), s.shutdown).
+	s.syncCall = synchronizer.On("Sync", s.pool, mock.AnythingOfType("map[string]string")).
 		Return(nil)
 
 	s.listener = NewPoolListener(&synchronizer)

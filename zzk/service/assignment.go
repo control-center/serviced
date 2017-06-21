@@ -15,6 +15,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,7 +37,7 @@ var (
 // AssignmentHandler is used to assign, unassign, and watch virtual IP assignments
 // to hosts
 type AssignmentHandler interface {
-	Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error
+	Assign(poolID, ipAddress, netmask, binding string) error
 	Unassign(poolID, ipAddress string) error
 }
 
@@ -53,12 +54,7 @@ type ZKAssignmentHandler struct {
 	hostHandler           RegisteredHostHandler
 	hostSelectionStrategy HostSelectionStrategy
 	mu                    *sync.Mutex
-	exclude               map[string]excludeHost
-}
-
-type excludeHost struct {
-	hostID  string
-	timeout time.Time
+	timeouts              map[string]map[string]time.Time
 }
 
 // NewZKAssignmentHandler returns a new ZKAssignmentHandler with the provided
@@ -70,20 +66,19 @@ func NewZKAssignmentHandler(strategy HostSelectionStrategy,
 		hostSelectionStrategy: strategy,
 		hostHandler:           handler,
 		connection:            connection,
-		exclude:               make(map[string]excludeHost),
 		mu:                    &sync.Mutex{},
 		Timeout:               time.Second * 10,
+		timeouts:              make(map[string]map[string]time.Time),
 	}
 }
 
-// Assign will assign the provided virtual IP to a host.  If no host is present,
-// the call will block until host comes online.  The cancel channel parameter can be used
-// to cancel the assignment request.  If a IP address is already assigned to a host, ErrAlreadyAssigned
-// will be returned.
-func (h *ZKAssignmentHandler) Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
+// Assign will assign the provided virtual IP to a host. If an IP is assigned to host there is a 10s timeout until that
+// IP can be assigned to the host again.  This prevents spamming of errors. If a IP address is already assigned to a host,
+// ErrAlreadyAssigned will be returned.  If no hosts are availd, ErrNoHosts will be returned.
+func (h *ZKAssignmentHandler) Assign(poolID, ipAddress, netmask, binding string) error {
 	_, err := h.getAssignedHostID(poolID, ipAddress)
 	if err == ErrNoAssignedHost {
-		return h.assignToHost(poolID, ipAddress, netmask, binding, cancel)
+		return h.assignToHost(poolID, ipAddress, netmask, binding)
 	} else if err == nil {
 		return ErrAlreadyAssigned
 	}
@@ -100,7 +95,7 @@ func (h *ZKAssignmentHandler) Unassign(poolID, ipAddress string) error {
 
 	plog.WithFields(log.Fields{
 		"poolid":    poolID,
-		"ipAddress": ipAddress,
+		"ipaddress": ipAddress,
 		"host":      assignedHost,
 	}).Debug("Unassigning IP")
 
@@ -136,48 +131,102 @@ func (h *ZKAssignmentHandler) getAssignedHostID(poolID, ipAddress string) (strin
 	return "", ErrNoAssignedHost
 }
 
-func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
+func getIDString(hosts []host.Host) string {
+	hostIDs := []string{}
+
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID+":"+h.PoolID)
+	}
+
+	return strings.Join(hostIDs, ",")
+}
+
+func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	hosts, err := h.hostHandler.GetRegisteredHosts(cancel)
+	logger := plog.WithFields(log.Fields{
+		"poolid":    poolID,
+		"ipaddress": ipAddress,
+	})
+
+	logger.Debug("Assigning IP")
+
+	hosts, err := h.hostHandler.GetRegisteredHosts(poolID)
 	if err != nil {
 		return err
 	}
 
-	// Filter out any excluded hosts from the registered hosts list.  For example,
-	// if a host failed to bind to the IP.
-	if excludeHost, ok := h.exclude[ipAddress]; ok {
-		if excludeHost.timeout.After(time.Now()) {
-			includeHosts := []host.Host{}
-			for _, host := range hosts {
-				if host.ID != excludeHost.hostID {
-					includeHosts = append(includeHosts, host)
-				}
-			}
-			hosts = includeHosts
-		} else {
-			delete(h.exclude, ipAddress)
-		}
+	logger.WithFields(log.Fields{
+		"count":     len(hosts),
+		"ipaddress": getIDString(hosts),
+	}).Debug("Found hosts")
+
+	hosts = h.filterOutExcludedHosts(ipAddress, hosts)
+	if len(hosts) == 0 {
+		return ErrNoHosts
 	}
+
+	logger.WithFields(log.Fields{
+		"count":     len(hosts),
+		"ipaddress": getIDString(hosts),
+	}).Debug("Selecting from hosts")
 
 	host, err := h.hostSelectionStrategy.Select(hosts)
 	if err != nil {
 		return err
 	}
 
-	// Add to exclude list so we don't try to assign that ip to the same host for ten seconds
-	h.exclude[ipAddress] = excludeHost{
-		hostID:  host.ID,
-		timeout: time.Now().Add(h.Timeout),
-	}
+	h.addExcludeHost(ipAddress, host)
 
-	plog.WithFields(log.Fields{
-		"poolid":    poolID,
-		"ipAddress": ipAddress,
-		"host":      host.ID,
-	}).Debug("Assigning IP")
+	plog.WithField("host", host.ID).Debug("Assigning IP")
 
 	request := IPRequest{PoolID: poolID, HostID: host.ID, IPAddress: ipAddress}
 	return CreateIP(h.connection, request, netmask, binding)
+}
+
+func (h *ZKAssignmentHandler) addExcludeHost(ipAddress string, host host.Host) {
+	if _, ok := h.timeouts[ipAddress]; !ok {
+		h.timeouts[ipAddress] = make(map[string]time.Time)
+	}
+
+	h.timeouts[ipAddress][host.ID] = time.Now().Add(h.Timeout)
+}
+
+func (h *ZKAssignmentHandler) getExcludedHostIDs(ipAddress string) []string {
+	excludedHostIDs := []string{}
+	now := time.Now()
+
+	if excludeHosts, ok := h.timeouts[ipAddress]; ok {
+		for hostID, timeout := range excludeHosts {
+			if timeout.After(now) {
+				excludedHostIDs = append(excludedHostIDs, hostID)
+			}
+		}
+	}
+
+	return excludedHostIDs
+}
+
+func (h *ZKAssignmentHandler) filterOutExcludedHosts(ipAddress string, hosts []host.Host) []host.Host {
+	excludedHostIDs := h.getExcludedHostIDs(ipAddress)
+	filteredHosts := []host.Host{}
+
+	for _, host := range hosts {
+		if !containsHostID(excludedHostIDs, host.ID) {
+			filteredHosts = append(filteredHosts, host)
+		}
+	}
+
+	return filteredHosts
+}
+
+func containsHostID(hostIDs []string, id string) bool {
+	for _, hostID := range hostIDs {
+		if hostID == id {
+			return true
+		}
+	}
+
+	return false
 }

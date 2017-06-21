@@ -22,19 +22,19 @@ type RegisteredHostHandler struct {
 	mock.Mock
 }
 
-func (_m *RegisteredHostHandler) GetRegisteredHosts(cancel <-chan interface{}) ([]host.Host, error) {
-	ret := _m.Called(cancel)
+func (_m *RegisteredHostHandler) GetRegisteredHosts(pool string) ([]host.Host, error) {
+	ret := _m.Called(pool)
 
 	var r0 []host.Host
-	if rf, ok := ret.Get(0).(func(<-chan interface{}) []host.Host); ok {
-		r0 = rf(cancel)
+	if rf, ok := ret.Get(0).(func(string) []host.Host); ok {
+		r0 = rf(pool)
 	} else {
 		r0 = ret.Get(0).([]host.Host)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(<-chan interface{}) error); ok {
-		r1 = rf(cancel)
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(pool)
 	} else {
 		r1 = ret.Error(1)
 	}
