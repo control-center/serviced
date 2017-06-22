@@ -129,6 +129,23 @@ type logExporter struct {
 
 	// An index of information about outputFiles. Handles variations in group-by requirements.
 	fileIndex FileIndex
+
+	// The min/max dates found in logstash
+	minDateFound string
+	maxDateFound string
+}
+
+func (eg ExportGroup) String() string {
+	switch eg {
+	case GroupByContainerID:
+		return "container"
+	case GroupByDay:
+		return "day"
+	case GroupByService:
+		return "service"
+	default:
+		return "undefined"
+	}
 }
 
 func ExportGroupFromString(value string) ExportGroup {
@@ -197,8 +214,15 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	}
 	sort.Strings(indexData)
 
-	// TODO: Log the query config data: from and to dates, service names/ids (if any)
-	indexData = append([]string{"INDEX OF LOG FILES",
+	indexData = append([]string{
+		"LOG EXPORT SUMMARY",
+		fmt.Sprintf("       Export Ran On: %s", time.Now().Format(time.RFC3339)),
+		fmt.Sprintf("Available Date Range: %s - %s", exporter.days[len(exporter.days)-1], exporter.days[0]),
+		fmt.Sprintf("     Requested Dates: %s - %s", configParam.FromDate, configParam.ToDate),
+		fmt.Sprintf("      Exported Dates: %s - %s", exporter.minDateFound, exporter.maxDateFound),
+		fmt.Sprintf("          Grouped By: %s", configParam.GroupBy),
+		"",
+		"INDEX OF LOG FILES",
 		exporter.fileIndex.GetIndexHeader()},
 		indexData...)
 	indexData = append(indexData, "")
@@ -487,6 +511,13 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 					continue
 				}
 
+				if len(exporter.minDateFound) == 0 || yyyymmdd < exporter.minDateFound {
+					exporter.minDateFound = yyyymmdd
+				}
+				if len(exporter.maxDateFound) == 0 || yyyymmdd > exporter.maxDateFound {
+					exporter.maxDateFound = yyyymmdd
+				}
+
 				// add a new tempfile
 				if _, found := exporter.fileIndex.FindIndexForMessage(message); !found {
 					index := len(exporter.outputFiles)
@@ -753,9 +784,6 @@ func (exporter *logExporter) getServiceName(serviceID string) string {
 	}
 
 }
-
-// TODO: make the code adaptable to export messages prior to filebeat which have different metadata.
-//       filebeat was first released with 1.2.0, so it's 1.1.x log data that this export can not read properly
 
 // beatProps are properties added to each message by filebeat itself
 type beatProps struct {
