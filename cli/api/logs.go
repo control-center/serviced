@@ -33,8 +33,8 @@ import (
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/volume"
 	elastigocore "github.com/zenoss/elastigo/core"
+	"github.com/control-center/serviced/volume"
 )
 
 // This interface is primarily provided for unit-testing ExportLogs().
@@ -71,7 +71,6 @@ const (
 	GroupByDay
 	GroupByService
 )
-
 
 // ExportLogsConfig is the deserialized object from the command-line
 type ExportLogsConfig struct {
@@ -127,6 +126,9 @@ type logExporter struct {
 
 	// A list of services used to populate the index file on completion of the export
 	serviceMap map[string]service.ServiceDetails
+
+	// An index of information about outputFiles. Handles variations in group-by requirements.
+	fileIndex FileIndex
 }
 
 func ExportGroupFromString(value string) ExportGroup {
@@ -187,19 +189,18 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		if e := exporter.organizeAndGroomLogFile(i, numWarnings); e != nil {
 			return e
 		}
-
-		indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s\t%s\t%s",
+		indexData = append(indexData, exporter.fileIndex.GetFileIndexData(
 			i,
-			outputFile.LineCount,
-			strconv.Quote(exporter.getHostName(outputFile.HostID)),
-			strconv.Quote(outputFile.HostID),
-			strconv.Quote(outputFile.ContainerID),
-			strconv.Quote(exporter.getServiceName(outputFile.ServiceID)),
-			strconv.Quote(outputFile.ServiceID),
-			strconv.Quote(outputFile.LogFileName)))
+			outputFile,
+			exporter.getHostName(outputFile.HostID),
+			exporter.getServiceName(outputFile.ServiceID)))
 	}
 	sort.Strings(indexData)
-	indexData = append([]string{"INDEX OF LOG FILES", "File\tLine Count\tHost Name\tHost ID\tContainer ID\tService Name\tService ID\tOriginal Filename"}, indexData...)
+
+	// TODO: Log the query config data: from and to dates, service names/ids (if any)
+	indexData = append([]string{"INDEX OF LOG FILES",
+		exporter.fileIndex.GetIndexHeader()},
+		indexData...)
 	indexData = append(indexData, "")
 	indexFile := filepath.Join(exporter.tempdir, "index.txt")
 	e = ioutil.WriteFile(indexFile, []byte(strings.Join(indexData, "\n")), 0644)
@@ -432,7 +433,7 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 	numWarnings = 0
 	foundIndexedDay = false
 	// fileIndex is a map of parsedMessage to an index into exporter.outputFiles
-	var fileIndex FileIndex = NewFileIndex(exporter.GroupBy)
+	exporter.fileIndex = NewFileIndex(exporter.GroupBy)
 	for _, yyyymmdd := range exporter.days {
 		// Skip the indexes that are filtered out by the date range
 		if (exporter.FromDate != "" && yyyymmdd < exporter.FromDate) || (exporter.ToDate != "" && yyyymmdd > exporter.ToDate) {
@@ -473,7 +474,7 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 			hits := result.Hits.Hits
 			total := len(hits)
 			for i := 0; i < total; i++ {
-				message, e := parseLogSource(hits[i].Source)
+				message, e := parseLogSource(yyyymmdd, hits[i].Source)
 				if e != nil {
 					return foundIndexedDay, numWarnings, e
 				}
@@ -487,14 +488,14 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 				}
 
 				// add a new tempfile
-				if _, found := fileIndex.FindIndexForMessage(message); !found {
+				if _, found := exporter.fileIndex.FindIndexForMessage(message); !found {
 					index := len(exporter.outputFiles)
-					filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
+					filename := filepath.Join(exporter.tempdir, exporter.fileIndex.GetFileName(index, message))
 					file, e := os.Create(filename)
 					if e != nil {
 						return foundIndexedDay, numWarnings, fmt.Errorf("failed to create file %s: %s", filename, e)
 					}
-					fileIndex.AddIndexForMessage(index, message)
+					exporter.fileIndex.AddIndexForMessage(index, message)
 					outputFile := outputFileInfo{
 						File:        file,
 						Name:        filename,
@@ -505,10 +506,10 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 					}
 					exporter.outputFiles = append(exporter.outputFiles, outputFile)
 				}
-				index, _ := fileIndex.FindIndexForMessage(message)
+				index, _ := exporter.fileIndex.FindIndexForMessage(message)
 				exporter.outputFiles[index].LineCount += len(message.Lines)
 				file := exporter.outputFiles[index].File
-				filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
+				filename := exporter.outputFiles[index].Name
 				for _, line := range message.Lines {
 					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
 					if _, e := file.WriteString(formatted); e != nil {
@@ -531,10 +532,22 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 type FileIndex interface {
 	FindIndexForMessage(message *parsedMessage) (index int, found bool)
 	AddIndexForMessage(index int, message *parsedMessage)
+	GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string
+	GetIndexHeader() string
+	GetFileName(index int, message *parsedMessage) string
 }
 
 func NewFileIndex(groupBy ExportGroup) FileIndex {
-	return NewContainerFileIndex()
+	var fileIndex FileIndex
+	switch groupBy {
+	case GroupByDay:
+		fileIndex = NewDateFileIndex()
+	case GroupByService:
+		fileIndex = NewContainerFileIndex()
+	case GroupByContainerID:
+		fileIndex = NewContainerFileIndex()
+	}
+	return fileIndex
 }
 
 // ContainerFileIndex maintains an index of separate files based on each unique combination of container ID and
@@ -552,12 +565,77 @@ func (cfi *ContainerFileIndex) FindIndexForMessage(message *parsedMessage) (inde
 	if _, found := cfi.fileIndex[message.ContainerID]; !found {
 		cfi.fileIndex[message.ContainerID] = make(map[string]int)
 	}
-	index, found =  cfi.fileIndex[message.ContainerID][message.LogFileName]
+	index, found = cfi.fileIndex[message.ContainerID][message.LogFileName]
 	return index, found
 }
 
 func (cfi *ContainerFileIndex) AddIndexForMessage(index int, message *parsedMessage) {
 	cfi.fileIndex[message.ContainerID][message.LogFileName] = index
+}
+
+func (cfi *ContainerFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
+	return fmt.Sprintf("%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s",
+		filepath.Base(outputFile.Name),
+		outputFile.LineCount,
+		strconv.Quote(hostName),
+		strconv.Quote(outputFile.HostID),
+		strconv.Quote(outputFile.ContainerID),
+		strconv.Quote(serviceName),
+		strconv.Quote(outputFile.ServiceID),
+		strconv.Quote(outputFile.LogFileName))
+}
+
+func (cfi *ContainerFileIndex) GetIndexHeader() string {
+	return "File\tLine Count\tHost Name\tHost ID\tContainer ID\tService Name\tService ID\tOriginal Filename"
+}
+
+func (cfi *ContainerFileIndex) GetFileName(index int, message *parsedMessage) string {
+	return fmt.Sprintf("%04d.log", index)
+}
+
+// DateFileIndex maintains an index of separate files based on date. Therefore, a single output file will contain
+// messages from multiple services.
+type DateFileIndex struct {
+	fileIndex map[string]int
+}
+
+func NewDateFileIndex() *DateFileIndex {
+	return &DateFileIndex{fileIndex: make(map[string]int)}
+}
+
+func (dfi *DateFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
+	index, found = dfi.fileIndex[message.Date]
+	return index, found
+}
+
+func (dfi *DateFileIndex) AddIndexForMessage(index int, message *parsedMessage) {
+	dfi.fileIndex[message.Date] = index
+}
+
+func (dfi *DateFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
+	return fmt.Sprintf("%s\t%d\t%s",
+		filepath.Base(outputFile.Name),
+		outputFile.LineCount,
+		dfi.findDateForIndex(index))
+}
+
+func (dfi *DateFileIndex) GetIndexHeader() string {
+	return "File\tLine Count\tDate"
+}
+
+func (dfi *DateFileIndex) GetFileName(index int, message *parsedMessage) string {
+	return fmt.Sprintf("%s.log", message.Date)
+}
+
+func (dfi *DateFileIndex) findDateForIndex(index int) string {
+	var date string
+	for key, value := range dfi.fileIndex {
+		if value == index {
+			date = key
+			break
+		}
+	}
+	return date
 }
 
 // Organize and cleanup the log messages retrieved from logstash.
@@ -567,8 +645,11 @@ func (cfi *ContainerFileIndex) AddIndexForMessage(index int, message *parsedMess
 // timestamp and offset, and then truncate those fields from the output file such that all that remains are the
 // application log messages ordered from oldest first to newest last.
 func (exporter *logExporter) organizeAndGroomLogFile(fileIndex, numWarnings int) error {
-	filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", fileIndex))
-	tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", fileIndex))
+	filename := exporter.outputFiles[fileIndex].Name
+	logName := filepath.Base(filename)
+	tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%s.tmp", logName))
+
+	// Use the -u option to filter out duplicates.
 	cmd := exec.Command("sort", filename, "-uo", tmpfilename)
 	if output, e := cmd.CombinedOutput(); e != nil {
 		return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
@@ -675,6 +756,7 @@ type compactLogLine struct {
 
 // Represents a set of log messages from a since instance of a single application log
 type parsedMessage struct {
+	Date        string           // The date for the message in the format YYYYMMDD
 	HostID      string           // The ID of the CC worker node that hosted ContainerID
 	ContainerID string           // The original Container ID of the application log file
 	LogFileName string           // The name of the application log file
@@ -753,7 +835,7 @@ func generateOffsets(messages []string, offsets []uint64) []uint64 {
 }
 
 // return: containerID, file, lines, error
-func parseLogSource(source []byte) (*parsedMessage, error) {
+func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 	warnings := ""
 
 	// attempt to unmarshal into singleLine
@@ -774,6 +856,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 			Message:   line.Message,
 		}
 		message := &parsedMessage{
+			Date:        date,
 			Type:        line.Type,
 			HostID:      line.Fields.CCWorkerID,
 			ContainerID: line.FileBeat.Hostname,
@@ -839,6 +922,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	}
 
 	message := &parsedMessage{
+		Date:        date,
 		Type:        line.Type,
 		HostID:      multiLine.Fields.CCWorkerID,
 		ContainerID: multiLine.FileBeat.Hostname,
