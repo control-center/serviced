@@ -543,7 +543,7 @@ func NewFileIndex(groupBy ExportGroup) FileIndex {
 	case GroupByDay:
 		fileIndex = NewDateFileIndex()
 	case GroupByService:
-		fileIndex = NewContainerFileIndex()
+		fileIndex = NewServiceFileIndex()
 	case GroupByContainerID:
 		fileIndex = NewContainerFileIndex()
 	}
@@ -636,6 +636,41 @@ func (dfi *DateFileIndex) findDateForIndex(index int) string {
 		}
 	}
 	return date
+}
+
+// ServiceFileIndex maintains an index of separate files based on service id. Therefore, a single output file will
+// contain messages for all instances of single service.
+type ServiceFileIndex struct {
+	fileIndex map[string]int
+}
+
+func NewServiceFileIndex() *ServiceFileIndex {
+	return &ServiceFileIndex{fileIndex: make(map[string]int)}
+}
+
+func (sfi *ServiceFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
+	index, found = sfi.fileIndex[message.ServiceID]
+	return index, found
+}
+
+func (sfi *ServiceFileIndex) AddIndexForMessage(index int, message *parsedMessage) {
+	sfi.fileIndex[message.ServiceID] = index
+}
+
+func (sfi *ServiceFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
+	return fmt.Sprintf("%s\t%d\t%s\t%s",
+		filepath.Base(outputFile.Name),
+		outputFile.LineCount,
+		serviceName,
+		outputFile.ServiceID)
+}
+
+func (sfi *ServiceFileIndex) GetIndexHeader() string {
+	return "File\tLine Count\tService Name\tService ID"
+}
+
+func (sfi *ServiceFileIndex) GetFileName(index int, message *parsedMessage) string {
+	return fmt.Sprintf("%s.log", message.ServiceID)
 }
 
 // Organize and cleanup the log messages retrieved from logstash.
