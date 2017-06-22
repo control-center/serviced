@@ -554,11 +554,15 @@ func NewFileIndex(groupBy ExportGroup) FileIndex {
 // application log file name. Depending on the lifespan of the container and the date range
 // defined by exporter.days, some of the files created by this method may have messages from multiple dates.
 type ContainerFileIndex struct {
-	fileIndex map[string]map[string]int
+	fileIndex     map[string]map[string]int
+	outputPattern string
 }
 
 func NewContainerFileIndex() *ContainerFileIndex {
-	return &ContainerFileIndex{fileIndex: make(map[string]map[string]int)}
+	return &ContainerFileIndex{
+		fileIndex:     make(map[string]map[string]int),
+		outputPattern: "%-9.9s  %-11.11s  %-36.36s  %-10.10s  %-13.13s  %-20.20s  %-26.26s  %s",
+	}
 }
 
 func (cfi *ContainerFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
@@ -574,19 +578,27 @@ func (cfi *ContainerFileIndex) AddIndexForMessage(index int, message *parsedMess
 }
 
 func (cfi *ContainerFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
-	return fmt.Sprintf("%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s",
+	return fmt.Sprintf(cfi.outputPattern,
 		filepath.Base(outputFile.Name),
-		outputFile.LineCount,
-		strconv.Quote(hostName),
-		strconv.Quote(outputFile.HostID),
-		strconv.Quote(outputFile.ContainerID),
+		strconv.Itoa(outputFile.LineCount),
+		hostName,
+		outputFile.HostID,
+		outputFile.ContainerID,
 		strconv.Quote(serviceName),
-		strconv.Quote(outputFile.ServiceID),
-		strconv.Quote(outputFile.LogFileName))
+		outputFile.ServiceID,
+		outputFile.LogFileName)
 }
 
 func (cfi *ContainerFileIndex) GetIndexHeader() string {
-	return "File\tLine Count\tHost Name\tHost ID\tContainer ID\tService Name\tService ID\tOriginal Filename"
+	return fmt.Sprintf(cfi.outputPattern,
+		"File",
+		"Line Count",
+		"Host Name",
+		"Host ID",
+		"Container ID",
+		"Service Name",
+		"Service ID",
+		"Original Filename")
 }
 
 func (cfi *ContainerFileIndex) GetFileName(index int, message *parsedMessage) string {
@@ -596,11 +608,15 @@ func (cfi *ContainerFileIndex) GetFileName(index int, message *parsedMessage) st
 // DateFileIndex maintains an index of separate files based on date. Therefore, a single output file will contain
 // messages from multiple services.
 type DateFileIndex struct {
-	fileIndex map[string]int
+	fileIndex     map[string]int
+	outputPattern string
 }
 
 func NewDateFileIndex() *DateFileIndex {
-	return &DateFileIndex{fileIndex: make(map[string]int)}
+	return &DateFileIndex{
+		fileIndex:     make(map[string]int),
+		outputPattern: "%-15.15s  %11.11s  %s",
+	}
 }
 
 func (dfi *DateFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
@@ -613,14 +629,14 @@ func (dfi *DateFileIndex) AddIndexForMessage(index int, message *parsedMessage) 
 }
 
 func (dfi *DateFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
-	return fmt.Sprintf("%s\t%d\t%s",
+	return fmt.Sprintf(dfi.outputPattern,
 		filepath.Base(outputFile.Name),
-		outputFile.LineCount,
+		strconv.Itoa(outputFile.LineCount),
 		dfi.findDateForIndex(index))
 }
 
 func (dfi *DateFileIndex) GetIndexHeader() string {
-	return "File\tLine Count\tDate"
+	return fmt.Sprintf(dfi.outputPattern, "File", "Line Count", "Date")
 }
 
 func (dfi *DateFileIndex) GetFileName(index int, message *parsedMessage) string {
@@ -641,11 +657,15 @@ func (dfi *DateFileIndex) findDateForIndex(index int) string {
 // ServiceFileIndex maintains an index of separate files based on service id. Therefore, a single output file will
 // contain messages for all instances of single service.
 type ServiceFileIndex struct {
-	fileIndex map[string]int
+	fileIndex     map[string]int
+	outputPattern string
 }
 
 func NewServiceFileIndex() *ServiceFileIndex {
-	return &ServiceFileIndex{fileIndex: make(map[string]int)}
+	return &ServiceFileIndex{
+		fileIndex:     make(map[string]int),
+		outputPattern: "%-30.30s  %11.11s  %-20.20s  %s",
+	}
 }
 
 func (sfi *ServiceFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
@@ -658,15 +678,15 @@ func (sfi *ServiceFileIndex) AddIndexForMessage(index int, message *parsedMessag
 }
 
 func (sfi *ServiceFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
-	return fmt.Sprintf("%s\t%d\t%s\t%s",
+	return fmt.Sprintf(sfi.outputPattern,
 		filepath.Base(outputFile.Name),
-		outputFile.LineCount,
-		serviceName,
+		strconv.Itoa(outputFile.LineCount),
+		strconv.Quote(serviceName),
 		outputFile.ServiceID)
 }
 
 func (sfi *ServiceFileIndex) GetIndexHeader() string {
-	return "File\tLine Count\tService Name\tService ID"
+	return fmt.Sprintf(sfi.outputPattern, "File", "Line Count", "Service Name", "Service ID")
 }
 
 func (sfi *ServiceFileIndex) GetFileName(index int, message *parsedMessage) string {
