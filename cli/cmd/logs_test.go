@@ -49,6 +49,7 @@ func ExampleServicedCLI_CmdLogExport_usage() {
 	//    --from 						yyyy.mm.dd
 	//    --to 						yyyy.mm.dd
 	//    --service '--service option --service option'	service ID or name (includes all child services)
+	//    --file '--file option --file option'			the application log filename
 	//    --out 						path to output file
 	//    --debug, -d						Show additional diagnostic messages
 	//    --group-by 'container'				Group results either by container, service or day

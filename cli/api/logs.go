@@ -78,6 +78,9 @@ type ExportLogsConfig struct {
 	// (includes all child services unless ExcludeChildren is true)
 	ServiceIDs []string
 
+	// A list of one or more application log file names to export
+	FileNames []string
+
 	// In the format yyyy.mm.dd (inclusive), "" means unbounded
 	FromDate string
 
@@ -241,6 +244,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		fmt.Sprintf("          Grouped By: %s", configParam.GroupBy),
 		fmt.Sprintf("Requested Service(s): %s", strings.Join(servicesDesc, ", ")),
 		fmt.Sprintf("Child Svcs Excluded?: %s", strconv.FormatBool(configParam.ExcludeChildren)),
+		fmt.Sprintf("   Requested File(s): %s", strings.Join(configParam.FileNames, ", ")),
 		"",
 		"INDEX OF LOG FILES",
 		exporter.fileIndex.GetIndexHeader()},
@@ -470,10 +474,25 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDet
 
 		query = fmt.Sprintf("fields.service:(%s)", strings.Join(queryParts, " OR "))
 	}
+
+	if len(exporter.FileNames) > 0 {
+		for i, filename := range exporter.FileNames {
+			exporter.FileNames[i] = strconv.Quote(filename)
+		}
+		fileQuery := fmt.Sprintf("file:(%s)", strings.Join(exporter.FileNames, " OR "))
+		if len(exporter.ServiceIDs) > 0 {
+			query = fmt.Sprintf("%s AND %s", query, fileQuery)
+		} else {
+			query = fileQuery
+		}
+	}
+
 	if exporter.Debug {
 		log.WithFields(logrus.Fields{
+			"servicecount": len(exporter.ServiceIDs),
+			"filecount": len(exporter.FileNames),
 			"query": query,
-		}).Info("Looking for services")
+		}).Info("Looking for log messages")
 	}
 	return query, nil
 }

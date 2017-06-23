@@ -50,6 +50,11 @@ func (c *ServicedCli) initLog() {
 						Value: &cli.StringSlice{},
 						Usage: "service ID or name (includes all child services)",
 					},
+					cli.StringSliceFlag{
+						Name:  "file",
+						Value: &cli.StringSlice{},
+						Usage: "the application log filename",
+					},
 					cli.StringFlag{
 						Name:  "out",
 						Value: "",
@@ -106,6 +111,7 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 
 	cfg := api.ExportLogsConfig{
 		ServiceIDs:       serviceIDs,
+		FileNames:   ctx.StringSlice("file"),
 		FromDate:         from,
 		ToDate:           to,
 		OutFileName:      outfile,
