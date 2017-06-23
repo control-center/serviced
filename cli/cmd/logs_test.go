@@ -31,13 +31,13 @@ type LogsCLITestCase struct {
 }
 
 func ExampleServicedCLI_CmdLogExport_usage() {
-	runLogsAPITest(&mocks.API{}, "serviced", "log", "export", "service")
+	runLogsAPITest(&mocks.API{}, "serviced", "log", "export", "badbad")
 
 	// Output:
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    export - Exports all logs
+	//    export - Exports application log data
 	//
 	// USAGE:
 	//    command export [command options] [arguments...]
@@ -51,6 +51,8 @@ func ExampleServicedCLI_CmdLogExport_usage() {
 	//    --service '--service option --service option'	service ID or name (includes all sub-services)
 	//    --out 						path to output file
 	//    --debug, -d						Show additional diagnostic messages
+	//    --group-by 'container'				Group results either by container, service or day
+
 }
 
 func TestLogsCLI_CmdLogExport_SingleServiceName(t *testing.T) {
@@ -125,6 +127,52 @@ func TestLogsCLI_CmdLogExport_OutFileName(t *testing.T) {
 		},
 	}
 	testCmdLogExport(t, testCase)
+}
+
+func TestLogsCLI_CmdLogExport_GroupByDefault(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			GroupBy: api.GroupByContainerID,
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+
+func TestLogsCLI_CmdLogExport_GroupByContainer(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--group-by", "container"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			GroupBy: api.GroupByContainerID,
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+
+func TestLogsCLI_CmdLogExport_GroupByDay(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--group-by", "day"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			GroupBy: api.GroupByDay,
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+
+func TestLogsCLI_CmdLogExport_GroupByService(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--group-by", "service"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			GroupBy: api.GroupByService,
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+
+func ExampleServicedCLI_CmdLogExport_InvalidGroupBy() {
+	runLogsAPITest(&mocks.API{}, "serviced", "log", "export", "--group-by", "badbad")
+
+	// ERROR: --group-by value 'badbad' is invalid; only 'container', 'day' or 'service' allowed
 }
 
 // compareStringSlices compares the contents of two string slices, without order.
