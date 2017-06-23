@@ -74,7 +74,8 @@ const (
 
 // ExportLogsConfig is the deserialized object from the command-line
 type ExportLogsConfig struct {
-	// A list of one or more serviced IDs to export logs for (including children)
+	// A list of one or more serviced IDs to export logs for
+	// (includes all child services unless ExcludeChildren is true)
 	ServiceIDs []string
 
 	// In the format yyyy.mm.dd (inclusive), "" means unbounded
@@ -90,14 +91,17 @@ type ExportLogsConfig struct {
 	// Set to true to default more verbose logging
 	Debug bool
 
+	// Defines which messages are grouped together in each output file
+	GroupBy  ExportGroup
+
+	// Set to true to exclude child services
+	ExcludeChildren bool
+
 	// Driver to work with logstash ES instance; if nil a default driver will be used. Primarily used for testing.
 	Driver ExportLogDriver
 
 	// the file opened for OutFileName
 	outFile *os.File
-
-	// Defines which messages are grouped together in each output file
-	GroupBy  ExportGroup
 }
 
 // logExporter is used internally to manage various operations required to export the application logs. It serves
@@ -231,6 +235,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		fmt.Sprintf("     Requested Dates: %s - %s", configParam.FromDate, configParam.ToDate),
 		fmt.Sprintf("      Exported Dates: %s - %s", exporter.minDateFound, exporter.maxDateFound),
 		fmt.Sprintf("          Grouped By: %s", configParam.GroupBy),
+		fmt.Sprintf("Child Svcs Excluded?: %s", strconv.FormatBool(configParam.ExcludeChildren)),
 		"",
 		"INDEX OF LOG FILES",
 		exporter.fileIndex.GetIndexHeader()},
@@ -441,7 +446,7 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDet
 						break
 					}
 				}
-				if found || srvc.ParentServiceID == "" {
+				if found || srvc.ParentServiceID == "" || exporter.ExcludeChildren {
 					break
 				}
 				srvc = serviceMap[srvc.ParentServiceID]
