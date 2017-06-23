@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"time"
 
 	"github.com/control-center/serviced/cli/api/mocks"
 	"github.com/control-center/serviced/domain/host"
@@ -517,7 +518,7 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 		return make(map[string]host.Host), nil
 	}
 
-	exporter, err := buildExporter(config, getServices, getHostMap)
+	exporter, err := buildExporter(config, time.Now().UTC(), "timestamp", getServices, getHostMap)
 	return exporter, mockLogDriver, err
 }
 

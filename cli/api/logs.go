@@ -105,6 +105,12 @@ type ExportLogsConfig struct {
 type logExporter struct {
 	ExportLogsConfig
 
+	// The timestamp for when the export started
+	startTime time.Time
+
+	// The string representation of startTime suitable for file/directory names
+	timeLabel string
+
 	// The ES-logstash query string
 	query string
 
@@ -163,8 +169,12 @@ func ExportGroupFromString(value string) ExportGroup {
 
 // ExportLogs exports logs from ElasticSearch.
 func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
-	var e error
-	e = validateConfiguration(&configParam)
+
+	startTime := time.Now().UTC()
+	// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
+	timeLabel := strings.Replace(startTime.Format(time.RFC3339), ":", "", -1)
+
+	e := validateConfiguration(&configParam, timeLabel)
 	if e != nil {
 		return e
 	}
@@ -176,7 +186,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		}
 	}()
 
-	exporter, e = buildExporter(configParam, a.GetAllServiceDetails, a.GetHostMap)
+	exporter, e = buildExporter(configParam, startTime, timeLabel, a.GetAllServiceDetails, a.GetHostMap)
 	if e != nil {
 		return e
 	}
@@ -216,7 +226,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 
 	indexData = append([]string{
 		"LOG EXPORT SUMMARY",
-		fmt.Sprintf("       Export Ran On: %s", time.Now().Format(time.RFC3339)),
+		fmt.Sprintf("       Export Ran On: %s", exporter.startTime.Format(time.RFC1123)),
 		fmt.Sprintf("Available Date Range: %s - %s", exporter.days[len(exporter.days)-1], exporter.days[0]),
 		fmt.Sprintf("     Requested Dates: %s - %s", configParam.FromDate, configParam.ToDate),
 		fmt.Sprintf("      Exported Dates: %s - %s", exporter.minDateFound, exporter.maxDateFound),
@@ -252,7 +262,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	return nil
 }
 
-func validateConfiguration(cfg *ExportLogsConfig) error {
+func validateConfiguration(cfg *ExportLogsConfig, timeLabel string) error {
 	if cfg.Driver == nil {
 		cfg.Driver = &elastigoLogDriver{}
 	}
@@ -268,16 +278,12 @@ func validateConfiguration(cfg *ExportLogsConfig) error {
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
 		}
-		now := time.Now().UTC()
-		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
-		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
-		cfg.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
+		cfg.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", timeLabel))
 	}
-	fp, e := filepath.Abs(cfg.OutFileName)
+	_, e := filepath.Abs(cfg.OutFileName)
 	if e != nil {
 		return fmt.Errorf("could not convert '%s' to an absolute path: %v", cfg.OutFileName, e)
 	}
-	cfg.OutFileName = filepath.Clean(fp)
 
 	// Create the file in exclusive mode to avoid race with a concurrent invocation
 	// of the same command on the same node
@@ -312,8 +318,13 @@ func validateConfiguration(cfg *ExportLogsConfig) error {
 }
 
 // Builds an instance of logExporter to use for the current export operation.
-func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.ServiceDetails, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
-	exporter = &logExporter{ExportLogsConfig: configParam}
+func buildExporter(configParam ExportLogsConfig, startTime time.Time, timeLabel string, getServices func() ([]service.ServiceDetails, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
+	exporter = &logExporter{
+		ExportLogsConfig: configParam,
+		startTime:        startTime,
+		timeLabel:        timeLabel,
+	}
+
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
 		return nil, fmt.Errorf("Could not build query: %s", err)
@@ -332,6 +343,11 @@ func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.S
 
 	// Get a temporary directory
 	exporter.tempdir, err = ioutil.TempDir("", "serviced-log-export-")
+	if err != nil {
+		return nil, fmt.Errorf("could not create temp directory: %s", err)
+	}
+	exporter.tempdir = filepath.Join(exporter.tempdir, fmt.Sprintf("serviced-log-export-%s", exporter.timeLabel))
+	err = os.Mkdir(exporter.tempdir, 0700)
 	if err != nil {
 		return nil, fmt.Errorf("could not create temp directory: %s", err)
 	}
