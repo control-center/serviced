@@ -48,7 +48,7 @@ func (c *ServicedCli) initLog() {
 					cli.StringSliceFlag{
 						Name:  "service",
 						Value: &cli.StringSlice{},
-						Usage: "service ID or name (includes all sub-services)",
+						Usage: "service ID or name (includes all child services)",
 					},
 					cli.StringFlag{
 						Name:  "out",
@@ -63,6 +63,10 @@ func (c *ServicedCli) initLog() {
 						Name:  "group-by",
 						Value: "container",
 						Usage: "Group results either by container, service or day",
+					},
+					cli.BoolFlag{
+						Name:  "no-children, n",
+						Usage: "Do not export child services",
 					},
 				},
 			},
@@ -101,12 +105,13 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 	}
 
 	cfg := api.ExportLogsConfig{
-		ServiceIDs:  serviceIDs,
-		FromDate:    from,
-		ToDate:      to,
-		OutFileName: outfile,
-		Debug:       ctx.Bool("debug"),
-		GroupBy:     groupBy,
+		ServiceIDs:       serviceIDs,
+		FromDate:         from,
+		ToDate:           to,
+		OutFileName:      outfile,
+		Debug:            ctx.Bool("debug"),
+		GroupBy:          groupBy,
+		ExcludeChildren:  ctx.Bool("no-children"),
 	}
 
 	if err := c.driver.ExportLogs(cfg); err != nil {
