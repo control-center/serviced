@@ -228,6 +228,10 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	}
 	sort.Strings(indexData)
 
+	servicesDesc := make([]string, 0)
+	for _, id := range configParam.ServiceIDs {
+		servicesDesc = append(servicesDesc, fmt.Sprintf("%s (%s)", exporter.getServiceName(id), id))
+	}
 	indexData = append([]string{
 		"LOG EXPORT SUMMARY",
 		fmt.Sprintf("       Export Ran On: %s", exporter.startTime.Format(time.RFC1123)),
@@ -235,6 +239,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		fmt.Sprintf("     Requested Dates: %s - %s", configParam.FromDate, configParam.ToDate),
 		fmt.Sprintf("      Exported Dates: %s - %s", exporter.minDateFound, exporter.maxDateFound),
 		fmt.Sprintf("          Grouped By: %s", configParam.GroupBy),
+		fmt.Sprintf("Requested Service(s): %s", strings.Join(servicesDesc, ", ")),
 		fmt.Sprintf("Child Svcs Excluded?: %s", strconv.FormatBool(configParam.ExcludeChildren)),
 		"",
 		"INDEX OF LOG FILES",
