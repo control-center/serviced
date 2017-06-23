@@ -2135,7 +2135,7 @@ func AssignIpArgs(ctx datastore.Context, f *Facade, request addressassignment.As
 		return arguments, err
 	}
 	portmap, _ := GetPorts(svc.Endpoints)
-	len(portmap) == 0 {
+	if len(portmap) == 0 {
 		return arguments, nil
 	}
 
