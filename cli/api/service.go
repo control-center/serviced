@@ -55,8 +55,11 @@ type SchedulerConfig struct {
 
 // IPConfig is the deserialized object from the command-line
 type IPConfig struct {
-	ServiceID string
-	IPAddress string
+	ServiceID	string
+	IPAddress	string
+	Port		uint16
+	Proto		string
+	EndpointName	string
 }
 
 // Type of method that controls the state of a service
@@ -393,6 +396,43 @@ func (a *api) AssignIP(config IPConfig) error {
 	}
 
 	if err := client.AssignIPs(req, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RemoveIP removes IP assignments of a service
+func (a *api) RemoveIP(args []string) error {
+	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+
+	if err := client.RemoveIPs(args, new(int)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetIP assigns an IP address to a services that haven't IP Assignment by default
+func (a *api) SetIP(config IPConfig) error {
+	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+
+	req := addressassignment.AssignmentRequest{
+		ServiceID:      config.ServiceID,
+		IPAddress:      config.IPAddress,
+		AutoAssignment: config.IPAddress == "",
+		Port:		config.Port,
+		Proto:		config.Proto,
+		EndpointName:	config.EndpointName,
+	}
+
+	if err := client.SetIPs(req, nil); err != nil {
 		return err
 	}
 

@@ -181,6 +181,34 @@ func (_m *FacadeInterface) AssignIPs(ctx datastore.Context, assignmentRequest ad
 	return r0
 }
 
+// RemoveIPs provides a mock function with given fields: ctx, []string
+func (_m *FacadeInterface) RemoveIPs(ctx datastore.Context, args []string) error {
+	ret := _m.Called(ctx, args)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, []string) error); ok {
+		r0 = rf(ctx, args)
+	} else {
+		 r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetIPs  provides a mock function with given fields: ctx, assignmentRequest
+func (_m *FacadeInterface) SetIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) error {
+        ret := _m.Called(ctx, assignmentRequest)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(datastore.Context, addressassignment.AssignmentRequest) error); ok {
+                r0 = rf(ctx, assignmentRequest)
+        } else {
+                r0 = ret.Error(0)
+        }
+
+        return r0
+}
+
 // ClearEmergencyStopFlag provides a mock function with given fields: ctx, serviceID
 func (_m *FacadeInterface) ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error) {
 	ret := _m.Called(ctx, serviceID)

@@ -379,6 +379,20 @@ func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
 	return nil
 }
 
+func (t ServiceAPITest) RemoveIP(args []string) error {
+	if t.errs["RemoveIP"] != nil {
+		return t.errs["RemoveIP"]
+	}
+	return nil
+}
+
+func (t ServiceAPITest) SetIP(config api.IPConfig) error {
+	if t.errs["SetIP"] != nil {
+		return t.errs["SetIP"]
+	}
+	return nil
+}
+
 func (t ServiceAPITest) StartShell(config api.ShellConfig) error {
 	if s, err := t.GetService(config.ServiceID); err != nil {
 		return err
@@ -734,6 +748,112 @@ func ExampleServicedCLI_CmdServiceAssignIPs_err() {
 
 	// Output:
 	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceRemoveIPs() {
+	//Remove assignments
+	InitServiceAPITest("serviced", "service", "remove-ip", "test-service-1", "test-endpoint")
+	// Output:
+	//
+}
+
+func ExampleServicedCLI_CmdServiceRemoveIPs_usage() {
+	InitServiceAPITest("serviced", "service", "remove-ip")
+
+	// Incorrect Usage.
+
+	// NAME:
+	//    remove-ip - Remove the IP assignment of a service's endpoints
+
+	// USAGE:
+	//    ommand remove-ip [command options] [arguments...]
+
+	// DESCRIPTION:
+	//    serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
+
+	// OPTIONS:
+
+}
+
+func ExampleServicedCLI_CmdServiceRemoveIPs_fail() {
+	DefaultServiceAPITest.errs["RemoveIP"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["RemoveIP"] = nil }()
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "remove-ip", "test-service-3") })
+
+        // Incorrect Usage.
+
+        // NAME:
+        //    remove-ip - Remove the IP assignment of a service's endpoints
+
+        // USAGE:
+        //    ommand remove-ip [command options] [arguments...]
+
+        // DESCRIPTION:
+        //    serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
+
+        // OPTIONS:
+}
+
+func ExampleServicedCLI_CmdServiceRemoveIPs_err() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "remove-ip", "test-service-0", "test-endpoint-1") })
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceSetIPs() {
+	InitServiceAPITest("serviced", "service", "set-ip", "test-service-1", "test-endpoint", "127.0.0.1", "--port=8080", "--proto=tcp")
+
+	// Output:
+	//
+}
+
+func ExampleServicedCLI_CmdServiceSetIPs_usage() {
+	InitServiceAPITest("serviced", "service", "set-ip")
+
+	// Incorrect Usage.
+
+	//NAME:
+	//   set-ip - Setting an IP address to a service's endpoints requiring an explicit IP address. If ip is not provided it does an automatic assignment
+
+	// USAGE:
+	//    command set-ip [command options] [arguments...]
+
+	// DESCRIPTION:
+	//    serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]
+
+	// OPTIONS:
+	//    --port '0'   determine the port your service will use
+	//    --proto      determine the port protocol your service will use
+
+}
+
+func ExampleServicedCLI_CmdServiceSetIPs_fail() {
+	DefaultServiceAPITest.errs["SetIP"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["SetIP"] = nil }()
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "set-ip", "test-service-2", "test-endpoint", "127.0.0.1", "--port=8080", "--proto=tcp") })
+
+	// Output:
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceSetIPs_err() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "set-ip", "test-service-0", "test-endpoint", "127.0.0.1") })
+
+	// Please specify the valid port number.
+
+	// NAME:
+	//    set-ip - Setting an IP address to a service's endpoints requiring an explicit IP address. If ip is not provided it does an automatic assignment
+
+	// USAGE:
+	//    command set-ip [command options] [arguments...]
+
+        // DESCRIPTION:
+        //    serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]
+
+        // OPTIONS:
+        //    --port '0'   determine the port your service will use
+        //    --proto      determine the port protocol your service will use
 }
 
 func ExampleServicedCLI_CmdServiceStart_usage() {

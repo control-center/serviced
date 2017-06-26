@@ -24,6 +24,11 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+var sa = servicedefinition.AddressResourceConfig{
+	Port: 8080,
+	Protocol: "tcp",
+}
+
 // Perform pre-test setup for each of the PublicEndpoint tests
 func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.Service, service.Service) {
 	// Add a service so we can test our public endpoint.
@@ -669,4 +674,21 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_InvalidVHost(c *C) {
 	}
 
 	fmt.Println(" ##### Test_PublicEndpointVHost_InvalidVHost: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_SetAddressConfig(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_SetAddressConfig: starting")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add mock calls.
+	ft.zzk.On("GetPublicPort", ":22222").Return("", "", nil)
+	ft.zzk.On("GetVHost", "zproxy").Return("", "", nil)
+	ft.zzk.On("GetPublicPort", ":33333").Return("", "", nil)
+
+	err := ft.Facade.SetAddressConfig(ft.CTX, svcA.ID, "zproxy", sa)
+	c.Assert(err, IsNil)
+
+	fmt.Println(" ##### Test_PublicEndpoint_SetAddressConfig: PASSED")
 }

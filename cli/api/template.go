@@ -161,7 +161,7 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.Serv
 		}
 
 		if !config.ManualAssignIPs {
-			a.AssignIP(IPConfig{id, ""})
+			a.AssignIP(IPConfig{id, "", 0, "", ""})
 		}
 		svcs[i] = *s
 	}

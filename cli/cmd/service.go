@@ -467,6 +467,30 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceClearEmergency,
 			},
+			{
+				Name:         "remove-ip",
+				Usage:        "Remove the IP assignment of a service's endpoints",
+				Description:  "serviced service remove-ip <SERVICEID> <ENDPOINTNAME>",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceRemoveIP,
+			},
+			{
+				Name:         "set-ip",
+                                Usage:        "Setting an IP address to a service's endpoints requiring an explicit IP address. If ip is not provided it does an automatic assignment",
+                                Description:  "serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]",
+                                BashComplete: c.printServicesFirst,
+                                Action:       c.cmdServiceSetIP,
+				Flags:	[]cli.Flag{
+					cli.IntFlag{
+						Name:	"port",
+						Usage:	"determine the port your service will use",
+					},
+					cli.StringFlag{
+						Name:	"proto",
+						Usage:	"determine the port protocol your service will use",
+					},
+				},
+			},
 		},
 	})
 }
@@ -1048,6 +1072,86 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 	}
 
 	if err := c.driver.AssignIP(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+}
+
+// serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
+func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
+	args := ctx.Args()
+        if len(args) != 2 {
+                fmt.Printf("Incorrect Usage.\n\n")
+                cli.ShowCommandHelp(ctx, "remove-ip")
+                return
+	}
+
+	svc, _, err := c.searchForService(ctx.Args().First())
+        if err != nil {
+                fmt.Fprintln(os.Stderr, err)
+                return
+        }
+	serviceID := svc.ID
+	endpointName := ctx.Args()[1]
+
+	arguments := []string{serviceID, endpointName}
+
+	if err := c.driver.RemoveIP(arguments); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+}
+
+// serviced service set-ip <SERVICEID> <ENDPOINTNAME> [IPADDRESS] [--port=PORT] [--proto=PROTOCOL]
+func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
+        args := ctx.Args()
+        if len(args) < 3 {
+                fmt.Printf("Incorrect Usage.\n\n")
+                cli.ShowCommandHelp(ctx, "set-ip")
+                return
+	}
+
+	if args[len(args)-1] == "--generate-bash-completion" {
+		// CC-892: Disable bash completion after SERVICE_ID because possible matches
+		// are unavailable outside the container.
+		return
+	}
+
+	svc, _, err := c.searchForService(ctx.Args().First())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	var endpointName string
+        if len(args) > 1 {
+                endpointName = args[1]
+        }
+
+	var ipAddress string
+	if len(args) > 2 {
+		ipAddress = args[2]
+	}
+
+	if ctx.Int("port") < 1 {
+		fmt.Printf("Please specify the valid port number.\n\n")
+		cli.ShowCommandHelp(ctx, "set-ip")
+		return
+	}
+
+	if ctx.String("proto") == "" {
+		fmt.Printf("Please specify port protocol.\n\n")
+		cli.ShowCommandHelp(ctx, "set-ip")
+		return
+	}
+
+	cfg := api.IPConfig{
+		ServiceID:	svc.ID,
+		IPAddress:	ipAddress,
+		Port:		uint16(ctx.Int("port")),
+		Proto:		ctx.String("proto"),
+		EndpointName:	endpointName,
+	}
+
+	if err := c.driver.SetIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }

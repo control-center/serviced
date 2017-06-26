@@ -89,6 +89,28 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 	t.Assert(err, NotNil) // "Expected error removing vhost"
 }
 
+func (s *S) TestSetAddressConfig(t *C) {
+	svc := Service{
+		Endpoints: []ServiceEndpoint{
+			BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
+					Name:		"server",
+					Purpose:	"export",
+					Application:	"server",
+					PortList:	nil,
+				}),
+		},
+	}
+
+	sa := servicedefinition.AddressResourceConfig{
+		Port: 8080,
+		Protocol: "tcp",
+	}
+
+	err := svc.SetAddressConfig("server", sa)
+	t.Assert(err, IsNil)
+}
+
 func (s *S) TestAddPort(t *C) {
 	svc := Service{
 		Endpoints: []ServiceEndpoint{

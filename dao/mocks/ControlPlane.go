@@ -131,6 +131,28 @@ func (_m *ControlPlane) AssignIPs(assignmentRequest addressassignment.Assignment
 
 	return r0
 }
+func (_m *ControlPlane) RemoveIPs(args []string, unused *int) error {
+	ret := _m.Called(args, unused)
+        var r0 error
+	if rf, ok := ret.Get(0).(func([]string, *int) error); ok {
+		r0 = rf(args, unused)
+	} else {
+		 r0 = ret.Error(0)
+	}
+	return r0
+}
+func (_m *ControlPlane) SetIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) error {
+        ret := _m.Called(assignmentRequest, unused)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(addressassignment.AssignmentRequest, *int) error); ok {
+                r0 = rf(assignmentRequest, unused)
+        } else {
+                r0 = ret.Error(0)
+        }
+
+        return r0
+}
 func (_m *ControlPlane) StartService(request dao.ScheduleServiceRequest, affected *int) error {
 	ret := _m.Called(request, affected)
 
