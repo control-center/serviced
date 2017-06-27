@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"time"
 
 	"github.com/control-center/serviced/cli/api/mocks"
 	"github.com/control-center/serviced/domain/host"
@@ -277,7 +278,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
+				core.Hit{Source: setupOneSearchResult(c,  "log", "host1", "ServiceID", "container1", "file1", "message1")},
 			},
 		},
 	}
@@ -322,7 +323,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
+				core.Hit{Source: setupOneSearchResult(c,  "log", "host1", "ServiceID", "container1", "file1", "message1")},
 			},
 		},
 	}
@@ -368,7 +369,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
+				core.Hit{Source: setupOneSearchResult(c,  "log", "host1", "ServiceID1", "container1", "file1", "message1")},
 			},
 		},
 	}
@@ -384,7 +385,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1", "service": "ServiceID1"}`)},
+				core.Hit{Source: setupOneSearchResult(c,  "log", "host2", "ServiceID2", "container2", "file2", "message1")},
 			},
 		},
 	}
@@ -401,18 +402,65 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
 	c.Assert(len(exporter.outputFiles), Equals, 2)
-	c.Assert(exporter.outputFiles[0].HostID, Equals, "")
+	c.Assert(exporter.outputFiles[0].HostID, Equals, "host1")
 	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
-	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
 	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
-	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID")
+	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID1")
 
-	c.Assert(exporter.outputFiles[1].HostID, Equals, "hostID2")
+	c.Assert(exporter.outputFiles[1].HostID, Equals, "host2")
 	c.Assert(exporter.outputFiles[1].ContainerID, Equals, "container2")
 	c.Assert(exporter.outputFiles[1].LogFileName, Equals, "file2")
 	c.Assert(exporter.outputFiles[1].LineCount, Equals, 1)
-	c.Assert(exporter.outputFiles[1].ServiceID, Equals, "ServiceID1")
+	c.Assert(exporter.outputFiles[1].ServiceID, Equals, "ServiceID2")
+}
+
+func (s *TestAPISuite) TestLogs_RetrieveLogs_ExcludesCCLogs(c *C) {
+	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
+	defer func() {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	// Note that the results for serviced and controller are using different files as way to verify
+	// that only the first message is exported.
+	searchStart := core.SearchResult{
+		ScrollId: "search1",
+		Hits: core.Hits{
+			Total: 3,
+			Hits: []core.Hit{
+				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID1", "container1", "file1", "message1")},
+				core.Hit{Source: setupOneSearchResult(c, "serviced-cchost", "cchost", "", "", "file2", "cc message")},
+				core.Hit{Source: setupOneSearchResult(c, "controller-controllerhost", "controllerhost", "", "", "file3", "controller message")},
+			},
+		},
+	}
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
+
+	// Because ScrollSearch() does not accept a pointer, we have to fake things a little by using separate
+	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
+	// value of ScrollID for mutliple calls
+	firstSearchResult := searchStart
+	firstSearchResult.ScrollId = "lastSearch"
+	lastSearchResult := core.SearchResult{
+		ScrollId: "lastSearch",
+	}
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(lastSearchResult, nil)
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
+
+	c.Assert(foundIndexedDay, Equals, true)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, IsNil)
+	c.Assert(len(exporter.outputFiles), Equals, 1)
+	c.Assert(exporter.outputFiles[0].HostID, Equals, "host1")
+	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
+	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
+	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
+	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID1")
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
@@ -470,6 +518,26 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 		return make(map[string]host.Host), nil
 	}
 
-	exporter, err := buildExporter(config, getServices, getHostMap)
+	exporter, err := buildExporter(config, time.Now().UTC(), "timestamp", getServices, getHostMap)
 	return exporter, mockLogDriver, err
+}
+
+func setupOneSearchResult(c *C, logType, hostID, serviceID, containerID, fileName, message string) []byte {
+	oneResultLine := logSingleLine{
+		Type:     logType,
+		File:     fileName,
+		Message:  message,
+		FileBeat: beatProps{
+			Name:     containerID,
+			Hostname: containerID,
+		},
+		Fields:   fieldProps{
+			CCWorkerID: hostID,
+			Service:    serviceID,
+		},
+	}
+
+	jsonResult, err := json.Marshal(oneResultLine)
+	c.Assert(err, IsNil)
+	return jsonResult
 }

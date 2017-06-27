@@ -30,7 +30,7 @@ func (c *ServicedCli) initLog() {
 		Subcommands: []cli.Command{
 			{
 				Name:        "export",
-				Usage:       "Exports all logs",
+				Usage:       "Exports application log data",
 				Description: "serviced log export",
 				// TODO: BashComplete: c.printLogExportCompletion,
 				Action: c.cmdExportLogs,
@@ -48,7 +48,12 @@ func (c *ServicedCli) initLog() {
 					cli.StringSliceFlag{
 						Name:  "service",
 						Value: &cli.StringSlice{},
-						Usage: "service ID or name (includes all sub-services)",
+						Usage: "service ID or name (includes all child services)",
+					},
+					cli.StringSliceFlag{
+						Name:  "file",
+						Value: &cli.StringSlice{},
+						Usage: "the application log filename",
 					},
 					cli.StringFlag{
 						Name:  "out",
@@ -58,6 +63,15 @@ func (c *ServicedCli) initLog() {
 					cli.BoolFlag{
 						Name:  "debug, d",
 						Usage: "Show additional diagnostic messages",
+					},
+					cli.StringFlag{
+						Name:  "group-by",
+						Value: "container",
+						Usage: "Group results either by container, service or day",
+					},
+					cli.BoolFlag{
+						Name:  "no-children, n",
+						Usage: "Do not export child services",
 					},
 				},
 			},
@@ -87,12 +101,23 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 		serviceIDs = append(serviceIDs, svc.ID)
 	}
 
+	groupBy := api.ExportGroupFromString(ctx.String("group-by"))
+	if groupBy < 0 {
+		fmt.Fprintf(os.Stderr,
+			"ERROR: --group-by value '%s' is invalid; only 'container', 'day' or 'service' allowed\n",
+			ctx.String("group-by"))
+		return
+	}
+
 	cfg := api.ExportLogsConfig{
-		ServiceIDs:  serviceIDs,
-		FromDate:    from,
-		ToDate:      to,
-		OutFileName: outfile,
-		Debug:       ctx.Bool("debug"),
+		ServiceIDs:       serviceIDs,
+		FileNames:   ctx.StringSlice("file"),
+		FromDate:         from,
+		ToDate:           to,
+		OutFileName:      outfile,
+		Debug:            ctx.Bool("debug"),
+		GroupBy:          groupBy,
+		ExcludeChildren:  ctx.Bool("no-children"),
 	}
 
 	if err := c.driver.ExportLogs(cfg); err != nil {

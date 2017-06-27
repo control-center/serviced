@@ -33,8 +33,8 @@ import (
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/volume"
 	elastigocore "github.com/zenoss/elastigo/core"
+	"github.com/control-center/serviced/volume"
 )
 
 // This interface is primarily provided for unit-testing ExportLogs().
@@ -58,10 +58,28 @@ type ExportLogDriver interface {
 	ScrollSearch(scrollID string) (elastigocore.SearchResult, error)
 }
 
+// The export process produces 1 or more <nnn>.log files containing the exported log messages. The values of
+// ExportGroup control which messages are grouped together in a single <nnn>.log file:
+//   GroupByContainer   Each <nnn>.log contains messages for the same unique combination of container ID and
+//                      application log file name.
+//   GroupByDay         Each <nnn>.log contains messages for the same calendar day.
+//   GroupByService     Each <nnn>.log contains messages for the same logical service.
+type ExportGroup int
+
+const (
+	GroupByContainerID ExportGroup = iota
+	GroupByDay
+	GroupByService
+)
+
 // ExportLogsConfig is the deserialized object from the command-line
 type ExportLogsConfig struct {
-	// A list of one or more serviced IDs to export logs for (including children)
+	// A list of one or more serviced IDs to export logs for
+	// (includes all child services unless ExcludeChildren is true)
 	ServiceIDs []string
+
+	// A list of one or more application log file names to export
+	FileNames []string
 
 	// In the format yyyy.mm.dd (inclusive), "" means unbounded
 	FromDate string
@@ -76,6 +94,12 @@ type ExportLogsConfig struct {
 	// Set to true to default more verbose logging
 	Debug bool
 
+	// Defines which messages are grouped together in each output file
+	GroupBy  ExportGroup
+
+	// Set to true to exclude child services
+	ExcludeChildren bool
+
 	// Driver to work with logstash ES instance; if nil a default driver will be used. Primarily used for testing.
 	Driver ExportLogDriver
 
@@ -87,6 +111,12 @@ type ExportLogsConfig struct {
 // as a container for all of the intermediate data used during the export operation.
 type logExporter struct {
 	ExportLogsConfig
+
+	// The timestamp for when the export started
+	startTime time.Time
+
+	// The string representation of startTime suitable for file/directory names
+	timeLabel string
 
 	// The ES-logstash query string
 	query string
@@ -109,12 +139,49 @@ type logExporter struct {
 
 	// A list of services used to populate the index file on completion of the export
 	serviceMap map[string]service.ServiceDetails
+
+	// An index of information about outputFiles. Handles variations in group-by requirements.
+	fileIndex FileIndex
+
+	// The min/max dates found in logstash
+	minDateFound string
+	maxDateFound string
+}
+
+func (eg ExportGroup) String() string {
+	switch eg {
+	case GroupByContainerID:
+		return "container"
+	case GroupByDay:
+		return "day"
+	case GroupByService:
+		return "service"
+	default:
+		return "undefined"
+	}
+}
+
+func ExportGroupFromString(value string) ExportGroup {
+	switch value {
+	case "container":
+		return GroupByContainerID
+	case "day":
+		return GroupByDay
+	case "service":
+		return GroupByService
+	default:
+		return -1
+	}
 }
 
 // ExportLogs exports logs from ElasticSearch.
 func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
-	var e error
-	e = validateConfiguration(&configParam)
+
+	startTime := time.Now().UTC()
+	// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
+	timeLabel := strings.Replace(startTime.Format(time.RFC3339), ":", "", -1)
+
+	e := validateConfiguration(&configParam, timeLabel)
 	if e != nil {
 		return e
 	}
@@ -126,7 +193,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		}
 	}()
 
-	exporter, e = buildExporter(configParam, a.GetAllServiceDetails, a.GetHostMap)
+	exporter, e = buildExporter(configParam, startTime, timeLabel, a.GetAllServiceDetails, a.GetHostMap)
 	if e != nil {
 		return e
 	}
@@ -136,6 +203,8 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 
 	log := log.WithFields(logrus.Fields{
 		"tmpdir": exporter.tempdir,
+		"from":   exporter.FromDate,
+		"to":     exporter.ToDate,
 	})
 	log.Info("Starting part 1 of 3: Processing Logstash Elastic results")
 	foundIndexedDay, numWarnings, e = exporter.retrieveLogs()
@@ -154,19 +223,32 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		if e := exporter.organizeAndGroomLogFile(i, numWarnings); e != nil {
 			return e
 		}
-
-		indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s\t%s\t%s",
+		indexData = append(indexData, exporter.fileIndex.GetFileIndexData(
 			i,
-			outputFile.LineCount,
-			strconv.Quote(exporter.getHostName(outputFile.HostID)),
-			strconv.Quote(outputFile.HostID),
-			strconv.Quote(outputFile.ContainerID),
-			strconv.Quote(exporter.getServiceName(outputFile.ServiceID)),
-			strconv.Quote(outputFile.ServiceID),
-			strconv.Quote(outputFile.LogFileName)))
+			outputFile,
+			exporter.getHostName(outputFile.HostID),
+			exporter.getServiceName(outputFile.ServiceID)))
 	}
 	sort.Strings(indexData)
-	indexData = append([]string{"INDEX OF LOG FILES", "File\tLine Count\tHost Name\tHost ID\tContainer ID\tService Name\tService ID\tOriginal Filename"}, indexData...)
+
+	servicesDesc := make([]string, 0)
+	for _, id := range configParam.ServiceIDs {
+		servicesDesc = append(servicesDesc, fmt.Sprintf("%s (%s)", exporter.getServiceName(id), id))
+	}
+	indexData = append([]string{
+		"LOG EXPORT SUMMARY",
+		fmt.Sprintf("       Export Ran On: %s", exporter.startTime.Format(time.RFC1123)),
+		fmt.Sprintf("Available Date Range: %s - %s", exporter.days[len(exporter.days)-1], exporter.days[0]),
+		fmt.Sprintf("     Requested Dates: %s - %s", configParam.FromDate, configParam.ToDate),
+		fmt.Sprintf("      Exported Dates: %s - %s", exporter.minDateFound, exporter.maxDateFound),
+		fmt.Sprintf("          Grouped By: %s", configParam.GroupBy),
+		fmt.Sprintf("Requested Service(s): %s", strings.Join(servicesDesc, ", ")),
+		fmt.Sprintf("Child Svcs Excluded?: %s", strconv.FormatBool(configParam.ExcludeChildren)),
+		fmt.Sprintf("   Requested File(s): %s", strings.Join(configParam.FileNames, ", ")),
+		"",
+		"INDEX OF LOG FILES",
+		exporter.fileIndex.GetIndexHeader()},
+		indexData...)
 	indexData = append(indexData, "")
 	indexFile := filepath.Join(exporter.tempdir, "index.txt")
 	e = ioutil.WriteFile(indexFile, []byte(strings.Join(indexData, "\n")), 0644)
@@ -194,7 +276,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	return nil
 }
 
-func validateConfiguration(cfg *ExportLogsConfig) error {
+func validateConfiguration(cfg *ExportLogsConfig, timeLabel string) error {
 	if cfg.Driver == nil {
 		cfg.Driver = &elastigoLogDriver{}
 	}
@@ -210,16 +292,12 @@ func validateConfiguration(cfg *ExportLogsConfig) error {
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
 		}
-		now := time.Now().UTC()
-		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
-		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
-		cfg.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
+		cfg.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", timeLabel))
 	}
-	fp, e := filepath.Abs(cfg.OutFileName)
+	_, e := filepath.Abs(cfg.OutFileName)
 	if e != nil {
 		return fmt.Errorf("could not convert '%s' to an absolute path: %v", cfg.OutFileName, e)
 	}
-	cfg.OutFileName = filepath.Clean(fp)
 
 	// Create the file in exclusive mode to avoid race with a concurrent invocation
 	// of the same command on the same node
@@ -254,8 +332,13 @@ func validateConfiguration(cfg *ExportLogsConfig) error {
 }
 
 // Builds an instance of logExporter to use for the current export operation.
-func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.ServiceDetails, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
-	exporter = &logExporter{ExportLogsConfig: configParam}
+func buildExporter(configParam ExportLogsConfig, startTime time.Time, timeLabel string, getServices func() ([]service.ServiceDetails, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
+	exporter = &logExporter{
+		ExportLogsConfig: configParam,
+		startTime:        startTime,
+		timeLabel:        timeLabel,
+	}
+
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
 		return nil, fmt.Errorf("Could not build query: %s", err)
@@ -266,12 +349,19 @@ func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.S
 		return nil, fmt.Errorf("could not determine range of days in the logstash repo: %s", err)
 	} else if exporter.Debug {
 		log.WithFields(logrus.Fields{
-			"days": len(exporter.days),
+			"ndays": len(exporter.days),
+			"to":    exporter.days[0],
+			"from":  exporter.days[len(exporter.days)-1],
 		}).Info("Found logs")
 	}
 
 	// Get a temporary directory
 	exporter.tempdir, err = ioutil.TempDir("", "serviced-log-export-")
+	if err != nil {
+		return nil, fmt.Errorf("could not create temp directory: %s", err)
+	}
+	exporter.tempdir = filepath.Join(exporter.tempdir, fmt.Sprintf("serviced-log-export-%s", exporter.timeLabel))
+	err = os.Mkdir(exporter.tempdir, 0700)
 	if err != nil {
 		return nil, fmt.Errorf("could not create temp directory: %s", err)
 	}
@@ -365,7 +455,7 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDet
 						break
 					}
 				}
-				if found || srvc.ParentServiceID == "" {
+				if found || srvc.ParentServiceID == "" || exporter.ExcludeChildren {
 					break
 				}
 				srvc = serviceMap[srvc.ParentServiceID]
@@ -384,23 +474,35 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDet
 
 		query = fmt.Sprintf("fields.service:(%s)", strings.Join(queryParts, " OR "))
 	}
+
+	if len(exporter.FileNames) > 0 {
+		for i, filename := range exporter.FileNames {
+			exporter.FileNames[i] = strconv.Quote(filename)
+		}
+		fileQuery := fmt.Sprintf("file:(%s)", strings.Join(exporter.FileNames, " OR "))
+		if len(exporter.ServiceIDs) > 0 {
+			query = fmt.Sprintf("%s AND %s", query, fileQuery)
+		} else {
+			query = fileQuery
+		}
+	}
+
 	if exporter.Debug {
 		log.WithFields(logrus.Fields{
+			"servicecount": len(exporter.ServiceIDs),
+			"filecount": len(exporter.FileNames),
 			"query": query,
-		}).Info("Looking for services")
+		}).Info("Looking for log messages")
 	}
 	return query, nil
 }
 
-// Retrieve log data from ES-logstash, writing the log messages to separate files based on each unique
-// combination of containerID and log-file-name. Depending on the lifespan of the container and the date range
-// defined by exporter.days, some of the files created by this method may have messages from multiple dates.
+// Retrieve log data from ES-logstash, writing the log messages to separate files based on the group-by criteria.
 func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings int, e error) {
 	numWarnings = 0
 	foundIndexedDay = false
-	// fileIndex is a map of containerID => map of app log filename => index into exporter.outputFiles
-	// for the info about that container/app-log instance
-	fileIndex := make(map[string]map[string]int)
+	// fileIndex is a map of parsedMessage to an index into exporter.outputFiles
+	exporter.fileIndex = NewFileIndex(exporter.GroupBy)
 	for _, yyyymmdd := range exporter.days {
 		// Skip the indexes that are filtered out by the date range
 		if (exporter.FromDate != "" && yyyymmdd < exporter.FromDate) || (exporter.ToDate != "" && yyyymmdd > exporter.ToDate) {
@@ -414,6 +516,10 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 				"date": yyyymmdd,
 			}).Info("Querying logstash for given date")
 		}
+		log := log.WithFields(logrus.Fields{
+			"date": yyyymmdd,
+		})
+		log.Info("Retrieving Logstash Elastic results for one day")
 
 		result, e := exporter.Driver.StartSearch(yyyymmdd, exporter.query)
 		if e != nil {
@@ -437,23 +543,35 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 			hits := result.Hits.Hits
 			total := len(hits)
 			for i := 0; i < total; i++ {
-				message, e := parseLogSource(hits[i].Source)
+				message, e := parseLogSource(yyyymmdd, hits[i].Source)
 				if e != nil {
 					return foundIndexedDay, numWarnings, e
 				}
 
-				if _, found := fileIndex[message.ContainerID]; !found {
-					fileIndex[message.ContainerID] = make(map[string]int)
+				// Ignore log messages sent directly from serviced and serviced-controller; only
+				// export logs from the applications themselves.  Note that filebeat is hard-coded
+				// to set the _type property to "log" and we only use filebeat for messages from the
+				// application services.
+				if message.Type != "log" {
+					continue
 				}
+
+				if len(exporter.minDateFound) == 0 || yyyymmdd < exporter.minDateFound {
+					exporter.minDateFound = yyyymmdd
+				}
+				if len(exporter.maxDateFound) == 0 || yyyymmdd > exporter.maxDateFound {
+					exporter.maxDateFound = yyyymmdd
+				}
+
 				// add a new tempfile
-				if _, found := fileIndex[message.ContainerID][message.LogFileName]; !found {
+				if _, found := exporter.fileIndex.FindIndexForMessage(message); !found {
 					index := len(exporter.outputFiles)
-					filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
+					filename := filepath.Join(exporter.tempdir, exporter.fileIndex.GetFileName(index, message))
 					file, e := os.Create(filename)
 					if e != nil {
 						return foundIndexedDay, numWarnings, fmt.Errorf("failed to create file %s: %s", filename, e)
 					}
-					fileIndex[message.ContainerID][message.LogFileName] = index
+					exporter.fileIndex.AddIndexForMessage(index, message)
 					outputFile := outputFileInfo{
 						File:        file,
 						Name:        filename,
@@ -463,17 +581,11 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 						ServiceID:   message.ServiceID,
 					}
 					exporter.outputFiles = append(exporter.outputFiles, outputFile)
-					if exporter.Debug {
-						log.WithFields(logrus.Fields{
-							"containerid": outputFile.ContainerID,
-							"logfile":     outputFile.LogFileName,
-						}).Info("Writing messages")
-					}
 				}
-				index := fileIndex[message.ContainerID][message.LogFileName]
+				index, _ := exporter.fileIndex.FindIndexForMessage(message)
 				exporter.outputFiles[index].LineCount += len(message.Lines)
 				file := exporter.outputFiles[index].File
-				filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
+				filename := exporter.outputFiles[index].Name
 				for _, line := range message.Lines {
 					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
 					if _, e := file.WriteString(formatted); e != nil {
@@ -493,6 +605,170 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 	return foundIndexedDay, numWarnings, nil
 }
 
+type FileIndex interface {
+	FindIndexForMessage(message *parsedMessage) (index int, found bool)
+	AddIndexForMessage(index int, message *parsedMessage)
+	GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string
+	GetIndexHeader() string
+	GetFileName(index int, message *parsedMessage) string
+}
+
+func NewFileIndex(groupBy ExportGroup) FileIndex {
+	var fileIndex FileIndex
+	switch groupBy {
+	case GroupByDay:
+		fileIndex = NewDateFileIndex()
+	case GroupByService:
+		fileIndex = NewServiceFileIndex()
+	case GroupByContainerID:
+		fileIndex = NewContainerFileIndex()
+	}
+	return fileIndex
+}
+
+// ContainerFileIndex maintains an index of separate files based on each unique combination of container ID and
+// application log file name. Depending on the lifespan of the container and the date range
+// defined by exporter.days, some of the files created by this method may have messages from multiple dates.
+type ContainerFileIndex struct {
+	fileIndex     map[string]map[string]int
+	outputPattern string
+}
+
+func NewContainerFileIndex() *ContainerFileIndex {
+	return &ContainerFileIndex{
+		fileIndex:     make(map[string]map[string]int),
+		outputPattern: "%-9.9s  %-11.11s  %-36.36s  %-10.10s  %-13.13s  %-20.20s  %-26.26s  %s",
+	}
+}
+
+func (cfi *ContainerFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
+	if _, found := cfi.fileIndex[message.ContainerID]; !found {
+		cfi.fileIndex[message.ContainerID] = make(map[string]int)
+	}
+	index, found = cfi.fileIndex[message.ContainerID][message.LogFileName]
+	return index, found
+}
+
+func (cfi *ContainerFileIndex) AddIndexForMessage(index int, message *parsedMessage) {
+	cfi.fileIndex[message.ContainerID][message.LogFileName] = index
+}
+
+func (cfi *ContainerFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
+	return fmt.Sprintf(cfi.outputPattern,
+		filepath.Base(outputFile.Name),
+		strconv.Itoa(outputFile.LineCount),
+		hostName,
+		outputFile.HostID,
+		outputFile.ContainerID,
+		strconv.Quote(serviceName),
+		outputFile.ServiceID,
+		outputFile.LogFileName)
+}
+
+func (cfi *ContainerFileIndex) GetIndexHeader() string {
+	return fmt.Sprintf(cfi.outputPattern,
+		"File",
+		"Line Count",
+		"Host Name",
+		"Host ID",
+		"Container ID",
+		"Service Name",
+		"Service ID",
+		"Original Filename")
+}
+
+func (cfi *ContainerFileIndex) GetFileName(index int, message *parsedMessage) string {
+	return fmt.Sprintf("%04d.log", index)
+}
+
+// DateFileIndex maintains an index of separate files based on date. Therefore, a single output file will contain
+// messages from multiple services.
+type DateFileIndex struct {
+	fileIndex     map[string]int
+	outputPattern string
+}
+
+func NewDateFileIndex() *DateFileIndex {
+	return &DateFileIndex{
+		fileIndex:     make(map[string]int),
+		outputPattern: "%-15.15s  %11.11s  %s",
+	}
+}
+
+func (dfi *DateFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
+	index, found = dfi.fileIndex[message.Date]
+	return index, found
+}
+
+func (dfi *DateFileIndex) AddIndexForMessage(index int, message *parsedMessage) {
+	dfi.fileIndex[message.Date] = index
+}
+
+func (dfi *DateFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
+	return fmt.Sprintf(dfi.outputPattern,
+		filepath.Base(outputFile.Name),
+		strconv.Itoa(outputFile.LineCount),
+		dfi.findDateForIndex(index))
+}
+
+func (dfi *DateFileIndex) GetIndexHeader() string {
+	return fmt.Sprintf(dfi.outputPattern, "File", "Line Count", "Date")
+}
+
+func (dfi *DateFileIndex) GetFileName(index int, message *parsedMessage) string {
+	return fmt.Sprintf("%s.log", message.Date)
+}
+
+func (dfi *DateFileIndex) findDateForIndex(index int) string {
+	var date string
+	for key, value := range dfi.fileIndex {
+		if value == index {
+			date = key
+			break
+		}
+	}
+	return date
+}
+
+// ServiceFileIndex maintains an index of separate files based on service id. Therefore, a single output file will
+// contain messages for all instances of single service.
+type ServiceFileIndex struct {
+	fileIndex     map[string]int
+	outputPattern string
+}
+
+func NewServiceFileIndex() *ServiceFileIndex {
+	return &ServiceFileIndex{
+		fileIndex:     make(map[string]int),
+		outputPattern: "%-30.30s  %11.11s  %-20.20s  %s",
+	}
+}
+
+func (sfi *ServiceFileIndex) FindIndexForMessage(message *parsedMessage) (index int, found bool) {
+	index, found = sfi.fileIndex[message.ServiceID]
+	return index, found
+}
+
+func (sfi *ServiceFileIndex) AddIndexForMessage(index int, message *parsedMessage) {
+	sfi.fileIndex[message.ServiceID] = index
+}
+
+func (sfi *ServiceFileIndex) GetFileIndexData(index int, outputFile outputFileInfo, hostName, serviceName string) string {
+	return fmt.Sprintf(sfi.outputPattern,
+		filepath.Base(outputFile.Name),
+		strconv.Itoa(outputFile.LineCount),
+		strconv.Quote(serviceName),
+		outputFile.ServiceID)
+}
+
+func (sfi *ServiceFileIndex) GetIndexHeader() string {
+	return fmt.Sprintf(sfi.outputPattern, "File", "Line Count", "Service Name", "Service ID")
+}
+
+func (sfi *ServiceFileIndex) GetFileName(index int, message *parsedMessage) string {
+	return fmt.Sprintf("%s.log", message.ServiceID)
+}
+
 // Organize and cleanup the log messages retrieved from logstash.
 //
 // The data returned by ES-logstash is not necessarily ordered by time.  The output files created by retrieveLogs()
@@ -500,8 +776,11 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 // timestamp and offset, and then truncate those fields from the output file such that all that remains are the
 // application log messages ordered from oldest first to newest last.
 func (exporter *logExporter) organizeAndGroomLogFile(fileIndex, numWarnings int) error {
-	filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", fileIndex))
-	tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", fileIndex))
+	filename := exporter.outputFiles[fileIndex].Name
+	logName := filepath.Base(filename)
+	tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%s.tmp", logName))
+
+	// Use the -u option to filter out duplicates.
 	cmd := exec.Command("sort", filename, "-uo", tmpfilename)
 	if output, e := cmd.CombinedOutput(); e != nil {
 		return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
@@ -551,44 +830,68 @@ func (exporter *logExporter) getServiceName(serviceID string) string {
 
 }
 
-// NOTE: the logstash field named 'host' is hard-coded in logstash to be the value from `hostname`, only when
-//       executed inside a docker container, the value is actually the container ID, not the name of docker host.
-//       In later releases of CC, we added the field 'ccWorkerID' to have the hostID of the docker host. This
-//       means that some installations may have older log messages with no 'ccWorkerID' field.
+// beatProps are properties added to each message by filebeat itself
+type beatProps struct {
+	Name        string      `json:"name"`
+	Hostname    string      `json:"hostname"`      // Note this is actually the docker container id
+	Version     string      `json:"version"`
+}
+
+// fieldProps are properties added to each message by our container controller; see container/logstash.go
+type fieldProps struct {
+	CCWorkerID  string      `json:"ccWorkerID"`     // Note this is actually the host ID of the CC host
+	Type        string      `json:"type"`           // This is the 'type' from the LogConfig in the service def
+	Service     string      `json:"service"`        // This is the service id
+	Instance    json.Number `json:"instance"`       // This is the service instance id
+	HostIPs     string      `json:"hostips"`        // space-separated list of host-ips from the container
+	PoolID      string      `json:"poolid"`
+	ServicePath string      `json:"servicepath"`    // Fully qualified path to the service
+}
+
+// logSingleLine represents the data returned from elasticsearch for a single-line log message
 type logSingleLine struct {
-	HostID      string      `json:"ccWorkerID"`
-	ContainerID string      `json:"host"`
 	File        string      `json:"file"`
 	Timestamp   time.Time   `json:"@timestamp"`
 	Offset      json.Number `json:"offset"`
 	Message     string      `json:"message"`
-	ServiceID   string      `json:"service"`
+	Fields      fieldProps  `json:"fields"`
+	FileBeat    beatProps   `json:"beat"`
+
+	// This is the 'type' set by the logger. The values will vary depending on the source logger:
+	// 1. Application log messages forwarded by filebeat will have the value "log".
+	// 2. Messages forwarded directly from serviced via the glog library will have values starting with "serviced-".
+	// 3. Messages forwarded directly from serviced-controller via the glog library will have values starting
+	//    with "controller-"
+	Type        string      `json:"type"`
 }
 
+// logSingleLine represents the data returned from elasticsearch for a multi-line log message
 type logMultiLine struct {
-	HostID      string        `json:"ccWorkerID"`
-	ContainerID string        `json:"host"`
+	Type        string        `json:"type"`         // see note above for logSingleLine.Type
 	File        string        `json:"file"`
 	Timestamp   time.Time     `json:"@timestamp"`
 	Offset      []json.Number `json:"offset"`
 	Message     string        `json:"message"`
-	ServiceID   string        `json:"service"`
+	Fields      fieldProps    `json:"fields"`
+	FileBeat    beatProps     `json:"beat"`
 }
 
 type compactLogLine struct {
-	Timestamp int64 //nanoseconds since the epoch, truncated at the minute to hide jitter
+	Timestamp int64           // nanoseconds since the epoch, truncated at the minute to hide jitter
 	Offset    uint64
 	Message   string
 }
 
 // Represents a set of log messages from a since instance of a single application log
 type parsedMessage struct {
+	Date        string           // The date for the message in the format YYYYMMDD
 	HostID      string           // The ID of the CC worker node that hosted ContainerID
 	ContainerID string           // The original Container ID of the application log file
 	LogFileName string           // The name of the application log file
 	Lines       []compactLogLine // One or more lines of log messages from the file.
 	Warnings    string           // Warnings from the our logstash results parser
 	ServiceID   string           // The service ID of the service
+	Type        string           // The type of the source log file.
 }
 
 // Represents one file output by this routine
@@ -660,11 +963,12 @@ func generateOffsets(messages []string, offsets []uint64) []uint64 {
 }
 
 // return: containerID, file, lines, error
-func parseLogSource(source []byte) (*parsedMessage, error) {
+func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 	warnings := ""
 
 	// attempt to unmarshal into singleLine
 	var line logSingleLine
+
 	if e := json.Unmarshal(source, &line); e == nil {
 		offset := uint64(0)
 		if len(line.Offset) != 0 {
@@ -680,13 +984,14 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 			Message:   line.Message,
 		}
 		message := &parsedMessage{
-			HostID:      line.HostID,
-			ContainerID: line.ContainerID,
+			Date:        date,
+			Type:        line.Type,
+			HostID:      line.Fields.CCWorkerID,
+			ContainerID: line.FileBeat.Hostname,
 			LogFileName: line.File,
 			Lines:       []compactLogLine{compactLine},
-			ServiceID:   line.ServiceID,
+			ServiceID:   line.Fields.Service,
 		}
-
 		return message, nil
 	}
 
@@ -707,7 +1012,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	if len(offsets)+1 == len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s\n",
-			multiLine.ContainerID, multiLine.File, len(messages), len(offsets), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(offsets), source)
 		numLines := len(messages)
 		if numLines > 1 {
 			lastOffset := uint64(len(messages[numLines-2])) + offsets[numLines-2]
@@ -716,12 +1021,12 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	} else if len(offsets) > len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s\n",
-			multiLine.ContainerID, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = offsets[0:len(messages)]
 	} else if len(offsets) < len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s\n",
-			multiLine.ContainerID, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = generateOffsets(messages, offsets)
 		warnings += fmt.Sprintf("new offsets: %v", offsets)
 	}
@@ -745,12 +1050,14 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	}
 
 	message := &parsedMessage{
-		HostID:      multiLine.HostID,
-		ContainerID: multiLine.ContainerID,
+		Date:        date,
+		Type:        line.Type,
+		HostID:      multiLine.Fields.CCWorkerID,
+		ContainerID: multiLine.FileBeat.Hostname,
 		LogFileName: multiLine.File,
 		Lines:       compactLines,
 		Warnings:    warnings,
-		ServiceID:   multiLine.ServiceID,
+		ServiceID:   multiLine.Fields.Service,
 	}
 	return message, nil
 }
