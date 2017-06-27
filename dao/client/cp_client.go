@@ -205,12 +205,12 @@ func (s *ControlClient) AsyncBackup(backupRequest dao.BackupRequest, filename *s
 	return s.rpcClient.Call("ControlCenter.AsyncBackup", backupRequest, filename, 0)
 }
 
-func (s *ControlClient) Restore(filename string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlCenter.Restore", filename, unused, 0)
+func (s *ControlClient) Restore(restoreRequest dao.RestoreRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlCenter.Restore", restoreRequest, unused, 0)
 }
 
-func (s *ControlClient) AsyncRestore(filename string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlCenter.AsyncRestore", filename, unused, 0)
+func (s *ControlClient) AsyncRestore(restoreRequest dao.RestoreRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlCenter.AsyncRestore", restoreRequest, unused, 0)
 }
 
 func (s *ControlClient) ListBackups(dirpath string, files *[]dao.BackupFile) (err error) {

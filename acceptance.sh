@@ -13,7 +13,7 @@
 #######################################################
 
 # Use a directory unique to this test to avoid collisions with other kinds of tests
-TEST_VAR_PATH=/tmp/serviced-acceptance/var
+TEST_BASE_PATH=/tmp/serviced-acceptance/
 . test_lib.sh
 
 trap cleanup EXIT

@@ -224,6 +224,7 @@ rpm: stage_rpm
 		--before-upgrade rpm/preupgrade \
 		--before-install rpm/preinstall \
 		--after-install rpm/postinstall \
+		--after-upgrade rpm/postupgrade \
 		--before-remove rpm/preuninstall \
 		--after-remove rpm/postuninstall \
 		--rpm-pretrans rpm/pretrans \

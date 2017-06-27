@@ -347,24 +347,24 @@ func (_m *ControlPlane) AsyncBackup(backupRequest dao.BackupRequest, filename *s
 
 	return r0
 }
-func (_m *ControlPlane) Restore(filename string, unused *int) error {
-	ret := _m.Called(filename, unused)
+func (_m *ControlPlane) Restore(restoreRequest dao.RestoreRequest, unused *int) error {
+	ret := _m.Called(restoreRequest, unused)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
-		r0 = rf(filename, unused)
+	if rf, ok := ret.Get(0).(func(dao.RestoreRequest, *int) error); ok {
+		r0 = rf(restoreRequest, unused)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ControlPlane) AsyncRestore(filename string, unused *int) error {
-	ret := _m.Called(filename, unused)
+func (_m *ControlPlane) AsyncRestore(restoreRequest dao.RestoreRequest, unused *int) error {
+	ret := _m.Called(restoreRequest, unused)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
-		r0 = rf(filename, unused)
+	if rf, ok := ret.Get(0).(func(dao.RestoreRequest, *int) error); ok {
+		r0 = rf(restoreRequest, unused)
 	} else {
 		r0 = ret.Error(0)
 	}

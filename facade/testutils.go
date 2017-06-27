@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	auditmocks "github.com/control-center/serviced/audit/mocks"
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
@@ -71,6 +72,26 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	ft.CTX = datastore.Get()
 
 	ft.Facade = New()
+	mockLogger := &auditmocks.Logger{}
+	mockLogger.On("Message", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Message", mock.AnythingOfType("*mocks.Context"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Action", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Type", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("ID", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*pool.ResourcePool")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*service.Service")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*servicestatemanager.CancellableService")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*host.Host")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*servicetemplate.ServiceTemplate")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*addressassignment.AddressAssignment")).Return(mockLogger)
+	mockLogger.On("WithField", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("WithFields", mock.AnythingOfType("logrus.Fields")).Return(mockLogger)
+	mockLogger.On("Error", mock.Anything)
+	mockLogger.On("Succeeded", mock.Anything)
+	mockLogger.On("SucceededIf", mock.AnythingOfType("bool"))
+	mockLogger.On("Failed", mock.Anything)
+
+	ft.Facade.SetAuditLogger(mockLogger)
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockDFS()
@@ -88,7 +109,6 @@ func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockZZK(c)
 	ft.setupMockDFS()
-	LogstashContainerReloader = reloadLogstashContainerStub
 	ft.ssm = servicestatemanager.NewBatchServiceStateManager(ft.Facade, ft.CTX, 10*time.Second)
 	ft.ssm.Start()
 	ft.Facade.SetServiceStateManager(ft.ssm)
@@ -130,8 +150,4 @@ func (ft *FacadeIntegrationTest) TearDownTest(c *gocheck.C) {
 
 func (ft *FacadeIntegrationTest) BeforeTest(suiteName, testName string) {
 	fmt.Printf("Starting test %s\n", testName)
-}
-
-func reloadLogstashContainerStub(_ datastore.Context, _ FacadeInterface) error {
-	return nil
 }

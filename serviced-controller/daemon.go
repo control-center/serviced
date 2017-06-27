@@ -17,10 +17,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 )
 
 func main() {
@@ -37,8 +39,10 @@ func main() {
 	app.Name = "serviced-controller"
 	app.Usage = "serviced container controller"
 	app.Version = fmt.Sprintf("%s - %s ", servicedversion.Version, servicedversion.Gitcommit)
+
+	filebeatPath := filepath.Join(utils.LOGSTASH_CONTAINER_DIRECTORY, "filebeat")
 	app.Flags = []cli.Flag{
-		cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/filebeat", "path to the filebeat binary"},
+		cli.StringFlag{"forwarder-binary", filebeatPath, "path to the filebeat binary"},
 		cli.StringFlag{"forwarder-config", "/etc/filebeat.conf", "path to the filebeat config file"},
 		cli.IntFlag{"muxport", defaultMuxPort, "multiplexing port to use"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
@@ -50,7 +54,6 @@ func main() {
 		cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},
 		cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 		cli.BoolTFlag{"logstash", "forward service logs via filebeat"},
-		cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
 		cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
 		cli.StringFlag{"virtual-address-subnet", "10.3.0.0/16", "/16 subnet for virtual addresses"},
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},

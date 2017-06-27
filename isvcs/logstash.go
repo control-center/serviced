@@ -13,12 +13,20 @@
 
 package isvcs
 
+import (
+	"path/filepath"
+
+	"github.com/control-center/serviced/utils"
+)
+
 var logstash *IService
 
 func initLogstash() {
 	var err error
 
-	command := "exec /opt/logstash/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
+	confFile := filepath.Join(utils.LOGSTASH_CONTAINER_DIRECTORY, "logstash.conf")
+	command := "exec /opt/logstash/bin/logstash agent " +
+		"-f " + confFile + " --auto-reload"
 	localFilePortBinding := portBinding{
 		HostIp:         "0.0.0.0",
 		HostIpOverride: "", // logstash should always be open
@@ -46,22 +54,11 @@ func initLogstash() {
 				localFilePortBinding,
 				filebeatPortBinding,
 				webserverPortBinding},
-			Volumes:    map[string]string{},
-			Notify:     notifyLogstashConfigChange,
+			Volumes:    map[string]string{UseServicedLogDir : utils.LOGSTASH_LOCAL_SERVICED_LOG_DIR},
 			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
 			StartGroup: 1,
 		})
 	if err != nil {
 		log.WithError(err).Fatal("Unable to initialize Logstash internal service container")
 	}
-}
-
-func notifyLogstashConfigChange(svc *IService, value interface{}) error {
-
-	if message, ok := value.(string); ok {
-		if message == "restart logstash" {
-			return svc.Restart()
-		}
-	}
-	return nil
 }

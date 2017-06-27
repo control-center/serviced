@@ -125,6 +125,12 @@ type BackupRequest struct {
 	SnapshotSpacePercent int
 	Excludes             []string
 	Force                bool
+	Username             string
+}
+
+type RestoreRequest struct {
+	Filename string
+	Username string
 }
 
 type BackupEstimate struct {

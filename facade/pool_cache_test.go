@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
+	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/utils"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
@@ -171,11 +172,18 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 	ft.serviceStore.On("Put", ft.ctx, mock.AnythingOfType("*service.Service")).
 		Return(nil)
 
+	ft.serviceStore.On("GetServiceDetailsByParentID", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).
+		Return([]service.ServiceDetails{}, nil)
+
 	ft.configStore.On("GetConfigFiles", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 		Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
+	emptyMap := []*servicetemplate.ServiceTemplate{}
+	ft.templateStore.On("GetServiceTemplates", ft.ctx).Return(emptyMap, nil)
+
 	ft.zzk.On("UpdateService", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), false, false).
 		Return(nil)
+
 
 	pools, err := ft.Facade.GetReadPools(ft.ctx)
 	c.Assert(err, IsNil)

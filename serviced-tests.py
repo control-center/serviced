@@ -18,6 +18,7 @@ SERVICED_ROOT = os.path.dirname(os.path.abspath(__file__))
 DEVNULL = open(os.devnull, 'w')
 
 
+
 def fail(msg):
     log.critical(msg)
     sys.exit(1)
@@ -154,6 +155,9 @@ def main(options):
     env = os.environ
 
     env["SERVICED_HOME"] = SERVICED_ROOT
+
+    #set environment variable for serviced log directory
+    env["SERVICED_LOG_PATH"] = os.path.join(SERVICED_ROOT, "var_log_serviced")
 
     # Unset EDITOR so CLI tests won't fail
     env.pop("EDITOR", None)

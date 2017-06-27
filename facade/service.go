@@ -28,6 +28,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -64,17 +65,19 @@ var (
 
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddService"))
 	var tenantID string
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddService"))
+	alog := f.auditLogger.Action(audit.Add).Message(ctx, "Adding new Service ").WithField("servicename", svc.Name).Entity(&svc)
+
 	if svc.ParentServiceID == "" {
 		tenantID = svc.ID
 	} else if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil {
-		return err
+		return alog.Error(err)
 	}
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.addService(ctx, tenantID, svc, false)
+	return alog.Error(f.addService(ctx, tenantID, svc, false))
 }
 
 func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.Service, setLockOnCreate bool) error {
@@ -212,28 +215,30 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 // not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateService"))
+	alog :=f.auditLogger.Action(audit.Update).Message(ctx,"Update Service").WithField("servicename", svc.Name).Entity(&svc)
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
-		return err
+		return alog.Error(err)
 	}
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, tenantID, svc, false, false)
+	return alog.Error(f.updateService(ctx, tenantID, svc, false, false))
 }
 
 // MigrateService migrates an existing service; return error if the service does
 // not exist
 func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.MigrateService"))
+	alog := f.auditLogger.Action(audit.Migrate).Message(ctx, "Migrate Service").WithField("servicename", svc.Name).Entity(&svc)
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
-		return err
+		return alog.Error(err)
 	}
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, tenantID, svc, true, false)
+	return alog.Error(f.updateService(ctx, tenantID, svc, true, false))
 }
 
 func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc service.Service, migrate, setLockOnUpdate bool) error {
@@ -523,6 +528,7 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 	var traverse func(parentID string) error
 	traverse = func(parentID string) error {
 		for _, svc := range svcsmap[parentID] {
+			alog := f.auditLogger.Message(ctx, "Restore Service").WithField("servicename", svc.Name).Action(audit.Restore).Entity(&svc)
 			svc.DatabaseVersion = 0
 			svc.DesiredState = int(service.SVCStop)
 			if _, ok := poolsmap[svc.PoolID]; !ok {
@@ -531,14 +537,15 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 			}
 			if err := f.addService(ctx, tenantID, svc, true); err != nil {
 				glog.Errorf("Could not restore service %s (%s): %s", svc.Name, svc.ID, err)
-				return err
+				return alog.Error(err)
 			}
 			if err := f.restoreIPs(ctx, &svc); err != nil {
 				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 			if err := traverse(svc.ID); err != nil {
-				return err
+				return alog.Error(err)
 			}
+			alog.Succeeded()
 			glog.Infof("Restored service %s (%s)", svc.Name, svc.ID)
 		}
 		return nil
@@ -607,21 +614,26 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		}
 	}
 	glog.Infof("Service migration completed successfully")
+
+	// CC-3514 - rebuild logstash config in case the set of auditable log files has changed
+	f.ReloadLogstashConfig(ctx)
 	return nil
 }
 
 func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SyncServiceRegistry"))
+	alog := f.auditLogger.Action(audit.Update).Message(ctx, "Sync Service Registry").WithField("servicename", svc.Name).Entity(svc)
 	tenantID, err := f.GetTenantID(datastore.Get(), svc.ID)
 	if err != nil {
 		glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
+		return alog.Error(err)
 	}
 	err = f.zzk.SyncServiceRegistry(ctx, tenantID, svc)
 	if err != nil {
 		glog.Errorf("Could not sync public endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
+		return alog.Error(err)
 	}
+	alog.Succeeded()
 	return nil
 }
 
@@ -710,27 +722,29 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveService"))
+	alog := f.auditLogger.Message( ctx, "Remove Service" ).Action(audit.Remove).ID(id).Type(service.GetType())
 	tenantID, err := f.GetTenantID(ctx, id)
 	if err != nil {
 		glog.Errorf("Could not get tenant of service %s: %s", id, err)
-		return err
+		return alog.Error(err)
 	}
 	if err := f.lockTenant(ctx, tenantID); err != nil {
-		return err
+		return alog.Error(err)
 	}
 	defer f.retryUnlockTenant(ctx, tenantID, nil, time.Second)
 	if err := f.removeService(ctx, id); err != nil {
 		glog.Errorf("Could not remove service %s: %s", id, err)
-		return err
+		return alog.Error(err)
 	}
 	if tenantID == id {
-		if err := f.dfs.Destroy(tenantID); err != nil {
+		if err = f.dfs.Destroy(tenantID); err != nil {
 			glog.Errorf("Could not destroy volume for tenant %s: %s", tenantID, err)
-			return err
+			return alog.Error(err)
 		}
 		f.zzk.RemoveTenantExports(tenantID)
 		f.zzk.DeleteRegistryLibrary(tenantID)
 	}
+	alog.Succeeded()
 	return nil
 }
 
@@ -1417,6 +1431,8 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 					}).Error("Service failed validation for start")
 					lock.Lock()
 					failedServices = append(failedServices, svc.ID)
+					f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
+						Message(ctx, "Service Scheduled").Entity(svc).Failed()
 					lock.Unlock()
 					return
 				}
@@ -1429,6 +1445,8 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				}).Error("Service failed validation for stop")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
+				f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
+					Message(ctx, "Service Scheduled").Entity(svc).Failed()
 				lock.Unlock()
 				return
 			}
@@ -1438,6 +1456,8 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error scheduling service")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
+				f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
+					Message(ctx, "Service Scheduled").Entity(svc).Failed()
 				lock.Unlock()
 				return
 			}
@@ -1451,13 +1471,19 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*servicestat
 				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error filling service address")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
+				f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
+					Message(ctx, "Service Scheduled").Entity(svc).Failed()
 				lock.Unlock()
 				return
 			}
+
 			logger.WithFields(log.Fields{
 				"servicename": svc.Name,
 				"serviceid":   svc.ID,
 			}).Debug("Scheduled service")
+
+			f.auditLogger.WithFields(log.Fields{"action": desiredState.ToAuditAction(), "servicename": svc.Name}).
+				Message(ctx, "Service Scheduled").Entity(svc).Succeeded()
 			lock.Lock()
 			servicesToSchedule = append(servicesToSchedule, svc.Service)
 			lock.Unlock()
@@ -1774,12 +1800,17 @@ func (f *Facade) WaitSingleService(svc *service.Service, dstate service.DesiredS
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StartService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
+	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
+	alog := f.auditLogger.Action(audit.Start).Message(ctx, "Starting Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	return successCount, alog.Error(err)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRestart, false)
+	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRestart, false)
+	alog := f.auditLogger.Action(audit.Restart).Message(ctx, "Restarting Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	return successCount, alog.Error(err)
+
 }
 
 // RebalanceService does a hard restart:  All services are stopped, and then all services are started again
@@ -1819,25 +1850,34 @@ func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleService
 
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false)
+	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false)
+	alog := f.auditLogger.Action(audit.Stop).Message(ctx, "Stopping Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	return successCount, alog.Error(err)
 }
 
 func (f *Facade) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EmergencyStopService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, true)
+	alog := f.auditLogger.Message(ctx, "Emergency Stopping Services").Action(audit.Stop).
+		WithField("serviceids", strings.Trim(fmt.Sprintf("%v", request.ServiceIDs), "[]"))
+	numServices, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, true)
+	return numServices, alog.Error(err)
 }
 
 // ClearEmergencyStopFlag sets EmergencyStop to false for all services on the tenant that have it set to true
 func (f *Facade) ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ClearEmergencyStopFlag"))
+	alog := f.auditLogger.Message(ctx, "Clearing Emergency Stop Flag").
+		Action(audit.Update).ID(serviceID).Type(service.GetType())
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
-		return 0, err
+		return 0, alog.Error(err)
 	}
+	alog = alog.WithField("tenantid", tenantID)
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.clearEmergencyStopFlag(ctx, tenantID, serviceID)
+	cleared, err := f.clearEmergencyStopFlag(ctx, tenantID, serviceID)
+	return cleared, alog.Error(err)
 }
 
 type ipinfo struct {
@@ -1921,7 +1961,6 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 		portmap, err := GetPorts(svc.Endpoints)
 		if err != nil {
 			glog.Errorf("Could not get ports for service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
 		} else if len(portmap) == 0 {
 			return nil
 		}
@@ -2021,7 +2060,6 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 				Synchronous: true,
 			})
 		}
-
 		return nil
 	}
 

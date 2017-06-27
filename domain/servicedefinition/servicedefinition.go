@@ -30,42 +30,42 @@ var plog = logging.PackageLogger()
 
 //ServiceDefinition is the definition of a service hierarchy.
 type ServiceDefinition struct {
-	Name              string                 // Name of the defined service
-	Title             string                 // Title is a label used when describing this service in the context of a service tree
-	Version           string                 // Version of the defined service
-	Command           string                 // Command which runs the service
-	Description       string                 // Description of the service
-	Environment       []string               // Environment variables to be injected, of the form NAME="value"
-	Tags              []string               // Searchable service tags
-	ImageID           string                 // Docker image hosting the service
-	Instances         domain.MinMax          // Constraints on the number of instances
-	ChangeOptions     []string               // Control options for what happens when a running service is changed
-	Launch            string                 // Must be "AUTO", the default, or "MANUAL"
-	HostPolicy        HostPolicy             // Policy for starting up instances
-	Hostname          string                 // Optional hostname which should be set on run
-	Privileged        bool                   // Whether to run the container with extended privileges
-	ConfigFiles       map[string]ConfigFile  // Config file templates
-	Context           map[string]interface{} // Context information for the service
-	Endpoints         []EndpointDefinition   // Comms endpoints used by the service
-	Services          []ServiceDefinition    // Supporting subservices
-	LogFilters        map[string]string      // map of log filter name to log filter definitions
-	Volumes           []Volume               // list of volumes to bind into containers
-	LogConfigs        []LogConfig
-	Snapshot          SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
-	RAMCommitment     utils.EngNotation             // expected RAM commitment to use for scheduling
-	CPUCommitment     uint64                        // expected CPU commitment (#cores) to use for scheduling
-	DisableShell      bool                          // disables shell commands on the service
-	Runs              map[string]string             // FIXME: This field is deprecated. Remove when possible.
-	Commands          map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
-	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'
-	HealthChecks      map[string]health.HealthCheck // HealthChecks for a service.
-	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
-	MonitoringProfile domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
-	MemoryLimit       float64
-	CPUShares         int64
-	PIDFile           string // An optional path or command to generate a path for a PID file to which signals are relayed.
-	StartLevel        uint   // Services start in the order implied by this field (low to high) and stopped in reverse order
-	EmergencyShutdownLevel     uint   // In case of low storage, Services stopped in the order implied by this field (low to high)
+	Name                   string                 // Name of the defined service
+	Title                  string                 // Title is a label used when describing this service in the context of a service tree
+	Version                string                 // Version of the defined service
+	Command                string                 // Command which runs the service
+	Description            string                 // Description of the service
+	Environment            []string               // Environment variables to be injected, of the form NAME="value"
+	Tags                   []string               // Searchable service tags
+	ImageID                string                 // Docker image hosting the service
+	Instances              domain.MinMax          // Constraints on the number of instances
+	ChangeOptions          []string               // Control options for what happens when a running service is changed
+	Launch                 string                 // Must be "AUTO", the default, or "MANUAL"
+	HostPolicy             HostPolicy             // Policy for starting up instances
+	Hostname               string                 // Optional hostname which should be set on run
+	Privileged             bool                   // Whether to run the container with extended privileges
+	ConfigFiles            map[string]ConfigFile  // Config file templates
+	Context                map[string]interface{} // Context information for the service
+	Endpoints              []EndpointDefinition   // Comms endpoints used by the service
+	Services               []ServiceDefinition    // Supporting subservices
+	LogFilters             map[string]string      // map of log filter name to log filter definitions
+	Volumes                []Volume               // list of volumes to bind into containers
+	LogConfigs             []LogConfig
+	Snapshot               SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
+	RAMCommitment          utils.EngNotation             // expected RAM commitment to use for scheduling
+	CPUCommitment          uint64                        // expected CPU commitment (#cores) to use for scheduling
+	DisableShell           bool                          // disables shell commands on the service
+	Runs                   map[string]string             // FIXME: This field is deprecated. Remove when possible.
+	Commands               map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
+	Actions                map[string]string             // Map of commands that can be executed with 'serviced action ...'
+	HealthChecks           map[string]health.HealthCheck // HealthChecks for a service.
+	Prereqs                []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
+	MonitoringProfile      domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
+	MemoryLimit            float64
+	CPUShares              int64
+	PIDFile                string // An optional path or command to generate a path for a PID file to which signals are relayed.
+	StartLevel             uint   // Services start in the order implied by this field (low to high) and stopped in reverse order
+	EmergencyShutdownLevel uint   // In case of low storage, Services stopped in the order implied by this field (low to high)
 }
 
 // SnapshotCommands commands to be called during and after a snapshot
@@ -124,6 +124,11 @@ type ConfigFile struct {
 	Content     string // content of config file
 }
 
+// GetConfigFileType returns the ConfigFiles type
+func GetConfigFileType() string {
+	return "serviceconfigurationfile"
+}
+
 //AddressResourceConfig defines an external facing port for a service definition
 type AddressResourceConfig struct {
 	Port     uint16
@@ -136,6 +141,7 @@ type LogConfig struct {
 	Type    string   // Arbitrary string that identifies the "types" of logs that come from this source. This will be
 	Filters []string // A list of filters that must be contained in either the LogFilters or a parent's LogFilter,
 	LogTags []LogTag // Key value pair of tags that are sent to logstash for all entries coming out of this logfile
+	IsAudit bool     // Whether to send log entries to /var/log/serviced/application-audit.log or not for each LogConfig Type
 }
 
 // LogTag  no clue what this is. Maybe someone actually reads this
@@ -248,4 +254,22 @@ func BuildFromPath(path string) (*ServiceDefinition, error) {
 		return nil, err
 	}
 	return sd, sd.ValidEntity()
+}
+
+// GetType return the ServiceDefinition's type
+// It returns the type as a string
+func GetType() string {
+	return "servicedefinition"
+}
+
+// GetType returns the ServiceDefinition instance's type
+// It returns the type as a string
+func (s *ServiceDefinition) GetType() string {
+	return GetType()
+}
+
+// GetID return a ServiceDefinition instance's ID
+// It returns the ID as a string
+func (s *ServiceDefinition) GetID() string {
+	return s.Name
 }

@@ -44,7 +44,6 @@ type ProcessConfig struct {
 	LogStash    struct {
 		Enable        bool          //enable log stash
 		SettleTime    time.Duration //how long to wait for log stash to flush logs before exiting, ex. 1s
-		IdleFlushTime time.Duration //interval log stash flushes its buffer, ex 1ms
 	}
 }
 

@@ -139,10 +139,26 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
-	accessLogPath := "/var/log/serviced.access.log"
+	accessLogDir := utils.ServicedLogDir()
+	if _, err := os.Stat(accessLogDir); os.IsNotExist(err) {
+		// This block of code is more for the zendev scenario (i.e. no rpm install).
+		// See the postinstall script in the RPM for the setting that typically occurs in production installs.
+		if err = os.Mkdir(accessLogDir, 0750); err != nil {
+			logger.WithError(err).WithField("accesslogdir", accessLogDir).
+				Error("Could not create directory for access log file")
+		} else {
+			logger.WithField("accesslogdir", accessLogDir).Info("Created directory for access log file")
+		}
+	} else if err != nil {
+		logger.WithError(err).WithField("accesslogdir", accessLogDir).
+			Error("Could not stat directory for access log file")
+	}
+
+	accessLogPath := path.Join(accessLogDir, "serviced.access.log")
 	accessLogFile, err := os.OpenFile(accessLogPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
 	if err != nil {
-		logger.WithField("accesslogpath", accessLogPath).Errorf("Could not create access log file.")
+		logger.WithError(err).WithField("accesslogpath", accessLogPath).
+			Error("Could not create access log file.")
 	}
 
 	uiHandler := rest.ResourceHandler{
@@ -165,6 +181,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		}
 
 		logger.Debug("Calling CC uiHandler")
+
 		w.Header().Add("Strict-Transport-Security", "max-age=31536000")
 
 		if r.TLS == nil {
@@ -322,7 +339,7 @@ func (sc *ServiceConfig) newRequestHandler(check checkFunc, realfunc ctxhandlerF
 		if !check(w, r) {
 			return
 		}
-		reqCtx := newRequestContext(sc)
+		reqCtx := newRequestContextFromRequest(sc, r)
 		defer reqCtx.end()
 		realfunc(w, r, reqCtx)
 	}
@@ -347,13 +364,25 @@ func (sc *ServiceConfig) noAuth(realfunc ctxhandlerFunc) handlerFunc {
 }
 
 type requestContext struct {
-	sc      *ServiceConfig
-	master  master.ClientInterface
-	dataCtx datastore.Context
+	sc       *ServiceConfig
+	master   master.ClientInterface
+	dataCtx  datastore.Context
+	username string
 }
 
 func newRequestContext(sc *ServiceConfig) *requestContext {
 	return &requestContext{sc: sc}
+}
+
+func newRequestContextFromRequest(sc *ServiceConfig, r *rest.Request) *requestContext {
+	context := &requestContext{sc: sc}
+
+	username, err := getUser(r)
+	if err == nil {
+		context.username = username
+	}
+
+	return context
 }
 
 func (ctx *requestContext) getMasterClient() (master.ClientInterface, error) {
@@ -373,11 +402,13 @@ func (ctx *requestContext) getFacade() facade.FacadeInterface {
 }
 
 func (ctx *requestContext) getDatastoreContext() datastore.Context {
-	//here in case we ever need to create a per request datastore context
-	if ctx.dataCtx == nil {
-		ctx.dataCtx = datastore.Get()
+	context := datastore.GetNewInstance()
+
+	if len(ctx.username) > 0 {
+		context.SetUser(ctx.username)
 	}
-	return ctx.dataCtx
+
+	return context
 }
 
 func (ctx *requestContext) end() error {

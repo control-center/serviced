@@ -1,2 +1,8 @@
 - logger: '*'
   level: info
+- logger: audit
+  level: info
+  out:
+  - type: file
+    options:
+      file: /var/log/serviced/serviced-audit.log

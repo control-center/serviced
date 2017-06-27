@@ -18,6 +18,7 @@ package facade_test
 import (
 	"time"
 
+	auditmocks "github.com/control-center/serviced/audit/mocks"
 	"github.com/control-center/serviced/auth"
 	authmocks "github.com/control-center/serviced/auth/mocks"
 	datastoremocks "github.com/control-center/serviced/datastore/mocks"
@@ -64,6 +65,23 @@ func (ft *FacadeUnitTest) SetUpSuite(c *C) {
 
 func (ft *FacadeUnitTest) SetUpTest(c *C) {
 	ft.ctx = &datastoremocks.Context{}
+
+	mockLogger := &auditmocks.Logger{}
+	mockLogger.On("Message", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Message", mock.AnythingOfType("*mocks.Context"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Action", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Type", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("ID", mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*pool.ResourcePool")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*service.Service")).Return(mockLogger)
+	mockLogger.On("Entity", mock.AnythingOfType("*host.Host")).Return(mockLogger)
+	mockLogger.On("WithField", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(mockLogger)
+	mockLogger.On("WithFields", mock.AnythingOfType("logrus.Fields")).Return(mockLogger)
+	mockLogger.On("Error", mock.Anything)
+	mockLogger.On("Succeeded", mock.Anything)
+	mockLogger.On("SucceededIf", mock.AnythingOfType("bool"))
+	mockLogger.On("Failed", mock.Anything)
+	ft.Facade.SetAuditLogger(mockLogger)
 
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)

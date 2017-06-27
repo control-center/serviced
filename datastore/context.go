@@ -24,6 +24,10 @@ type Context interface {
 
 	// Get the Metrics object from the context
 	Metrics() *metrics.Metrics
+
+	// Get and set the user for audit logging
+	SetUser(user string)
+	User() string
 }
 
 var savedDriver Driver
@@ -46,16 +50,23 @@ func GetNew() Context {
 	return newCtx(savedDriver)
 }
 
+// GetNewInstance returns a new instance of the context object, but with the metrics and connections
+// from the global context object.
+func GetNewInstance() Context {
+	return &context{savedDriver, ctx.Metrics(), "system"}
+}
+
 var ctx Context
 
 //new Creates a new context with a Driver to a datastore
 func newCtx(driver Driver) Context {
-	return &context{driver, metrics.NewMetrics()}
+	return &context{driver, metrics.NewMetrics(), "system"}
 }
 
 type context struct {
 	driver  Driver
 	metrics *metrics.Metrics
+	user    string
 }
 
 func (c *context) Connection() (Connection, error) {
@@ -64,4 +75,12 @@ func (c *context) Connection() (Connection, error) {
 
 func (c *context) Metrics() *metrics.Metrics {
 	return c.metrics
+}
+
+func (c *context) SetUser(user string) {
+	c.user = user
+}
+
+func (c *context) User() string {
+	return c.user
 }

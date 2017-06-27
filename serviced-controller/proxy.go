@@ -49,7 +49,6 @@ func CmdServiceProxy(ctx *cli.Context) {
 		Autorestart:             ctx.GlobalBool("autorestart"),
 		MetricForwarderPort:     ctx.GlobalString("metric-forwarder-port"),
 		Logstash:                ctx.GlobalBool("logstash"),
-		LogstashIdleFlushTime:   ctx.GlobalString("logstash-idle-flush-time"),
 		LogstashSettleTime:      ctx.GlobalString("logstash-settle-time"),
 		LogstashBinary:          ctx.GlobalString("forwarder-binary"),
 		LogstashConfig:          ctx.GlobalString("forwarder-config"),

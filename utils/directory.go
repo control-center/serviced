@@ -23,41 +23,51 @@ import (
 	"os"
 	"os/user"
 	"path"
-	"path/filepath"
 	"runtime"
 	"strings"
 
+	"github.com/control-center/serviced/config"
 	"github.com/zenoss/glog"
 )
 
-//ServiceDHome gets the home location of serviced by looking at the enviornment
+
+// The container-local path to the resources directory.
+// This directory is bind mounted into both isvcs and service containers
+const RESOURCES_CONTAINER_DIRECTORY = "/usr/local/serviced/resources"
+
+// The container-local path to the directory for logstash/filebeat configuration.
+// This directory is bind mounted into both isvcs and service containers
+const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
+
+// The container-local path to the directory logstash uses to write application audit logs
+const LOGSTASH_LOCAL_SERVICED_LOG_DIR = "/var/log/serviced"
+
+//ServiceDHome gets the home location of serviced by looking at the environment
 func ServiceDHome() string {
-	return os.Getenv("SERVICED_HOME")
+	homeDir := config.GetOptions().HomePath
+	if len(homeDir) == 0 {
+		// This fallback is used in unit-tests, but in actual practice,
+		// we should not hit this case, because there is a default
+		// value defined via code in cli/api/options.go.  But just in
+		// case that somehow get's undone in the future, the log message
+		// will let us know that we used a fallback.
+		_, filename, _, _ := runtime.Caller(1)
+		homeDir = strings.Replace(path.Dir(filename), "utils", "", 1)
+		plog.Warnf("SERVICED_HOME not set; defaulting to %s", homeDir)
+	}
+	return homeDir
 }
 
 //LocalDir gets the absolute path to a particular directory under ServiceDHome
 // if SERVICED_HOME is not defined then we use the location of the caller
 func LocalDir(p string) string {
 	homeDir := ServiceDHome()
-	if len(homeDir) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		homeDir = strings.Replace(path.Dir(filename), "utils", "", 1)
-	}
 	return path.Join(homeDir, p)
 }
 
 // ResourcesDir points to internal services resources directory
 func ResourcesDir() string {
 	return LocalDir("isvcs/resources")
-}
-
-// BackupDir gets the directory where backup files are stored
-func BackupDir(basepath string) string {
-	if backupDir := strings.TrimSpace(basepath); backupDir == "" {
-		return TempDir("backups")
-	} else {
-		return filepath.Join(filepath.Clean(backupDir), "backups")
-	}
 }
 
 // TempDir gets the temp serviced directory
@@ -76,5 +86,10 @@ func TempDir(p string) string {
 
 // ServicedLogDir gets the serviced log directory
 func ServicedLogDir() string {
-	return "/var/log/serviced"
+        if config.GetOptions().LogPath != "" {
+		return config.GetOptions().LogPath
+	} else{
+		return os.Getenv("SERVICED_LOG_PATH")
+	}
 }
+
