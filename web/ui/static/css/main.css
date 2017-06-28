@@ -1429,6 +1429,15 @@ h3 .healthTooltipDetailRow .healthIcon {
     margin-left: 10px;
 }
 
+.zenchart_lowlight {
+    opacity: .15;
+}
+
+.zenchart_spotlight {
+    opacity: 1;
+    stroke-width: 4 !important;
+}
+
 .graphsControls {
     top: 0;
     right: 0;
