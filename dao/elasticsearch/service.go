@@ -75,13 +75,19 @@ func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clone
 
 //
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
-	if err := this.facade.DFSLock(datastore.Get()).LockWithTimeout("update service", userLockTimeout); err != nil {
+	ctx := datastore.Get()
+	if err := this.facade.DFSLock(ctx).LockWithTimeout("update service", userLockTimeout); err != nil {
 		glog.Warningf("Cannot update service: %s", err)
 		return err
 	}
-	defer this.facade.DFSLock(datastore.Get()).Unlock()
+	defer this.facade.DFSLock(ctx).Unlock()
 
-	return this.facade.UpdateService(datastore.Get(), svc)
+	err := this.facade.UpdateService(ctx, svc)
+	if err == nil {
+		// CC-3646 - rebuild logstash config in case the set of auditable log files has changed
+		this.facade.ReloadLogstashConfig(ctx)
+	}
+	return err
 }
 
 //
