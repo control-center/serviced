@@ -156,7 +156,12 @@ func restGetServiceMonitoringProfile(w *rest.ResponseWriter, r *rest.Request, ct
 	}
 
 	mp.MetricConfigs = append(mp.MetricConfigs, *config)
-	mp.GraphConfigs = append(mp.GraphConfigs, getInternalGraphConfigs(serviceID)...)
+	if svc, err := facade.GetService(dataCtx, serviceID);err != nil {
+	        restServerError(w, err)
+	        return
+	} else if svc.Instances > 0 {
+	 	mp.GraphConfigs = append(mp.GraphConfigs, getInternalGraphConfigs(serviceID)...)
+	}
 
 	// we want to try to include monitoring data for the tenant, as well
 	tenantID, err := facade.GetTenantID(dataCtx, serviceID)
