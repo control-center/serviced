@@ -314,7 +314,7 @@ func TestNoDuplicateFilters(t *testing.T) {
 	typeFilter := []string{}
 	filters := getFiltersFromTemplates(services, filterDefs, &typeFilter)
 
-	filterCount := strings.Count(filters, "if [type] == \"foo2\"")
+	filterCount := strings.Count(filters, "if \"foo2\" in [file]")
 	if filterCount != 1 {
 		t.Error(fmt.Sprintf("expected only 1 filter for 'foo2', but found %d: filters=%s", filterCount, filters))
 	}
