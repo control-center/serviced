@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 // ServiceHandler handles all non-zookeeper interactions required by the service
@@ -275,8 +276,18 @@ func (l *ServiceListener) Start(sn *ServiceNode, instanceID int) bool {
 	// pick a host
 	hostID, err := l.handler.SelectHost(sn)
 	if err != nil {
-
 		logger.WithError(err).Warn("Could not select host")
+		return false
+	}
+	// CC-3656: If the strategy doesn't select a host, an invalid service state is created.
+	if hostID == "" {
+		// The selected strategy didn't select any hosts; we need to make this
+		// obvious in the log so it can be corrected.
+		hp := sn.HostPolicy
+		if hp == "" {
+			hp = servicedefinition.Balance
+		}
+		logger.WithField("strategy", string(hp)).Warn("No hosts available")
 		return false
 	}
 
