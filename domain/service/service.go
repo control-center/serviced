@@ -803,6 +803,24 @@ func (se *ServiceEndpoint) SetAssignment(aa addressassignment.AddressAssignment)
 	return nil
 }
 
+//SetAddressConfig sets the AddressConfig for the endpoint
+func (s Service) SetAddressConfig(endpointName string, sa servicedefinition.AddressResourceConfig) error {
+	if s.Endpoints == nil {
+		return errors.New("service has no endpoints: " + s.Name)
+	}
+
+	for i := range s.Endpoints {
+		ep := &s.Endpoints[i]
+
+		if ep.Name == endpointName {
+			ep.AddressConfig = sa
+			return nil
+		}
+	}
+
+	return errors.New("endpoint not found: "+ endpointName)
+}
+
 //RemoveAssignment resets a service endpoints to nothing
 func (se *ServiceEndpoint) RemoveAssignment() error {
 	se.AddressAssignment = addressassignment.AddressAssignment{}

@@ -81,6 +81,8 @@ type API interface {
 	GetEndpoints(serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error)
 	ResolveServicePath(path string) ([]service.ServiceDetails, error)
 	ClearEmergency(serviceID string) (int, error)
+	RemoveIP(args []string) error
+	SetIP(IPConfig) error
 
 	// Shell
 	StartShell(ShellConfig) error
