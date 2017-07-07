@@ -118,14 +118,6 @@ func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
 	return s.rpcClient.Call("ControlCenter.GetServiceLogs", serviceId, logs, 0)
 }
 
-func (s *ControlClient) RemoveIPs(args []string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlCenter.RemoveIPs", args, unused, 0)
-}
-
-func (s *ControlClient) SetIPs(request addressassignment.AssignmentRequest, _ *int) (err error) {
-	return s.rpcClient.Call("ControlCenter.SetIPs", request, nil, 0)
-}
-
 func (s *ControlClient) GetServiceStateLogs(request dao.ServiceStateRequest, logs *string) error {
 	return s.rpcClient.Call("ControlCenter.GetServiceStateLogs", request, logs, 0)
 }

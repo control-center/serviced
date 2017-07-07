@@ -404,12 +404,12 @@ func (a *api) AssignIP(config IPConfig) error {
 
 // RemoveIP removes IP assignments of a service
 func (a *api) RemoveIP(args []string) error {
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
 
-	if err := client.RemoveIPs(args, new(int)); err != nil {
+	if err := client.RemoveIPs(args); err != nil {
 		return err
 	}
 
@@ -418,7 +418,7 @@ func (a *api) RemoveIP(args []string) error {
 
 // SetIP assigns an IP address to a services that haven't IP Assignment by default
 func (a *api) SetIP(config IPConfig) error {
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func (a *api) SetIP(config IPConfig) error {
 		EndpointName:	config.EndpointName,
 	}
 
-	if err := client.SetIPs(req, nil); err != nil {
+	if err := client.SetIPs(req); err != nil {
 		return err
 	}
 
