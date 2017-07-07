@@ -161,12 +161,6 @@ type ControlPlane interface {
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) (err error)
 
-	// Remove the IP assignment of a service's endpoints
-	RemoveIPs(args []string, unused *int) error
-
-	// Assigns an IP address to a services that haven't IP Assignment by default
-	SetIPs(request addressassignment.AssignmentRequest, unused *int) error
-
 	// Get a list of tenant IDs
 	GetTenantIDs(unused struct{}, tenantIDs *[]string) error
 
