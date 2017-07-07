@@ -202,6 +202,11 @@
             let deferred = $q.defer();
             resourcesFactory.v2.getServiceInstances(this.id)
                 .then(results => {
+                    if (results.length < this.instances.length) {
+                        // If our results count decreased, we need to refresh our data to
+                        // eliminate stale data (ie: iid [0, 1] and 0 drops off).
+                        this.instances = [];
+                    }
                     results.forEach(data => {
                         // new-ing instances will cause UI bounce and force rebuilding
                         // of the popover. To minimize UI churn, update/merge status info
@@ -214,8 +219,6 @@
                             this.instances[iid] = new Instance(data);
                         }
                     });
-                    // chop off any extraneous instances
-                    this.instances.splice(results.length);
                     deferred.resolve();
                 },
                 error => {
