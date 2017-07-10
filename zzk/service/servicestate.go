@@ -17,12 +17,11 @@ import (
 	"path"
 	"sync"
 	"time"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/scheduler/strategy"
 )
 
 // ServiceHandler handles all non-zookeeper interactions required by the service
@@ -162,7 +161,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		case <-timer.C:
 		case <-shutdown:
 
-			logger.Debug("Service listener receieved signal to shut down")
+			logger.Debug("Service listener received signal to shut down")
 			return
 		}
 
@@ -205,10 +204,28 @@ func (l *ServiceListener) Sync(isLocked bool, sn *ServiceNode, reqs []StateReque
 	ok := true
 	count := len(reqs)
 
-	// If the service has a change option for restart all on changed, stop all
-	// instances and wait for the nodes to stop.  Once all service instances
-	// have been stopped (deleted), then go ahead and start the instances.
-	if utils.StringInSlice("restartAllOnInstanceChanged", sn.ChangeOptions) {
+	if servicedefinition.ChangeOptions(sn.ChangeOptions).Contains(servicedefinition.RestartAllOnInstanceZeroDown) {
+		// If restartAllOnInstanceZeroDown is set on the service ChangeOptions and
+		// instance 0 goes down, we want to stop all instances and wait for the
+		// nodes to stop, then bring the services back up to get a new instance 0.
+		if count != 0 {
+			// Look for instance 0.  If we don't have one, shut down all instances so that they'll
+			// restart on the next loop.
+			found := false
+			for _, req := range reqs {
+				if req.InstanceID == 0 {
+					found = true
+					break
+				}
+			}
+			if !found {
+				sn.Instances = 0 // NOTE: this will not update the node in zk or elastic
+			}
+		}
+	} else if servicedefinition.ChangeOptions(sn.ChangeOptions).Contains(servicedefinition.RestartAllOnInstanceChanged) {
+		// If the service has a change option for restart all on changed, stop all
+		// instances and wait for the nodes to stop.  Once all service instances
+		// have been stopped (deleted), then go ahead and start the instances.
 		if count != 0 && count != sn.Instances {
 			sn.Instances = 0 // NOTE: this will not update the node in zk or elastic
 		}
@@ -283,11 +300,11 @@ func (l *ServiceListener) Start(sn *ServiceNode, instanceID int) bool {
 	if hostID == "" {
 		// The selected strategy didn't select any hosts; we need to make this
 		// obvious in the log so it can be corrected.
-		hp := sn.HostPolicy
-		if hp == "" {
-			hp = servicedefinition.Balance
+		strat, err := strategy.Get(string(sn.HostPolicy))
+		if err == nil {
+			logger = logger.WithField("strategy", strat.Name())
 		}
-		logger.WithField("strategy", string(hp)).Warn("No hosts available")
+		logger.Warn("No hosts available")
 		return false
 	}
 

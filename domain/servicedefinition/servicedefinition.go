@@ -39,7 +39,7 @@ type ServiceDefinition struct {
 	Tags                   []string               // Searchable service tags
 	ImageID                string                 // Docker image hosting the service
 	Instances              domain.MinMax          // Constraints on the number of instances
-	ChangeOptions          []string               // Control options for what happens when a running service is changed
+	ChangeOptions          []ChangeOption         // Control options for what happens when a running service is changed
 	Launch                 string                 // Must be "AUTO", the default, or "MANUAL"
 	HostPolicy             HostPolicy             // Policy for starting up instances
 	Hostname               string                 // Optional hostname which should be set on run
@@ -182,6 +182,48 @@ func (p *HostPolicy) UnmarshalText(b []byte) error {
 		return errors.New("Invalid HostPolicy: " + s)
 	}
 	return nil
+}
+
+// ChangeOption is the policy for what happens in the scheduler Sync when the
+// running services change
+type ChangeOption string
+
+const (
+	// The default change option (none).
+	DefaultChangeOption = ChangeOption("")
+	// If the number of running instances doesn't match the requested number of
+	// instances in the service def, all instances will be restarted.  Note that
+	// this can happen due to an instance going down or by the service def being
+	// modified.
+	RestartAllOnInstanceChanged = ChangeOption("restartAllOnInstanceChanged")
+	// If the running instances doesn't contain instance 0, all services will
+	// be shut down so that when they come back up we'll get a new instance 0.
+	RestartAllOnInstanceZeroDown = ChangeOption("restartAllOnInstanceZeroDown")
+)
+
+// UnmarshalText implements the encoding/TextUnmarshaler interface
+func (co *ChangeOption) UnmarshalText(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	switch s {
+	case string(RestartAllOnInstanceChanged), string(RestartAllOnInstanceZeroDown):
+		*co = ChangeOption(s)
+	case "":
+		*co = DefaultChangeOption
+	default:
+		return errors.New("Invalid ChangeOption: " + s)
+	}
+	return nil
+}
+
+type ChangeOptions []ChangeOption
+
+func (options ChangeOptions) Contains(co ChangeOption) bool {
+	for _, option := range options {
+		if co == option {
+			return true
+		}
+	}
+	return false
 }
 
 type serviceDefinition ServiceDefinition

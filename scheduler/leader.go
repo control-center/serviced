@@ -22,7 +22,6 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
-	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
 	"github.com/control-center/serviced/zzk"
@@ -148,9 +147,6 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	}
 
 	hp := sn.HostPolicy
-	if hp == "" {
-		hp = servicedefinition.Balance
-	}
 	strat, err := strategy.Get(string(hp))
 	if err != nil {
 		return "", err
@@ -158,3 +154,4 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 
 	return StrategySelectHost(sn, hosts, strat, l.facade)
 }
+
