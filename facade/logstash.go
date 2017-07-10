@@ -215,7 +215,7 @@ func getFilters(configs []servicedefinition.LogConfig, filterDefs map[string]str
 		for _, filtName := range config.Filters {
 			//do not write duplicate types, logstash doesn't handle this
 			if !utils.StringInSlice(config.Type, *typeFilter) {
-				filters += fmt.Sprintf("\n  if \"%s\" in [file] {\n    %s\n  }\n",
+				filters += fmt.Sprintf("\n  if [file] == \"%s\" {\n    %s\n  }\n",
 					config.Type, indent(filterDefs[filtName], "    "))
 				*typeFilter = append(*typeFilter, config.Type)
 			}
