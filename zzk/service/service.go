@@ -45,7 +45,7 @@ type ServiceNode struct {
 	Instances                   int
 	RAMCommitment               utils.EngNotation
 	CPUCommitment               int
-	ChangeOptions               []string
+	ChangeOptions               []servicedefinition.ChangeOption
 	AddressAssignment           addressassignment.AddressAssignment
 	ShouldHaveAddressAssignment bool
 	//non-service fields

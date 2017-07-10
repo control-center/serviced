@@ -13,10 +13,12 @@
 
 package strategy
 
+import "github.com/control-center/serviced/domain/servicedefinition"
+
 type BalanceStrategy struct{}
 
 func (s *BalanceStrategy) Name() string {
-	return "balance"
+	return servicedefinition.Balance
 }
 
 func (s *BalanceStrategy) SelectHost(service ServiceConfig, hosts []Host) (Host, error) {

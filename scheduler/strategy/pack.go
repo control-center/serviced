@@ -13,10 +13,12 @@
 
 package strategy
 
+import "github.com/control-center/serviced/domain/servicedefinition"
+
 type PackStrategy struct{}
 
 func (s *PackStrategy) Name() string {
-	return "pack"
+	return servicedefinition.Pack
 }
 
 func (s *PackStrategy) SelectHost(service ServiceConfig, hosts []Host) (Host, error) {
