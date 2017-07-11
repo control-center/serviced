@@ -203,9 +203,9 @@ const (
 
 // UnmarshalText implements the encoding/TextUnmarshaler interface
 func (co *ChangeOption) UnmarshalText(b []byte) error {
-	s := strings.Trim(string(b), `"`)
+	s := strings.ToLower(strings.Trim(string(b), `"`))
 	switch s {
-	case string(RestartAllOnInstanceChanged), string(RestartAllOnInstanceZeroDown):
+	case strings.ToLower(string(RestartAllOnInstanceChanged)), strings.ToLower(string(RestartAllOnInstanceZeroDown)):
 		*co = ChangeOption(s)
 	case "":
 		*co = DefaultChangeOption
@@ -219,7 +219,7 @@ type ChangeOptions []ChangeOption
 
 func (options ChangeOptions) Contains(co ChangeOption) bool {
 	for _, option := range options {
-		if co == option {
+		if strings.ToLower(string(co)) == strings.ToLower(string(option)) {
 			return true
 		}
 	}

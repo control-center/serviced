@@ -63,6 +63,20 @@ var (
 	ErrEmergencyShutdownNoOp    = errors.New("Cannot perform operation; Service has Emergency Shutdown flag set")
 )
 
+// A type for invalid service options; the details are specified when creating the error.
+type ErrInvalidServiceOption struct {
+	error string
+}
+
+func (err ErrInvalidServiceOption) Error() string {
+	return fmt.Sprintf("Invalid service option specified: %s", err.error)
+}
+
+type IpArgs struct {
+	AuditName	string
+	Portmap		Ports
+}
+
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err error) {
 	var tenantID string
@@ -122,20 +136,26 @@ func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.
 }
 
 func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service) error {
+	logger := plog.WithFields(log.Fields{
+		"name": svc.Name,
+		"id": svc.ID,
+		"parentserviceid": svc.ParentServiceID,
+	})
+
 	store := f.serviceStore
 	// verify that the service does not already exist
 	if _, err := store.Get(ctx, svc.ID); !datastore.IsErrNoSuchEntity(err) {
 		if err != nil {
-			glog.Errorf("Could not check the existance of service %s (%s): %s", svc.Name, svc.ID, err)
+			logger.WithError(err).Error("Could not check the existance of service")
 			return err
 		} else {
-			glog.Errorf("Could not add service %s (%s): %s", svc.Name, svc.ID, ErrServiceExists)
+			logger.WithError(ErrServiceExists).Error("Could not add service")
 			return ErrServiceExists
 		}
 	}
 	// verify no collision with the service name
 	if err := f.validateServiceName(ctx, svc); err != nil {
-		glog.Errorf("Could not add service %s to parent %s: %s", svc.Name, svc.ParentServiceID, err)
+		logger.WithField("parentserviceid", svc.ParentServiceID).WithError(err).Error("Could not add service with parent")
 		return err
 	}
 
@@ -145,11 +165,15 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 			if vhost.Enabled {
 				serviceID, application, err := f.zzk.GetVHost(vhost.Name)
 				if err != nil {
-					glog.Errorf("Could not check public endpoint for virtual host %s: %s", vhost.Name, err)
+					logger.WithField("vhost", vhost.Name).WithError(err).Error("Could not check public endpoint for virtual host")
 					return err
 				}
 				if serviceID != "" || application != "" {
-					glog.Warningf("VHost %s already in use by another application %s (%s)", vhost.Name, serviceID, application)
+					logger.WithFields(log.Fields{
+						"vhost": vhost.Name,
+						"otherservice": serviceID,
+						"otherapplication": application,
+					}).Warning("VHost already in use by another application")
 					svc.Endpoints[i].VHostList[j].Enabled = false
 				}
 			}
@@ -159,15 +183,24 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 			if port.Enabled {
 				serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
 				if err != nil {
-					glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
+					logger.WithField("portaddr", port.PortAddr).WithError(err).Error("Could not check public endpoint for port")
 					return err
 				}
 				if serviceID != "" || application != "" {
-					glog.Warningf("Public port %s already in use by another application %s (%s)", port.PortAddr, serviceID, application)
+					logger.WithFields(log.Fields{
+						"portaddr": port.PortAddr,
+						"otherservice": serviceID,
+						"otherapplication": application,
+					}).Warning("Public port already in use by another application")
 					svc.Endpoints[i].PortList[j].Enabled = false
 				}
 			}
 		}
+	}
+
+	if err := validateServiceOptions(svc); err != nil {
+		logger.WithError(err).Error("Could not add service")
+		return err
 	}
 
 	// remove any BuiltIn enabled monitoring configs
@@ -206,6 +239,19 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 			svc.OriginalConfigs = svc.ConfigFiles
 		} else {
 			svc.OriginalConfigs = make(map[string]servicedefinition.ConfigFile)
+		}
+	}
+	return nil
+}
+
+// Validates that the service doesn't have invalid options specified.  This is called when adding,
+// updating, or trying to start services.
+func validateServiceOptions(svc *service.Service) error {
+	// ChangeOption RestartAllOnInstanceChanged and HostPolicy RequireSeparate are invalid together.
+	if svc.HostPolicy == servicedefinition.RequireSeparate &&
+		servicedefinition.ChangeOptions(svc.ChangeOptions).Contains(servicedefinition.RestartAllOnInstanceChanged) {
+		return ErrInvalidServiceOption{
+			error: "HostPolicy RequireSeparate cannot be used with ChangeOption RestartAllOnInstanceChanged",
 		}
 	}
 	return nil
@@ -306,11 +352,18 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 
 func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Service) (*service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceUpdate"))
+
+	logger := plog.WithFields(log.Fields{
+		"name": svc.Name,
+		"id": svc.ID,
+		"parentserviceid": svc.ParentServiceID,
+	})
+
 	store := f.serviceStore
 	// verify that the service exists
 	cursvc, err := store.Get(ctx, svc.ID)
 	if err != nil {
-		glog.Errorf("Could not load service %s (%s) from database: %s", svc.Name, svc.ID, err)
+		logger.WithError(err).Error("Could not load service from database")
 		return nil, err
 	}
 	// verify no collision with the service name
@@ -318,12 +371,12 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 		// if the parent changed, make sure it shares the same tenant
 		if svc.ParentServiceID != cursvc.ParentServiceID {
 			if err := f.validateServiceTenant(ctx, svc.ParentServiceID, svc.ID); err != nil {
-				glog.Errorf("Could not validate tenant for updated service %s: %s", svc.ID, err)
+				logger.WithError(err).Error("Could not validate tenant for updated service")
 				return nil, err
 			}
 		}
 		if err := f.validateServiceName(ctx, svc); err != nil {
-			glog.Errorf("Could not validate service name for updated service %s: %s", svc.ID, err)
+			logger.WithError(err).Error("Could not validate service name for updated service")
 			return nil, err
 		}
 
@@ -339,11 +392,14 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 			if vhost.Enabled {
 				serviceID, application, err := f.zzk.GetVHost(vhost.Name)
 				if err != nil {
-					glog.Errorf("Could not check public endpoint for virtual host %s: %s", vhost.Name, err)
+					logger.WithField("vhost", vhost.Name).WithError(err).Error("Could not check public endpoint for virtual host")
 					return nil, err
 				}
 				if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
-					glog.Errorf("VHost %s already in use by another application %s (%s)", vhost.Name, serviceID, application)
+					logger.WithFields(log.Fields{
+						"vhost": vhost.Name,
+						"application": application,
+					}).Error("VHost already in use by another application")
 					return nil, fmt.Errorf("vhost %s is already in use", vhost.Name)
 				}
 			}
@@ -353,11 +409,14 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 			if port.Enabled {
 				serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
 				if err != nil {
-					glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
+					logger.WithField("portaddr", port.PortAddr).WithError(err).Error("Could not check public endpoint for port")
 					return nil, err
 				}
 				if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
-					glog.Errorf("Public port %s already in use by another application %s (%s)", port.PortAddr, serviceID, application)
+					logger.WithFields(log.Fields{
+						"portaddr": port.PortAddr,
+						"application": application,
+					}).WithError(err).Error("Public port already in use by another application")
 					return nil, fmt.Errorf("port %s is already in use", port.PortAddr)
 				}
 			}
@@ -394,10 +453,15 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 	}
 	svc.MonitoringProfile.GraphConfigs = graphs
 
+	if err := validateServiceOptions(svc); err != nil {
+		logger.WithError(err).Error("Could not validate service for update")
+		return nil, err
+	}
+
 	// verify the desired state of the service
 	if svc.DesiredState != int(service.SVCStop) {
 		if err := f.validateServiceStart(ctx, svc); err != nil {
-			glog.Warningf("Could not validate %s for starting: %s", svc.ID, err)
+			logger.WithError(err).Warning("Could not validate service for starting")
 			svc.DesiredState = int(service.SVCStop)
 		}
 	}
@@ -457,6 +521,7 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 	logger := plog.WithFields(log.Fields{
 		"service": svc.Name,
 		"id":      svc.ID,
+		"parentserviceid": svc.ParentServiceID,
 	})
 
 	if svc.EmergencyShutdown {
@@ -482,6 +547,12 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 			}
 		}
 	}
+
+	if err := validateServiceOptions(svc); err != nil {
+		logger.WithError(err).Error("Could not start service")
+		return err
+	}
+
 	return nil
 }
 
