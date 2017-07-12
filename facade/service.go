@@ -736,8 +736,8 @@ func (f *Facade) RemoveIPs(ctx datastore.Context, args []string) error {
 
 	alog := f.auditLogger.Action(audit.Update).Message(ctx, "Remove IP Assignment").WithField("servicename", svc.Name).Entity(&svc)
 	for _, endpoint := range svc.Endpoints {
-		if endpoint.Name == endpointName {
-			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, serviceID, endpointName); err != nil {
+		if endpoint.Application == endpointName {
+			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, serviceID, endpoint.Name); err != nil {
 				glog.Errorf("Could not find address assignment %s for service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
 					return alog.Error(err)
 			} else if assignment != nil {
@@ -767,7 +767,7 @@ func SetIpArgs(ctx datastore.Context, f *Facade, request addressassignment.Assig
 	}
 
 	for _, endpoint := range svc.Endpoints {
-		if endpoint.Name == request.EndpointName && !endpoint.IsConfigurable() {
+		if endpoint.Application == request.EndpointName && !endpoint.IsConfigurable() {
 			sa := servicedefinition.AddressResourceConfig {
 				Port: request.Port,
 				Protocol: request.Proto,

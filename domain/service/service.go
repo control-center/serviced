@@ -812,7 +812,7 @@ func (s Service) SetAddressConfig(endpointName string, sa servicedefinition.Addr
 	for i := range s.Endpoints {
 		ep := &s.Endpoints[i]
 
-		if ep.Name == endpointName {
+		if ep.Application == endpointName {
 			ep.AddressConfig = sa
 			return nil
 		}
