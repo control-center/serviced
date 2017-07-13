@@ -125,19 +125,20 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	// filters will be a syntactically correct logstash filters section
 	filters := ""
 
-	typeFilter := []string{}
+	logFiles := []string{} 	// a list of unique application log file names
+
 	auditableTypes := []string{}
 	auditLogSection := ""
 	plog.Debugf("Checking %d templates", len(templates))
 	for _, template := range templates {
-		filters += getFiltersFromTemplates(template.Services, filterDefs, &typeFilter)
+		filters += getFiltersFromTemplates(template.Services, filterDefs, &logFiles)
 		auditLogSection = getAuditLogSectionFromTemplates(template.Services, &auditableTypes)
 	}
 	plog.Debugf("after templates, auditLogSection=%s", auditLogSection)
 
 	plog.Debugf("Checking %d services", len(services))
 	for _, svc := range services {
-		filters += getFilters(svc.LogConfigs, filterDefs, &typeFilter)
+		filters += getFilters(svc.Name, svc.LogConfigs, filterDefs, &logFiles)
 		auditLogSection += getAuditLogSection(svc.LogConfigs,  &auditableTypes)
 	}
 	plog.Debugf("after services, auditLogSection=%s", auditLogSection)
@@ -197,27 +198,35 @@ func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[st
 	return filterDefs
 }
 
-func getFiltersFromTemplates(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, typeFilter *[]string) string {
+func getFiltersFromTemplates(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, logFiles *[]string) string {
 	filters := ""
 	for _, svc := range services {
-		filters += getFilters(svc.LogConfigs, filterDefs, typeFilter)
+		filters += getFilters(svc.Name, svc.LogConfigs, filterDefs, logFiles)
 		if len(svc.Services) > 0 {
-			subFilts := getFiltersFromTemplates(svc.Services, filterDefs, typeFilter)
+			subFilts := getFiltersFromTemplates(svc.Services, filterDefs, logFiles)
 			filters += subFilts
 		}
 	}
 	return filters
 }
 
-func getFilters(configs []servicedefinition.LogConfig, filterDefs map[string]string, typeFilter *[]string) string {
+func getFilters(serviceName string, configs []servicedefinition.LogConfig, filterDefs map[string]string, logFiles *[]string) string {
 	filters := ""
 	for _, config := range configs {
-		for _, filtName := range config.Filters {
-			//do not write duplicate types, logstash doesn't handle this
-			if !utils.StringInSlice(config.Type, *typeFilter) {
-				filters += fmt.Sprintf("\n  if [file] == \"%s\" {\n    %s\n  }\n",
-					config.Path, indent(filterDefs[filtName], "    "))
-				*typeFilter = append(*typeFilter, config.Type)
+		for _, filterName := range config.Filters {
+			filterValue, ok := filterDefs[filterName]
+			if !ok {
+				plog.WithFields(log.Fields{
+					"service": serviceName,
+					"filter": filterName,
+				}).Warn("log filter not found")
+				continue
+			}
+			//  CC-3669: do not write duplicate filters for the same log file
+			if !utils.StringInSlice(config.Path, *logFiles) {
+				filters += fmt.Sprintf("\n  if [file] == \"%s\" {\n%s\n  }\n",
+					config.Path, indent(filterValue, "    "))
+				*logFiles = append(*logFiles, config.Path)
 			}
 		}
 	}
