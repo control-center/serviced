@@ -285,6 +285,8 @@ filter {
     rename => {
       "source" => "file"
     }
+    # Save the time each message was received by logstash as rcvd_datetime
+    add_field => [ "rcvd_datetime", "%{@timestamp}" ]
   }
 # NOTE the filters are generated from the service definitions
 ` + string(filters) + `
