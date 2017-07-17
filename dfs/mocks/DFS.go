@@ -413,3 +413,16 @@ func (_m *DFS) 	GetImageInfo(image string) (*dfs.ImageInfo, error) {
 
 	return r0, r1
 }
+
+func (_m *DFS) VerifyTenantMounts(tenantid string) (error) {
+	ret := _m.Called(tenantid)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(tenantid)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
