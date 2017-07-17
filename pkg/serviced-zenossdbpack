@@ -10,3 +10,4 @@ if
 	grep --quiet ^SERVICED_MASTER=1 /etc/default/serviced 
 then
 	${SERVICED:=/opt/serviced/bin/serviced} service run --mount /opt/serviced/log/zenossdbpack,/opt/zenoss/log zope zenossdbpack
+fi
