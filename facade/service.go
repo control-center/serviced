@@ -215,7 +215,7 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 // not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateService"))
-	alog :=f.auditLogger.Action(audit.Update).Message(ctx,"Update Service").WithField("servicename", svc.Name).Entity(&svc)
+	alog := f.auditLogger.Action(audit.Update).Message(ctx, "Update Service").WithField("servicename", svc.Name).Entity(&svc)
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
 		return alog.Error(err)
@@ -456,7 +456,7 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceStart"))
 	logger := plog.WithFields(log.Fields{
 		"service": svc.Name,
-		"id": svc.ID,
+		"id":      svc.ID,
 	})
 
 	if svc.EmergencyShutdown {
@@ -490,7 +490,7 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 func (f *Facade) verifyTenantMounts(ctx datastore.Context, svc *service.Service) error {
 	logger := plog.WithFields(log.Fields{
 		"service": svc.Name,
-		"id": svc.ID,
+		"id":      svc.ID,
 	})
 
 	// If the pool doesn't have dfs access, we can go ahead and start the service regardless
@@ -778,7 +778,7 @@ func (f *Facade) RemoveIPs(ctx datastore.Context, args []string) error {
 		if endpoint.Application == endpointName {
 			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, serviceID, endpoint.Name); err != nil {
 				glog.Errorf("Could not find address assignment %s for service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
-					return alog.Error(err)
+				return alog.Error(err)
 			} else if assignment != nil {
 				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
 					glog.Errorf("Could not remove address assignment %s from service %s: %s", assignment.EndpointName, assignment.ServiceID, err)
@@ -806,8 +806,8 @@ func (f *Facade) SetIPs(ctx datastore.Context, request addressassignment.Assignm
 
 	for _, endpoint := range svc.Endpoints {
 		if endpoint.Application == request.EndpointName && !endpoint.IsConfigurable() {
-			sa := servicedefinition.AddressResourceConfig {
-				Port: request.Port,
+			sa := servicedefinition.AddressResourceConfig{
+				Port:     request.Port,
 				Protocol: request.Proto,
 			}
 
@@ -818,7 +818,7 @@ func (f *Facade) SetIPs(ctx datastore.Context, request addressassignment.Assignm
 		}
 	}
 
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	visitor := IpVisitorFn(portmap, request, f, ctx)
@@ -827,7 +827,7 @@ func (f *Facade) SetIPs(ctx datastore.Context, request addressassignment.Assignm
 
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveService"))
-	alog := f.auditLogger.Message( ctx, "Remove Service" ).Action(audit.Remove).ID(id).Type(service.GetType())
+	alog := f.auditLogger.Message(ctx, "Remove Service").Action(audit.Remove).ID(id).Type(service.GetType())
 	tenantID, err := f.GetTenantID(ctx, id)
 	if err != nil {
 		return alog.Error(err)
@@ -1903,14 +1903,14 @@ func (f *Facade) WaitSingleService(svc *service.Service, dstate service.DesiredS
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StartService"))
 	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
-	alog := f.auditLogger.Action(audit.Start).Message(ctx, "Starting Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	alog := f.auditLogger.Action(audit.Start).Message(ctx, "Starting Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids": strings.Join(request.ServiceIDs, ", "), "count": successCount})
 	return successCount, alog.Error(err)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
 	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRestart, false)
-	alog := f.auditLogger.Action(audit.Restart).Message(ctx, "Restarting Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	alog := f.auditLogger.Action(audit.Restart).Message(ctx, "Restarting Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids": strings.Join(request.ServiceIDs, ", "), "count": successCount})
 	return successCount, alog.Error(err)
 
 }
@@ -1953,7 +1953,7 @@ func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleService
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopService"))
 	successCount, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false)
-	alog := f.auditLogger.Action(audit.Stop).Message(ctx, "Stopping Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids":strings.Join(request.ServiceIDs, ", "), "count": successCount})
+	alog := f.auditLogger.Action(audit.Stop).Message(ctx, "Stopping Service(s)").Type(service.GetType()).WithFields(log.Fields{"ids": strings.Join(request.ServiceIDs, ", "), "count": successCount})
 	return successCount, alog.Error(err)
 }
 
@@ -2150,7 +2150,6 @@ func IpVisitorFn(portmap Ports, request addressassignment.AssignmentRequest, f *
 	}
 	return visitor
 }
-
 
 func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.AssignmentRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AssignIPs"))

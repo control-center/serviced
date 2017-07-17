@@ -345,7 +345,6 @@ func (_m *DFS) Override(newImage string, oldImage string) error {
 	return r0
 }
 
-
 // Get free disk space for a path
 func (_m *DFS) DfPath(path string, excludes []string) (uint64, error) {
 	ret := _m.Called(path, excludes)
@@ -369,7 +368,6 @@ func (_m *DFS) DfPath(path string, excludes []string) (uint64, error) {
 	return r0, r1
 }
 
-
 func (_m *DFS) EstimateImagePullSize(images []string) (uint64, error) {
 	ret := _m.Called(images)
 
@@ -392,7 +390,7 @@ func (_m *DFS) EstimateImagePullSize(images []string) (uint64, error) {
 	return r0, r1
 }
 
-func (_m *DFS) 	GetImageInfo(image string) (*dfs.ImageInfo, error) {
+func (_m *DFS) GetImageInfo(image string) (*dfs.ImageInfo, error) {
 	ret := _m.Called(image)
 
 	var r0 *dfs.ImageInfo
@@ -414,7 +412,7 @@ func (_m *DFS) 	GetImageInfo(image string) (*dfs.ImageInfo, error) {
 	return r0, r1
 }
 
-func (_m *DFS) VerifyTenantMounts(tenantid string) (error) {
+func (_m *DFS) VerifyTenantMounts(tenantid string) error {
 	ret := _m.Called(tenantid)
 
 	var r0 error

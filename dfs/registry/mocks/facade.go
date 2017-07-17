@@ -115,7 +115,7 @@ func (_m *MockFacade) SearchRegistryLibraryByTag(ctx datastore.Context, library 
 	return r0, r1
 }
 
-func (_m *MockFacade) VerifyTenantMounts(tenantid string) (error) {
+func (_m *MockFacade) VerifyTenantMounts(tenantid string) error {
 	ret := _m.Called(tenantid)
 
 	var r0 error

@@ -19,10 +19,9 @@ import (
 	"fmt"
 	"path"
 
-	. "gopkg.in/check.v1"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
+	. "gopkg.in/check.v1"
 )
-
 
 // This test returns a different device for the volume and export paths.
 func (s *DFSTestSuite) TestInfo_VerifyTenantMounts_InvalidMounts(c *C) {

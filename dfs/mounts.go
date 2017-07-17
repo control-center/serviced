@@ -31,7 +31,7 @@ func (err ErrTenantMountsInvalid) Error() string {
 
 // Verifies that the mount points are correct. Returns nil if there are no problems; returns
 // an error if we had problems getting the backing devices or if the devices don't match.
-func (dfs *DistributedFilesystem) VerifyTenantMounts(tenantID string) (error) {
+func (dfs *DistributedFilesystem) VerifyTenantMounts(tenantID string) error {
 	logger := plog.WithField("tenantid", tenantID)
 
 	vol, err := dfs.disk.Get(tenantID)

@@ -26,7 +26,7 @@ import (
 
 var (
 	ZkStorageClientsPath = "/storage/clients"
-	plog = logging.PackageLogger()
+	plog                 = logging.PackageLogger()
 )
 
 // Server manages the exporting of a file system to clients.

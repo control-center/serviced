@@ -623,7 +623,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t *C) {
 	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID:"default"}
+	rp := pool.ResourcePool{ID: "default"}
 	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
 	t.Assert(err, IsNil)
 
@@ -633,7 +633,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t 
 	oldSvc, err := ft.Facade.GetService(ft.CTX, "original_service_id_child_0")
 	t.Assert(err, IsNil)
 
-	newSvc1 := service.Service{PoolID:"default"}
+	newSvc1 := service.Service{PoolID: "default"}
 	newSvc1 = *oldSvc
 	newSvc1.Name = "ModifiedName1"
 	newSvc1.Description = "migrated_service"
@@ -641,7 +641,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t 
 	oldSvc, err = ft.Facade.GetService(ft.CTX, "original_service_id_child_1")
 	t.Assert(err, IsNil)
 
-	newSvc2 := service.Service{PoolID:"default"}
+	newSvc2 := service.Service{PoolID: "default"}
 	newSvc2 = *oldSvc
 	newSvc2.Name = newSvc1.Name
 	newSvc2.Description = "migrated_service"
@@ -1335,7 +1335,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	var err error
 
 	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID:"default"}
+	rp := pool.ResourcePool{ID: "default"}
 	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
 		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
 	}
@@ -1486,7 +1486,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
 		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
-        }
+	}
 
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
@@ -1837,7 +1837,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
 	var mutex sync.RWMutex
-	rp := pool.ResourcePool{ID:"default"}
+	rp := pool.ResourcePool{ID: "default"}
 	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	scheduledChannels := make(map[string]chan interface{})
 	scheduledChannels["ParentServiceID"] = make(chan interface{})
@@ -2195,7 +2195,7 @@ func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) 
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
 	var mutex sync.RWMutex
-	rp := pool.ResourcePool{ID:"default"}
+	rp := pool.ResourcePool{ID: "default"}
 	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	scheduledChannels := make(map[string]chan int)
 	scheduledChannels["ParentServiceID"] = make(chan int, 1)
@@ -2333,7 +2333,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	// We have to reset the zzk mocks to replace what is in SetUpTest
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
-	rp := pool.ResourcePool{ID:"default"}
+	rp := pool.ResourcePool{ID: "default"}
 	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
 	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
@@ -2480,7 +2480,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	var err error
 
 	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID:"default"}
+	rp := pool.ResourcePool{ID: "default"}
 	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
 		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
 	}
@@ -3261,7 +3261,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	var err error
 
 	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID:"default"}
+	rp := pool.ResourcePool{ID: "default"}
 	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
 		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
 	}
