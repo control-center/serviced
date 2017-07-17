@@ -454,15 +454,27 @@ func (f *Facade) validateServiceTenant(ctx datastore.Context, serviceA, serviceB
 // start.
 func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceStart"))
+	logger := plog.WithFields(log.Fields{
+		"service": svc.Name,
+		"id": svc.ID,
+	})
+
 	if svc.EmergencyShutdown {
 		return ErrEmergencyShutdownNoOp
 	}
+
+	// Make sure the tenant mount is right: CC-3536
+	if err := f.verifyTenantMounts(ctx, svc); err != nil {
+		logger.WithError(err).Error("Tenant Mount and Export are inconsistent")
+		return err
+	}
+
 	// ensure that all endpoints are available
 	for _, ep := range svc.Endpoints {
 		if ep.IsConfigurable() {
 			as, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, ep.Name)
 			if err != nil {
-				glog.Errorf("Could not look up assignment %s for service %s: %s", ep.Name, svc.ID, err)
+				logger.WithField("epname", ep.Name).WithError(err).Error("Could not look up assignment")
 				return err
 			}
 			if as == nil {
@@ -470,6 +482,38 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 			}
 		}
 	}
+	return nil
+}
+
+// Check the tenant mount and dfs export to verify that they're pointing to the
+// same device.
+func (f *Facade) verifyTenantMounts(ctx datastore.Context, svc *service.Service) error {
+	logger := plog.WithFields(log.Fields{
+		"service": svc.Name,
+		"id": svc.ID,
+	})
+
+	// If the pool doesn't have dfs access, we can go ahead and start the service regardless
+	// of what condition the mount points are in.
+	pool, err := f.GetResourcePool(ctx, svc.PoolID)
+	if err != nil {
+		logger.WithField("poolid", svc.PoolID).WithError(err).Error("Error looking up pool")
+		return err
+	}
+	if !pool.HasDfsAccess() {
+		return nil
+	}
+
+	tenantID, err := f.GetTenantID(ctx, svc.ID)
+	if err != nil {
+		return err
+	}
+
+	logger = logger.WithField("tenantid", tenantID)
+	if err := f.dfs.VerifyTenantMounts(tenantID); err != nil {
+		return err
+	}
+
 	return nil
 }
 

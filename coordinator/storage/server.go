@@ -38,7 +38,10 @@ type Server struct {
 // StorageDriver is an interface that storage subsystem must implement to be used
 // by this packages Server implementation.
 type StorageDriver interface {
+	// ExportPath will be something like "serviced_volumes_v2"
 	ExportPath() string
+	// ExportNamePath() will be something like "/exports/serviced_volumes_v2"
+	ExportNamePath() string
 	SetClients(clients ...string)
 	Sync() error
 	//TODO: remove Restart and Stop
@@ -48,6 +51,8 @@ type StorageDriver interface {
 	AddVolume(path string) error
 	// RemoveVolume notify storage driver that volume at path is should not be shared
 	RemoveVolume(path string) error
+	// Get the backing device for a path
+	GetDevice(path string) (uint64, error)
 }
 
 // NewServer returns a Server object to manage the exported file system
