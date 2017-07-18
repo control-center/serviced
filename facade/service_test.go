@@ -2479,12 +2479,6 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 
 	var err error
 
-	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID: "default"}
-	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
-		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
-	}
-
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
