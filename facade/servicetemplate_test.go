@@ -27,25 +27,23 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(c *C) {
 	glog.V(0).Infof("TestFacadeServiceTemplate started")
 	defer glog.V(0).Infof("TestFacadeServiceTemplate finished")
 
 	var (
+		e error
 		templateId string
+		newTemplateId string
 		templates  map[string]servicetemplate.ServiceTemplate
 	)
 
 	// Clean up old templates...
-	var e error
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
+	c.Assert(e, IsNil)
 	for id, _ := range templates {
-		if e := ft.Facade.RemoveServiceTemplate(ft.CTX, id); e != nil {
-			t.Fatalf("Failure removing service template %s with error: %s", id, e)
-		}
+		e := ft.Facade.RemoveServiceTemplate(ft.CTX, id);
+		c.Assert(e, IsNil)
 	}
 
 	template := servicetemplate.ServiceTemplate{
@@ -54,76 +52,52 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
 		Description: "test template",
 	}
 
-	if newTemplateId, e := ft.Facade.AddServiceTemplate(ft.CTX, template, false); e != nil {
-		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
-	} else {
-		templateId = newTemplateId
-	}
+	newTemplateId, e = ft.Facade.AddServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
+	templateId = newTemplateId
 
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 1)
+
+	_, ok := templates[templateId]
+	c.Assert(ok, Equals, true)
+	c.Assert(templates[templateId].Name, Equals, "test_template")
+
 	template.ID = templateId
 	template.Description = "test_template_modified"
-	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template, false); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
+	e = ft.Facade.UpdateServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
+
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
-	if templates[templateId].Description != "test_template_modified" {
-		t.Fatalf("Expected template to be modified. It hasn't changed!")
-	}
-	if e := ft.Facade.RemoveServiceTemplate(ft.CTX, templateId); e != nil {
-		t.Fatalf("Failure removing service template with error: %s", e)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 1)
+
+	_, ok = templates[templateId]
+	c.Assert(ok, Equals, true)
+	c.Assert(templates[templateId].Name, Equals, "test_template")
+	c.Assert(templates[templateId].Description, Equals, "test_template_modified")
+
+	e = ft.Facade.RemoveServiceTemplate(ft.CTX, templateId)
+	c.Assert(e, IsNil)
+
 	time.Sleep(1 * time.Second) // race condition. :(
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 0 {
-		t.Fatalf("Expected zero templates. Found %d", len(templates))
-	}
-	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template, false); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 0)
+
+	e = ft.Facade.UpdateServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 1)
+
+	_, ok = templates[templateId]
+	c.Assert(ok, Equals, true)
+	c.Assert(templates[templateId].Name, Equals, "test_template")
 }
 
-func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(c *C) {
 	testService := service.Service{
 		ID: "TestFacadeValidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
@@ -138,12 +112,10 @@ func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
 		},
 	}
 	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
-	if err != nil {
-		t.Error("Services failed validation for starting: ", err)
-	}
+	c.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(c *C) {
 	testService := service.Service{
 		ID: "TestFacadeInvalidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
@@ -162,7 +134,5 @@ func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(t *C) {
 		},
 	}
 	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
-	if err == nil {
-		t.Error("Services should have failed validation for starting...")
-	}
+	c.Assert(err, IsNil)
 }
