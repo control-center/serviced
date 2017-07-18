@@ -19,13 +19,14 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	. "gopkg.in/check.v1"
 )
 
 var sa = servicedefinition.AddressResourceConfig{
-	Port: 8080,
+	Port:     8080,
 	Protocol: "tcp",
 }
 
@@ -85,6 +86,11 @@ func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.
 	ft.zzk.On("GetPublicPort", ":22222").Return("", "", nil).Once()
 	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "pool-id"}
+	if err := ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
 	return svcA, svcB
 }
 
