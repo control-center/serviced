@@ -1481,12 +1481,15 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}
 	var err error
 
-	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID: "default"}
+	// add the resource pool (DFS access required for testing emergency shutdown)
+	rp := pool.ResourcePool{ID: "default", Permissions: pool.DFSAccess}
 	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
 		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
 	}
+
+	// Mock that the mounts for this test are valid.
+	ft.dfs.On("VerifyTenantMounts", "ParentServiceID").Return(nil)
 
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
@@ -1726,12 +1729,15 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 
 	var err error
 
-	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID: "default"}
+	// add the resource pool (DFS Access required to test emergency shutdown)
+	rp := pool.ResourcePool{ID: "default", Permissions: pool.DFSAccess}
 	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
 		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
 	}
+
+	// Mock that the mounts for this test are valid.
+	ft.dfs.On("VerifyTenantMounts", "ParentServiceID").Return(nil)
 
 	// add a service with 2 subservices
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
@@ -2479,12 +2485,6 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 
 	var err error
 
-	// add the resource pool (no permissions required)
-	rp := pool.ResourcePool{ID: "default"}
-	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
-		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
-	}
-
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -2645,6 +2645,45 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 		c.Assert(int(s.DesiredState), Equals, int(service.SVCRun))
 	}
 
+}
+
+// If the dfs mounts are invalid. Do not start services.
+func (ft *FacadeIntegrationTest) TestFacade_StartService_InvalidMounts(c *C) {
+	svc := service.Service{
+		ID: "TestFacade_StartService_PoolWithDFS",
+		Name: "TestFacade_StartService_PoolWithDFS",
+		PoolID: "default",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1, 1},
+		ImageID:        "test/pinger",
+		DeploymentID:   "deployment_id",
+		DesiredState:   int(service.SVCStop),
+		Launch:         "auto",
+		Endpoints:      []service.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		StartLevel:     0,
+	}
+
+	// add the resource pool (with DFS access so it checks mounts.)
+	rp := pool.ResourcePool{ID: "default", Permissions: pool.DFSAccess}
+	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
+	if err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed adding service testService: %+v, %s", svc, err)
+	}
+
+	ft.dfs.On("VerifyTenantMounts", "TestFacade_StartService_PoolWithDFS").Return(fmt.Errorf("some error"))
+
+	err = ft.Facade.validateServiceStart(datastore.Get(), &svc)
+	if err == nil {
+		c.Error("Service should have failed tenant mount validation for starting...")
+	}
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
@@ -3527,3 +3566,4 @@ func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string,
 	sort.Strings(ids)
 	c.Assert(foundids, DeepEquals, ids)
 }
+

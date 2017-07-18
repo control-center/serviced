@@ -151,3 +151,7 @@ func (ft *FacadeIntegrationTest) TearDownTest(c *gocheck.C) {
 func (ft *FacadeIntegrationTest) BeforeTest(suiteName, testName string) {
 	fmt.Printf("Starting test %s\n", testName)
 }
+
+func (ft *FacadeIntegrationTest) Dfs() *dfsmocks.DFS {
+	return ft.dfs
+}
