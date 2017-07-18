@@ -355,7 +355,7 @@ func (c *Server) writeExports() error {
 		return err
 	}
 
-	edir := c.ExportNamePath()
+	edir := filepath.Join(exportsDir, c.exportedName)
 	if err := os.MkdirAll(edir, 0775); err != nil {
 		return err
 	}
@@ -382,7 +382,7 @@ func (c *Server) writeExports() error {
 	}
 
 	// comment out lines that conflicts with serviced exported mountpoints
-	mountpaths := map[string]bool{exportsDir: true, c.ExportNamePath(): true}
+	mountpaths := map[string]bool{exportsDir: true, filepath.Join(exportsDir, c.exportedName): true}
 	filteredContent := ""
 	scanner := bufio.NewScanner(strings.NewReader(originalContents))
 	for scanner.Scan() {
@@ -417,7 +417,7 @@ func (c *Server) writeExports() error {
 
 // umnount any bind mounts in exported directory if not exported
 func (c *Server) cleanupBindMounts() {
-	edir := c.ExportNamePath()
+	edir := filepath.Join(exportsDir, c.exportedName)
 	//umount any directories not exported
 	if dirContents, err := ioutil.ReadDir(edir); err != nil {
 		glog.Warningf("could not read contents of %s; %v", edir, err)
