@@ -14,9 +14,6 @@
 package facade
 
 import (
-
-)
-import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -76,4 +73,51 @@ func (f *Facade) RemoveLogFilters(ctx datastore.Context, serviceTemplate *servic
 		}
 	}
 	return nil
+}
+
+// Bootstraps the LogFilter store in cases where templates were added to the system in some prior CC version which
+// did not have a separate store for LogFilters. For cases like that, this code creates new records in the
+// LogFilter store for each logfilter found in an existing service template.
+func (f *Facade) BootstrapLogFilters(ctx datastore.Context) (bool, error) {
+	logFiltersCreated := false
+	templates, err := f.GetServiceTemplates(ctx)
+	if err != nil {
+		plog.WithError(err).Error("Could not retrieve service templates")
+		return false, err
+	}
+
+	for _, template := range templates {
+		logger := plog.WithFields(logrus.Fields{
+			"templateid": template.ID,
+			"templatename": template.Name,
+			"templateversion": template.Version,
+		})
+		filterDefs := getFilterDefinitions(template.Services)
+		for name, value := range filterDefs {
+			if _, err := f.logFilterStore.Get(ctx, name, template.Version); err == nil {
+				continue
+			} else if !datastore.IsErrNoSuchEntity(err) {
+				logger.WithError(err).
+					WithField("filtername", name).
+					Error("Could not retrieve log filter")
+				return false, err
+			} else {
+				err = f.logFilterStore.Put(ctx, &logfilter.LogFilter{
+					Name:    name,
+					Version: template.Version,
+					Filter:  value,
+				})
+				if err != nil {
+					logger.WithError(err).WithFields(logrus.Fields{
+						"filtername": name,
+					}).Error("Failed to add log filter")
+					return false, err
+				}
+				logFiltersCreated = true
+				logger.WithField("filtername", name).Info("Added log filter")
+			}
+		}
+	}
+
+	return logFiltersCreated, nil
 }
