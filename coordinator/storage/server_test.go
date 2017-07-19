@@ -44,6 +44,10 @@ func (m *mockNfsDriverT) ExportPath() string {
 	return path.Join(m.exportPath, m.exportName)
 }
 
+func (m *mockNfsDriverT) ExportNamePath() string {
+	return m.ExportPath()
+}
+
 func (m *mockNfsDriverT) SetClients(client ...string) {
 	m.clients = client
 }
@@ -66,6 +70,10 @@ func (m *mockNfsDriverT) AddVolume(path string) error {
 
 func (m *mockNfsDriverT) RemoveVolume(path string) error {
 	return nil
+}
+
+func (m *mockNfsDriverT) GetDevice(path string) (uint64, error) {
+	return 12345, nil
 }
 
 func TestServer(t *testing.T) {

@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/pool"
 )
 
 func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
@@ -126,6 +127,7 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
 func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
 	testService := service.Service{
 		ID: "TestFacadeValidServiceForStart_ServiceID",
+		PoolID: "default",
 		Endpoints: []service.ServiceEndpoint{
 			service.BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
@@ -137,7 +139,13 @@ func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
 				}),
 		},
 	}
-	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "default"}
+	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
+	if err != nil {
+		t.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+	err = ft.Facade.validateServiceStart(datastore.Get(), &testService)
 	if err != nil {
 		t.Error("Services failed validation for starting: ", err)
 	}
@@ -146,6 +154,7 @@ func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
 func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(t *C) {
 	testService := service.Service{
 		ID: "TestFacadeInvalidServiceForStart_ServiceID",
+		PoolID: "default",
 		Endpoints: []service.ServiceEndpoint{
 			service.BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
@@ -161,7 +170,13 @@ func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(t *C) {
 				}),
 		},
 	}
-	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "default"}
+	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
+	if err != nil {
+		t.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+	err = ft.Facade.validateServiceStart(datastore.Get(), &testService)
 	if err == nil {
 		t.Error("Services should have failed validation for starting...")
 	}
