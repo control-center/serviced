@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/logfilter"
 )
 
 func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(c *C) {
@@ -134,5 +135,105 @@ func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(c *C) {
 		},
 	}
 	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
-	c.Assert(err, IsNil)
+	c.Assert(err, NotNil)
 }
+
+func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate_WithLogFilters(c *C) {
+	var (
+		err error
+		ok bool
+		templateId string
+		logFilter *logfilter.LogFilter
+	)
+
+	template := servicetemplate.ServiceTemplate{
+		ID:          "",
+		Name:        "template1",
+		Description: "test template1",
+		Version:     "1.0",
+		Services: []servicedefinition.ServiceDefinition{
+			servicedefinition.ServiceDefinition {
+				Name: "service1",
+				Launch: "manual",
+				LogFilters: map[string]string{
+					"filter1": "original filter",
+				},
+			},
+		},
+	}
+
+	// Phase 1 - add a template and verify its filter is added
+	templateId, err = ft.Facade.AddServiceTemplate(ft.CTX, template, false)
+	c.Assert(err, IsNil)
+
+	logFilter, err = ft.Facade.logFilterStore.Get(ft.CTX, "filter1", template.Version)
+	c.Assert(err, IsNil)
+	c.Assert(logFilter, NotNil)
+	c.Assert(logFilter.Name, Equals, "filter1")
+	c.Assert(logFilter.Version, Equals, template.Version)
+	c.Assert(logFilter.Filter, Equals, "original filter")
+
+	// Phase 2 - update the template and verify its filters is added/updated
+	templates, e := ft.Facade.GetServiceTemplates(ft.CTX)
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Not(Equals), 0)
+
+	template, ok = templates[templateId]
+	c.Assert(ok, Equals, true)
+
+	template.Services[0].LogFilters["filter1"] = "updated filter"
+	template.Services[0].LogFilters["filter2"] = "second filter"
+	e = ft.Facade.UpdateServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
+	ft.verifyLogFilters(c, template.Version)
+
+	// Phase 3 - add a new version of the template and verify the older filters are unchanged
+	newTemplate := template
+	newTemplate.Version = "2.0"
+	template.Services[0].LogFilters["filter1"] = "filter1 v2"
+	template.Services[0].LogFilters["filter2"] = "filter2 v2"
+	_, err = ft.Facade.AddServiceTemplate(ft.CTX, newTemplate, false)
+	c.Assert(err, IsNil)
+	ft.verifyLogFilters(c, "1.0")
+	ft.verifyLogFilters(c, "2.0")
+
+	err = ft.Facade.RemoveServiceTemplate(ft.CTX, templateId)
+	c.Assert(err, IsNil)
+	ft.verifyLogFilters(c, "2.0")
+
+	// Verify that the filters remain after the template is removed
+	logFilter, err2 := ft.Facade.logFilterStore.Get(ft.CTX,  "filter1", "1.0")
+	c.Assert(err2, IsNil)
+	c.Assert(logFilter, NotNil)
+
+	logFilter, err2 = ft.Facade.logFilterStore.Get(ft.CTX,  "filter2", "1.0")
+	c.Assert(err2, IsNil)
+	c.Assert(logFilter, NotNil)
+}
+
+func (ft *FacadeIntegrationTest) verifyLogFilters(c *C, version string) {
+
+	name1   := "filter1"
+	filter1 := "updated filter"
+	name2   := "filter2"
+	filter2 := "second filter"
+	if version == "2.0" {
+		filter1 = "filter1 v2"
+		filter2 = "filter2 v2"
+	}
+
+	logFilter, err := ft.Facade.logFilterStore.Get(ft.CTX, name1, version)
+	c.Assert(err, IsNil)
+	c.Assert(logFilter, NotNil)
+	c.Assert(logFilter.Name, Equals, name1)
+	c.Assert(logFilter.Version, Equals, version)
+	c.Assert(logFilter.Filter, Equals, filter1)
+
+	logFilter, err = ft.Facade.logFilterStore.Get(ft.CTX, name2, version)
+	c.Assert(err, IsNil)
+	c.Assert(logFilter, NotNil)
+	c.Assert(logFilter.Name, Equals, name2)
+	c.Assert(logFilter.Version, Equals, version)
+	c.Assert(logFilter.Filter, Equals, filter2)
+}
+
