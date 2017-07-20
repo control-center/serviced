@@ -78,6 +78,8 @@ type DFS interface {
 	EstimateImagePullSize(images []string) (uint64, error)
 	// Get free disk space for a path
 	DfPath(path string, excludes []string) (uint64, error)
+	// Verifies that the mount points are correct. Returns nil if there are no problems.
+	VerifyTenantMounts(tenantID string) (err error)
 }
 
 var _ = DFS(&DistributedFilesystem{})

@@ -42,14 +42,15 @@ type NfsClientValidator interface {
 // Server manages exporting an NFS mount.
 type Server struct {
 	sync.Mutex
-	basePath        string
-	exportedName    string
-	exportOptions   string
-	network         string
-	clients         map[string]struct{}
-	volumes         map[string]int32
-	exported        map[string]struct{}
-	clientValidator NfsClientValidator
+	basePath         string
+	exportedName     string
+	exportedNamePath string
+	exportOptions    string
+	network          string
+	clients          map[string]struct{}
+	volumes          map[string]int32
+	exported         map[string]struct{}
+	clientValidator  NfsClientValidator
 }
 
 var (
@@ -133,20 +134,43 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		basePath:        basePath,
-		exportedName:    exportedName,
-		exportOptions:   "rw,insecure,no_subtree_check,async",
-		clients:         make(map[string]struct{}),
-		network:         network,
-		volumes:         make(map[string]int32),
-		exported:        make(map[string]struct{}),
-		clientValidator: nil,
+		basePath:         basePath,
+		exportedName:     exportedName,
+		exportedNamePath: exportedNamePath,
+		exportOptions:    "rw,insecure,no_subtree_check,async",
+		clients:          make(map[string]struct{}),
+		network:          network,
+		volumes:          make(map[string]int32),
+		exported:         make(map[string]struct{}),
+		clientValidator:  nil,
 	}, nil
 }
 
 // ExportPath returns the external export name; foo for nfs export /exports/foo
 func (c *Server) ExportPath() string {
 	return filepath.Join("/", c.exportedName)
+}
+
+// Returns the export path name; a combination of the exportsDir and ExportPath
+func (c *Server) ExportNamePath() string {
+	return c.exportedNamePath
+}
+
+// Returns the backing device for a given path.  Set on the Driver object to
+// make the mount device check testable.
+func (c *Server) GetDevice(path string) (uint64, error) {
+	// Get sys stats on the paths.
+	stat, err := os.Stat(path)
+	if err != nil {
+		return 0, fmt.Errorf("Unable to get volume stats for %s: %s", path, err)
+	}
+
+	// Cast each of the stats to a syscall.Stat_t to get the device information.
+	sysStat1, ok := stat.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("Unable to convert volume stats to Stat_t for %s: %s", path, err)
+	}
+	return sysStat1.Dev, nil
 }
 
 // Clients returns the IP Addresses of the current clients

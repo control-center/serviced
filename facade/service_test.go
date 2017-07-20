@@ -571,7 +571,10 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 	oldSvc, err := ft.Facade.GetService(ft.CTX, "original_service_id_child_0")
 	t.Assert(err, IsNil)
 
-	newSvc := service.Service{}
+	newSvc := service.Service{PoolID: "original_service_pool_id"}
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "original_service_pool_id"}
+	t.Assert(ft.Facade.AddResourcePool(ft.CTX, &rp), IsNil)
 
 	// Make sure we fail if we give a bad id.
 	newSvc = *oldSvc
@@ -619,13 +622,18 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t *C) {
-	err := ft.setupMigrationTestWithoutEndpoints(t)
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "default"}
+	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
+	t.Assert(err, IsNil)
+
+	err = ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
 	oldSvc, err := ft.Facade.GetService(ft.CTX, "original_service_id_child_0")
 	t.Assert(err, IsNil)
 
-	newSvc1 := service.Service{}
+	newSvc1 := service.Service{PoolID: "default"}
 	newSvc1 = *oldSvc
 	newSvc1.Name = "ModifiedName1"
 	newSvc1.Description = "migrated_service"
@@ -633,7 +641,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t 
 	oldSvc, err = ft.Facade.GetService(ft.CTX, "original_service_id_child_1")
 	t.Assert(err, IsNil)
 
-	newSvc2 := service.Service{}
+	newSvc2 := service.Service{PoolID: "default"}
 	newSvc2 = *oldSvc
 	newSvc2.Name = newSvc1.Name
 	newSvc2.Description = "migrated_service"
@@ -1325,6 +1333,13 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	}
 	// add a service with a subservice
 	var err error
+
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "default"}
+	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -1465,6 +1480,17 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 		StartLevel:             0,
 	}
 	var err error
+
+	// add the resource pool (DFS access required for testing emergency shutdown)
+	rp := pool.ResourcePool{ID: "default", Permissions: pool.DFSAccess}
+	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
+	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
+	// Mock that the mounts for this test are valid.
+	ft.dfs.On("VerifyTenantMounts", "ParentServiceID").Return(nil)
+
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -1700,8 +1726,20 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 		ParentServiceID:        "ParentServiceID",
 		EmergencyShutdownLevel: 2,
 	}
-	// add a service with 2 subservices
+
 	var err error
+
+	// add the resource pool (DFS Access required to test emergency shutdown)
+	rp := pool.ResourcePool{ID: "default", Permissions: pool.DFSAccess}
+	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
+	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
+	// Mock that the mounts for this test are valid.
+	ft.dfs.On("VerifyTenantMounts", "ParentServiceID").Return(nil)
+
+	// add a service with 2 subservices
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -1805,6 +1843,8 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
 	var mutex sync.RWMutex
+	rp := pool.ResourcePool{ID: "default"}
+	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	scheduledChannels := make(map[string]chan interface{})
 	scheduledChannels["ParentServiceID"] = make(chan interface{})
 	scheduledChannels["childService1"] = make(chan interface{})
@@ -1901,6 +1941,12 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 		StartLevel:      0,
 	}
 	var err error
+
+	// add the resource pool (no permissions required)
+	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -2155,6 +2201,8 @@ func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) 
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
 	var mutex sync.RWMutex
+	rp := pool.ResourcePool{ID: "default"}
+	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	scheduledChannels := make(map[string]chan int)
 	scheduledChannels["ParentServiceID"] = make(chan int, 1)
 	scheduledChannels["childService1"] = make(chan int, 1)
@@ -2209,6 +2257,12 @@ func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) 
 		StartLevel:      1,
 	}
 	var err error
+
+	// add the resource pool (no permissions required)
+	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -2285,6 +2339,8 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	// We have to reset the zzk mocks to replace what is in SetUpTest
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
+	rp := pool.ResourcePool{ID: "default"}
+	ft.zzk.On("UpdateResourcePool", &rp).Return(nil)
 	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
 	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
 		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
@@ -2324,6 +2380,12 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	}
 
 	var err error
+
+	// add the resource pool (no permissions required)
+	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -2422,6 +2484,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	}
 
 	var err error
+
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -2472,6 +2535,9 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 			}
 		}
 	})
+
+	// For this test, tenant mounts are valid.
+	ft.dfs.On("VerifyTenantMounts", "ParentServiceID").Return(nil)
 
 	// Start the parent service synchronously with AutoLaunch set to false, so that the child service stays stopped
 	_, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: false, Synchronous: true})
@@ -2579,6 +2645,45 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 		c.Assert(int(s.DesiredState), Equals, int(service.SVCRun))
 	}
 
+}
+
+// If the dfs mounts are invalid. Do not start services.
+func (ft *FacadeIntegrationTest) TestFacade_StartService_InvalidMounts(c *C) {
+	svc := service.Service{
+		ID: "TestFacade_StartService_PoolWithDFS",
+		Name: "TestFacade_StartService_PoolWithDFS",
+		PoolID: "default",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1, 1},
+		ImageID:        "test/pinger",
+		DeploymentID:   "deployment_id",
+		DesiredState:   int(service.SVCStop),
+		Launch:         "auto",
+		Endpoints:      []service.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		StartLevel:     0,
+	}
+
+	// add the resource pool (with DFS access so it checks mounts.)
+	rp := pool.ResourcePool{ID: "default", Permissions: pool.DFSAccess}
+	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
+	if err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed adding service testService: %+v, %s", svc, err)
+	}
+
+	ft.dfs.On("VerifyTenantMounts", "TestFacade_StartService_PoolWithDFS").Return(fmt.Errorf("some error"))
+
+	err = ft.Facade.validateServiceStart(datastore.Get(), &svc)
+	if err == nil {
+		c.Error("Service should have failed tenant mount validation for starting...")
+	}
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
@@ -3193,6 +3298,13 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	}
 
 	var err error
+
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "default"}
+	if err = ft.Facade.AddResourcePool(ft.CTX, &rp); err != nil {
+		c.Fatalf("Failed to add the default resource pool: %+v, %s", rp, err)
+	}
+
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
 	}
@@ -3454,3 +3566,4 @@ func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string,
 	sort.Strings(ids)
 	c.Assert(foundids, DeepEquals, ids)
 }
+
