@@ -121,3 +121,7 @@ func (f *Facade) BootstrapLogFilters(ctx datastore.Context) (bool, error) {
 
 	return logFiltersCreated, nil
 }
+
+func (f *Facade) GetLogFilters(ctx datastore.Context) ([]*logfilter.LogFilter, error) {
+	return f.logFilterStore.GetLogFilters(ctx)
+}

@@ -68,3 +68,24 @@ func (_m *Store) Delete(ctx datastore.Context, name, version string) error {
 
 	return r0
 }
+func (_m *Store) GetLogFilters(ctx datastore.Context) ([]*logfilter.LogFilter, error) {
+	ret := _m.Called(ctx)
+
+	var r0 *logfilter.LogFilter
+	if rf, ok := ret.Get(0).(func(datastore.Context) []*logfilter.LogFilter); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*logfilter.LogFilter)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

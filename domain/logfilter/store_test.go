@@ -51,7 +51,6 @@ func (s *S) Test_LogFilterCRUD(c *C) {
 	c.Assert(actual, IsNil)
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 
-
 	err = s.store.Put(s.ctx, expected)
 	expected.DatabaseVersion++
 	c.Assert(err, IsNil)
@@ -95,4 +94,56 @@ func (s *S) Test_GetRequiresNameAndVersion(c *C) {
 	c.Assert(err2, NotNil)
 	c.Assert(result, IsNil)
 	c.Assert(datastore.IsErrNoSuchEntity(err2), Equals, true)
+}
+
+func (s *S) Test_GetLogFilters(c *C) {
+	// Get an empty list
+	filters, err := s.store.GetLogFilters(s.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(filters, NotNil)
+	c.Assert(len(filters), Equals, 0)
+
+	filter1_1 := LogFilter{
+		Name:    "filter1",
+		Version: "1",
+		Filter:  "filter value1",
+	}
+	filter2_1 := LogFilter{
+		Name:    "filter2",
+		Version: "1",
+		Filter:  "filter value2",
+	}
+	filter1_2 := LogFilter{
+		Name:    "filter1",
+		Version: "2",
+		Filter:  "filter value1",
+	}
+	filter2_2 := LogFilter{
+		Name:    "filter2",
+		Version: "2",
+		Filter:  "filter value2",
+	}
+
+	err = s.store.Put(s.ctx, &filter1_1)
+	c.Assert(err, IsNil)
+	err = s.store.Put(s.ctx, &filter2_1)
+	c.Assert(err, IsNil)
+	err = s.store.Put(s.ctx, &filter1_2)
+	c.Assert(err, IsNil)
+	err = s.store.Put(s.ctx, &filter2_2)
+	c.Assert(err, IsNil)
+
+	filter1_1.DatabaseVersion++
+	filter2_1.DatabaseVersion++
+	filter1_2.DatabaseVersion++
+	filter2_2.DatabaseVersion++
+
+	filters, err = s.store.GetLogFilters(s.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(filters, NotNil)
+	c.Assert(len(filters), Equals, 4)
+	c.Assert(*(filters[0]), DeepEquals, filter1_1)
+	c.Assert(*(filters[1]), DeepEquals, filter2_1)
+	c.Assert(*(filters[2]), DeepEquals, filter1_2)
+	c.Assert(*(filters[3]), DeepEquals, filter2_2)
 }

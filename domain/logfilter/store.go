@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"fmt"
+	"github.com/zenoss/elastigo/search"
 )
 
 
@@ -32,6 +33,8 @@ type Store interface {
 	// Delete removes the a LogFilter if it exists
 	Delete(ctx datastore.Context, name, version string) error
 
+	// GetLogFilters returns all LogFilters
+	GetLogFilters(ctx datastore.Context) ([]*LogFilter, error)
 }
 
 type storeImpl struct {
@@ -65,6 +68,18 @@ func (s *storeImpl) Delete(ctx datastore.Context, name, version string) error {
 	return s.ds.Delete(ctx, Key(name, version))
 }
 
+// GetLogFilters returns all LogFilters
+func (s *storeImpl) GetLogFilters(ctx datastore.Context) ([]*LogFilter, error) {
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Search("_exists_:Name")
+	search := search.Search("controlplane").Type(kind).Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
+
 //Key creates a Key suitable for getting, putting and deleting LogFilters
 func Key(name, version string) datastore.Key {
 	name = strings.TrimSpace(name)
@@ -74,4 +89,16 @@ func Key(name, version string) datastore.Key {
 
 func buildID(name, version string) string {
 	return fmt.Sprintf("%s-%s", name, version)
+}
+
+func convert(results datastore.Results) ([]*LogFilter, error) {
+	filters := make([]*LogFilter, results.Len())
+	for idx := range filters {
+		filter := LogFilter{}
+		if err := results.Get(idx, &filter); err != nil {
+			return []*LogFilter{}, err
+		}
+		filters[idx] = &filter
+	}
+	return filters, nil
 }
