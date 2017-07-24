@@ -224,7 +224,7 @@ type Service struct {
 	ConfigFiles       map[string]servicedefinition.ConfigFile
 	Instances         int
 	InstanceLimits    domain.MinMax
-	ChangeOptions     []string
+	ChangeOptions     []servicedefinition.ChangeOption
 	ImageID           string
 	PoolID            string
 	DesiredState      int

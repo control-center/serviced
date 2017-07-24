@@ -56,6 +56,10 @@ type Strategy interface {
 }
 
 func Get(name string) (Strategy, error) {
+	// Default to servicedefinition.Balance
+	if len(name) == 0 {
+		name = servicedefinition.Balance
+	}
 	for _, strategy := range strategies {
 		if strings.ToLower(strategy.Name()) == strings.ToLower(name) {
 			return strategy, nil

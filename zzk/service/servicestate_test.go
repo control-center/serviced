@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 var (
@@ -416,7 +417,7 @@ func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceChanged(c *C) {
 		ID:            "serviceid",
 		Name:          "serviceA",
 		Instances:     1,
-		ChangeOptions: []string{"restartAllOnInstanceChanged"},
+		ChangeOptions: []servicedefinition.ChangeOption{servicedefinition.RestartAllOnInstanceChanged},
 	}
 	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
@@ -458,6 +459,233 @@ func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceChanged(c *C) {
 	delta, ok = listener.Sync(false, sn, reqs)
 	c.Assert(ok, Equals, true)
 	c.Assert(delta, Equals, -4)
+}
+
+// Start 3 instances.  Instance 1 goes down.  We expect only instance 1 to be removed.
+func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceZeroDown_Test1(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.ServiceHandler{}
+
+	// Basic setup
+	sn := &ServiceNode{
+		ID:            "serviceid",
+		Name:          "serviceA",
+		Instances:     1,
+		ChangeOptions: []servicedefinition.ChangeOption{servicedefinition.RestartAllOnInstanceZeroDown},
+	}
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
+	c.Assert(err, IsNil)
+
+	// an online host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
+	c.Assert(err, IsNil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
+
+	listener := NewServiceListener("poolid", handler)
+	listener.SetConnection(conn)
+
+	// start 3 instances
+	sn.Instances = 3
+	reqs := []StateRequest{}
+
+	delta, ok := listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, 3)
+
+	// delete instance 1 and sync
+	deleted := []bool{false, true, false}
+	reqs = []StateRequest{}
+	for i, ok := range deleted {
+		req := StateRequest{
+			PoolID:     "poolid",
+			HostID:     "hostid",
+			ServiceID:  "serviceid",
+			InstanceID: i,
+		}
+		if ok {
+			err = DeleteState(conn, req)
+			c.Assert(err, IsNil)
+		} else {
+			reqs = append(reqs, req)
+		}
+	}
+
+	// We now have 2 running instances (id:0 and id:2), but the service wants
+	// 3 instances.  Our delta will be +1.
+	delta, ok = listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, 1)
+}
+
+// Start 3 instances.  Instance 0 goes down.  We expect all 3 instances to be removed.
+func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceZeroDown_Test2(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.ServiceHandler{}
+
+	// Basic setup
+	sn := &ServiceNode{
+		ID:            "serviceid",
+		Name:          "serviceA",
+		Instances:     1,
+		ChangeOptions: []servicedefinition.ChangeOption{servicedefinition.RestartAllOnInstanceZeroDown},
+	}
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
+	c.Assert(err, IsNil)
+
+	// an online host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
+	c.Assert(err, IsNil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
+
+	listener := NewServiceListener("poolid", handler)
+	listener.SetConnection(conn)
+
+	// start 3 instances
+	sn.Instances = 3
+	reqs := []StateRequest{}
+
+	delta, ok := listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, 3)
+
+	// delete instance 0 and sync
+	deleted := []bool{true, false, false}
+	reqs = []StateRequest{}
+	for i, ok := range deleted {
+		req := StateRequest{
+			PoolID:     "poolid",
+			HostID:     "hostid",
+			ServiceID:  "serviceid",
+			InstanceID: i,
+		}
+		if ok {
+			err = DeleteState(conn, req)
+			c.Assert(err, IsNil)
+		} else {
+			reqs = append(reqs, req)
+		}
+	}
+
+	// We now have 2 running instances (id:1, id:2) but our service wants
+	// 3 instances.  Since we don't have instance 0, we expect both running
+	// instances to be stopped.
+	delta, ok = listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, -2)
+}
+
+// Start 3 instances.  Change the requested instances to 4.  We expect to add just
+// one instance (but none of the other instances are affected).
+func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceZeroDown_Test3(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.ServiceHandler{}
+
+	// Basic setup
+	sn := &ServiceNode{
+		ID:            "serviceid",
+		Name:          "serviceA",
+		Instances:     1,
+		ChangeOptions: []servicedefinition.ChangeOption{servicedefinition.RestartAllOnInstanceZeroDown},
+	}
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
+	c.Assert(err, IsNil)
+
+	// an online host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
+	c.Assert(err, IsNil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
+
+	listener := NewServiceListener("poolid", handler)
+	listener.SetConnection(conn)
+
+	// start 3 instances
+	sn.Instances = 3
+	reqs := []StateRequest{}
+
+	delta, ok := listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, 3)
+
+	// Build the StateRequest mock objects for the 3 we just created.
+	for i := 0; i < sn.Instances; i++ {
+		req := StateRequest{
+			PoolID:     "poolid",
+			HostID:     "hostid",
+			ServiceID:  "serviceid",
+			InstanceID: i,
+		}
+		reqs = append(reqs, req)
+	}
+
+	// Change our service def to require 4 instances.
+	sn.Instances = 4
+
+	// We have 3 running instances (id:0, id:1, id:2), but our service
+	// wants 4 instances.  We expect to add 1 running instance.
+	delta, ok = listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, 1)
+}
+
+// Start 3 instances.  Change the requested instances to 2.  We expect to remove just
+// one instance (but none of the other instances are affected).
+func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceZeroDown_Test4(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.ServiceHandler{}
+
+	// Basic setup
+	sn := &ServiceNode{
+		ID:            "serviceid",
+		Name:          "serviceA",
+		Instances:     1,
+		ChangeOptions: []servicedefinition.ChangeOption{servicedefinition.RestartAllOnInstanceZeroDown},
+	}
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
+	c.Assert(err, IsNil)
+
+	// an online host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
+	c.Assert(err, IsNil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
+
+	listener := NewServiceListener("poolid", handler)
+	listener.SetConnection(conn)
+
+	// start 3 instances
+	sn.Instances = 3
+	reqs := []StateRequest{}
+
+	delta, ok := listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, 3)
+
+	// Build the StateRequest mock objects for the 3 we just created.
+	for i := 0; i < sn.Instances; i++ {
+		req := StateRequest{
+			PoolID:     "poolid",
+			HostID:     "hostid",
+			ServiceID:  "serviceid",
+			InstanceID: i,
+		}
+		reqs = append(reqs, req)
+	}
+
+	// Change our service def to require 2 instances.
+	sn.Instances = 2
+
+	// We have 3 running instances (id:0, id:1, id:2), but our service
+	// wants 2 instances.  We expect to remove 1 running instance.
+	delta, ok = listener.Sync(false, sn, reqs)
+	c.Assert(ok, Equals, true)
+	c.Assert(delta, Equals, -1)
 }
 
 func (t *ZZKTest) TestServiceListener_Start(c *C) {
