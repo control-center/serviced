@@ -769,41 +769,45 @@ func (svc *IService) startupHealthcheck() <-chan error {
 	go func() {
 		var result error
 		if len(svc.HealthChecks) > 0 {
-			checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]
-			if !found {
-				log.WithFields(logrus.Fields{
-					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-					"isvc":        svc.Name,
-				}).Debug("Default health check not found")
-				err <- nil
-				return
-			}
 
 			startCheck := time.Now()
+			breakCheck := false
+
 			for {
 				currentTime := time.Now()
 				elapsed := time.Since(startCheck)
-				result = svc.runCheckOrTimeout(checkDefinition)
-				svc.setHealthStatus(result, currentTime.Unix())
-				log := log.WithFields(logrus.Fields{
-					"isvc":    svc.Name,
-					"elapsed": elapsed,
-				})
-				if result == nil {
-					log.Info("Internal service checked in healthy")
-					break
-				} else if elapsed.Seconds() > svc.StartupTimeout.Seconds() {
-					log.WithFields(logrus.Fields{
-						"lastresult": result,
-					}).Warn("Unable to verify health of internal service")
+
+				for healthCheckIndex, healthCheckDefinition := range svc.HealthChecks {
+					result = svc.runCheckOrTimeout(healthCheckDefinition)
+					svc.setHealthStatus(result, currentTime.Unix(), healthCheckIndex)
+
+					log := log.WithFields(logrus.Fields{
+						"isvc":    svc.Name,
+						"elapsed": elapsed,
+					})
+
+					if result == nil {
+						log.Info("Internal service checked in healthy")
+						breakCheck = true
+					} else if elapsed.Seconds() > svc.StartupTimeout.Seconds() {
+						log.WithFields(logrus.Fields{
+							"lastresult": result,
+						}).Warn("Unable to verify health of internal service")
+						breakCheck = true
+					}
+				}
+
+				if breakCheck == true {
 					break
 				}
+
 				log.Debug("Waiting for internal service to check in healthy")
+
 				time.Sleep(time.Second)
 			}
 			err <- result
 		} else {
-			svc.setHealthStatus(nil, time.Now().Unix())
+			svc.setHealthStatus(nil, time.Now().Unix(), DEFAULT_HEALTHCHECK_NAME)
 			err <- nil
 		}
 	}()
@@ -831,26 +835,24 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 
 func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	if len(svc.HealthChecks) == 0 {
-		return
-	}
-
-	var (
-		found           bool
-		checkDefinition healthCheckDefinition
-	)
-
-	log := log.WithFields(logrus.Fields{
-		"isvc": svc.Name,
-	})
-
-	if checkDefinition, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
 		log.WithFields(logrus.Fields{
-			"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-		}).Warn("Default health check not found")
+			"healthcheck": "None",
+		}).Debug("No health checks not found")
 		return
 	}
 
-	timer := time.Tick(checkDefinition.Interval)
+	var tickInterval time.Duration
+
+	// go through the health check s and find the longest duration interval for our ticker.
+	// CURRENT - we have one ticker for the longest of the periods for all health checks.
+	for _, checkDefinition := range svc.HealthChecks {
+		if tickInterval < checkDefinition.Interval {
+			tickInterval = checkDefinition.Interval
+		}
+	}
+
+	timer := time.Tick(tickInterval)
+
 	for {
 		select {
 		case <-halt:
@@ -858,16 +860,18 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 			return
 
 		case currentTime := <-timer:
-			err := svc.runCheckOrTimeout(checkDefinition)
-			svc.setHealthStatus(err, currentTime.Unix())
-			if err != nil {
-				log.WithError(err).Warn("Health check failed")
+			for healthCheckIndex, checkDefinition := range svc.HealthChecks {
+				err := svc.runCheckOrTimeout(checkDefinition)
+				svc.setHealthStatus(err, currentTime.Unix(), healthCheckIndex)
+				if err != nil {
+					log.WithError(err).Warn("Health check failed")
+				}
 			}
 		}
 	}
 }
 
-func (svc *IService) setHealthStatus(result error, currentTime int64) {
+func (svc *IService) setHealthStatus(result error, currentTime int64, healthCheckIndex string) {
 	if len(svc.healthStatuses) == 0 {
 		return
 	}
@@ -879,7 +883,7 @@ func (svc *IService) setHealthStatus(result error, currentTime int64) {
 		"isvc": svc.Name,
 	})
 
-	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+	if healthStatus, found := svc.healthStatuses[healthCheckIndex]; found {
 		if result == nil {
 			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
 				log.Info("Internal service checked in healthy")
@@ -896,33 +900,34 @@ func (svc *IService) setHealthStatus(result error, currentTime int64) {
 		}
 	} else {
 		log.WithFields(logrus.Fields{
-			"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-		}).Warn("Default health check not found")
+			"healthcheck": healthCheckIndex,
+		}).Warn("Health check not found")
 	}
 }
 
 func (svc *IService) setStoppedHealthStatus(stopResult error) {
 	if len(svc.healthStatuses) == 0 {
+		log.WithFields(logrus.Fields{
+			"isvc":        svc.Name,
+			"healthcheck": "None",
+		}).Warn("No health check not found")
 		return
 	}
 
 	svc.lock.Lock()
 	defer svc.lock.Unlock()
 
-	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+	for _, healthStatus := range svc.healthStatuses {
 		healthStatus.Status = "stopped"
+
 		if stopResult == nil {
 			healthStatus.Failure = ""
 		} else {
 			healthStatus.Failure = stopResult.Error()
 		}
+
 		healthStatus.Timestamp = time.Now().Unix()
 		healthStatus.StartedAt = 0
-	} else {
-		log.WithFields(logrus.Fields{
-			"isvc":        svc.Name,
-			"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-		}).Warn("Default health check not found")
 	}
 }
 
