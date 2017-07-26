@@ -181,23 +181,6 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	return nil
 }
 
-func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[string]string {
-	filterDefs := make(map[string]string)
-	for _, service := range services {
-		for name, value := range service.LogFilters {
-			filterDefs[name] = value
-		}
-
-		if len(service.Services) > 0 {
-			subFilterDefs := getFilterDefinitions(service.Services)
-			for name, value := range subFilterDefs {
-				filterDefs[name] = value
-			}
-		}
-	}
-	return filterDefs
-}
-
 func getFiltersFromTemplates(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, logFiles *[]string) string {
 	filters := ""
 	for _, svc := range services {

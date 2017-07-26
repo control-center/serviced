@@ -16,6 +16,7 @@ package facade
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/logfilter"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/Sirupsen/logrus"
 )
@@ -62,7 +63,7 @@ func (f *Facade) RemoveLogFilters(ctx datastore.Context, serviceTemplate *servic
 		"templateversion": serviceTemplate.Version,
 	})
 	filterDefs := getFilterDefinitions(serviceTemplate.Services)
-	for name, _ := range filterDefs {
+	for name := range filterDefs {
 		err := f.logFilterStore.Delete(ctx, name, serviceTemplate.Version)
 		// ignore not-found errors, but stop on anything other failure
 		if err != nil && !datastore.IsErrNoSuchEntity(err) {
@@ -125,3 +126,21 @@ func (f *Facade) BootstrapLogFilters(ctx datastore.Context) (bool, error) {
 func (f *Facade) GetLogFilters(ctx datastore.Context) ([]*logfilter.LogFilter, error) {
 	return f.logFilterStore.GetLogFilters(ctx)
 }
+
+func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[string]string {
+	filterDefs := make(map[string]string)
+	for _, service := range services {
+		for name, value := range service.LogFilters {
+			filterDefs[name] = value
+		}
+
+		if len(service.Services) > 0 {
+			subFilterDefs := getFilterDefinitions(service.Services)
+			for name, value := range subFilterDefs {
+				filterDefs[name] = value
+			}
+		}
+	}
+	return filterDefs
+}
+
