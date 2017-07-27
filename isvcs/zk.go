@@ -19,24 +19,19 @@ import (
 	"io/ioutil"
 	"net"
 	"time"
-	"github.com/control-center/serviced/config"
-	"fmt"
 )
 
 var Zookeeper IServiceDefinition
 var zookeeper *IService
 
-const QUORUM_HEALTHCHECK_NAME = "Participating in Quorum"
+const QUORUM_HEALTHCHECK_NAME = "hasQuorum"
 
 func initZK() {
 	var err error
 
 	// build the list of ZooKeeper connect strings for use in health checks.
-	zkConnectStrings := config.GetOptions().Zookeepers
-
-	if len(zkConnectStrings) == 0 {
-		zkConnectStrings = append(zkConnectStrings, "127.0.0.1:2181")
-	}
+	var zkConnectStrings []string
+	zkConnectStrings = append(zkConnectStrings, "127.0.0.1:2181")
 
 	// Build the service definition for the Zookeeper instance.
 	Zookeeper = IServiceDefinition{
@@ -105,30 +100,50 @@ func initZK() {
 // This function sets up a ZooKeeper health check function parameterized with the connection string eg: "127.0.0.1:2181".
 func SetZKHealthCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
+		healthy := true
+		times := -1
 		for {
+			if !healthy && times == 3 {
+				log.WithFields(logrus.Fields{
+					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+				}).Warn("Unable to validate health of ZooKeeper. Retrying silently")
+			}
+
 			select {
 			case <-halt:
-				log.Debug("Stopped health checks for ZooKeeper")
+				log.WithFields(logrus.Fields{
+					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+				}).Debug("Stopped health checks for ZooKeeper")
 				return nil
 			default:
 				// Try ruok.
+				times++
 
-				ruok, err := zkFourLetterWord(connectString, "ruok", time.Second*2)
+				ruok, err := zkFourLetterWord(connectString, "ruok", time.Second*10)
 				if err != nil {
-					log.WithError(err).Debug("No response to ruok from ZooKeeper")
-					return fmt.Errorf("No response to \"ruok\" from ZooKeeper instance (%s)", connectString)
+					log.WithFields(logrus.Fields{
+						"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+					}).WithError(err).Debug("No response to ruok from ZooKeeper")
+					healthy = false
+					time.Sleep(1 * time.Second)
+					continue
 				}
 
 				// ruok should respond either with "imok" or not at all.
 				// If for some reason that isn't the case, there's a problem.
 				if string(ruok) != "imok" {
 					log.WithFields(logrus.Fields{
+						"healthcheck": DEFAULT_HEALTHCHECK_NAME,
 						"response": ruok,
 					}).Debug("Improper response to ruok from ZooKeeper")
-					return fmt.Errorf("Improper response to \"ruok\" from ZooKeeper instance (%s)", connectString)
+					healthy = false
+					time.Sleep(1 * time.Second)
+					continue
 				}
 
-				log.Debug("ZooKeeper checked in healthy")
+				log.WithFields(logrus.Fields{
+					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+				}).Debug("ZooKeeper checked in healthy")
 
 				return nil
 			}
@@ -139,27 +154,49 @@ func SetZKHealthCheck(connectString string) HealthCheckFunction {
 // This function sets up a ZooKeeper quorum check function parameterized with the connection string eg: "127.0.0.1:2181".
 func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
+		healthy := true
+		times := -1
 
 		for {
+			if !healthy && times == 3 {
+				log.WithFields(logrus.Fields{
+					"healthcheck": QUORUM_HEALTHCHECK_NAME,
+				}).Warn("Unable to validate health of ZooKeeper. Retrying silently")
+			}
+
 			select {
 			case <-halt:
-				log.Debug("Stopped health checks for ZooKeeper")
+				log.WithFields(logrus.Fields{
+					"healthcheck": QUORUM_HEALTHCHECK_NAME,
+				}).Debug("Stopped health checks for ZooKeeper")
 				return nil
 			default:
+				times++
+
 				// check the 'stat' command and see what the instance returns to the caller.
-				stat, err := zkFourLetterWord(connectString, "stat", time.Second*2)
+				stat, err := zkFourLetterWord(connectString, "stat", time.Second*10)
 				if err != nil {
-					log.WithError(err).Debug("No response to stat from ZooKeeper")
-					return fmt.Errorf("No response to stat from ZooKeeper instance (%s)", connectString)
+					log.WithFields(logrus.Fields{
+						"healthcheck": QUORUM_HEALTHCHECK_NAME,
+					}).WithError(err).Debug("No response to stat from ZooKeeper")
+					healthy = false
+					time.Sleep(1 * time.Second)
+					continue
 				}
 
 				// If we get "This ZooKeeper instance is not currently serving requests", we know it's waiting for quorum and can at least note that in the logs.
 				if string(stat) == "This ZooKeeper instance is not currently serving requests\n" {
-					log.Debug("ZooKeeper is running, but still establishing a quorum")
-					return fmt.Errorf("ZooKeeper instance (%s) is running, but still establishing a quorum", connectString)
+					log.WithFields(logrus.Fields{
+						"healthcheck": QUORUM_HEALTHCHECK_NAME,
+					}).Debug("ZooKeeper is running, but still establishing a quorum")
+					healthy = false
+					time.Sleep(1 * time.Second)
+					continue
 				}
 
-				log.Debug("ZooKeeper Quorum checked in healthy")
+				log.WithFields(logrus.Fields{
+					"healthcheck": QUORUM_HEALTHCHECK_NAME,
+				}).Debug("ZooKeeper Quorum checked in healthy")
 
 				return nil
 			}
