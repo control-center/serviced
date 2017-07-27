@@ -25,11 +25,12 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/version"
 )
 
 
@@ -37,6 +38,13 @@ var (
 	logstashConfigLock = &sync.Mutex{}
 	ErrLogstashUnchanged = errors.New("logstash config unchanged")
 )
+
+type serviceLogInfo struct {
+	ID         string               // service ID
+	Name       string		// service name
+	Version    string		// version of parent tenant application
+	LogConfigs []servicedefinition.LogConfig
+}
 
 //
 // ReloadLogstashConfig will create a new logstash configuration based on the union of information from all
@@ -62,9 +70,9 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 	logstashConfigLock.Lock()
 	defer logstashConfigLock.Unlock()
 
-	templates, err := f.GetServiceTemplates(ctx)
+	logFilters, err := f.GetLogFilters(ctx)
 	if err != nil {
-		plog.WithError(err).Error("Could not retrieve service templates")
+		plog.WithError(err).Error("Could not retrieve service logFilters")
 		return err
 	}
 
@@ -74,7 +82,11 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 		return err
 	}
 
-	services := []service.Service{}
+	// serviceLogs is a unique list of services with log files, such that if there are two or more
+	// copies of the same service, then only the most recent is kept in the list. In other words,
+	// in cases where two or more versions of a particular service are deployed, we only use
+	// the most recent version to decide which log filters to install
+	serviceLogs := map[string]serviceLogInfo{}
 	for _, tenantID := range tenantIDs {
 		svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
 		if err != nil {
@@ -83,10 +95,30 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 			return err
 		}
 
-		services = append(services, svcs...)
+		tenantVersion := ""
+		for _, svc := range svcs {
+			if svc.ID == tenantID {
+				tenantVersion = svc.Version
+				break
+			}
+		}
+
+		addServiceLogs(tenantVersion, svcs, serviceLogs)
 	}
 
-	err = writeLogstashConfiguration(templates, services)
+	filterSection := ""
+	logFiles := []string{} 	// a list of unique application log file names
+	auditLogSection := ""
+	auditableTypes := []string{} // a list of unique log types where IsAudit=true
+
+	plog.Debugf("Checking %d services", len(serviceLogs))
+	for _, logInfo := range serviceLogs {
+		filterSection += getFilterSection(logInfo, logFilters, &logFiles)
+		auditLogSection += getAuditLogSection(logInfo.LogConfigs, &auditableTypes)
+	}
+	plog.Debugf("after checking services, auditLogSection=%s", auditLogSection)
+
+	err = writeLogstashConfiguration(filterSection, auditLogSection)
 	if err == ErrLogstashUnchanged {
 		return nil
 	} else if err != nil {
@@ -104,44 +136,32 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 	return f.ReloadLogstashConfig(ctx)
 }
 
+func addServiceLogs(tenantVersion string, svcs []service.Service, serviceLogs map[string]serviceLogInfo){
+	for _, svc := range svcs {
+		if len(svc.LogConfigs) == 0 {
+			continue
+		}
 
-// writeLogstashConfiguration takes a map of ServiceTemplates and writes them to the
+		logInfo, ok := serviceLogs[svc.Name]
+		if ok && logInfo.GreaterThanOrEqual(tenantVersion) {
+			continue
+		}
+		serviceLogs[svc.Name] = serviceLogInfo{
+			ID:         svc.ID,
+			Name:       svc.Name,
+			Version:    tenantVersion,
+			LogConfigs: svc.LogConfigs,
+		}
+	}
+}
+
+// writeLogstashConfiguration takes an array of LogFilter and writes them to the
 // appropriate place in the logstash.conf.
 // This is required before logstash startup
 //
 // This method returns nil of logstash configuration was replaced,
 // ErrLogstashUnchanged if the configuration is unchanged, or other errors if there was an I/O problem
-func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate, services []service.Service) error {
-	// the definitions are a map of filter name to content
-	// they are found by recursively going through all the service definitions
-	filterDefs := make(map[string]string)
-	for _, template := range templates {
-		subFilterDefs := getFilterDefinitions(template.Services)
-		for name, value := range subFilterDefs {
-			filterDefs[name] = value
-		}
-	}
-
-	// filters will be a syntactically correct logstash filters section
-	filters := ""
-
-	logFiles := []string{} 	// a list of unique application log file names
-
-	auditableTypes := []string{}
-	auditLogSection := ""
-	plog.Debugf("Checking %d templates", len(templates))
-	for _, template := range templates {
-		filters += getFiltersFromTemplates(template.Services, filterDefs, &logFiles)
-		auditLogSection = getAuditLogSectionFromTemplates(template.Services, &auditableTypes)
-	}
-	plog.Debugf("after templates, auditLogSection=%s", auditLogSection)
-
-	plog.Debugf("Checking %d services", len(services))
-	for _, svc := range services {
-		filters += getFilters(svc.Name, svc.LogConfigs, filterDefs, &logFiles)
-		auditLogSection += getAuditLogSection(svc.LogConfigs,  &auditableTypes)
-	}
-	plog.Debugf("after services, auditLogSection=%s", auditLogSection)
+func writeLogstashConfiguration(filterSection, auditLogSection string) error {
 
 	logstashDir := getLogstashConfigDirectory()
 	newConfigFile := filepath.Join(logstashDir, "logstash.conf.new")
@@ -151,7 +171,7 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 		"currentconfigfile": originalFile,
 	})
 
-	err := writeLogStashConfigFile(filters, auditLogSection, newConfigFile)
+	err := writeLogStashConfigFile(filterSection, auditLogSection, newConfigFile)
 	if err != nil {
 		logger.WithError(err).Error("Unable to create new logstash config file")
 		return err
@@ -181,51 +201,66 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 	return nil
 }
 
-func getFiltersFromTemplates(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, logFiles *[]string) string {
-	filters := ""
-	for _, svc := range services {
-		filters += getFilters(svc.Name, svc.LogConfigs, filterDefs, logFiles)
-		if len(svc.Services) > 0 {
-			subFilts := getFiltersFromTemplates(svc.Services, filterDefs, logFiles)
-			filters += subFilts
-		}
-	}
-	return filters
-}
 
-func getFilters(serviceName string, configs []servicedefinition.LogConfig, filterDefs map[string]string, logFiles *[]string) string {
-	filters := ""
-	for _, config := range configs {
+func getFilterSection(logInfo serviceLogInfo, logFilters []*logfilter.LogFilter, logFiles *[]string) string {
+	filterSection := ""
+	for _, config := range logInfo.LogConfigs {
 		for _, filterName := range config.Filters {
-			filterValue, ok := filterDefs[filterName]
+			filterValue, ok := findNewestFilter(filterName, logInfo, logFilters)
 			if !ok {
 				plog.WithFields(log.Fields{
-					"service": serviceName,
+					"serviceid": logInfo.ID,
+					"servicename": logInfo.Name,
 					"filter": filterName,
-				}).Warn("log filter not found")
+				}).Warn("service log filter not found")
 				continue
 			}
 			//  CC-3669: do not write duplicate filters for the same log file
 			if !utils.StringInSlice(config.Path, *logFiles) {
-				filters += fmt.Sprintf("\n  if [file] == \"%s\" {\n%s\n  }\n",
+				filterSection += fmt.Sprintf("\n  if [file] == \"%s\" {\n%s\n  }\n",
 					config.Path, indent(filterValue, "    "))
 				*logFiles = append(*logFiles, config.Path)
 			}
 		}
 	}
-	return filters
+	return filterSection
 }
 
-func getAuditLogSectionFromTemplates(services []servicedefinition.ServiceDefinition, auditTypes *[]string) string {
-	auditSection := ""
-	for _, svc := range services {
-		auditSection += getAuditLogSection(svc.LogConfigs, auditTypes)
-		if len(svc.Services) > 0 {
-			subServiceOutput := getAuditLogSectionFromTemplates(svc.Services, auditTypes)
-			auditSection += subServiceOutput
+// Finds the newest match for the named filter by version.
+// If an exact match is found, use it. Otherwise, return the newest version of the named filter
+func findNewestFilter(filterName string, logInfo serviceLogInfo, logFilters []*logfilter.LogFilter) (string, bool) {
+	matchingFilters := []*logfilter.LogFilter{}
+	for _, filter := range logFilters {
+		if filterName == filter.Name {
+			matchingFilters = append(matchingFilters, filter)
 		}
 	}
-	return auditSection
+
+	var closest *logfilter.LogFilter
+	var filterVersion version.Version
+	svcVersion := version.Version(logInfo.Version)
+	for _, filter := range matchingFilters {
+		filterVersion = version.Version(filter.Version)
+		if svcVersion.Equal(filterVersion) {
+			closest = filter
+			break
+		} else if closest == nil || version.Version(closest.Version).LessThan(filterVersion) {
+			closest = filter
+		}
+	}
+	if closest == nil {
+		return "", false
+	}
+	if !svcVersion.Equal(filterVersion)  {
+		plog.WithFields(log.Fields{
+			"serviceid": logInfo.ID,
+			"servicename": logInfo.Name,
+			"serviceversion": logInfo.Version,
+			"filter": filterName,
+			"filterversion": closest.Version,
+		}).Warn("Unable to find exact match for service log filter version")
+	}
+	return closest.Filter, true
 }
 
 func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]string) string {
@@ -251,7 +286,7 @@ func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]str
 
 // This method writes out the config file for logstash. It uses
 // the logstash.conf.template and does a variable replacement.
-func writeLogStashConfigFile(filters string, auditLogSection string, outputPath string) error {
+func writeLogStashConfigFile(filterSection string, auditLogSection string, outputPath string) error {
 	// read the log configuration template
 	templatePath := filepath.Join(getLogstashConfigDirectory(), "logstash.conf.template")
 
@@ -262,7 +297,7 @@ func writeLogStashConfigFile(filters string, auditLogSection string, outputPath 
 
 	// the newlines in the string below are deliberate so that the filter
 	// syntax is correct
-	filterSection := `
+	filterDefinition := `
 filter {
   mutate {
     rename => {
@@ -272,10 +307,10 @@ filter {
     add_field => [ "rcvd_datetime", "%{@timestamp}" ]
   }
 # NOTE the filters are generated from the service definitions
-` + string(filters) + `
+` + string(filterSection) + `
 }
 `
-	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterSection, 1)
+	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterDefinition, 1)
 	if len(auditLogSection) > 0 {
 		newContents = strings.Replace(string(newContents),"${AUDITLOG_SECTION}", auditLogSection, 1)
 	}
@@ -296,4 +331,17 @@ func indent(src, tab string) string {
 
 func getLogstashConfigDirectory() string {
 	return filepath.Join(utils.ResourcesDir(), "logstash")
+}
+
+// Returns true if serviceLogInfo.Version is >= version.
+func (sli *serviceLogInfo) GreaterThanOrEqual(value string) bool {
+	if sli.Version == "" {
+		return false
+	} else if value == "" {
+		return true
+	}
+
+	a := version.Version(sli.Version)
+	b := version.Version(value)
+	return a.GreaterThanOrEqualTo(b)
 }

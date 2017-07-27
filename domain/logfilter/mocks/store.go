@@ -71,7 +71,7 @@ func (_m *Store) Delete(ctx datastore.Context, name, version string) error {
 func (_m *Store) GetLogFilters(ctx datastore.Context) ([]*logfilter.LogFilter, error) {
 	ret := _m.Called(ctx)
 
-	var r0 *logfilter.LogFilter
+	var r0 []*logfilter.LogFilter
 	if rf, ok := ret.Get(0).(func(datastore.Context) []*logfilter.LogFilter); ok {
 		r0 = rf(ctx)
 	} else {
