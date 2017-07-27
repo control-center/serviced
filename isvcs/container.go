@@ -895,7 +895,7 @@ func (svc *IService) setHealthStatus(result error, currentTime int64, healthChec
 			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
 				log.WithFields(logrus.Fields{
 					"healthcheck": healthCheckName,
-				}).Info("Internal service health check is healthy")
+				}).Info("Internal service health check passed")
 			}
 			healthStatus.Status = "passed"
 			healthStatus.Failure = ""

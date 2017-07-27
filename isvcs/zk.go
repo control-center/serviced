@@ -102,18 +102,16 @@ func SetZKHealthCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
 		healthy := true
 		times := -1
+		logger := log.WithFields(logrus.Fields{"healthcheck": DEFAULT_HEALTHCHECK_NAME,})
+
 		for {
 			if !healthy && times == 3 {
-				log.WithFields(logrus.Fields{
-					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-				}).Warn("Unable to validate health of ZooKeeper. Retrying silently")
+				logger.Warn("Unable to validate health of ZooKeeper. Retrying silently")
 			}
 
 			select {
 			case <-halt:
-				log.WithFields(logrus.Fields{
-					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-				}).Debug("Stopped health checks for ZooKeeper")
+				logger.Debug("Stopped health checks for ZooKeeper")
 				return nil
 			default:
 				// Try ruok.
@@ -121,9 +119,7 @@ func SetZKHealthCheck(connectString string) HealthCheckFunction {
 
 				ruok, err := zkFourLetterWord(connectString, "ruok", time.Second*10)
 				if err != nil {
-					log.WithFields(logrus.Fields{
-						"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-					}).WithError(err).Debug("No response to ruok from ZooKeeper")
+					logger.WithError(err).Debug("No response to ruok from ZooKeeper")
 					healthy = false
 					time.Sleep(1 * time.Second)
 					continue
@@ -132,8 +128,7 @@ func SetZKHealthCheck(connectString string) HealthCheckFunction {
 				// ruok should respond either with "imok" or not at all.
 				// If for some reason that isn't the case, there's a problem.
 				if string(ruok) != "imok" {
-					log.WithFields(logrus.Fields{
-						"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+					logger.WithFields(logrus.Fields{
 						"response": ruok,
 					}).Debug("Improper response to ruok from ZooKeeper")
 					healthy = false
@@ -141,9 +136,7 @@ func SetZKHealthCheck(connectString string) HealthCheckFunction {
 					continue
 				}
 
-				log.WithFields(logrus.Fields{
-					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
-				}).Debug("ZooKeeper checked in healthy")
+				logger.Debug("ZooKeeper checked in healthy")
 
 				return nil
 			}
@@ -156,19 +149,16 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
 		healthy := true
 		times := -1
+		logger := log.WithFields(logrus.Fields{"healthcheck": QUORUM_HEALTHCHECK_NAME,})
 
 		for {
 			if !healthy && times == 3 {
-				log.WithFields(logrus.Fields{
-					"healthcheck": QUORUM_HEALTHCHECK_NAME,
-				}).Warn("Unable to validate health of ZooKeeper. Retrying silently")
+				logger.Warn("Unable to validate health of ZooKeeper. Retrying silently")
 			}
 
 			select {
 			case <-halt:
-				log.WithFields(logrus.Fields{
-					"healthcheck": QUORUM_HEALTHCHECK_NAME,
-				}).Debug("Stopped health checks for ZooKeeper")
+				logger.Debug("Stopped health checks for ZooKeeper")
 				return nil
 			default:
 				times++
@@ -176,9 +166,7 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 				// check the 'stat' command and see what the instance returns to the caller.
 				stat, err := zkFourLetterWord(connectString, "stat", time.Second*10)
 				if err != nil {
-					log.WithFields(logrus.Fields{
-						"healthcheck": QUORUM_HEALTHCHECK_NAME,
-					}).WithError(err).Debug("No response to stat from ZooKeeper")
+					logger.WithError(err).Debug("No response to stat from ZooKeeper")
 					healthy = false
 					time.Sleep(1 * time.Second)
 					continue
@@ -186,17 +174,13 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 
 				// If we get "This ZooKeeper instance is not currently serving requests", we know it's waiting for quorum and can at least note that in the logs.
 				if string(stat) == "This ZooKeeper instance is not currently serving requests\n" {
-					log.WithFields(logrus.Fields{
-						"healthcheck": QUORUM_HEALTHCHECK_NAME,
-					}).Debug("ZooKeeper is running, but still establishing a quorum")
+					logger.Debug("ZooKeeper is running, but still establishing a quorum")
 					healthy = false
 					time.Sleep(1 * time.Second)
 					continue
 				}
 
-				log.WithFields(logrus.Fields{
-					"healthcheck": QUORUM_HEALTHCHECK_NAME,
-				}).Debug("ZooKeeper Quorum checked in healthy")
+				logger.Debug("ZooKeeper Quorum checked in healthy")
 
 				return nil
 			}
