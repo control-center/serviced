@@ -191,7 +191,7 @@
     <div ng-show="hasCurrentInstances() && !currentService.isIsvc()">
         <h3 class="pull-left" translate>running_tbl_instances</h3>
         <table jelly-table data-data="currentService.instances" data-config="instancesTable" class="table">
-            <tr ng-repeat="instance in $data" data-id="{{instance.id}}.{{instance.model.InstanceID}}">
+            <tr ng-repeat="instance in $data" ng-if="instance !== undefined" data-id="{{instance.id}}.{{instance.model.InstanceID}}">
                 <td data-title="'running_tbl_instance_id'|translate" sortable="'instance.model.InstanceID'">{{instance.model.InstanceID}}</td>
                 <td data-title="'label_service_status'|translate">
                     <span class="svcstate {{instance.model.CurrentState}}" translate>{{instance.model.CurrentState}}</span>
