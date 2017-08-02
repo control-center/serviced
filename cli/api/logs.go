@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -36,6 +37,15 @@ import (
 	elastigocore "github.com/zenoss/elastigo/core"
 	"github.com/control-center/serviced/volume"
 )
+
+type UnknownElasticStructError struct {
+	UnknownData string
+	UnknownStruct string
+}
+
+func (e *UnknownElasticStructError) Error() string {
+	return fmt.Sprintf("Expected elastic %s, got: %s", e.UnknownStruct, e.UnknownData)
+}
 
 // This interface is primarily provided for unit-testing ExportLogs().
 // Admittedly a very leaky abstraction around only a handful of elastigo calls.
@@ -844,7 +854,7 @@ type fieldProps struct {
 	Service     string      `json:"service"`        // This is the service id
 	Instance    json.Number `json:"instance"`       // This is the service instance id
 	HostIPs     string      `json:"hostips"`        // space-separated list of host-ips from the container
-	PoolID      string      `json:"poolid"`
+	PoolID      interface{} `json:"poolid"`
 	ServicePath string      `json:"servicepath"`    // Fully qualified path to the service
 }
 
@@ -867,13 +877,23 @@ type logSingleLine struct {
 
 // logSingleLine represents the data returned from elasticsearch for a multi-line log message
 type logMultiLine struct {
-	Type        string        `json:"type"`         // see note above for logSingleLine.Type
-	File        string        `json:"file"`
-	Timestamp   time.Time     `json:"@timestamp"`
-	Offset      []json.Number `json:"offset"`
-	Message     string        `json:"message"`
-	Fields      fieldProps    `json:"fields"`
-	FileBeat    beatProps     `json:"beat"`
+	Type        string      `json:"type"`         // see note above for logSingleLine.Type
+	File        string      `json:"file"`
+	Timestamp   time.Time   `json:"@timestamp"`
+	Offsets     []uint64    `json:"offset"`
+	Messages    []string    `json:"message"`
+	Fields      fieldProps  `json:"fields"`
+	FileBeat    beatProps   `json:"beat"`
+}
+
+type logMultiLineGeneric struct {
+	Type        string      `json:"type"`         // see note above for logSingleLine.Type
+	File        string      `json:"file"`
+	Timestamp   time.Time   `json:"@timestamp"`
+	Offsets     interface{} `json:"offset"`
+	Messages    interface{} `json:"message"`
+	Fields      fieldProps  `json:"fields"`
+	FileBeat    beatProps   `json:"beat"`
 }
 
 type compactLogLine struct {
@@ -906,20 +926,6 @@ type outputFileInfo struct {
 }
 
 var newline = regexp.MustCompile("\\r?\\n")
-
-// convertOffsets converts a list of strings into a list of uint64s
-func convertOffsets(offsets []json.Number) ([]uint64, error) {
-	result := make([]uint64, len(offsets))
-	for i, offset := range offsets {
-		offsetUint, e := strconv.ParseUint(string(offset), 10, 64)
-		if e != nil {
-			return result, fmt.Errorf("failed to parse offset[%d] \"%s\" in \"%s\": %s", i, string(offset), offsets, e)
-		}
-		result[i] = offsetUint
-	}
-
-	return result, nil
-}
 
 // uint64sAreSorted returns true if input values are sorted in increasing order - mimics sort.IntsAreSorted()
 func uint64sAreSorted(values []uint64) bool {
@@ -962,6 +968,121 @@ func generateOffsets(messages []string, offsets []uint64) []uint64 {
 	return result
 }
 
+// Convert the interface{} to uint64 from uint64/float64/json.Number
+func convertOffset(offset interface{}) (uint64, error) {
+	switch offset.(type) {
+	case uint64:
+		return offset.(uint64), nil
+	case float64:
+		return uint64(offset.(float64)), nil
+	case json.Number:
+		return strconv.ParseUint(string(offset.(json.Number)), 10, 64)
+	}
+
+	// An unexpected type. We'll get the type name for the error, but this
+	// will fail the export.. so it only uses reflect once.
+	name := reflect.TypeOf(offset)
+        return 0, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
+}
+
+// Converts the generic interface{} offset to []uint64
+func convertGenericOffsets(multiLine logMultiLineGeneric) ([]uint64 , error) {
+        switch multiLine.Offsets.(type) {
+        case uint64, float64, json.Number:
+		if value, err := convertOffset(multiLine.Offsets); err != nil {
+			return nil, err
+		} else {
+			return []uint64{value}, nil
+		}
+	case []json.Number:
+		interfaces := data.([]json.Number)
+		offsets := make([]uint64, len(interfaces))
+		for i, offset := range interfaces {
+			if value, err := convertOffset(offset); err != nil {
+				return nil, err
+			} else {
+				offsets[i] = value
+			}
+		}
+		return offsets, nil
+	case []uint64:
+		return data.([]uint64), nil
+	case []float64:
+		interfaces := data.([]float64)
+		offsets := make([]uint64, len(interfaces))
+		for i, offset := range interfaces {
+			if value, err := convertOffset(offset); err != nil {
+				return nil, err
+			} else {
+				offsets[i] = value
+			}
+		}
+		return offsets, nil
+	case []interface{}: // The array may not be typed.
+		interfaces := data.([]interface{})
+		offsets := make([]uint64, len(interfaces))
+		for i, offset := range interfaces {
+			if value, err := convertOffset(offset); err != nil {
+				return nil, err
+			} else {
+				offsets[i] = value
+			}
+		}
+		return offsets, nil
+        }
+
+	// An unexpected type. We'll get the type name for the error, but this
+	// will fail the export.. so it only uses reflect once.
+	name := reflect.TypeOf(multiLine.Messages)
+        return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
+}
+
+// Converts the generic interface{} message to an array of strings.
+func convertGenericMessages(multiLine logMultiLineGeneric) ([]string, error) {
+	switch t := multiLine.Messages.(type) {
+	case string:
+		return newline.Split(t, -1), nil
+	case []string:
+		return t, nil
+	}
+
+	// An unexpected type. We'll get the type name for the error, but this
+	// will fail the export.. so it only uses reflect once.
+	name := reflect.TypeOf(multiLine.Messages)
+	return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "message"}
+}
+
+// Converts the elastic log into a generic type and converts that into a
+// common format to use in the export.
+func convertMultiLineSource(source []byte) (logMultiLine, error) {
+	var multiLine logMultiLine
+	var multiLineGeneric logMultiLineGeneric
+
+	if err := json.Unmarshal(source, &multiLineGeneric); err == nil {
+		multiLine.Type = multiLineGeneric.Type
+		multiLine.File = multiLineGeneric.File
+		multiLine.Timestamp = multiLineGeneric.Timestamp
+		multiLine.Fields = multiLineGeneric.Fields
+		multiLine.FileBeat = multiLineGeneric.FileBeat
+
+		// Try to get the offsets and messages.
+		if offsets, err := convertGenericOffsets(multiLineGeneric); err != nil {
+			return logMultiLine{}, err
+		} else {
+			multiLine.Offsets = offsets
+		}
+		if messages, err := convertGenericMessages(multiLineGeneric); err != nil {
+			return logMultiLine{}, err
+		} else {
+			multiLine.Messages = messages
+		}
+
+		return multiLine, nil
+	} else {
+		return logMultiLine{}, err
+	}
+}
+
 // return: containerID, file, lines, error
 func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 	warnings := ""
@@ -996,19 +1117,16 @@ func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 	}
 
 	// attempt to unmarshal into multiLine
-	var multiLine logMultiLine
-	if e := json.Unmarshal(source, &multiLine); e != nil {
-		return nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
+	multiLine, err := convertMultiLineSource(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse multiLine log from JSON \"%s\": %s", source, err)
 	}
 
 	// build offsets - list of uint64
-	offsets, e := convertOffsets(multiLine.Offset)
-	if e != nil {
-		return nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
-	}
+	offsets := multiLine.Offsets
 
 	// verify number of lines in message against number of offsets
-	messages := newline.Split(multiLine.Message, -1)
+	messages := multiLine.Messages
 	if len(offsets)+1 == len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s\n",
@@ -1021,21 +1139,21 @@ func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 	} else if len(offsets) > len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s\n",
-			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offsets), source)
 		offsets = offsets[0:len(messages)]
 	} else if len(offsets) < len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s\n",
-			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offsets), source)
 		offsets = generateOffsets(messages, offsets)
 		warnings += fmt.Sprintf("new offsets: %v", offsets)
 	}
 
 	// deal with offsets that are not sorted in increasing order
 	if !uint64sAreSorted(offsets) {
-		warnings = fmt.Sprintf("offsets are not sorted: %v\n", offsets)
+		warnings += fmt.Sprintf("offsets are not sorted: %v\n", offsets)
 		offsets = generateOffsets(messages, offsets)
-		warnings = fmt.Sprintf("new offsets: %v\n", offsets)
+		warnings += fmt.Sprintf("new offsets: %v\n", offsets)
 	}
 
 	// build compactLines
