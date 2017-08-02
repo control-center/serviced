@@ -32,7 +32,7 @@ func (s *ServiceDomainUnitTestSuite) TestBuildServiceSimple(t *C) {
 	environment := []string{"enviroment:foobar", "a:b", "c:d"}
 	tags := []string{"tags", "foo", "bar"}
 	imageID := "imageid"
-	changeOptions := []string{"changeoptions", "boo"}
+	changeOptions := []servicedefinition.ChangeOption{"changeoptions", "boo"}
 	launch := "launch"
 	hostname := "hostname"
 	privileged := true

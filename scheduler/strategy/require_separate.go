@@ -13,10 +13,12 @@
 
 package strategy
 
+import "github.com/control-center/serviced/domain/servicedefinition"
+
 type RequireSeparateStrategy struct{}
 
 func (s *RequireSeparateStrategy) Name() string {
-	return "require_separate"
+	return servicedefinition.RequireSeparate
 }
 
 func (s *RequireSeparateStrategy) SelectHost(service ServiceConfig, hosts []Host) (Host, error) {

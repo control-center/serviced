@@ -369,6 +369,87 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePu
 	t.Assert(ft.Facade.UpdateService(ft.CTX, svc), NotNil)
 }
 
+// Add using the servicedefition defines.
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_InvalidServiceOptions",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		HostPolicy: servicedefinition.RequireSeparate,
+		ChangeOptions: []servicedefinition.ChangeOption{
+			servicedefinition.RestartAllOnInstanceChanged,
+		},
+	}
+
+	err := ft.Facade.AddService(ft.CTX, svc)
+	// We should have gotten an error here that these options are invalid together.
+	t.Assert(err, NotNil)
+}
+
+// Make these all uppercase; case should not matter for these options in the service def.
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions2(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_InvalidServiceOptions",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		HostPolicy: "REQUIRE_SEPARATE",
+		ChangeOptions: []servicedefinition.ChangeOption{
+			"RESTARTALLONINSTANCECHANGED",
+		},
+	}
+
+	err := ft.Facade.AddService(ft.CTX, svc)
+	// We should have gotten an error here that these options are invalid together.
+	t.Assert(err, NotNil)
+}
+
+// We should get an error if we add a service with an invalid ChangeOption.
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions3(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_InvalidServiceOptions",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		ChangeOptions: []servicedefinition.ChangeOption{
+			"InvalidChangeOption",
+		},
+	}
+
+	err := ft.Facade.AddService(ft.CTX, svc)
+	// We should have gotten an error here the change option is invalid.
+	t.Assert(err, NotNil)
+}
+
+// We should get an error if we try to update a service with an invalid set of options.
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceUpdate_InvalidServiceOptions(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_InvalidServiceOptions",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		ChangeOptions: []servicedefinition.ChangeOption{
+			servicedefinition.RestartAllOnInstanceChanged,
+		},
+	}
+
+	err := ft.Facade.AddService(ft.CTX, svc)
+	t.Assert(err, IsNil)
+
+	svc.HostPolicy = servicedefinition.RequireSeparate
+	err = ft.Facade.UpdateService(ft.CTX, svc)
+	t.Assert(err, NotNil) // This should have returned an ErrInvalidServiceOption error.
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
 	_, newSvc, err := ft.setupMigrationServices(t, nil)
 	t.Assert(err, IsNil)
