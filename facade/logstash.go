@@ -215,8 +215,10 @@ func getFilters(configs []servicedefinition.LogConfig, filterDefs map[string]str
 		for _, filtName := range config.Filters {
 			//do not write duplicate types, logstash doesn't handle this
 			if !utils.StringInSlice(config.Type, *typeFilter) {
-				filters += fmt.Sprintf("\n  if [file] == \"%s\" {\n    %s\n  }\n",
-					config.Path, indent(filterDefs[filtName], "    "))
+				// Ruby Regex used in logstash conf uses / as a special character so we escape it.
+				path := strings.Replace(config.Path, "/", "\\/", -1)
+				filters += fmt.Sprintf("\n  if [file] =~ \"%s\" {\n    %s\n  }\n",
+					path, indent(filterDefs[filtName], "    "))
 				*typeFilter = append(*typeFilter, config.Type)
 			}
 		}
