@@ -1146,7 +1146,7 @@ func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s\n",
 			multiLine.FileBeat.Hostname, multiLine.File, len(messages), len(multiLine.Offsets), source)
 		offsets = generateOffsets(messages, offsets)
-		warnings += fmt.Sprintf("new offsets: %v", offsets)
+		warnings += fmt.Sprintf("new offsets: %v\n", offsets)
 	}
 
 	// deal with offsets that are not sorted in increasing order
