@@ -986,10 +986,10 @@ func convertOffset(offset interface{}) (uint64, error) {
 }
 
 // Converts the generic interface{} offset to []uint64
-func convertGenericOffsets(multiLine logMultiLineGeneric) ([]uint64, error) {
-	switch multiLine.Offsets.(type) {
+func convertGenericOffsets(data interface{}) ([]uint64, error) {
+	switch data.(type) {
 	case uint64, float64, json.Number:
-		if value, err := convertOffset(multiLine.Offsets); err != nil {
+		if value, err := convertOffset(data); err != nil {
 			return nil, err
 		} else {
 			return []uint64{value}, nil
@@ -1033,13 +1033,13 @@ func convertGenericOffsets(multiLine logMultiLineGeneric) ([]uint64, error) {
 
 	// An unexpected type. We'll get the type name for the error, but this
 	// will fail the export.. so it only uses reflect once.
-	name := reflect.TypeOf(multiLine.Messages)
+	name := reflect.TypeOf(data)
 	return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
 }
 
 // Converts the generic interface{} message to an array of strings.
-func convertGenericMessages(multiLine logMultiLineGeneric) ([]string, error) {
-	switch t := multiLine.Messages.(type) {
+func convertGenericMessages(data interface{}) ([]string, error) {
+	switch t := data.(type) {
 	case string:
 		return newline.Split(t, -1), nil
 	case []string:
@@ -1048,7 +1048,7 @@ func convertGenericMessages(multiLine logMultiLineGeneric) ([]string, error) {
 
 	// An unexpected type. We'll get the type name for the error, but this
 	// will fail the export.. so it only uses reflect once.
-	name := reflect.TypeOf(multiLine.Messages)
+	name := reflect.TypeOf(data)
 	return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "message"}
 }
 
@@ -1066,12 +1066,12 @@ func convertMultiLineSource(source []byte) (logMultiLine, error) {
 		multiLine.FileBeat = multiLineGeneric.FileBeat
 
 		// Try to get the offsets and messages.
-		if offsets, err := convertGenericOffsets(multiLineGeneric); err != nil {
+		if offsets, err := convertGenericOffsets(multiLineGeneric.Offsets); err != nil {
 			return logMultiLine{}, err
 		} else {
 			multiLine.Offsets = offsets
 		}
-		if messages, err := convertGenericMessages(multiLineGeneric); err != nil {
+		if messages, err := convertGenericMessages(multiLineGeneric.Messages); err != nil {
 			return logMultiLine{}, err
 		} else {
 			multiLine.Messages = messages
