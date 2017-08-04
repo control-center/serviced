@@ -34,12 +34,12 @@ import (
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
-	elastigocore "github.com/zenoss/elastigo/core"
 	"github.com/control-center/serviced/volume"
+	elastigocore "github.com/zenoss/elastigo/core"
 )
 
 type UnknownElasticStructError struct {
-	UnknownData string
+	UnknownData   string
 	UnknownStruct string
 }
 
@@ -105,7 +105,7 @@ type ExportLogsConfig struct {
 	Debug bool
 
 	// Defines which messages are grouped together in each output file
-	GroupBy  ExportGroup
+	GroupBy ExportGroup
 
 	// Set to true to exclude child services
 	ExcludeChildren bool
@@ -500,8 +500,8 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDet
 	if exporter.Debug {
 		log.WithFields(logrus.Fields{
 			"servicecount": len(exporter.ServiceIDs),
-			"filecount": len(exporter.FileNames),
-			"query": query,
+			"filecount":    len(exporter.FileNames),
+			"query":        query,
 		}).Info("Looking for log messages")
 	}
 	return query, nil
@@ -842,62 +842,62 @@ func (exporter *logExporter) getServiceName(serviceID string) string {
 
 // beatProps are properties added to each message by filebeat itself
 type beatProps struct {
-	Name        string      `json:"name"`
-	Hostname    string      `json:"hostname"`      // Note this is actually the docker container id
-	Version     string      `json:"version"`
+	Name     string `json:"name"`
+	Hostname string `json:"hostname"` // Note this is actually the docker container id
+	Version  string `json:"version"`
 }
 
 // fieldProps are properties added to each message by our container controller; see container/logstash.go
 type fieldProps struct {
-	CCWorkerID  string      `json:"ccWorkerID"`     // Note this is actually the host ID of the CC host
-	Type        string      `json:"type"`           // This is the 'type' from the LogConfig in the service def
-	Service     string      `json:"service"`        // This is the service id
-	Instance    json.Number `json:"instance"`       // This is the service instance id
-	HostIPs     string      `json:"hostips"`        // space-separated list of host-ips from the container
+	CCWorkerID  string      `json:"ccWorkerID"` // Note this is actually the host ID of the CC host
+	Type        string      `json:"type"`       // This is the 'type' from the LogConfig in the service def
+	Service     string      `json:"service"`    // This is the service id
+	Instance    json.Number `json:"instance"`   // This is the service instance id
+	HostIPs     string      `json:"hostips"`    // space-separated list of host-ips from the container
 	PoolID      interface{} `json:"poolid"`
-	ServicePath string      `json:"servicepath"`    // Fully qualified path to the service
+	ServicePath string      `json:"servicepath"` // Fully qualified path to the service
 }
 
 // logSingleLine represents the data returned from elasticsearch for a single-line log message
 type logSingleLine struct {
-	File        string      `json:"file"`
-	Timestamp   time.Time   `json:"@timestamp"`
-	Offset      json.Number `json:"offset"`
-	Message     string      `json:"message"`
-	Fields      fieldProps  `json:"fields"`
-	FileBeat    beatProps   `json:"beat"`
+	File      string      `json:"file"`
+	Timestamp time.Time   `json:"@timestamp"`
+	Offset    json.Number `json:"offset"`
+	Message   string      `json:"message"`
+	Fields    fieldProps  `json:"fields"`
+	FileBeat  beatProps   `json:"beat"`
 
 	// This is the 'type' set by the logger. The values will vary depending on the source logger:
 	// 1. Application log messages forwarded by filebeat will have the value "log".
 	// 2. Messages forwarded directly from serviced via the glog library will have values starting with "serviced-".
 	// 3. Messages forwarded directly from serviced-controller via the glog library will have values starting
 	//    with "controller-"
-	Type        string      `json:"type"`
+	Type string `json:"type"`
 }
 
 // logSingleLine represents the data returned from elasticsearch for a multi-line log message
 type logMultiLine struct {
-	Type        string      `json:"type"`         // see note above for logSingleLine.Type
-	File        string      `json:"file"`
-	Timestamp   time.Time   `json:"@timestamp"`
-	Offsets     []uint64    `json:"offset"`
-	Messages    []string    `json:"message"`
-	Fields      fieldProps  `json:"fields"`
-	FileBeat    beatProps   `json:"beat"`
+	Type      string     `json:"type"` // see note above for logSingleLine.Type
+	File      string     `json:"file"`
+	Timestamp time.Time  `json:"@timestamp"`
+	Offsets   []uint64   `json:"offset"`
+	Messages  []string   `json:"message"`
+	Fields    fieldProps `json:"fields"`
+	FileBeat  beatProps  `json:"beat"`
 }
 
 type logMultiLineGeneric struct {
-	Type        string      `json:"type"`         // see note above for logSingleLine.Type
-	File        string      `json:"file"`
-	Timestamp   time.Time   `json:"@timestamp"`
-	Offsets     interface{} `json:"offset"`
-	Messages    interface{} `json:"message"`
-	Fields      fieldProps  `json:"fields"`
-	FileBeat    beatProps   `json:"beat"`
+	Type      string      `json:"type"` // see note above for logSingleLine.Type
+	File      string      `json:"file"`
+	Timestamp time.Time   `json:"@timestamp"`
+	Offsets   interface{} `json:"offset"`
+	Messages  interface{} `json:"message"`
+	Fields    fieldProps  `json:"fields"`
+	FileBeat  beatProps   `json:"beat"`
 }
 
 type compactLogLine struct {
-	Timestamp int64           // nanoseconds since the epoch, truncated at the minute to hide jitter
+	Timestamp int64 // nanoseconds since the epoch, truncated at the minute to hide jitter
 	Offset    uint64
 	Message   string
 }
@@ -982,13 +982,13 @@ func convertOffset(offset interface{}) (uint64, error) {
 	// An unexpected type. We'll get the type name for the error, but this
 	// will fail the export.. so it only uses reflect once.
 	name := reflect.TypeOf(offset)
-        return 0, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
+	return 0, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
 }
 
 // Converts the generic interface{} offset to []uint64
-func convertGenericOffsets(multiLine logMultiLineGeneric) ([]uint64 , error) {
-        switch multiLine.Offsets.(type) {
-        case uint64, float64, json.Number:
+func convertGenericOffsets(multiLine logMultiLineGeneric) ([]uint64, error) {
+	switch multiLine.Offsets.(type) {
+	case uint64, float64, json.Number:
 		if value, err := convertOffset(multiLine.Offsets); err != nil {
 			return nil, err
 		} else {
@@ -1029,12 +1029,12 @@ func convertGenericOffsets(multiLine logMultiLineGeneric) ([]uint64 , error) {
 			}
 		}
 		return offsets, nil
-        }
+	}
 
 	// An unexpected type. We'll get the type name for the error, but this
 	// will fail the export.. so it only uses reflect once.
 	name := reflect.TypeOf(multiLine.Messages)
-        return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
+	return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
 }
 
 // Converts the generic interface{} message to an array of strings.
