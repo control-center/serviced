@@ -279,6 +279,12 @@ filter {
     rename => {
       "source" => "file"
     }
+
+    convert => {
+      "[fields][instance]" => "string"
+      "[fields][ccWorkerID]" => "string"
+      "[fields][poolid]" => "string"
+    }
   }
 # NOTE the filters are generated from the service definitions
 ` + string(filters) + `

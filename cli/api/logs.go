@@ -849,10 +849,10 @@ type beatProps struct {
 
 // fieldProps are properties added to each message by our container controller; see container/logstash.go
 type fieldProps struct {
-	CCWorkerID  string      `json:"ccWorkerID"` // Note this is actually the host ID of the CC host
+	CCWorkerID  interface{} `json:"ccWorkerID"` // Note this is actually the host ID of the CC host
 	Type        string      `json:"type"`       // This is the 'type' from the LogConfig in the service def
 	Service     string      `json:"service"`    // This is the service id
-	Instance    json.Number `json:"instance"`   // This is the service instance id
+	Instance    interface{} `json:"instance"`   // This is the service instance id
 	HostIPs     string      `json:"hostips"`    // space-separated list of host-ips from the container
 	PoolID      interface{} `json:"poolid"`
 	ServicePath string      `json:"servicepath"` // Fully qualified path to the service
@@ -966,6 +966,36 @@ func generateOffsets(messages []string, offsets []uint64) []uint64 {
 		result[i] = minOffset + uint64(i)
 	}
 	return result
+}
+
+// The ccworkerid is a number on some systems that didn't have
+// the filter mutate, and the hostid was a numeric value.  We need
+// to handle both cases.
+func convertWorkerID(id interface{}) (string, error) {
+	if id == nil {
+		return "", nil
+	}
+
+	switch id.(type) {
+	case int:
+		num := id.(int)
+		return fmt.Sprintf("%v",num), nil
+	case uint64:
+		num := id.(uint64)
+		return fmt.Sprintf("%v",num), nil
+	case float64:
+		num := id.(float64)
+		return fmt.Sprintf("%.0f",num), nil
+	case json.Number:
+		return string(id.(json.Number)), nil
+	case string:
+		return id.(string), nil
+	}
+
+	// An unexpected type. We'll get the type name for the error, but this
+	// will fail the export.. so it only uses reflect once.
+	name := reflect.TypeOf(id)
+	return "", &UnknownElasticStructError{fmt.Sprintf("%v", name), "ccworkerid"}
 }
 
 // Convert the interface{} to uint64 from uint64/float64/json.Number
@@ -1104,10 +1134,17 @@ func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 			Offset:    offset,
 			Message:   line.Message,
 		}
+
+		// Get the ccWorkerID. This can be a number in older systems, so we have to parse it out.
+		ccWorkerID, err := convertWorkerID(line.Fields.CCWorkerID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ccWorkerID from %v in \"%s\": %s", line.Fields.CCWorkerID, source, err)
+		}
+
 		message := &parsedMessage{
 			Date:        date,
 			Type:        line.Type,
-			HostID:      line.Fields.CCWorkerID,
+			HostID:      ccWorkerID,
 			ContainerID: line.FileBeat.Hostname,
 			LogFileName: line.File,
 			Lines:       []compactLogLine{compactLine},
@@ -1167,10 +1204,16 @@ func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 		})
 	}
 
+	// Get the ccWorkerID. This can be a number in older systems, so we have to parse it out.
+	ccWorkerID, err := convertWorkerID(multiLine.Fields.CCWorkerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ccWorkerID from %v in \"%s\": %s", multiLine.Fields.CCWorkerID, source, err)
+	}
+
 	message := &parsedMessage{
 		Date:        date,
 		Type:        line.Type,
-		HostID:      multiLine.Fields.CCWorkerID,
+		HostID:      ccWorkerID,
 		ContainerID: multiLine.FileBeat.Hostname,
 		LogFileName: multiLine.File,
 		Lines:       compactLines,
