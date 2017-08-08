@@ -1067,6 +1067,19 @@ func convertGenericOffsets(data interface{}) ([]uint64, error) {
 	return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "offset"}
 }
 
+// convert a single message
+func convertMessage(data interface{}) (string, error) {
+	switch data.(type) {
+	case string:
+		return data.(string), nil
+	}
+
+	// An unexpected type. We'll get the type name for the error, but this
+	// will fail the export.. so it only uses reflect once.
+	name := reflect.TypeOf(data)
+	return "", &UnknownElasticStructError{fmt.Sprintf("%v", name), "message"}
+}
+
 // Converts the generic interface{} message to an array of strings.
 func convertGenericMessages(data interface{}) ([]string, error) {
 	switch t := data.(type) {
@@ -1074,12 +1087,24 @@ func convertGenericMessages(data interface{}) ([]string, error) {
 		return newline.Split(t, -1), nil
 	case []string:
 		return t, nil
+	case []interface{}:
+		// Untyped array.
+		datalist := data.([]interface{})
+		messages := make([]string, len(datalist))
+		for i, message := range datalist {
+			if value, err := convertMessage(message); err != nil {
+				return nil, err
+			} else {
+				messages[i] = value
+			}
+		}
+		return messages, nil
 	}
 
 	// An unexpected type. We'll get the type name for the error, but this
 	// will fail the export.. so it only uses reflect once.
 	name := reflect.TypeOf(data)
-	return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "message"}
+	return nil, &UnknownElasticStructError{fmt.Sprintf("%v", name), "messages"}
 }
 
 // Converts the elastic log into a generic type and converts that into a
