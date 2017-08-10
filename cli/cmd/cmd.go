@@ -206,6 +206,8 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Fprintf(os.Stderr, "Unable to set logging options: %s\n", err)
 	}
 
+	isvcs.InitAllIsvcs()
+
 	// TODO: Since isvcs options are only used by server (master/agent), these settings
 	//       should be moved to api.ValidateServerOptions
 	if err := setIsvcsEnv(ctx); err != nil {

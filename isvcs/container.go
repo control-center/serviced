@@ -118,7 +118,7 @@ type IServiceDefinition struct {
 	Command        func() string                      // the command to run in the container
 	Volumes        map[string]string                  // volumes to bind mount to the container
 	PortBindings   []portBinding                      // defines how ports are exposed on the host
-	HealthChecks   map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
+	HealthChecks   []map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
 	Configuration  map[string]interface{}             // service specific configuration
 	Notify         func(*IService, interface{}) error // A function to run when notified of a data event
 	PreStart       func(*IService) error              // A function to run before the initial start of the service
@@ -145,7 +145,7 @@ type IService struct {
 	exited      <-chan int
 
 	lock           *sync.RWMutex
-	healthStatuses map[string]*domain.HealthCheckStatus
+	healthStatuses []map[string]*domain.HealthCheckStatus
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
@@ -175,20 +175,28 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	}
 
 	if len(svc.HealthChecks) > 0 {
-		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
-		for name, healthCheckDefinition := range svc.HealthChecks {
-			svc.healthStatuses[name] = &domain.HealthCheckStatus{
-				Name:      name,
-				Status:    "unknown",
-				Interval:  healthCheckDefinition.Interval.Seconds(),
-				Timestamp: 0,
-				StartedAt: 0,
+		svc.healthStatuses = make([]map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
+
+		for instIndex, checkMap := range svc.HealthChecks {
+
+			svc.healthStatuses[instIndex] = make(map[string]*domain.HealthCheckStatus)
+
+			for name, checkDefinition := range checkMap {
+				svc.healthStatuses[instIndex][name] = &domain.HealthCheckStatus{
+					Name:      name,
+					Status:    "unknown",
+					Interval:  checkDefinition.Interval.Seconds(),
+					Timestamp: 0,
+					StartedAt: 0,
+				}
 			}
 		}
+
 	} else {
 		name := DEFAULT_HEALTHCHECK_NAME
-		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, 1)
-		svc.healthStatuses[name] = &domain.HealthCheckStatus{
+		svc.healthStatuses = make([]map[string]*domain.HealthCheckStatus, 1)
+		svc.healthStatuses[0] = make(map[string]*domain.HealthCheckStatus)
+		svc.healthStatuses[0][name] = &domain.HealthCheckStatus{
 			Name:      name,
 			Status:    "unknown",
 			Interval:  3.156e9,
@@ -768,8 +776,9 @@ func (svc *IService) startupHealthcheck() <-chan error {
 	err := make(chan error, 1)
 	go func() {
 		var result error
+
 		if len(svc.HealthChecks) == 0 {
-			svc.setHealthStatus(nil, time.Now().Unix(), DEFAULT_HEALTHCHECK_NAME)
+			svc.setHealthStatus(nil, time.Now().Unix(), DEFAULT_HEALTHCHECK_NAME, 0)
 			err <- nil
 			return
 		}
@@ -781,15 +790,16 @@ func (svc *IService) startupHealthcheck() <-chan error {
 			currentTime := time.Now()
 			elapsed := time.Since(startCheck)
 
-			for healthCheckName, healthCheckDefinition := range svc.HealthChecks {
-				result = svc.runCheckOrTimeout(healthCheckDefinition)
-				svc.setHealthStatus(result, currentTime.Unix(), healthCheckName)
+			for instIndex, checkMap := range svc.HealthChecks {
+				for healthCheckName, healthCheckDefinition := range checkMap {
+					result = svc.runCheckOrTimeout(healthCheckDefinition)
+					svc.setHealthStatus(result, currentTime.Unix(), healthCheckName, instIndex)
 
-				// flag if we are not healthy but keep doing the rest of the health checks
-				if result != nil {
-					healthy = false
+					// flag if we are not healthy but keep doing the rest of the health checks
+					if result != nil {
+						healthy = false
+					}
 				}
-
 			}
 
 			log := log.WithFields(logrus.Fields{
@@ -847,12 +857,14 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 
 	// go through the health checks and find the longest duration interval for our ticker.
 	// CURRENT - we have one ticker for the longest of the periods for all health checks.
-	for healthCheckName, checkDefinition := range svc.HealthChecks {
-		if tickInterval < checkDefinition.Interval {
-			log.WithFields(logrus.Fields{
-				"healthcheck": healthCheckName,
-			}).Warn("Health check interval difference detected")
-			tickInterval = checkDefinition.Interval
+	for _, checkMap := range svc.HealthChecks {
+		for healthCheckName, checkDefinition := range checkMap {
+			if tickInterval < checkDefinition.Interval {
+				log.WithFields(logrus.Fields{
+					"healthcheck": healthCheckName,
+				}).Warn("Health check interval difference detected")
+				tickInterval = checkDefinition.Interval
+			}
 		}
 	}
 
@@ -865,20 +877,23 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 			return
 
 		case currentTime := <-timer:
-			for healthCheckName, checkDefinition := range svc.HealthChecks {
-				err := svc.runCheckOrTimeout(checkDefinition)
-				svc.setHealthStatus(err, currentTime.Unix(), healthCheckName)
-				if err != nil {
-					log.WithFields(logrus.Fields{
-						"healthcheck": healthCheckName,
-					}).WithError(err).Warn("Health check failed")
+			for index, checkMap := range svc.HealthChecks {
+				for healthCheckName, checkDefinition := range checkMap {
+					err := svc.runCheckOrTimeout(checkDefinition)
+					svc.setHealthStatus(err, currentTime.Unix(), healthCheckName, index)
+					if err != nil {
+						log.WithFields(logrus.Fields{
+							"healthcheck": healthCheckName,
+						}).WithError(err).Warn("Health check failed")
+					}
 				}
 			}
 		}
 	}
 }
 
-func (svc *IService) setHealthStatus(result error, currentTime int64, healthCheckName string) {
+func (svc *IService) setHealthStatus(result error, currentTime int64, healthCheckName string, instanceIndex int) {
+
 	if len(svc.healthStatuses) == 0 {
 		return
 	}
@@ -890,7 +905,7 @@ func (svc *IService) setHealthStatus(result error, currentTime int64, healthChec
 		"isvc": svc.Name,
 	})
 
-	if healthStatus, found := svc.healthStatuses[healthCheckName]; found {
+	if healthStatus, found := svc.healthStatuses[instanceIndex][healthCheckName]; found {
 		if result == nil {
 			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
 				log.WithFields(logrus.Fields{
@@ -926,17 +941,19 @@ func (svc *IService) setStoppedHealthStatus(stopResult error) {
 	svc.lock.Lock()
 	defer svc.lock.Unlock()
 
-	for _, healthStatus := range svc.healthStatuses {
-		healthStatus.Status = "stopped"
+	for _, statusMap := range svc.healthStatuses {
+		for _, healthStatus := range statusMap {
+			healthStatus.Status = "stopped"
 
-		if stopResult == nil {
-			healthStatus.Failure = ""
-		} else {
-			healthStatus.Failure = stopResult.Error()
+			if stopResult == nil {
+				healthStatus.Failure = ""
+			} else {
+				healthStatus.Failure = stopResult.Error()
+			}
+
+			healthStatus.Timestamp = time.Now().Unix()
+			healthStatus.StartedAt = 0
 		}
-
-		healthStatus.Timestamp = time.Now().Unix()
-		healthStatus.StartedAt = 0
 	}
 }
 

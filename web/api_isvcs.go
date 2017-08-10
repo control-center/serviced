@@ -76,6 +76,8 @@ func getInternalServiceInstances(w *rest.ResponseWriter, r *rest.Request, ctx *r
 		return
 	}
 
+	instances := []interface{}{}
+
 	for _, running := range getIRS() {
 		if id == running.ID {
 			instance := struct {
@@ -96,20 +98,24 @@ func getInternalServiceInstances(w *rest.ResponseWriter, r *rest.Request, ctx *r
 				Started:      running.StartedAt,
 			}
 
-			w.WriteJson([]interface{}{instance})
-			return
+			instances = append(instances, instance)
 		}
 	}
 
-	writeJSON(w, "Internal Service Not Found.", http.StatusNotFound)
+	if len(instances) > 0 {
+		w.WriteJson(instances)
+	} else {
+		writeJSON(w, "Internal Service Not Found.", http.StatusNotFound)
+	}
 }
 
 func getInternalServiceStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	values := r.URL.Query()
 
-	runningMap := make(map[string]dao.RunningService)
+	runningMap := make(map[string][]dao.RunningService)
+
 	for _, r := range getIRS() {
-		runningMap[r.ID] = r
+		runningMap[r.ID] = append(runningMap[r.ID], r)
 	}
 
 	var ids []string
@@ -124,15 +130,9 @@ func getInternalServiceStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *re
 	data := []interface{}{}
 
 	for _, id := range ids {
-		running := runningMap[id]
 
-		instanceStatus := struct {
-			InstanceID   int
-			HealthStatus map[string]health.Status
-		}{
-			InstanceID:   running.InstanceID,
-			HealthStatus: getHealthStatus(running),
-		}
+		// get the first instance to handle creating the service status/
+		running := runningMap[id][0]
 
 		serviceStatus := struct {
 			ServiceID    string
@@ -141,8 +141,27 @@ func getInternalServiceStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *re
 		}{
 			ServiceID:    running.ID,
 			DesiredState: running.DesiredState,
-			Status:       []interface{}{instanceStatus},
 		}
+
+		// use a tmp array of statuses to aggregate
+		instanceStatuses := []interface{}{}
+
+		for walker := 0; walker < len(runningMap[id]); walker++ {
+			runningInst := runningMap[id][walker]
+
+			instanceStatus := struct {
+				InstanceID   int
+				HealthStatus map[string]health.Status
+			}{
+				InstanceID:   runningInst.InstanceID,
+				HealthStatus: getHealthStatus(runningInst),
+			}
+
+			instanceStatuses = append(instanceStatuses, instanceStatus)
+		}
+
+		// Once we have all the instance statues, add them to the serviceStatus
+		serviceStatus.Status = instanceStatuses
 
 		data = append(data, serviceStatus)
 	}
@@ -199,7 +218,7 @@ func getHealthStatus(running dao.RunningService) map[string]health.Status {
 	if running.ServiceID == "isvc-internalservices" {
 		healthChecks = isvcsRootHealth
 	} else {
-		results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(running.ServiceID, "isvc-"))
+		results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(running.ServiceID, "isvc-"), running.InstanceID)
 		if err != nil {
 			healthStatusMap["alive"] = health.Unknown
 			return healthStatusMap
