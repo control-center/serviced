@@ -51,6 +51,11 @@ func (f *Facade) UpdateLogFilters(ctx datastore.Context, serviceTemplate *servic
 			}).Error("Failed to add/update log filter")
 			return err
 		}
+		logger.WithFields(logrus.Fields{
+			"action": action,
+			"filtername": name,
+			"filterversion": serviceTemplate.Version,
+		}).Debug("Saved LogFilter")
 	}
 
 	return nil

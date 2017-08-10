@@ -636,11 +636,20 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 // MigrateServices performs a batch migration on a group of services.
 func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigrationRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.MigrateServices"))
+	logger := plog.WithFields(log.Fields{
+		"tenantid":  req.ServiceID,
+	})
+	logger.Debug("Started Facade.MigrateServices")
+	defer logger.Debug("Finished Facade.MigrateServices")
+
 	var svcAll []service.Service
 	// validate service updates
 	for _, svc := range req.Modified {
 		if _, err := f.validateServiceUpdate(ctx, svc); err != nil {
-			glog.Errorf("Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename": svc.Name,
+				"serviceid": svc.ID,
+			}).Error("Could not validate service for update")
 			return err
 		}
 		svcAll = append(svcAll, *svc)
@@ -648,10 +657,15 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	// validate service adds
 	for _, svc := range req.Added {
 		if err := f.validateServiceAdd(ctx, svc); err != nil {
-			glog.Errorf("Could not validate service %s (%s) for add: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename": svc.Name,
+				"serviceid": svc.ID,
+			}).Error("Could not validate service for add")
 			return err
 		} else if svc.ID, err = utils.NewUUID36(); err != nil {
-			glog.Errorf("Could not generate id for service %s: %s", svc.ID, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename": svc.Name,
+			}).Error("Could not generate id for new service")
 			return err
 		}
 		svcAll = append(svcAll, *svc)
@@ -660,19 +674,45 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	for _, sdreq := range req.Deploy {
 		svcs, err := f.validateServiceDeployment(ctx, sdreq.ParentID, &sdreq.Service)
 		if err != nil {
-			glog.Errorf("Could not validate service %s for deployment: %s", sdreq.Service.Name, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename":  sdreq.Service.Name,
+			}).Error("Could not validate service for deployment")
 			return err
 		}
 		svcAll = append(svcAll, svcs...)
 	}
 	// validate service migration
 	if err := f.validateServiceMigration(ctx, svcAll, req.ServiceID); err != nil {
-		glog.Errorf("Could not validate migration of services: %s", err)
+		logger.WithError(err).Error("Could not validate migration of services")
 		return err
 	}
-	glog.Infof("Validation checks passed for service migration")
+	logger.Info("Validation checks passed for service migration")
 
 	// Do migration
+	for _, filter := range req.LogFilters {
+		var action string
+		existingFilter, err := f.logFilterStore.Get(ctx, filter.Name, filter.Version)
+		if err == nil {
+			existingFilter.Filter = filter.Filter
+			err = f.logFilterStore.Put(ctx, existingFilter)
+			action = "update"
+		} else if err != nil && datastore.IsErrNoSuchEntity(err) {
+			err = f.logFilterStore.Put(ctx, &filter)
+			action = "add"
+		}
+		if err != nil {
+			logger.WithError(err).WithFields(log.Fields{
+				"action": action,
+				"filtername": filter.Name,
+			}).Error("Failed to save log filter")
+			return err
+		}
+		logger.WithFields(log.Fields{
+			"action": action,
+			"filtername": filter.Name,
+			"filterversion": filter.Version,
+		}).Debug("Service migration saved LogFilter")
+	}
 	for _, svc := range req.Modified {
 		if err := f.MigrateService(ctx, *svc); err != nil {
 			return err
@@ -685,11 +725,13 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	}
 	for _, sdreq := range req.Deploy {
 		if _, err := f.DeployService(ctx, "", sdreq.ParentID, false, sdreq.Service); err != nil {
-			glog.Errorf("Could not deploy service definition {%+v}: %s", sdreq.Service, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename":  sdreq.Service.Name,
+			}).Error("Could not deploy service definition")
 			return err
 		}
 	}
-	glog.Infof("Service migration completed successfully")
+	logger.Info("Service migration completed successfully")
 
 	// CC-3514 - rebuild logstash config in case the set of auditable log files has changed
 	f.ReloadLogstashConfig(ctx)
