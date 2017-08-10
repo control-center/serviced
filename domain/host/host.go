@@ -24,12 +24,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 )
-
 
 // initialize the package logger
 var plog = logging.PackageLogger()
@@ -89,6 +88,7 @@ type ReadHost struct {
 	KernelVersion string
 	KernelRelease string
 	ServiceD      ReadServiced
+	IPs           []HostIPResource
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -203,17 +203,17 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	host, err := currentHost(ip, rpcPort, poolid)
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
-			"ip": ip,
+			"ip":      ip,
 			"rpcport": rpcPort,
-			"poolid": poolid,
+			"poolid":  poolid,
 		}).Debug("Unable to build host object")
 		return nil, err
 	}
 	hostIPs, err := getIPResources(host.ID, host.IPAddr, ipAddrs...)
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
-			"hostid": host.ID,
-			"ipaddress": host.IPAddr,
+			"hostid":      host.ID,
+			"ipaddress":   host.IPAddr,
 			"ipaddresses": ipAddrs,
 		}).Debug("Unable to get IP address(es) for host")
 		return nil, err
@@ -233,7 +233,7 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	host.ServiceD.Release = servicedversion.Release
 
 	plog.WithFields(log.Fields{
-		"hostid": host.ID,
+		"hostid":    host.ID,
 		"ipaddress": host.IPAddr,
 	}).Info("Created host")
 

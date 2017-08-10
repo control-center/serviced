@@ -16,11 +16,13 @@ package isvcs
 import (
 	"github.com/Sirupsen/logrus"
 
-	"io/ioutil"
-	"net"
-	"time"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
+	"io/ioutil"
+	"net"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var Zookeeper IServiceDefinition
@@ -83,7 +85,7 @@ func initZK() {
 	}
 
 	// setup the health check definitions
-	Zookeeper.HealthChecks 	= make([]map[string]healthCheckDefinition, len(zkConnectStrings))
+	Zookeeper.HealthChecks = make([]map[string]healthCheckDefinition, len(zkConnectStrings))
 	var indexSlice []int
 
 	for instIndex, zkIP := range zkConnectStrings {
@@ -119,7 +121,7 @@ func SetZKHealthCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
 		healthy := true
 		times := -1
-		logger := log.WithFields(logrus.Fields{"healthcheck": DEFAULT_HEALTHCHECK_NAME,})
+		logger := log.WithFields(logrus.Fields{"healthcheck": DEFAULT_HEALTHCHECK_NAME})
 
 		for {
 			if !healthy && times == 3 {
@@ -166,7 +168,7 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
 		healthy := true
 		times := -1
-		logger := log.WithFields(logrus.Fields{"healthcheck": QUORUM_HEALTHCHECK_NAME,})
+		logger := log.WithFields(logrus.Fields{"healthcheck": QUORUM_HEALTHCHECK_NAME})
 
 		for {
 			if !healthy && times == 3 {
@@ -188,7 +190,6 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 					time.Sleep(1 * time.Second)
 					continue
 				}
-
 
 				// If we get "This ZooKeeper instance is not currently serving requests", we know it's waiting for quorum and can at least note that in the logs.
 				if string(stat) == "This ZooKeeper instance is not currently serving requests\n" {
@@ -232,7 +233,72 @@ func zkFourLetterWord(server, command string, timeout time.Duration) ([]byte, er
 	return resp, nil
 }
 
-func BuildZookeeperInstance(instanceID int) dao.RunningService{
+type ZooKeeperServerStats struct {
+	InstanceID  int
+	Connections int
+	Mode        string
+}
+
+func GetAllZooKeeperServerStats() []ZooKeeperServerStats {
+	stats := []ZooKeeperServerStats{}
+	for _, key := range GetZooKeeperKeys() {
+		stats = append(stats, GetZooKeeperServerStats(key.InstanceID, key.Connection))
+	}
+
+	return stats
+}
+
+func GetZooKeeperServerStatsByID(instanceID int) ZooKeeperServerStats {
+	for _, key := range GetZooKeeperKeys() {
+		if key.InstanceID != instanceID {
+			continue
+		}
+
+		return GetZooKeeperServerStats(instanceID, key.Connection)
+	}
+	return ZooKeeperServerStats{}
+}
+
+func GetZooKeeperServerStats(instanceID int, connection string) ZooKeeperServerStats {
+	logger := log.
+		WithField("instanceid", instanceID).
+		WithField("connection", connection)
+
+	stats := ZooKeeperServerStats{InstanceID: instanceID}
+
+	bytes, err := zkFourLetterWord(connection, "srvr", 1*time.Second)
+	if err != nil {
+		logger.WithError(err).Error("Unable to get ZooKeeper stats")
+		return stats
+	}
+
+	lines := strings.Split(string(bytes[:]), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "Connections:") {
+			tokens := strings.SplitN(line, ":", 2)
+			value, err := strconv.Atoi(strings.TrimSpace(tokens[1]))
+			if err != nil {
+				logger.WithError(err).Error("Unable to get number of connections")
+			}
+			stats.Connections = value
+			logger = logger.WithField("connections", stats.Connections)
+			continue
+		}
+
+		if strings.HasPrefix(line, "Mode:") {
+			tokens := strings.SplitN(line, ":", 2)
+			if len(tokens) < 2 {
+				logger.Error("Unable to get mode")
+			}
+			stats.Mode = strings.TrimSpace(tokens[1])
+			logger = logger.WithField("mode", stats.Mode)
+		}
+	}
+
+	return stats
+}
+
+func BuildZooKeeperRunningInstance(instanceID int) dao.RunningService {
 	newInst := &dao.RunningService{}
 
 	*newInst = ZookeeperIRS
@@ -241,13 +307,70 @@ func BuildZookeeperInstance(instanceID int) dao.RunningService{
 	return *newInst
 }
 
-func GetZookeeperInstances() []dao.RunningService {
+func GetZooKeeperRunningInstances() []dao.RunningService {
 	instances := []dao.RunningService{}
 
 	// loop through and create an instance for each IP we have.
-	for count, _ := range zkConnectStrings {
-		instances = append(instances, BuildZookeeperInstance(count))
+	for _, key := range GetZooKeeperKeys() {
+		instances = append(instances, BuildZooKeeperRunningInstance(key.InstanceID))
 	}
 
 	return instances
+}
+
+type ZooKeeperInstance struct {
+	dao.RunningService
+	IP    string
+	Port  int
+	Stats ZooKeeperServerStats
+}
+
+func GetZooKeeperInstances() []ZooKeeperInstance {
+	instances := []ZooKeeperInstance{}
+
+	// loop through and create an instance for each IP we have.
+	for _, key := range GetZooKeeperKeys() {
+		logger := log.WithField("connection", key.Connection)
+
+		tokens := strings.SplitN(key.Connection, ":", 2)
+		if len(tokens) < 2 {
+			logger.Error("Unable to parse ZooKeeper connection")
+			continue
+		}
+		ip := tokens[0]
+
+		port, err := strconv.Atoi(strings.TrimSpace(tokens[1]))
+		if err != nil {
+			logger.Info("Unable to set ZooKeeper port for stats")
+		}
+
+		instances = append(instances, ZooKeeperInstance{
+			BuildZooKeeperRunningInstance(key.InstanceID),
+			ip,
+			port,
+			GetZooKeeperServerStats(key.InstanceID, key.Connection)})
+	}
+
+	return instances
+}
+
+type ZooKeeperKey struct {
+	InstanceID int
+	Connection string
+}
+
+func GetZooKeeperKeys() []ZooKeeperKey {
+	keys := []ZooKeeperKey{}
+	opts := config.GetOptions()
+
+	if len(opts.Zookeepers) == 0 {
+		keys = append(keys, ZooKeeperKey{0, "127.0.0.1:2181"})
+		return keys
+	}
+
+	for i, connection := range opts.Zookeepers {
+		keys = append(keys, ZooKeeperKey{i, connection})
+	}
+
+	return keys
 }

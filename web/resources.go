@@ -111,7 +111,7 @@ func getIRS() []dao.RunningService {
 	services = append(services, isvcs.InternalServicesIRS)
 	services = append(services, isvcs.ElasticsearchServicedIRS)
 	services = append(services, isvcs.ElasticsearchLogStashIRS)
-	services = append(services, isvcs.GetZookeeperInstances()...)
+	services = append(services, isvcs.GetZooKeeperRunningInstances()...)
 	services = append(services, isvcs.LogstashIRS)
 	services = append(services, isvcs.OpentsdbIRS)
 	services = append(services, isvcs.DockerRegistryIRS)
@@ -576,7 +576,7 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	serviceFacade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
-	_, err = serviceFacade.RestartService( dataCtx, dao.ScheduleServiceRequest{
+	_, err = serviceFacade.RestartService(dataCtx, dao.ScheduleServiceRequest{
 		ServiceIDs:  []string{serviceID},
 		AutoLaunch:  autoLaunch,
 		Synchronous: false,
@@ -645,7 +645,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, ctx *requestConte
 
 	serviceFacade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	_,err = serviceFacade.StartService(dataCtx,dao.ScheduleServiceRequest{
+	_, err = serviceFacade.StartService(dataCtx, dao.ScheduleServiceRequest{
 		ServiceIDs:  []string{serviceID},
 		AutoLaunch:  autoLaunch,
 		Synchronous: false,
@@ -664,7 +664,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, ctx *requestConte
 }
 
 // restStartServices starts the services with the given ids and all of their children
-func restStartServices(w *rest.ResponseWriter, r *rest.Request, ctx  *requestContext) {
+func restStartServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
@@ -678,7 +678,7 @@ func restStartServices(w *rest.ResponseWriter, r *rest.Request, ctx  *requestCon
 	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
 	serviceFacade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	_,err = serviceFacade.StartService(dataCtx, serviceRequest)
+	_, err = serviceFacade.StartService(dataCtx, serviceRequest)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
 		logger.WithError(err).Error("Error starting services")
@@ -714,7 +714,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, ctx *requestContex
 
 	serviceFacade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	_,err = serviceFacade.StopService(dataCtx, dao.ScheduleServiceRequest{[]string{serviceID}, autoLaunch, false})
+	_, err = serviceFacade.StopService(dataCtx, dao.ScheduleServiceRequest{[]string{serviceID}, autoLaunch, false})
 	if err != nil {
 		logger.WithError(err).Error("Unexpected error stopping service")
 		restServerError(w, err)
@@ -739,7 +739,7 @@ func restStopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestConte
 
 	serviceFacade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	_,err = serviceFacade.StopService(dataCtx,serviceRequest)
+	_, err = serviceFacade.StopService(dataCtx, serviceRequest)
 	// We handle this error differently because we don't want to return a 500
 	if err != nil {
 		logger.WithError(err).Error("Error stopping services")
