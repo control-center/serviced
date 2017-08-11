@@ -166,12 +166,17 @@ func (m *Manager) GetHealthStatus(name string, instIndex int) (IServiceHealthRes
 				result.HealthStatuses = append(result.HealthStatuses, *value)
 			}
 		}
-	} else {
+	} else if instIndex < len(svc.healthStatuses) {
 		for _, value := range svc.healthStatuses[instIndex] {
 			result.HealthStatuses = append(result.HealthStatuses, *value)
 		}
+	} else {
+		log.WithFields(logrus.Fields{
+			"isvc": 		name,
+			"instIndex":	instIndex,
+		}).Warn("Instance index out of range")
+		return IServiceHealthResult{}, fmt.Errorf("Instance index out of range %i", instIndex)
 	}
-
 
 	return result, nil
 }
