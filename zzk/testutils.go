@@ -32,7 +32,6 @@ type ZZKTestSuite struct {
 }
 
 func (t *ZZKTestSuite) SetUpSuite(c *C) {
-	isvcs.InitAllIsvcs()
 	t.ManagerTestSuite.AddTestService(t)
 	t.ManagerTestSuite.SetUpSuite(c)
 }
