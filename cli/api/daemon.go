@@ -1347,7 +1347,14 @@ func (d *daemon) addTemplates() {
 	log.Debug("Loading service templates")
 	// Don't block startup for this. It's merely a convenience.
 	go func() {
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		// Before reading any templates from disk, see if there are filters in existing templates
+		// which need to be added to the DB
+		reloadFilters, err := d.facade.BootstrapLogFilters(d.dsContext)
+		if err != nil {
+			log.Error("Unable to load log filters from existing templates")
+		}
+
+		err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -1376,9 +1383,14 @@ func (d *daemon) addTemplates() {
 			log.Debug("Added service template")
 			return nil
 		})
-		if err != nil {
-			log.WithError(err).Warn("Unable to autoload templates from the filesystem")
+
+		if err == nil {
+			reloadFilters = true
 		} else {
+			log.WithError(err).Warn("Unable to autoload templates from the filesystem")
+		}
+
+		if reloadFilters {
 			// Now that all of the templates have been loaded, update the logstash configuration.
 			// Note this also handles the case where CC has been upgraded, but none of the templates
 			// have changed.

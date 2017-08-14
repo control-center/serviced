@@ -67,6 +67,11 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 		return "", alog.Error(err)
 	}
 
+	if err := f.UpdateLogFilters(ctx, &serviceTemplate); err != nil {
+		glog.Errorf("Could not add/update logfilters for template %s: %s", hash, err)
+		return "", alog.Error(err)
+	}
+
 	glog.Infof("Added template %s (%s)", serviceTemplate.Name, serviceTemplate.ID)
 	// This takes a while so don't block the main thread
 	if reloadLogstashConfig {
@@ -83,6 +88,12 @@ func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicete
 	if err := f.templateStore.Put(ctx, template); err != nil {
 		return alog.Error(err)
 	}
+
+	if err := f.UpdateLogFilters(ctx, &template); err != nil {
+		glog.Errorf("Could not add/update logfilters for template %s: %s", template.ID, err)
+		return alog.Error(err)
+	}
+
 	glog.Infof("Updated template %s (%s)", template.Name, template.ID)
 	if reloadLogstashConfig {
 		go LogstashContainerReloader(ctx, f) // don't block the main thread
@@ -96,9 +107,12 @@ func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveServiceTemplate"))
 	alog := f.auditLogger.Message(ctx, "Removing Service Template").
 		Action(audit.Remove).ID(id).Type(servicetemplate.GetType())
-	if _, err := f.templateStore.Get(ctx, id); err != nil {
+	_, err := f.templateStore.Get(ctx, id)
+	if err != nil {
 		return alog.Error(fmt.Errorf("Unable to find template: %s", id))
 	}
+
+	// CC-3673 - LogFilters are NOT removed to avoid breaking any deployed services that might be using those filters
 
 	glog.Infof("Removed template: %s", id)
 	if err := f.templateStore.Delete(ctx, id); err != nil {
