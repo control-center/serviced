@@ -25,27 +25,26 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/logfilter"
 )
 
-func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(c *C) {
 	glog.V(0).Infof("TestFacadeServiceTemplate started")
 	defer glog.V(0).Infof("TestFacadeServiceTemplate finished")
 
 	var (
+		e error
 		templateId string
+		newTemplateId string
 		templates  map[string]servicetemplate.ServiceTemplate
 	)
 
 	// Clean up old templates...
-	var e error
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
+	c.Assert(e, IsNil)
 	for id, _ := range templates {
-		if e := ft.Facade.RemoveServiceTemplate(ft.CTX, id); e != nil {
-			t.Fatalf("Failure removing service template %s with error: %s", id, e)
-		}
+		e := ft.Facade.RemoveServiceTemplate(ft.CTX, id);
+		c.Assert(e, IsNil)
 	}
 
 	template := servicetemplate.ServiceTemplate{
@@ -54,76 +53,52 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
 		Description: "test template",
 	}
 
-	if newTemplateId, e := ft.Facade.AddServiceTemplate(ft.CTX, template, false); e != nil {
-		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
-	} else {
-		templateId = newTemplateId
-	}
+	newTemplateId, e = ft.Facade.AddServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
+	templateId = newTemplateId
 
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 1)
+
+	_, ok := templates[templateId]
+	c.Assert(ok, Equals, true)
+	c.Assert(templates[templateId].Name, Equals, "test_template")
+
 	template.ID = templateId
 	template.Description = "test_template_modified"
-	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template, false); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
+	e = ft.Facade.UpdateServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
+
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
-	if templates[templateId].Description != "test_template_modified" {
-		t.Fatalf("Expected template to be modified. It hasn't changed!")
-	}
-	if e := ft.Facade.RemoveServiceTemplate(ft.CTX, templateId); e != nil {
-		t.Fatalf("Failure removing service template with error: %s", e)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 1)
+
+	_, ok = templates[templateId]
+	c.Assert(ok, Equals, true)
+	c.Assert(templates[templateId].Name, Equals, "test_template")
+	c.Assert(templates[templateId].Description, Equals, "test_template_modified")
+
+	e = ft.Facade.RemoveServiceTemplate(ft.CTX, templateId)
+	c.Assert(e, IsNil)
+
 	time.Sleep(1 * time.Second) // race condition. :(
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 0 {
-		t.Fatalf("Expected zero templates. Found %d", len(templates))
-	}
-	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template, false); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 0)
+
+	e = ft.Facade.UpdateServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Equals, 1)
+
+	_, ok = templates[templateId]
+	c.Assert(ok, Equals, true)
+	c.Assert(templates[templateId].Name, Equals, "test_template")
 }
 
-func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(c *C) {
 	testService := service.Service{
 		ID: "TestFacadeValidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
@@ -138,12 +113,10 @@ func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
 		},
 	}
 	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
-	if err != nil {
-		t.Error("Services failed validation for starting: ", err)
-	}
+	c.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(c *C) {
 	testService := service.Service{
 		ID: "TestFacadeInvalidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
@@ -162,7 +135,105 @@ func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(t *C) {
 		},
 	}
 	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
-	if err == nil {
-		t.Error("Services should have failed validation for starting...")
-	}
+	c.Assert(err, NotNil)
 }
+
+func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate_WithLogFilters(c *C) {
+	var (
+		err error
+		ok bool
+		templateId string
+		logFilter *logfilter.LogFilter
+	)
+
+	template := servicetemplate.ServiceTemplate{
+		ID:          "",
+		Name:        "template1",
+		Description: "test template1",
+		Version:     "1.0",
+		Services: []servicedefinition.ServiceDefinition{
+			servicedefinition.ServiceDefinition {
+				Name: "service1",
+				Launch: "manual",
+				LogFilters: map[string]string{
+					"filter1": "original filter",
+				},
+			},
+		},
+	}
+
+	// Phase 1 - add a template and verify its filter is added
+	templateId, err = ft.Facade.AddServiceTemplate(ft.CTX, template, false)
+	c.Assert(err, IsNil)
+
+	logFilter, err = ft.Facade.logFilterStore.Get(ft.CTX, "filter1", template.Version)
+	c.Assert(err, IsNil)
+	c.Assert(logFilter, NotNil)
+	c.Assert(logFilter.Name, Equals, "filter1")
+	c.Assert(logFilter.Version, Equals, template.Version)
+	c.Assert(logFilter.Filter, Equals, "original filter")
+
+	// Phase 2 - update the template and verify its filters is added/updated
+	templates, e := ft.Facade.GetServiceTemplates(ft.CTX)
+	c.Assert(e, IsNil)
+	c.Assert(len(templates), Not(Equals), 0)
+
+	template, ok = templates[templateId]
+	c.Assert(ok, Equals, true)
+
+	template.Services[0].LogFilters["filter1"] = "updated filter"
+	template.Services[0].LogFilters["filter2"] = "second filter"
+	e = ft.Facade.UpdateServiceTemplate(ft.CTX, template, false)
+	c.Assert(e, IsNil)
+	ft.verifyLogFilters(c, template.Version)
+
+	// Phase 3 - add a new version of the template and verify the older filters are unchanged
+	newTemplate := template
+	newTemplate.Version = "2.0"
+	template.Services[0].LogFilters["filter1"] = "filter1 v2"
+	template.Services[0].LogFilters["filter2"] = "filter2 v2"
+	_, err = ft.Facade.AddServiceTemplate(ft.CTX, newTemplate, false)
+	c.Assert(err, IsNil)
+	ft.verifyLogFilters(c, "1.0")
+	ft.verifyLogFilters(c, "2.0")
+
+	err = ft.Facade.RemoveServiceTemplate(ft.CTX, templateId)
+	c.Assert(err, IsNil)
+	ft.verifyLogFilters(c, "2.0")
+
+	// Verify that the filters remain after the template is removed
+	logFilter, err2 := ft.Facade.logFilterStore.Get(ft.CTX,  "filter1", "1.0")
+	c.Assert(err2, IsNil)
+	c.Assert(logFilter, NotNil)
+
+	logFilter, err2 = ft.Facade.logFilterStore.Get(ft.CTX,  "filter2", "1.0")
+	c.Assert(err2, IsNil)
+	c.Assert(logFilter, NotNil)
+}
+
+func (ft *FacadeIntegrationTest) verifyLogFilters(c *C, version string) {
+
+	name1   := "filter1"
+	filter1 := "updated filter"
+	name2   := "filter2"
+	filter2 := "second filter"
+	if version == "2.0" {
+		filter1 = "filter1 v2"
+		filter2 = "filter2 v2"
+	}
+
+	logFilter, err := ft.Facade.logFilterStore.Get(ft.CTX, name1, version)
+	c.Assert(err, IsNil)
+	c.Assert(logFilter, NotNil)
+	c.Assert(logFilter.Name, Equals, name1)
+	c.Assert(logFilter.Version, Equals, version)
+	c.Assert(logFilter.Filter, Equals, filter1)
+
+	logFilter, err = ft.Facade.logFilterStore.Get(ft.CTX, name2, version)
+	c.Assert(err, IsNil)
+	c.Assert(logFilter, NotNil)
+	c.Assert(logFilter.Name, Equals, name2)
+	c.Assert(logFilter.Version, Equals, version)
+	c.Assert(logFilter.Filter, Equals, filter2)
+}
+
