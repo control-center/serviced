@@ -174,7 +174,7 @@ func (m *Manager) GetHealthStatus(name string, instIndex int) (IServiceHealthRes
 		log.WithFields(logrus.Fields{
 			"isvc": 		name,
 			"instIndex":	instIndex,
-		}).Warn("Instance index out of range")
+		}).Error("Instance index out of range")
 		return IServiceHealthResult{}, fmt.Errorf("Instance index out of range %i", instIndex)
 	}
 
