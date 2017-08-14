@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -26,7 +25,6 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -206,12 +204,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Fprintf(os.Stderr, "Unable to set logging options: %s\n", err)
 	}
 
-	// TODO: Since isvcs options are only used by server (master/agent), these settings
-	//       should be moved to api.ValidateServerOptions
-	if err := setIsvcsEnv(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to set isvcs options: %s\n", err)
-		return err
-	}
 	return nil
 }
 
@@ -461,25 +453,6 @@ func setLogging(options *config.Options, ctx *cli.Context, logControl logging.Lo
 		// not technically correct, but realistically we only care about the first error
 		return errors[0]
 	}
-}
-
-func setIsvcsEnv(ctx *cli.Context) error {
-	if zkid := ctx.GlobalInt("isvcs-zk-id"); zkid > 0 {
-		if err := isvcs.AddEnv(fmt.Sprintf("zookeeper:ZKID=%d", zkid)); err != nil {
-			return err
-		}
-	}
-	if zkquorum := strings.Join(ctx.GlobalStringSlice("isvcs-zk-quorum"), ","); zkquorum != "" {
-		if err := isvcs.AddEnv("zookeeper:ZK_QUORUM=" + zkquorum); err != nil {
-			return err
-		}
-	}
-	for _, val := range ctx.GlobalStringSlice("isvcs-env") {
-		if err := isvcs.AddEnv(val); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func init() {

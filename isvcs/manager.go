@@ -40,6 +40,8 @@ const (
 	managerOpInit                               // make sure manager is ready to run containers
 )
 
+const HEALTH_STATUS_INDEX_ALL = -1				// The index to return all health statuses.
+
 var (
 	ErrManagerUnknownOp  = errors.New("manager: unknown operation")
 	ErrManagerUnknownArg = errors.New("manager: unknown arg type")
@@ -133,7 +135,7 @@ func (m *Manager) GetServiceNames() []string {
 	return names
 }
 
-func (m *Manager) GetHealthStatus(name string) (IServiceHealthResult, error) {
+func (m *Manager) GetHealthStatus(name string, instIndex int) (IServiceHealthResult, error) {
 	result := IServiceHealthResult{
 		ServiceName:    name,
 		ContainerName:  "",
@@ -157,9 +159,25 @@ func (m *Manager) GetHealthStatus(name string) (IServiceHealthResult, error) {
 	defer svc.lock.RUnlock()
 
 	result.ContainerName = svc.name()
-	for _, value := range svc.healthStatuses {
-		result.HealthStatuses = append(result.HealthStatuses, *value)
+
+	if instIndex == HEALTH_STATUS_INDEX_ALL {
+		for _, statusMap := range svc.healthStatuses {
+			for _, value := range statusMap {
+				result.HealthStatuses = append(result.HealthStatuses, *value)
+			}
+		}
+	} else if instIndex < len(svc.healthStatuses) {
+		for _, value := range svc.healthStatuses[instIndex] {
+			result.HealthStatuses = append(result.HealthStatuses, *value)
+		}
+	} else {
+		log.WithFields(logrus.Fields{
+			"isvc": 		name,
+			"instIndex":	instIndex,
+		}).Error("Instance index out of range")
+		return IServiceHealthResult{}, fmt.Errorf("Instance index out of range %i", instIndex)
 	}
+
 	return result, nil
 }
 

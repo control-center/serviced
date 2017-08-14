@@ -19,10 +19,13 @@ import (
 	"io/ioutil"
 	"net"
 	"time"
+	"github.com/control-center/serviced/config"
+	"github.com/control-center/serviced/dao"
 )
 
 var Zookeeper IServiceDefinition
 var zookeeper *IService
+var zkConnectStrings []string
 
 const QUORUM_HEALTHCHECK_NAME = "hasQuorum"
 
@@ -30,8 +33,18 @@ func initZK() {
 	var err error
 
 	// build the list of ZooKeeper connect strings for use in health checks.
-	var zkConnectStrings []string
 	zkConnectStrings = append(zkConnectStrings, "127.0.0.1:2181")
+
+	// iterate through the zookeepers slice and add to our local slice the instance that are remote.
+	opts := config.GetOptions()
+
+	for instIndex, configZKIP := range opts.Zookeepers {
+		if instIndex == 0 {
+			continue
+		}
+
+		zkConnectStrings = append(zkConnectStrings, configZKIP)
+	}
 
 	// Build the service definition for the Zookeeper instance.
 	Zookeeper = IServiceDefinition{
@@ -70,9 +83,13 @@ func initZK() {
 	}
 
 	// setup the health check definitions
-	Zookeeper.HealthChecks 	= make(map[string]healthCheckDefinition)
+	Zookeeper.HealthChecks 	= make([]map[string]healthCheckDefinition, len(zkConnectStrings))
+	var indexSlice []int
 
-	for _, zkIP := range zkConnectStrings {
+	for instIndex, zkIP := range zkConnectStrings {
+		indexSlice = append(indexSlice, instIndex)
+
+		Zookeeper.HealthChecks[instIndex] = make(map[string]healthCheckDefinition)
 
 		defaultHealthCheck := healthCheckDefinition{
 			healthCheck: SetZKHealthCheck(zkIP),
@@ -86,8 +103,8 @@ func initZK() {
 			Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 		}
 
-		Zookeeper.HealthChecks[DEFAULT_HEALTHCHECK_NAME] = defaultHealthCheck
-		Zookeeper.HealthChecks[QUORUM_HEALTHCHECK_NAME] = quorumHealthCheck
+		Zookeeper.HealthChecks[instIndex][DEFAULT_HEALTHCHECK_NAME] = defaultHealthCheck
+		Zookeeper.HealthChecks[instIndex][QUORUM_HEALTHCHECK_NAME] = quorumHealthCheck
 	}
 
 	zookeeper, err = NewIService(Zookeeper)
@@ -172,6 +189,7 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 					continue
 				}
 
+
 				// If we get "This ZooKeeper instance is not currently serving requests", we know it's waiting for quorum and can at least note that in the logs.
 				if string(stat) == "This ZooKeeper instance is not currently serving requests\n" {
 					logger.Debug("ZooKeeper is running, but still establishing a quorum")
@@ -212,4 +230,24 @@ func zkFourLetterWord(server, command string, timeout time.Duration) ([]byte, er
 	}
 
 	return resp, nil
+}
+
+func BuildZookeeperInstance(instanceID int) dao.RunningService{
+	newInst := &dao.RunningService{}
+
+	*newInst = ZookeeperIRS
+	newInst.InstanceID = instanceID
+
+	return *newInst
+}
+
+func GetZookeeperInstances() []dao.RunningService {
+	instances := []dao.RunningService{}
+
+	// loop through and create an instance for each IP we have.
+	for count, _ := range zkConnectStrings {
+		instances = append(instances, BuildZookeeperInstance(count))
+	}
+
+	return instances
 }
