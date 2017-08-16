@@ -22,7 +22,11 @@ set -e
 set -x
 
 cd /tmp
-yum install --downloadonly --downloaddir=/tmp --enablerepo=${SOURCE_CLASS} serviced-${SOURCE_VERSION}-${SOURCE_RELEASE}
+yum install --setopt=obsoletes=0 \
+    --downloadonly \
+    --downloaddir=/tmp \
+    --enablerepo=${SOURCE_CLASS} \
+    serviced-${SOURCE_VERSION}-${SOURCE_RELEASE}
 
 ESCAPED_VERSION=`echo "$TARGET_VERSION" | sed 's/\./\\./g'`
 VERSION_SED_CMD="s/^Version:.*/Version:${ESCAPED_VERSION}/"
