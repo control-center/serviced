@@ -20,11 +20,11 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 
-	"time"
 	"fmt"
-	"strings"
-	"os"
 	"github.com/control-center/serviced/config"
+	"os"
+	"strings"
+	"time"
 )
 
 var (
@@ -152,7 +152,8 @@ func setIsvcsEnv() error {
 			return err
 		}
 	}
-	for _, val := range options.StartISVCS {
+	for _, val := range options.IsvcsENV {
+		log.Info(fmt.Sprintf(val))
 		if err := AddEnv(val); err != nil {
 			return err
 		}
