@@ -18,11 +18,31 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
+	"fmt"
 )
 
 const (
 	zkServiceLock = "/locks/services"
 )
+
+type ErrLockServiceFailure struct {
+	locktype  string
+	serviceid string
+	pool      string
+	err       error
+}
+
+func (e ErrLockServiceFailure) Error() string {
+	return fmt.Sprintf("% failed for service %s with pool %s: %s", e.locktype, e.serviceid, e.pool, e.err)
+}
+
+func NewLockServiceFailure(serviceid, pool string, err error) ErrLockServiceFailure {
+	return ErrLockServiceFailure{"Lock", serviceid, pool, err}
+}
+
+func NewUnlockServiceFailure(serviceid, pool string, err error) ErrLockServiceFailure {
+	return ErrLockServiceFailure{"Unlock", serviceid, pool, err}
+}
 
 // ServiceLock initializes a new lock for services
 func ServiceLock(conn client.Connection) (client.Lock, error) {
@@ -55,10 +75,10 @@ func LockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	for _, svc := range svcs {
 		node, err := NewServiceNodeFromService(&service.Service{})
 		if err != nil {
-			return err
+			return NewLockServiceFailure(svc.ServiceID, svc.PoolID, err)
 		}
 		if err := conn.Get(svc.Path(), node); err != nil {
-			return err
+			return NewLockServiceFailure(svc.ServiceID, svc.PoolID, err)
 		}
 		node.Locked = true
 		tx.Set(svc.Path(), node)
@@ -72,10 +92,10 @@ func UnlockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	for _, svc := range svcs {
 		node, err := NewServiceNodeFromService(&service.Service{})
 		if err != nil {
-			return err
+			return NewUnlockServiceFailure(svc.ServiceID, svc.PoolID, err)
 		}
 		if err := conn.Get(svc.Path(), node); err != nil && err != client.ErrNoNode {
-			return err
+			return NewUnlockServiceFailure(svc.ServiceID, svc.PoolID, err)
 		}
 		if node.Locked {
 			node.Locked = false
