@@ -86,6 +86,9 @@ type actionrequest struct {
 // HealthCheckFunction- A function to verify the service is healthy
 type HealthCheckFunction func(halt <-chan struct{}) error
 
+// CustomStatFunction is a function to run at an interval to get custom stats for a service
+type CustomStatsFunction func(halt <-chan struct{}) error
+
 type healthCheckDefinition struct {
 	healthCheck HealthCheckFunction
 	Interval    time.Duration // The interval at which to execute the script.
@@ -118,17 +121,18 @@ type IServiceDefinition struct {
 	Command        func() string                      // the command to run in the container
 	Volumes        map[string]string                  // volumes to bind mount to the container
 	PortBindings   []portBinding                      // defines how ports are exposed on the host
-	HealthChecks   []map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
+	HealthChecks   []map[string]healthCheckDefinition // a set of functions to verify the service is healthy
 	Configuration  map[string]interface{}             // service specific configuration
 	Notify         func(*IService, interface{}) error // A function to run when notified of a data event
 	PreStart       func(*IService) error              // A function to run before the initial start of the service
 	PostStart      func(*IService) error              // A function to run after the initial start of the service
 	Recover        func(path string) error            // A recovery step if the service fails to start
-	StartupFailed  func()			  	  // A clean up step just before the service is stopped
+	StartupFailed  func()                             // A clean up step just before the service is stopped
 	HostNetwork    bool                               // enables host network in the container
 	Links          []string                           // List of links to other containers in the form of <name>:<alias>
 	StartGroup     uint16                             // Start up group number
 	StartupTimeout time.Duration                      // How long to wait for the service to start up (this is the timeout for the initial 'startup' healthcheck)
+	CustomStats    CustomStatsFunction                // Function that is run on interval to get custom stats
 }
 
 type IService struct {
@@ -146,6 +150,7 @@ type IService struct {
 
 	lock           *sync.RWMutex
 	healthStatuses []map[string]*domain.HealthCheckStatus
+	customStats    CustomStatsFunction
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
@@ -172,6 +177,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		exited:             nil,
 		lock:               &sync.RWMutex{},
 		healthStatuses:     nil,
+		customStats:        nil,
 	}
 
 	if len(svc.HealthChecks) > 0 {
@@ -203,6 +209,10 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 			Timestamp: 0,
 			StartedAt: 0,
 		}
+	}
+
+	if sd.CustomStats != nil {
+		svc.customStats = sd.CustomStats
 	}
 
 	envPerService[sd.Name] = make(map[string]string)
@@ -363,9 +373,9 @@ func (svc *IService) create() (*docker.Container, error) {
 	if svc.Volumes != nil && len(svc.Volumes) > 0 {
 		for src, dest := range svc.Volumes {
 			var hostpath string
-                        if src == UseServicedLogDir {
+			if src == UseServicedLogDir {
 				hostpath = utils.ServicedLogDir()
-			}else {
+			} else {
 				hostpath = svc.getResourcePath(src)
 			}
 			log := log.WithFields(logrus.Fields{
@@ -551,6 +561,7 @@ func (svc *IService) run() {
 	var collecting bool
 	haltStats := make(chan struct{})
 	haltHealthChecks := make(chan struct{})
+	haltCustomStats := make(chan struct{})
 
 	log := log.WithFields(logrus.Fields{
 		"isvc": svc.Name,
@@ -613,6 +624,9 @@ func (svc *IService) run() {
 				if !collecting {
 					go svc.stats(haltStats)
 					go svc.doHealthChecks(haltHealthChecks)
+					if svc.customStats != nil {
+						go svc.customStats(haltCustomStats)
+					}
 					collecting = true
 				}
 
@@ -625,6 +639,7 @@ func (svc *IService) run() {
 						haltStats <- struct{}{}
 						if len(svc.HealthChecks) > 0 {
 							haltHealthChecks <- struct{}{}
+							haltCustomStats <- struct{}{}
 						}
 						collecting = false
 					}
@@ -673,6 +688,7 @@ func (svc *IService) run() {
 					haltStats <- struct{}{}
 					if len(svc.HealthChecks) > 0 {
 						haltHealthChecks <- struct{}{}
+						haltCustomStats <- struct{}{}
 					}
 					collecting = false
 				}

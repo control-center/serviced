@@ -153,7 +153,6 @@ func setIsvcsEnv() error {
 		}
 	}
 	for _, val := range options.IsvcsENV {
-		log.Info(fmt.Sprintf(val))
 		if err := AddEnv(val); err != nil {
 			return err
 		}

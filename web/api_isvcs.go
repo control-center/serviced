@@ -211,14 +211,20 @@ func getInternalServiceStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *re
 		instanceStatuses := []interface{}{}
 
 		for _, instance := range runningMap[id] {
+			stats, err := isvcs.GetZooKeeperStatsByID(instance.InstanceID)
+			if err != nil {
+				// send back an empty status if there is an error for that instance
+				stats = isvcs.ZooKeeperStats{InstanceID: instance.InstanceID}
+			}
+
 			instanceStatus := struct {
 				InstanceID   int
 				HealthStatus map[string]health.Status
-				Stats        isvcs.ZooKeeperServerStats
+				Stats        isvcs.ZooKeeperStats
 			}{
 				InstanceID:   instance.InstanceID,
 				HealthStatus: getHealthStatus(instance),
-				Stats:        isvcs.GetZooKeeperServerStatsByID(instance.InstanceID),
+				Stats:        stats,
 			}
 
 			instanceStatuses = append(instanceStatuses, instanceStatus)
