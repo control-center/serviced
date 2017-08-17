@@ -100,6 +100,7 @@ type Options struct {
 	StorageOptions             map[string]string // environment arguments for storage options
 	ControllerBinary           string            // Path to the container controller binary
 	StartISVCS                 []string          // ISVCS to start when running as an agent
+	IsvcsENV                   []string          // Isvcs env variables
 	IsvcsZKID                  int               // Zookeeper server id when running as a quorum
 	IsvcsZKQuorum              []string          // Members of the zookeeper quorum
 	TLSCiphers                 []string          // List of tls ciphers supported for http
@@ -144,13 +145,13 @@ func LoadOptions(ops Options) {
 		options.ESStartupTimeout = minTimeout
 	}
 
-	if options.ZKReconnectStartDelay < 1  {
+	if options.ZKReconnectStartDelay < 1 {
 		log.WithFields(logrus.Fields{
 			"reconnectstartdelay": options.ZKReconnectStartDelay,
 		}).Debug("ZK_RECONNECT_START_DELAY too low; Resetting to 1 second")
 		options.ZKReconnectStartDelay = 1
 	}
-	if options.ZKReconnectMaxDelay < 1  {
+	if options.ZKReconnectMaxDelay < 1 {
 		log.WithFields(logrus.Fields{
 			"reconnectmaxdelay": options.ZKReconnectMaxDelay,
 		}).Debug("ZK_RECONNECT_MAX_DELAY too low; Resetting to 1 second")
@@ -159,7 +160,7 @@ func LoadOptions(ops Options) {
 	if options.ZKReconnectStartDelay > options.ZKReconnectMaxDelay {
 		log.WithFields(logrus.Fields{
 			"reconnectstartdelay": options.ZKReconnectStartDelay,
-			"reconnectmaxdelay": options.ZKReconnectMaxDelay,
+			"reconnectmaxdelay":   options.ZKReconnectMaxDelay,
 		}).Debug("ZK_RECONNECT_START_DELAY too large; Resetting to ZK_RECONNECT_MAX_DELAY")
 		options.ZKReconnectStartDelay = options.ZKReconnectMaxDelay
 	}

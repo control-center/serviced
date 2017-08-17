@@ -477,6 +477,7 @@ func toReadHost(h host.Host) host.ReadHost {
 			Date:    h.ServiceD.Date,
 			Release: h.ServiceD.Release,
 		},
+		IPs:       h.IPs,
 		CreatedAt: h.CreatedAt,
 		UpdatedAt: h.UpdatedAt,
 	}

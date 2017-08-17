@@ -16,35 +16,22 @@ package isvcs
 import (
 	"github.com/Sirupsen/logrus"
 
-	"io/ioutil"
-	"net"
-	"time"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
+	"io/ioutil"
+	"net"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var Zookeeper IServiceDefinition
 var zookeeper *IService
-var zkConnectStrings []string
 
 const QUORUM_HEALTHCHECK_NAME = "hasQuorum"
 
 func initZK() {
 	var err error
-
-	// build the list of ZooKeeper connect strings for use in health checks.
-	zkConnectStrings = append(zkConnectStrings, "127.0.0.1:2181")
-
-	// iterate through the zookeepers slice and add to our local slice the instance that are remote.
-	opts := config.GetOptions()
-
-	for instIndex, configZKIP := range opts.Zookeepers {
-		if instIndex == 0 {
-			continue
-		}
-
-		zkConnectStrings = append(zkConnectStrings, configZKIP)
-	}
 
 	// Build the service definition for the Zookeeper instance.
 	Zookeeper = IServiceDefinition{
@@ -79,32 +66,32 @@ func initZK() {
 				HostPort:       3888,
 			},
 		},
-		Volumes: map[string]string{"data": "/var/zookeeper"},
+		Volumes:     map[string]string{"data": "/var/zookeeper"},
+		CustomStats: GetZooKeeperCustomStats,
 	}
 
+	keys := GetZooKeeperKeys()
+
 	// setup the health check definitions
-	Zookeeper.HealthChecks 	= make([]map[string]healthCheckDefinition, len(zkConnectStrings))
-	var indexSlice []int
+	Zookeeper.HealthChecks = make([]map[string]healthCheckDefinition, len(keys))
 
-	for instIndex, zkIP := range zkConnectStrings {
-		indexSlice = append(indexSlice, instIndex)
-
-		Zookeeper.HealthChecks[instIndex] = make(map[string]healthCheckDefinition)
+	for _, key := range keys {
+		Zookeeper.HealthChecks[key.InstanceID] = make(map[string]healthCheckDefinition)
 
 		defaultHealthCheck := healthCheckDefinition{
-			healthCheck: SetZKHealthCheck(zkIP),
+			healthCheck: SetZKHealthCheck(key.Connection),
 			Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 			Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 		}
 
 		quorumHealthCheck := healthCheckDefinition{
-			healthCheck: SetZKQuorumCheck(zkIP),
+			healthCheck: SetZKQuorumCheck(key.Connection),
 			Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 			Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 		}
 
-		Zookeeper.HealthChecks[instIndex][DEFAULT_HEALTHCHECK_NAME] = defaultHealthCheck
-		Zookeeper.HealthChecks[instIndex][QUORUM_HEALTHCHECK_NAME] = quorumHealthCheck
+		Zookeeper.HealthChecks[key.InstanceID][DEFAULT_HEALTHCHECK_NAME] = defaultHealthCheck
+		Zookeeper.HealthChecks[key.InstanceID][QUORUM_HEALTHCHECK_NAME] = quorumHealthCheck
 	}
 
 	zookeeper, err = NewIService(Zookeeper)
@@ -114,12 +101,33 @@ func initZK() {
 	}
 }
 
+type ZooKeeperKey struct {
+	InstanceID int
+	Connection string
+}
+
+func GetZooKeeperKeys() []ZooKeeperKey {
+	keys := []ZooKeeperKey{}
+	opts := config.GetOptions()
+
+	if len(opts.Zookeepers) == 0 {
+		keys = append(keys, ZooKeeperKey{0, "127.0.0.1:2181"})
+		return keys
+	}
+
+	for i, connection := range opts.Zookeepers {
+		keys = append(keys, ZooKeeperKey{i, connection})
+	}
+
+	return keys
+}
+
 // This function sets up a ZooKeeper health check function parameterized with the connection string eg: "127.0.0.1:2181".
 func SetZKHealthCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
 		healthy := true
 		times := -1
-		logger := log.WithFields(logrus.Fields{"healthcheck": DEFAULT_HEALTHCHECK_NAME,})
+		logger := log.WithFields(logrus.Fields{"healthcheck": DEFAULT_HEALTHCHECK_NAME})
 
 		for {
 			if !healthy && times == 3 {
@@ -166,7 +174,7 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 	return func(halt <-chan struct{}) error {
 		healthy := true
 		times := -1
-		logger := log.WithFields(logrus.Fields{"healthcheck": QUORUM_HEALTHCHECK_NAME,})
+		logger := log.WithFields(logrus.Fields{"healthcheck": QUORUM_HEALTHCHECK_NAME})
 
 		for {
 			if !healthy && times == 3 {
@@ -188,7 +196,6 @@ func SetZKQuorumCheck(connectString string) HealthCheckFunction {
 					time.Sleep(1 * time.Second)
 					continue
 				}
-
 
 				// If we get "This ZooKeeper instance is not currently serving requests", we know it's waiting for quorum and can at least note that in the logs.
 				if string(stat) == "This ZooKeeper instance is not currently serving requests\n" {
@@ -232,22 +239,65 @@ func zkFourLetterWord(server, command string, timeout time.Duration) ([]byte, er
 	return resp, nil
 }
 
-func BuildZookeeperInstance(instanceID int) dao.RunningService{
+type ZooKeeperInstance struct {
+	dao.RunningService
+	IP    string
+	Port  int
+	Stats ZooKeeperStats
+}
+
+func GetZooKeeperInstances() []ZooKeeperInstance {
+	instances := []ZooKeeperInstance{}
+
+	// loop through and create an instance for each IP we have.
+	for _, key := range GetZooKeeperKeys() {
+		logger := log.WithField("connection", key.Connection)
+
+		tokens := strings.SplitN(key.Connection, ":", 2)
+		if len(tokens) < 2 {
+			logger.Error("Unable to parse ZooKeeper connection")
+			continue
+		}
+		ip := tokens[0]
+
+		port, err := strconv.Atoi(strings.TrimSpace(tokens[1]))
+		if err != nil {
+			logger.Info("Unable to set ZooKeeper port for stats")
+		}
+
+		stats, err := GetZooKeeperStatsByID(key.InstanceID)
+		if err != nil {
+			// send back an empty status if there is an error for that instance
+			stats = ZooKeeperStats{InstanceID: key.InstanceID}
+		}
+
+		instances = append(instances, ZooKeeperInstance{
+			BuildZooKeeperRunningInstance(key.InstanceID),
+			ip,
+			port,
+			stats,
+		})
+	}
+
+	return instances
+}
+
+func GetZooKeeperRunningInstances() []dao.RunningService {
+	instances := []dao.RunningService{}
+
+	// loop through and create an instance for each IP we have.
+	for _, key := range GetZooKeeperKeys() {
+		instances = append(instances, BuildZooKeeperRunningInstance(key.InstanceID))
+	}
+
+	return instances
+}
+
+func BuildZooKeeperRunningInstance(instanceID int) dao.RunningService {
 	newInst := &dao.RunningService{}
 
 	*newInst = ZookeeperIRS
 	newInst.InstanceID = instanceID
 
 	return *newInst
-}
-
-func GetZookeeperInstances() []dao.RunningService {
-	instances := []dao.RunningService{}
-
-	// loop through and create an instance for each IP we have.
-	for count, _ := range zkConnectStrings {
-		instances = append(instances, BuildZookeeperInstance(count))
-	}
-
-	return instances
 }

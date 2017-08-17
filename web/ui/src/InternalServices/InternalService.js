@@ -11,6 +11,9 @@
             this.id = data.InstanceID;
             this.name = data.ServiceName;
             this.model = Object.freeze(data);
+            this.mode = data.Mode;
+            this.numberOfConnections = data.Connections;
+            this.currentState = this.getCurrentState(this.model.HealthStatus);
 
             this.touch();
         }
@@ -21,7 +24,17 @@
 
         updateStatus(status) {
             this.healthChecks = status.HealthStatus;
-            this.touch();
+            this.mode = status.Stats.Mode;
+            this.numberOfConnections = status.Stats.Connections;
+            this.currentState = this.getCurrentState(status.HealthStatus);
+        }
+
+        getCurrentState(healthStatus) {
+            return healthStatus.running === "passed" ? "started" : "stopped";
+        }
+
+        hasHost() {
+            return this.model.HostID ? true : false;
         }
     }
 
@@ -65,8 +78,7 @@
                 }
             });
 
-            $serviceHealth.update({ [this.id]: this });
-            this.status = $serviceHealth.get(this.id);
+            this.status = $serviceHealth.evaluate(this, this.instances);
             this.touch();
         }
     }

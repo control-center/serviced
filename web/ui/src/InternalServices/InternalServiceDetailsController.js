@@ -14,6 +14,12 @@
 
             this.touch();
 
+            $scope.instancesTable = {
+                sorting: { id: "asc" },
+                watchExpression: () => this.lastUpdate,
+                searchColumns: ['id','model.CoreCapacity']
+            };
+
             this.fetchInternalService(params.id)
                 .then(() => this.service.fetchInstances())
                 .then(() => this.refresh())
@@ -95,6 +101,24 @@
 
                     this.touch();
                 });
+        }
+
+        isZooKeeper() {
+            return this.service && this.service.id === 'isvc-zookeeper';
+        }
+
+        getInstances() {
+            if (this.service && this.service.instances) {
+                return this.service.instances;
+            }
+
+            return [];
+        }
+        
+        clickHost(id) {
+            if (id) {
+                resourcesFactory.routeToHost(id);
+            }
         }
     }
 
