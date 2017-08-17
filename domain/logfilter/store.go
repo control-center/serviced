@@ -72,7 +72,7 @@ func (s *storeImpl) Delete(ctx datastore.Context, name, version string) error {
 func (s *storeImpl) GetLogFilters(ctx datastore.Context) ([]*LogFilter, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:Name")
-	search := search.Search("controlplane").Type(kind).Query(query)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
