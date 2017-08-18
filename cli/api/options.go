@@ -166,6 +166,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		RPCTLSMinVersion:           cfg.StringVal("RPC_TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
 		SnapshotTTL:                cfg.IntVal("SNAPSHOT_TTL", 12),
 		StartISVCS:                 cfg.StringSlice("ISVCS_START", []string{}),
+		IsvcsENV:                   cfg.StringNumberedList("ISVCS_ENV", []string{}),
 		IsvcsZKID:                  cfg.IntVal("ISVCS_ZOOKEEPER_ID", 0),
 		IsvcsZKQuorum:              cfg.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
 		TLSCiphers:                 cfg.StringSlice("TLS_CIPHERS", utils.GetDefaultCiphers("http")),
@@ -188,8 +189,8 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		StorageMetricMonitorWindow: cfg.IntVal("STORAGE_METRIC_MONITOR_WINDOW", 300),
 		StorageLookaheadPeriod:     cfg.IntVal("STORAGE_LOOKAHEAD_PERIOD", 360),
 		StorageMinimumFreeSpace:    cfg.StringVal("STORAGE_MIN_FREE", "3G"),
-		BackupEstimatedCompression: cfg.Float64Val("BACKUP_ESTIMATED_COMPRESSION",1.0),
-		BackupMinOverhead:          cfg.StringVal("BACKUP_MIN_OVERHEAD","0G"),
+		BackupEstimatedCompression: cfg.Float64Val("BACKUP_ESTIMATED_COMPRESSION", 1.0),
+		BackupMinOverhead:          cfg.StringVal("BACKUP_MIN_OVERHEAD", "0G"),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")
@@ -207,7 +208,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 	varpath := filepath.Join(options.HomePath, "var")
 
 	options.IsvcsPath = cfg.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
-	options.LogPath  = cfg.StringVal("LOG_PATH", "/var/log/serviced")
+	options.LogPath = cfg.StringVal("LOG_PATH", "/var/log/serviced")
 	options.VolumesPath = cfg.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
 	options.BackupsPath = cfg.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
 	options.EtcPath = cfg.StringVal("ETC_PATH", filepath.Join(options.HomePath, "etc"))

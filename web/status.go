@@ -153,7 +153,7 @@ func getAllServiceStatuses(ctx *requestContext) (statuses []*ConciseServiceStatu
 		if isvc.ServiceID == "isvc-internalservices" {
 			checks = isvcsRootHealth
 		} else {
-			results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(isvc.ServiceID, "isvc-"))
+			results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(isvc.ServiceID, "isvc-"), isvcs.HEALTH_STATUS_INDEX_ALL)
 			if err != nil {
 				glog.Warningf("Error acquiring health status for %s (%s)", isvc.ServiceID, err)
 				continue

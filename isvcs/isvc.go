@@ -20,6 +20,10 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 
+	"fmt"
+	"github.com/control-center/serviced/config"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -42,7 +46,27 @@ type IServiceHealthResult struct {
 	HealthStatuses []domain.HealthCheckStatus
 }
 
+//
+func PreInit() error {
+	// Setup the initial Isvcs
+	InitAllIsvcs()
+
+	// Set the environment map.
+	if err := setIsvcsEnv(); err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to set isvcs options: %s\n", err)
+		return err
+	}
+
+	return nil
+}
+
 func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
+	if err := PreInit(); err != nil {
+		log.WithFields(logrus.Fields{
+			"isvc": "PreInit",
+		}).WithError(err).Fatal("Unable to initialize ISVCS")
+	}
+
 	elasticsearch_serviced.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
 	elasticsearch_logstash.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
 
@@ -93,6 +117,12 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 }
 
 func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
+	if err := PreInit(); err != nil {
+		log.WithFields(logrus.Fields{
+			"isvc": "PreInit",
+		}).WithError(err).Fatal("Unable to initialize ISVCS")
+	}
+
 	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"), dockerLogDriver, dockerLogConfig)
 	for _, isvcName := range isvcNames {
 		switch isvcName {
@@ -105,4 +135,27 @@ func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig ma
 			}
 		}
 	}
+}
+
+// This function sets up key pieces of information for ISVCS in the environment map.
+// (Adapted from the cmd.go cli function of the same name)
+func setIsvcsEnv() error {
+	options := config.GetOptions()
+
+	if zkid := options.IsvcsZKID; zkid > 0 {
+		if err := AddEnv(fmt.Sprintf("zookeeper:ZKID=%d", zkid)); err != nil {
+			return err
+		}
+	}
+	if zkquorum := strings.Join(options.IsvcsZKQuorum, ","); zkquorum != "" {
+		if err := AddEnv("zookeeper:ZK_QUORUM=" + zkquorum); err != nil {
+			return err
+		}
+	}
+	for _, val := range options.IsvcsENV {
+		if err := AddEnv(val); err != nil {
+			return err
+		}
+	}
+	return nil
 }

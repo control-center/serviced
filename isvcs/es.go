@@ -77,8 +77,10 @@ func initElasticSearch() {
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 
-	healthChecks := map[string]healthCheckDefinition{
-		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	healthChecks := []map[string]healthCheckDefinition{
+		map[string]healthCheckDefinition{
+			DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+		},
 	}
 
 	elasticsearch_servicedPortBinding := portBinding{
@@ -117,9 +119,13 @@ func initElasticSearch() {
 	serviceName = "elasticsearch-logstash"
 	logStashHealthCheck := defaultHealthCheck
 	logStashHealthCheck.healthCheck = esHealthCheck(9100, ESYellow)
-	healthChecks = map[string]healthCheckDefinition{
-		DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
+
+	healthChecks = []map[string]healthCheckDefinition{
+		map[string]healthCheckDefinition{
+			DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
+		},
 	}
+
 	elasticsearch_logstashPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",

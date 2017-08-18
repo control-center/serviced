@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -26,7 +25,6 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -102,6 +100,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringSliceFlag{"isvcs-start", convertToStringSlice(defaultOps.StartISVCS), "isvcs to start on agent"},
 		cli.IntFlag{"isvcs-zk-id", defaultOps.IsvcsZKID, "zookeeper id when running in a cluster"},
 		cli.StringSliceFlag{"isvcs-zk-quorum", convertToStringSlice(defaultOps.IsvcsZKQuorum), "isvcs zookeeper host quorum (e.g. -isvcs-zk-quorum zk1@localhost:2888:3888)"},
+		cli.StringSliceFlag{"isvcs-env", convertToStringSlice(defaultOps.IsvcsENV), "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.StringSliceFlag{"tls-ciphers", convertToStringSlice(defaultOps.TLSCiphers), "list of supported TLS ciphers for HTTP"},
 		cli.StringFlag{"tls-min-version", string(defaultOps.TLSMinVersion), "mininum TLS version for HTTP"},
 
@@ -111,7 +110,6 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"mc-username", defaultOps.MCUsername, "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", defaultOps.MCPasswd, "Password for the Zenoss metric consumer"},
 		cli.StringFlag{"cpuprofile", defaultOps.CPUProfile, "write cpu profile to file"},
-		cli.StringSliceFlag{"isvcs-env", convertToStringSlice(config.StringNumberedList("ISVCS_ENV", []string{})), "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.IntFlag{"debug-port", defaultOps.DebugPort, "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
@@ -199,6 +197,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Fprintf(os.Stderr, "Invalid option(s) found: %s\n", err)
 		return err
 	}
+
 	config.LoadOptions(options)
 
 	// Set logging options
@@ -206,12 +205,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Fprintf(os.Stderr, "Unable to set logging options: %s\n", err)
 	}
 
-	// TODO: Since isvcs options are only used by server (master/agent), these settings
-	//       should be moved to api.ValidateServerOptions
-	if err := setIsvcsEnv(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to set isvcs options: %s\n", err)
-		return err
-	}
 	return nil
 }
 
@@ -281,6 +274,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		SnapshotSpacePercent:       ctx.GlobalInt("snapshot-space-percent"),
 		StorageArgs:                ctx.GlobalStringSlice("storage-opts"),
 		ControllerBinary:           ctx.GlobalString("controller-binary"),
+		IsvcsENV:                   ctx.GlobalStringSlice("isvcs-env"),
 		StartISVCS:                 ctx.GlobalStringSlice("isvcs-start"),
 		IsvcsZKID:                  ctx.GlobalInt("isvcs-zk-id"),
 		IsvcsZKQuorum:              ctx.GlobalStringSlice("isvcs-zk-quorum"),
@@ -461,25 +455,6 @@ func setLogging(options *config.Options, ctx *cli.Context, logControl logging.Lo
 		// not technically correct, but realistically we only care about the first error
 		return errors[0]
 	}
-}
-
-func setIsvcsEnv(ctx *cli.Context) error {
-	if zkid := ctx.GlobalInt("isvcs-zk-id"); zkid > 0 {
-		if err := isvcs.AddEnv(fmt.Sprintf("zookeeper:ZKID=%d", zkid)); err != nil {
-			return err
-		}
-	}
-	if zkquorum := strings.Join(ctx.GlobalStringSlice("isvcs-zk-quorum"), ","); zkquorum != "" {
-		if err := isvcs.AddEnv("zookeeper:ZK_QUORUM=" + zkquorum); err != nil {
-			return err
-		}
-	}
-	for _, val := range ctx.GlobalStringSlice("isvcs-env") {
-		if err := isvcs.AddEnv(val); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func init() {
