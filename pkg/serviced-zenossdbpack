@@ -5,4 +5,9 @@ if [ ! -d /opt/serviced/log/zenossdbpack ]; then
     chmod 1777 /opt/serviced/log/zenossdbpack
 fi
 
-${SERVICED:=/opt/serviced/bin/serviced} service run --mount /opt/serviced/log/zenossdbpack,/opt/zenoss/log zope zenossdbpack
+# no reason to run zenossdbpack on agents.
+if 
+	grep --quiet ^SERVICED_MASTER=1 /etc/default/serviced 
+then
+	${SERVICED:=/opt/serviced/bin/serviced} service run --mount /opt/serviced/log/zenossdbpack,/opt/zenoss/log zope zenossdbpack
+fi

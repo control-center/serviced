@@ -482,6 +482,9 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	err = dt.Dao.AddService(*s02, &id)
 	t.Assert(err, IsNil)
 
+	// For this test, tenant mounts are valid.
+	dt.Dfs().On("VerifyTenantMounts", "0").Return(nil)
+
 	var affected int
 	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{[]string{"0"}, true, true}, &affected); err != nil {
 		t.Fatalf("could not start services: %v", err)

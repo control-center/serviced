@@ -217,8 +217,12 @@ func getFilterSection(logInfo serviceLogInfo, logFilters []*logfilter.LogFilter,
 			}
 			//  CC-3669: do not write duplicate filters for the same log file
 			if !utils.StringInSlice(config.Path, *logFiles) {
-				filterSection += fmt.Sprintf("\n  if [file] == \"%s\" {\n%s\n  }\n",
-					config.Path, indent(filterValue, "    "))
+				// Ruby Regex used in logstash conf uses / as a special character so we escape it.
+				path := strings.Replace(config.Path, "/", "\\/", -1)
+				filterSection += fmt.Sprintf("\n%s\n  if [file] =~ \"%s\" {\n%s\n  }\n",
+					"  # Regex pattern used must overlap golang glob format to be valid in filebeat",
+					path,
+					indent(filterValue, "    "))
 				*logFiles = append(*logFiles, config.Path)
 			}
 		}
@@ -303,6 +307,13 @@ filter {
     rename => {
       "source" => "file"
     }
+
+    convert => {
+      "[fields][instance]" => "string"
+      "[fields][ccWorkerID]" => "string"
+      "[fields][poolid]" => "string"
+    }
+
     # Save the time each message was received by logstash as rcvd_datetime
     add_field => [ "rcvd_datetime", "%{@timestamp}" ]
   }

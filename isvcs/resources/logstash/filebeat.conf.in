@@ -1,5 +1,6 @@
 filebeat:
   idle_timeout: 5s
+  # Glob pattern used in path must overlap logstash.conf regex to be valid.
   prospectors: ${PROSPECTORS_SECTION}
 
 path:

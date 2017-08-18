@@ -20,12 +20,13 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/logfilter"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
-	"github.com/control-center/serviced/domain/logfilter"
 )
 
 func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(c *C) {
@@ -101,6 +102,7 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(c *C) {
 func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(c *C) {
 	testService := service.Service{
 		ID: "TestFacadeValidServiceForStart_ServiceID",
+		PoolID: "default",
 		Endpoints: []service.ServiceEndpoint{
 			service.BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
@@ -112,13 +114,20 @@ func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(c *C) {
 				}),
 		},
 	}
-	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
+
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "default"}
+	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
+	c.Assert(err, IsNil)
+
+	err = ft.Facade.validateServiceStart(datastore.Get(), &testService)
 	c.Assert(err, IsNil)
 }
 
 func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(c *C) {
 	testService := service.Service{
 		ID: "TestFacadeInvalidServiceForStart_ServiceID",
+		PoolID: "default",
 		Endpoints: []service.ServiceEndpoint{
 			service.BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
@@ -134,7 +143,13 @@ func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(c *C) {
 				}),
 		},
 	}
-	err := ft.Facade.validateServiceStart(datastore.Get(), &testService)
+
+	// add the resource pool (no permissions required)
+	rp := pool.ResourcePool{ID: "default"}
+	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
+	c.Assert(err, IsNil)
+
+	err = ft.Facade.validateServiceStart(datastore.Get(), &testService)
 	c.Assert(err, NotNil)
 }
 

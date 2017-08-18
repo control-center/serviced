@@ -30,10 +30,20 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *TestAPISuite) testConvertOffsets(c *C, received []json.Number, expected []uint64) {
-	converted, err := convertOffsets(received)
+func (s *TestAPISuite) testConvertOffsets(c *C, received interface{}, expected []uint64) {
+	converted, err := convertGenericOffsets(received)
 	if err != nil {
 		c.Fatalf("unexpected error converting offsets: %s", err)
+	}
+	if !reflect.DeepEqual(converted, expected) {
+		c.Fatalf("got %v expected %v", converted, expected)
+	}
+}
+
+func (s *TestAPISuite) testConvertMessages(c *C, received interface{}, expected []string) {
+	converted, err := convertGenericMessages(received)
+	if err != nil {
+		c.Fatalf("unexpected error converting messages: %s", err)
 	}
 	if !reflect.DeepEqual(converted, expected) {
 		c.Fatalf("got %v expected %v", converted, expected)
@@ -62,6 +72,11 @@ func (s *TestAPISuite) testGenerateOffsets(c *C, inMessages []string, inOffsets,
 func (s *TestAPISuite) TestLogs_Offsets(c *C) {
 	s.testConvertOffsets(c, []json.Number{"123", "456", "789"}, []uint64{123, 456, 789})
 	s.testConvertOffsets(c, []json.Number{"456", "123", "789"}, []uint64{456, 123, 789})
+	s.testConvertOffsets(c, json.Number("456"), []uint64{456})
+	s.testConvertOffsets(c, []float64{12345.6789}, []uint64{12345})
+	s.testConvertOffsets(c, float64(12345.6789), []uint64{12345})
+	s.testConvertOffsets(c, []uint64{12345}, []uint64{12345})
+	s.testConvertOffsets(c, uint64(12345), []uint64{12345})
 
 	s.testUint64sAreSorted(c, []uint64{123, 124, 125}, true)
 	s.testUint64sAreSorted(c, []uint64{123, 125, 124}, false)
@@ -73,6 +88,11 @@ func (s *TestAPISuite) TestLogs_Offsets(c *C) {
 	s.testGenerateOffsets(c, []string{}, []uint64{}, []uint64{})
 	s.testGenerateOffsets(c, []string{"abc", "def", "ghi"}, []uint64{456, 123, 789}, []uint64{123, 124, 125})
 	s.testGenerateOffsets(c, []string{"abc", "def", "ghi"}, []uint64{456, 124}, []uint64{124, 125, 126})
+}
+
+func (s *TestAPISuite) TestLogs_Messages(c *C) {
+	s.testConvertMessages(c, []string{"s1", "s2", "s3"}, []string{"s1", "s2", "s3"})
+	s.testConvertMessages(c, "s1", []string{"s1"})
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {

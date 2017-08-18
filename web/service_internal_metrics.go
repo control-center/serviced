@@ -27,11 +27,11 @@ var internalCounterStats = []string{
 	"net.tx_bytes", "net.tx_carrier_errors", "net.tx_compressed",
 	"net.tx_dropped", "net.tx_errors", "net.tx_fifo_errors",
 	"net.tx_heartbeat_errors", "net.tx_packets", "net.tx_window_errors",
-	"docker.usageinkernelmode", "docker.usageinusermode", "cgroup.memory.pgmajfault",
+	"cgroup.memory.pgmajfault",
 }
 var internalGaugeStats = []string{
 	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.open_connections.tcp", "net.open_connections.udp",
-	"net.open_connections.raw",
+	"net.open_connections.raw", "docker.usageinkernelmode", "docker.usageinusermode", 
 }
 var internalTenantStats = []string{
 	"storage.filesystem.available.%s", "storage.filesystem.used.%s",

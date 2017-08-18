@@ -181,7 +181,7 @@ func (f *Facade) RemoveAddressAssignment(ctx datastore.Context, id string) error
 }
 
 func (f *Facade) assign(ctx datastore.Context, assignment addressassignment.AddressAssignment) (string, error) {
-	alog := f.auditLogger.Message(ctx, "Adding AddressAssignment").Action(audit.Add).Entity(&assignment)
+	alog := f.auditLogger.Message(ctx, "Adding AddressAssignment").Action(audit.Add).Type(assignment.GetType())
 	if err := assignment.ValidEntity(); err != nil {
 		return "", alog.Error(err)
 	}
