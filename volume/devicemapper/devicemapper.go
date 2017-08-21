@@ -778,9 +778,11 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		dmoptions = append(dmoptions, "dm.fs=ext4")
 		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, dmoptions, nil, nil)
 		if err != nil {
-			if _, thinError := err.(devmapper.ThinpoolInitError); thinError {
+			switch err.(type) {
+			case devmapper.ThinpoolHasUsedDataBlocksError, devmapper.ThinpoolNonzeroTransactionIDError, devmapper.ThinpoolSaveBaseDeviceError:
 				//Try recreating the base image because sometimes something deletes it
 				glog.Errorf("Error intializing thin pool device, %s, attempting to create to new base device", err)
+
 				deviceSet, err = devmapper.NewDeviceSet(poolPath, false, d.options, nil, nil)
 				if err != nil {
 					return err
@@ -789,7 +791,9 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 				if err != nil {
 					return err
 				}
-			} else {
+			// Let the ThinpoolBaseDeviceVerificationFailedError fall through so we error out without trying
+			// to create a new base image (deleting existing metadata).
+			default:
 				return err
 			}
 		}

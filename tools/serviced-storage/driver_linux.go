@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume/devicemapper"
+	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 )
 
 // Execute displays orphaned volumes
@@ -31,6 +32,13 @@ func (c *CheckOrphans) Execute(args []string) error {
 	directory := GetDefaultDriver(string(c.Args.Path))
 	dmd, err := InitDriverIfExists(directory)
 	if err != nil {
+		// If this is a devmapper.ThinpoolBaseDeviceVerificationFailedError, they have an
+		// existing devmapper device but didn't specify it (or specified an invalid device)
+		switch err.(type) {
+		case devmapper.ThinpoolBaseDeviceVerificationFailedError:
+			log.Error(err)
+			log.Fatal("Device verification error. Check dm.thinpooldev parameter")
+		}
 		return err
 	}
 	drv, ok := dmd.(*devicemapper.DeviceMapperDriver)
