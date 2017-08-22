@@ -261,9 +261,10 @@ func validateServiceOptions(svc *service.Service) error {
 //Get changes made by "serviced service edit" call
 func (f * Facade) getChanges(ctx datastore.Context, svc service.Service) string {
 	var updates string
-	cursvc, err := f.validateServiceUpdate(ctx, &svc)
+	store := f.serviceStore
+	cursvc, err := store.Get(ctx, svc.ID)
 	if err != nil {
-		glog.Errorf("Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
+		glog.Errorf("Could not load service %s (%s) from database: %s", svc.Name, svc.ID, err)
 		return updates
 	}
         if !reflect.DeepEqual(svc, cursvc) {
