@@ -98,6 +98,8 @@ func (c *Chain) Forward(action Action, proto string, dest, fwdto *Address) error
 		"--dport", strconv.Itoa(dest.Port),
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(fwdto.IP, strconv.Itoa(fwdto.Port)),
+		"-m", "comment",
+		"--comment", "serviced: DO_NOT_REMOVE",
 	)...); err != nil {
 		return err
 	} else if len(output) != 0 {
@@ -112,7 +114,9 @@ func (c *Chain) Forward(action Action, proto string, dest, fwdto *Address) error
 		"-p", proto,
 		"-d", fwdto.IP,
 		"--dport", strconv.Itoa(fwdto.Port),
-		"-j", "ACCEPT"); err != nil {
+		"-j", "ACCEPT",
+		"-m", "comment",
+		"--comment", "serviced: DO_NOT_REMOVE"); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return fmt.Errorf("Error iptables forward: %s", output)
