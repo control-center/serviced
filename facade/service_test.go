@@ -3770,3 +3770,9 @@ func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string,
 	c.Assert(foundids, DeepEquals, ids)
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_getChanges(c *C) {
+	beforeUpdates := ""
+	updates := ft.Facade.getChanges(ft.CTX, service.Service{ID: "updatedID"})
+	c.Assert(beforeUpdates, Equals, updates)
+}
+
