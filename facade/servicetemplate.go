@@ -17,12 +17,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/audit"
-	"github.com/Sirupsen/logrus"
 )
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
@@ -31,7 +31,7 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 	alog := f.auditLogger.Message(ctx, "Adding Service Template").
 		Action(audit.Add).Type(serviceTemplate.GetType())
 	logger := plog.WithFields(logrus.Fields{
-		"template": serviceTemplate.Name,
+		"template":       serviceTemplate.Name,
 		"reloadlogstash": reloadLogstashConfig,
 	})
 	store := f.templateStore
@@ -86,8 +86,8 @@ func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicete
 	alog := f.auditLogger.Message(ctx, "Updating Service Template").
 		Action(audit.Update).Entity(&template)
 	logger := plog.WithFields(logrus.Fields{
-		"template": template.Name,
-		"templateid": template.ID,
+		"template":       template.Name,
+		"templateid":     template.ID,
 		"reloadlogstash": reloadLogstashConfig,
 	})
 
@@ -148,7 +148,7 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 	for _, template := range templates {
 		logger := plog.WithFields(logrus.Fields{
 			"templateid": template.ID,
-			"template": template.Name,
+			"template":   template.Name,
 		})
 		template.DatabaseVersion = 0
 		alog = f.auditLogger.Entity(&template)
@@ -185,7 +185,7 @@ func (f *Facade) getServiceTemplateByMD5Sum(ctx datastore.Context, md5Sum string
 	for _, t := range templates {
 		logger := plog.WithFields(logrus.Fields{
 			"templateid": t.ID,
-			"template": t.Name,
+			"template":   t.Name,
 		})
 		hash, err := t.Hash()
 		if err != nil {
@@ -297,8 +297,8 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		Action(audit.Deploy).ID(templateID).Type(servicetemplate.GetType()).
 		WithFields(logrus.Fields{"poolid": poolID, "deploymentid": deploymentID})
 	logger := plog.WithFields(logrus.Fields{
-		"poolid": poolID,
-		"templateid": templateID,
+		"poolid":       poolID,
+		"templateid":   templateID,
 		"deploymentid": deploymentID,
 	})
 	// add an entry for reporting status
@@ -371,13 +371,13 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployService"))
 	store := f.serviceStore
-	alog  := f.auditLogger.Message(ctx, "Deploying Service Definition").Action(audit.Deploy).
+	alog := f.auditLogger.Message(ctx, "Deploying Service Definition").Action(audit.Deploy).
 		ID(parentID).Type(service.GetType()).
 		WithFields(logrus.Fields{"poolid": poolID, "svcdefname": svcDef.GetID()})
 	logger := plog.WithFields(logrus.Fields{
-		"poolid": poolID,
-		"parentid": parentID,
-		"overwrite": overwrite,
+		"poolid":     poolID,
+		"parentid":   parentID,
+		"overwrite":  overwrite,
 		"svcdefname": svcDef.GetID(),
 	})
 	// get the parent service
@@ -408,7 +408,7 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 	alog = alog.WithField("tenantid", tenantID)
 	logger = logger.WithFields(logrus.Fields{
 		"tenantid": tenantID,
-		"service": svc.Name,
+		"service":  svc.Name,
 	})
 	if svc.ParentServiceID != "" {
 		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil { // make this call a little cheaper
@@ -424,11 +424,11 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 
 func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition, updateStatus func(string)) (string, error) {
 	logger := plog.WithFields(logrus.Fields{
-		"tenant": tenantID,
-		"parentid": parentServiceID,
+		"tenant":       tenantID,
+		"parentid":     parentServiceID,
 		"deploymentid": deploymentID,
-		"poolid": poolID,
-		"overwrite": overwrite,
+		"poolid":       poolID,
+		"overwrite":    overwrite,
 	})
 	// create the new service object
 	newsvc, err := service.BuildService(svcDef, parentServiceID, poolID, int(service.SVCStop), deploymentID)
@@ -486,7 +486,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		if _, err := f.deployService(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd, updateStatus); err != nil {
 			logger.WithError(err).WithFields(logrus.Fields{
 				"serviceid": newsvc.ID,
-				"service": sd.Name,
+				"service":   sd.Name,
 			}).Error("Error while trying to deploy service")
 			return newsvc.ID, err
 		}
