@@ -3649,8 +3649,17 @@ func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string,
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_getChanges(c *C) {
-	beforeUpdates := ""
-	updates := ft.Facade.getChanges(ft.CTX, service.Service{ID: "updatedID"})
-	c.Assert(beforeUpdates, Equals, updates)
+	cursvc := service.Service{
+		ID:			"get-changes-service",
+		Name:			"TestFacade_getChanges_Current",
+		DeploymentID:		"deployment-id",
+		PoolID:			"pool-id",
+		Launch:			"auto",
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, cursvc), IsNil)
+	svc , _ := ft.Facade.getService(ft.CTX, cursvc.ID)
+	svc.Name = "TestFacade_getChanges_Updated"
+	updates := ft.Facade.getChanges(ft.CTX, svc)
+	expected := "Name:TestFacade_getChanges_Updated;"
+	c.Assert(expected, Equals, updates)
 }
-
