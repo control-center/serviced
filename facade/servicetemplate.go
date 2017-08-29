@@ -331,6 +331,12 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		}
 		tenantIDs[i] = tenantID
 	}
+
+	// Update the logstash filters for the deployed services
+	if err := f.ReloadLogstashConfig(ctx); err != nil {
+		glog.Errorf("Could not reload logstash configs after deploying %s: %s", template.Name, err)
+	}
+
 	alog.Succeeded()
 	return tenantIDs, nil
 }
