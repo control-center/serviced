@@ -68,7 +68,7 @@ func writeLogstashAgentConfig(hostID string, hostIPs string, svcPath string, ser
 	prospectorsConf := ``
 	for _, logConfig := range service.LogConfigs {
 		prospectorsConf = prospectorsConf + `
-    - ignore_older: 10s
+    - ignore_older: 10m
       close_inactive: 5m
       paths:
         - %s
