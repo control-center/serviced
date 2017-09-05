@@ -574,8 +574,6 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 	cfg.Image = svc.ImageID
 
 	// get the endpoints
-	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
-	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 	state := &zkservice.ServiceState{
 		ImageUUID: imageUUID,
 		Paused:    false,
@@ -588,16 +586,6 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		logger.WithField("endpoints", svc.Endpoints).Debug("Endpoints for service")
 		for _, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
-				var p string
-				switch endpoint.Protocol {
-				case commons.UDP:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "udp")
-				default:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "tcp")
-				}
-				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
-				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
-
 				var assignedPortNumber uint16
 				if a := endpoint.GetAssignment(); a != nil {
 					assignedIP = endpoint.AddressAssignment.IPAddr
