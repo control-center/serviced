@@ -1498,15 +1498,16 @@ func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, service
 
 	cleared := 0
 	for _, svc := range svcs {
+		svclog := plog.WithField("serviceid", svc.ID)
 		// CC-3871 preserve config changes after clearEmergencyStopFlag call
 		if err = f.fillServiceConfigs(ctx, svc); err != nil {
-			plog.WithError(err).Error("Failed to fill service configs")
+			svclog.WithError(err).Error("Failed to fill service configs")
 		}
 		svc.EmergencyShutdown = false
 		f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
 		err = f.updateService(ctx, tenantID, *svc, false, false)
 		if err != nil {
-			plog.WithField("service", svc.ID).WithError(err).Error("Failed to update database with EmergencyShutdown")
+			svclog.WithError(err).Error("Failed to update database with EmergencyShutdown")
 		} else {
 			cleared++
 		}
@@ -2555,12 +2556,13 @@ func (f *Facade) GetServicesForScheduling(ctx datastore.Context, ids []string) [
 	services := []*service.Service{}
 	for _, id := range ids {
 		svc, err := f.getService(ctx, id)
+		svclog := plog.WithField("serviceid", id)
 		if err != nil {
-			glog.Warningf("Could not get service with id %s: %s", id, err)
+			svclog.WithError(err).Warning("Could not get service")
 		} else {
 			// CC-3871 preserve config changes after Emergency shutdown
 			if err := f.fillServiceConfigs(ctx, &svc); err != nil {
-				plog.WithError(err).Error("Failed to fill service configs")
+				svclog.WithError(err).Error("Failed to fill service configs")
 			}
 			services = append(services, &svc)
 		}
