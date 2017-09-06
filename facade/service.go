@@ -1458,7 +1458,7 @@ func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, service
 	for _, svc := range svcs {
 		// CC-3871 preserve config changes after clearEmergencyStopFlag call
 		if err = f.fillServiceConfigs(ctx, svc); err != nil {
-			glog.Errorf("%s", err)
+			plog.WithError(err).Error("Failed to fill service configs")
 		}
 		svc.EmergencyShutdown = false
 		f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
@@ -2518,7 +2518,7 @@ func (f *Facade) GetServicesForScheduling(ctx datastore.Context, ids []string) [
 		} else {
 			// CC-3871 preserve config changes after Emergency shutdown
 			if err := f.fillServiceConfigs(ctx, &svc); err != nil {
-				glog.Errorf("%s", err)
+				plog.WithError(err).Error("Failed to fill service configs")
 			}
 			services = append(services, &svc)
 		}
