@@ -1498,6 +1498,10 @@ func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, service
 
 	cleared := 0
 	for _, svc := range svcs {
+		// CC-3871 preserve config changes after clearEmergencyStopFlag call
+		if err = f.fillServiceConfigs(ctx, svc); err != nil {
+			glog.Errorf("%s", err)
+		}
 		svc.EmergencyShutdown = false
 		f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
 		err = f.updateService(ctx, tenantID, *svc, false, false)
@@ -2554,6 +2558,10 @@ func (f *Facade) GetServicesForScheduling(ctx datastore.Context, ids []string) [
 		if err != nil {
 			glog.Warningf("Could not get service with id %s: %s", id, err)
 		} else {
+			// CC-3871 preserve config changes after Emergency shutdown
+			if err := f.fillServiceConfigs(ctx, &svc); err != nil {
+				glog.Errorf("%s", err)
+			}
 			services = append(services, &svc)
 		}
 	}
