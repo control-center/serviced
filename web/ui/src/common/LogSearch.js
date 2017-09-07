@@ -18,7 +18,7 @@
         query: {
             query_string: {
                 analyze_wildcard: true,
-                query: "fields.type:* AND message:*"
+                query: "fields.type:*"
             }
         },
         sort: ["@timestamp", "desc"],

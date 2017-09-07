@@ -674,7 +674,7 @@
                     appConfig.query = {
                         query_string: {
                             analyze_wildcard: true,
-                            query: `fields.service:${service.id} AND fields.instance:* AND message:*`
+                            query: `fields.service:${service.id} AND fields.instance:*`
                         }
                     };
                     appConfig.columns = ["fields.instance", "message"];
@@ -691,7 +691,7 @@
                     appConfig.query = {
                         query_string: {
                             analyze_wildcard: true,
-                            query: `fields.service:${instance.model.ServiceID} AND fields.instance:${instance.model.InstanceID} AND message:*`
+                            query: `fields.service:${instance.model.ServiceID} AND fields.instance:${instance.model.InstanceID}`
                         }
                     };
                     appConfig.columns = ["message"];
