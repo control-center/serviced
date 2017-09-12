@@ -194,14 +194,62 @@ type DevStatus struct {
 	HighestMappedSector uint64
 }
 
-type ThinpoolInitError struct {
-	msg string
-}
-
 var sizeAbbrs = []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
 
-func (e ThinpoolInitError) Error() string {
-	return e.msg
+type ThinpoolHasUsedDataBlocksError struct {
+	device string
+}
+
+func (e ThinpoolHasUsedDataBlocksError) Error() string {
+	return fmt.Sprintf("devmapper: Unable to take ownership of thin-pool (%s) that already has used data blocks", e.device)
+}
+
+type ThinpoolNonzeroTransactionIDError struct {
+	device string
+}
+
+func (e ThinpoolNonzeroTransactionIDError) Error() string {
+	return fmt.Sprintf("devmapper: Unable to take ownership of thin-pool (%s) with non-zero transaction ID", e.device)
+}
+
+type ThinpoolBaseDeviceVerificationFailedError struct {
+	thinerror error
+}
+
+func (e ThinpoolBaseDeviceVerificationFailedError) Error() string {
+	return fmt.Sprintf("devmapper: Base Device UUID and Filesystem verification failed.%v", e.thinerror)
+}
+
+type ThinpoolSaveBaseDeviceError struct {
+	thinerror error
+}
+
+func (e ThinpoolSaveBaseDeviceError) Error() string {
+	return fmt.Sprintf("devmapper: Could not query and save base device UUID:%v", e.thinerror)
+}
+
+func NewThinpoolHasUsedDataBlocksError(device string) ThinpoolHasUsedDataBlocksError {
+	return ThinpoolHasUsedDataBlocksError{
+		device: device,
+	}
+}
+
+func NewThinpoolNonzeroTransactionIDError(device string) ThinpoolNonzeroTransactionIDError {
+	return ThinpoolNonzeroTransactionIDError{
+		device: device,
+	}
+}
+
+func NewThinpoolBaseDeviceVerificationFailedError(thinerror error) ThinpoolBaseDeviceVerificationFailedError {
+	return ThinpoolBaseDeviceVerificationFailedError{
+		thinerror: thinerror,
+	}
+}
+
+func NewThinpoolSaveBaseDeviceError(thinerror error) ThinpoolSaveBaseDeviceError {
+	return ThinpoolSaveBaseDeviceError{
+		thinerror: thinerror,
+	}
 }
 
 func getDevName(name string) string {
@@ -1094,12 +1142,10 @@ func (devices *DeviceSet) checkThinPool() error {
 		return err
 	}
 	if dataUsed != 0 {
-		return ThinpoolInitError{fmt.Sprintf("devmapper: Unable to take ownership of thin-pool (%s) that already has used data blocks",
-			devices.thinPoolDevice)}
+		return NewThinpoolHasUsedDataBlocksError(devices.thinPoolDevice)
 	}
 	if transactionID != 0 {
-		return ThinpoolInitError{fmt.Sprintf("devmapper: Unable to take ownership of thin-pool (%s) with non-zero transaction ID",
-			devices.thinPoolDevice)}
+		return NewThinpoolNonzeroTransactionIDError(devices.thinPoolDevice)
 	}
 	return nil
 }
@@ -1110,13 +1156,12 @@ func (devices *DeviceSet) setupVerifyBaseImageUUIDFS(baseInfo *devInfo) error {
 	// If BaseDeviceUUID is nil (upgrade case), save it and return success.
 	if devices.BaseDeviceUUID == "" {
 		if err := devices.saveBaseDeviceUUID(baseInfo); err != nil {
-			return fmt.Errorf("devmapper: Could not query and save base device UUID:%v", err)
+			return NewThinpoolSaveBaseDeviceError(err)
 		}
 		return nil
 	}
-
 	if err := devices.verifyBaseDeviceUUIDFS(baseInfo); err != nil {
-		return ThinpoolInitError{fmt.Sprintf("devmapper: Base Device UUID and Filesystem verification failed.%v", err)}
+		return NewThinpoolBaseDeviceVerificationFailedError(err)
 	}
 
 	return nil
@@ -1747,6 +1792,14 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 			dataFile     *os.File
 			metadataFile *os.File
 		)
+
+		// A pool was not specified; don't overwrite an existing device.
+		info, _ := devices.lookupDeviceWithLock("")
+		if info != nil {
+			if err := devices.verifyBaseDeviceUUIDFS(info); err != nil {
+				return NewThinpoolBaseDeviceVerificationFailedError(err)
+			}
+		}
 
 		if devices.dataDevice == "" {
 			// Make sure the sparse images exist in <root>/devicemapper/data
