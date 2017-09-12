@@ -21,14 +21,24 @@ import (
 	// Need to do rsync driver initializations
 	_ "github.com/control-center/serviced/volume/rsync"
 
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume/devicemapper"
+	"github.com/docker/docker/pkg/parsers"
+	"strings"
+)
+
+var (
+	ErrMissingThinpoolOption = errors.New("Missing or invalid dm.thinpooldev option specified")
 )
 
 // Execute displays orphaned volumes
 func (c *CheckOrphans) Execute(args []string) error {
 	App.initializeLogging()
 	directory := GetDefaultDriver(string(c.Args.Path))
+	if err := verifyOptions(App.Options.Options); err != nil {
+		log.Fatal(err.Error())
+	}
 	dmd, err := InitDriverIfExists(directory)
 	if err != nil {
 		return err
@@ -87,6 +97,30 @@ func (c *CheckOrphans) Execute(args []string) error {
 		}
 	} else {
 		fmt.Println("No orphaned devices found.")
+	}
+	return nil
+}
+
+func verifyOptions(options []string) error {
+	thinpooldev := false
+	for _, option := range options {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		// Currently just checking that the dm.thinpooldev option is set.
+		case "dm.thinpooldev":
+			if len(strings.TrimSpace(val)) == 0 {
+				return ErrMissingThinpoolOption
+			}
+			thinpooldev = true
+			break
+		}
+	}
+	if !thinpooldev {
+		return ErrMissingThinpoolOption
 	}
 	return nil
 }
