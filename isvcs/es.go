@@ -71,8 +71,15 @@ func initElasticSearch() {
 
 	serviceName = "elasticsearch-serviced"
 
+        elasticsearch_servicedPortBinding := portBinding{
+                HostIp:         "127.0.0.1",
+                HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
+                HostPort:       9200,
+        }
+
+
 	defaultHealthCheck := healthCheckDefinition{
-		healthCheck: esHealthCheck(9200, ESYellow),
+		healthCheck: esHealthCheck(getHostIp(elasticsearch_servicedPortBinding) , 9200, ESYellow),
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
@@ -81,12 +88,6 @@ func initElasticSearch() {
 		map[string]healthCheckDefinition{
 			DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 		},
-	}
-
-	elasticsearch_servicedPortBinding := portBinding{
-		HostIp:         "127.0.0.1",
-		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
-		HostPort:       9200,
 	}
 
 	elasticsearch_serviced, err = NewIService(
@@ -117,19 +118,20 @@ func initElasticSearch() {
 	}
 
 	serviceName = "elasticsearch-logstash"
+
+        elasticsearch_logstashPortBinding := portBinding{
+                HostIp:         "127.0.0.1",
+                HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",
+                HostPort:       9100,
+        }
+
 	logStashHealthCheck := defaultHealthCheck
-	logStashHealthCheck.healthCheck = esHealthCheck(9100, ESYellow)
+	logStashHealthCheck.healthCheck = esHealthCheck(getHostIp(elasticsearch_logstashPortBinding) , 9100, ESYellow)
 
 	healthChecks = []map[string]healthCheckDefinition{
 		map[string]healthCheckDefinition{
 			DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
 		},
-	}
-
-	elasticsearch_logstashPortBinding := portBinding{
-		HostIp:         "127.0.0.1",
-		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",
-		HostPort:       9100,
 	}
 
 	elasticsearch_logstash, err = NewIService(
@@ -240,9 +242,9 @@ func getESHealth(url string) <-chan esres {
 	return esresC
 }
 
-func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
+func esHealthCheck(host string, port int, minHealth ESHealth) HealthCheckFunction {
 	return func(cancel <-chan struct{}) error {
-		url := fmt.Sprintf("http://localhost:%d/_cluster/health", port)
+		url := fmt.Sprintf("http://%s:%d/_cluster/health", host, port)
 		log := log.WithFields(logrus.Fields{
 			"url":       url,
 			"minhealth": minHealth,
