@@ -408,3 +408,13 @@ if err:
     show_help()
     sys.exit(1) # Fail the upgrade.
 EOF
+
+#
+# Backup the existing cron.zenossdbpack if it exists so we can check if we need to change it later
+#
+
+if [ -f /etc/cron.d/cron_zenossdbpack ]; then
+    echo "Backing up /etc/cron.d/cron_zenossdbpack."
+    mv /etc/cron.d/cron_zenossdbpack /etc/cron.d/cron_zenossdbpack.backup
+fi
+
