@@ -496,3 +496,45 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 		Protocol:    "tcp",
 	})
 }
+
+func (s *S) Test_GetImageUseCount(c *C) {
+	imageID := "image-1-id"
+	svca := &Service{
+		ID:              "svcaid",
+		PoolID:          "testPool",
+		Name:            "svc_a",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id",
+		UpdatedAt:       time.Now().Add(-time.Minute),
+		ImageID:         imageID,
+	}
+	svcb := &Service{
+		ID:              "svcbid",
+		PoolID:          "testPool",
+		Name:            "svc_b",
+		Launch:          "auto",
+		ParentServiceID: "svc_a",
+		DeploymentID:    "deployment_id",
+		UpdatedAt:       time.Now().Add(2 * -time.Second),
+		ImageID:         imageID,
+	}
+	c.Assert(s.store.Put(s.ctx, svca), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcb), IsNil)
+
+	count, err := s.store.GetServiceCountByImage(s.ctx, imageID)
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 2)
+
+	err = s.store.Delete(s.ctx, svca.ID)
+	c.Assert(err, IsNil)
+	count, err = s.store.GetServiceCountByImage(s.ctx, imageID)
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 1)
+
+	err = s.store.Delete(s.ctx, svcb.ID)
+	c.Assert(err, IsNil)
+	count, err = s.store.GetServiceCountByImage(s.ctx, imageID)
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 0)
+}

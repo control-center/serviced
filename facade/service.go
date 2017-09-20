@@ -1001,38 +1001,58 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 
 func (f *Facade) removeService(ctx datastore.Context, id string) error {
 	store := f.serviceStore
+	logger := plog.WithField("serviceid", id)
 
 	return f.walkServices(ctx, id, true, func(svc *service.Service) error {
+		imageID := svc.ImageID
+		logger = logger.WithFields(log.Fields{
+			"service": svc.Name,
+			"pool": svc.PoolID,
+			"imageid": imageID,
+		})
+
 		// remove all address assignments
 		for _, endpoint := range svc.Endpoints {
+			eplogger := logger.WithField("endpoint", endpoint.Name)
 			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpoint.Name); err != nil {
-				glog.Errorf("Could not find address assignment %s for service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+				eplogger.WithError(err).Error("Could not find address assignment")
 				return err
 			} else if assignment != nil {
 				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
-					glog.Errorf("Could not remove address assignment %s from service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+					eplogger.WithError(err).Error("Could not remove address assignment")
 					return err
 				}
 			}
 			endpoint.RemoveAssignment()
 		}
 		if err := f.zzk.RemoveServiceEndpoints(svc.ID); err != nil {
-			glog.Errorf("Could not remove public endpoints for service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).Error("Could not remove public endpoints for service")
 			return err
 		}
 		if err := f.zzk.RemoveService(svc.PoolID, svc.ID); err != nil {
-			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).Error("Could not remove service from zookeeper")
 			return err
 		}
 
 		if err := store.Delete(ctx, svc.ID); err != nil {
-			glog.Errorf("Error while removing service %s (%s): %s", svc.Name, svc.ID, err)
+			logger.WithError(err).Error("Error while removing service %s")
 			return err
 		}
 
 		f.poolCache.SetDirty()
 
 		f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
+
+		if count, err := f.serviceStore.GetServiceCountByImage(ctx, imageID); err != nil {
+			logger.WithError(err).Error("Error getting service count by imageID")
+			return err
+		} else if count == 0 {
+			if err := f.registryStore.Delete(ctx, imageID); err != nil {
+				logger.WithError(err).Error("Unable to remove unused image from the image registry")
+				return err
+			}
+		}
+
 		return nil
 	}, "removeService")
 }

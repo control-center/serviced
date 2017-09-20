@@ -383,6 +383,7 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	svc.PoolID = "default"
 	svc.Launch = "auto"
 	svc.DeploymentID = "deployment_id"
+	svc.ImageID = "image_id"
 	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
 
 	err = dt.Dao.AddService(*svc, &id)
