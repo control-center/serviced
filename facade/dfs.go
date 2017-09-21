@@ -605,8 +605,15 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
 			logger.WithError(err).Debug("Could not rollback snapshot")
 			return alog.Error(err)
+		} else {
+			logger.Info("Rolled back snapshot")
+			if err := f.dfs.Delete(snapshot); err != nil {
+				logger.WithError(err).Error("Problem deleting snapshot.")
+			} else {
+				logger.Info("Removed snapshot after rollback")
+			}
 		}
-		logger.Info("Rolled back snapshot")
+
 	}
 	restoreDuration := time.Since(stime)
 	plog.Info("Completed restore from backup")
