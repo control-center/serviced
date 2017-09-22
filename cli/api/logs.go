@@ -850,7 +850,7 @@ type beatProps struct {
 // fieldProps are properties added to each message by our container controller; see container/logstash.go
 type fieldProps struct {
 	CCWorkerID  interface{} `json:"ccWorkerID"` // Note this is actually the host ID of the CC host
-	Type        string      `json:"type"`       // This is the 'type' from the LogConfig in the service def
+	Type        interface{}	`json:"type"`       // This is the 'type' from the LogConfig in the service def
 	Service     string      `json:"service"`    // This is the service id
 	Instance    interface{} `json:"instance"`   // This is the service instance id
 	HostIPs     string      `json:"hostips"`    // space-separated list of host-ips from the container
