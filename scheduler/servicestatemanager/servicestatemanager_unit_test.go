@@ -576,7 +576,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		c.Fatal("Timeout waiting for expedited batch")
 	}
 
-	// Stop services DEF and make sure it cancels the start requests for E and F
+	// Stop services DEF and make sure stop overrides current state of pending start.
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
 		serviceIDs := args.Get(2).([]string)
 		c.Assert(len(serviceIDs), Equals, 3)
