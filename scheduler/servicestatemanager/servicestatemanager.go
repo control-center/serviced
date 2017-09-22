@@ -644,6 +644,11 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ba
 	expedited = make(map[string]*CancellableService)
 	newSvcs := make(map[string]*CancellableService)
 	for id, newSvc := range newBatch.Services {
+		logger := plog.WithFields(logrus.Fields{
+			"id": id,
+			"name": newSvc.Name,
+		})
+
 		if oldsvc, ok := b.Services[id]; ok {
 			// There is already an entry in the queue for this service, so reconcile
 			if b.Emergency && !newBatch.Emergency {
@@ -667,6 +672,7 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ba
 			} else if b.DesiredState != newBatch.DesiredState {
 				// this service has a newer desired state than it does in b,
 				// so we can take this service out of old batch
+				logger.Debugf("State mismatch, existing: %s, newBatch: %s", b.DesiredState, newBatch.DesiredState)
 				delete(b.Services, id)
 				oldsvc.Cancel()
 
@@ -682,6 +688,7 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ba
 					newSvcs[id] = newSvc
 				}
 			} else {
+				logger.Debug("State matches, expediting")
 				// this service exists in b with the same desired state,
 				// so expedite it
 				delete(b.Services, id)
@@ -690,6 +697,7 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ba
 				newSvc.Cancel()
 			}
 		} else {
+			logger.Debug("New service, adding to batch")
 			// no overlap, keep the new service
 			newSvcs[id] = newSvc
 		}
