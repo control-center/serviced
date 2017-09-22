@@ -183,6 +183,7 @@ func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
 	s1.PoolID = "poolid"
 	s1.DeploymentID = "deployment_id"
 	s1.Launch = "manual"
+	s1.ImageID = "image_id"
 	s1.Endpoints = []service.ServiceEndpoint{
 		service.ServiceEndpoint{},
 	}

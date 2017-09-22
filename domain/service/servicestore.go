@@ -69,6 +69,9 @@ type Store interface {
 	// GetServicesByPool returns services with the given pool id
 	GetServicesByPool(ctx datastore.Context, poolID string) ([]Service, error)
 
+	// GetServiceCountByImage returns a count of services using a given imageid
+	GetServiceCountByImage(ctx datastore.Context, imageID string) (int, error)
+
 	// GetServicesByDeployment returns services with the given deployment id
 	GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]Service, error)
 
@@ -239,6 +242,23 @@ func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]S
 		return nil, err
 	}
 	return s.convert(results)
+}
+
+// GetServiceCountByImage returns a count of services using a given imageid
+func (s *storeImpl) GetServiceCountByImage(ctx datastore.Context, imageID string) (int, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceCountByImage"))
+	id := strings.TrimSpace(imageID)
+	if id == "" {
+		return 0, errors.New("empty imageID not allowed")
+	}
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("ImageID", id)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return 0, err
+	}
+	return results.Len(), nil
 }
 
 // GetServicesByDeployment returns services with the given deployment id
