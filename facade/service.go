@@ -1043,13 +1043,15 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 
 		f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
 
-		if count, err := f.serviceStore.GetServiceCountByImage(ctx, imageID); err != nil {
-			logger.WithError(err).Error("Error getting service count by imageID")
-			return err
-		} else if count == 0 {
-			if err := f.registryStore.Delete(ctx, imageID); err != nil {
-				logger.WithError(err).Error("Unable to remove unused image from the image registry")
+		if len(imageID) > 0 {
+			if count, err := f.serviceStore.GetServiceCountByImage(ctx, imageID); err != nil {
+				logger.WithError(err).Error("Error getting service count by imageID")
 				return err
+			} else if count == 0 {
+				if err := f.registryStore.Delete(ctx, imageID); err != nil {
+					logger.WithError(err).Error("Unable to remove unused image from the image registry")
+					return err
+				}
 			}
 		}
 
