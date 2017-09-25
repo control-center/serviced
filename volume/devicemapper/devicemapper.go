@@ -138,11 +138,12 @@ func (d *DeviceMapperDriver) cleanUpSnapshots() {
 
 		glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
 		v.driver.DeviceSet.Lock()
-		if err := v.driver.DeactivateDevice(deviceHash); err != nil {
+		err = v.driver.DeactivateDevice(deviceHash)
+		v.driver.DeviceSet.Unlock()
+		if err != nil {
 			glog.Errorf("Error deactivating device (%s): %s", deviceHash, err)
 			continue
 		}
-		v.driver.DeviceSet.Unlock()
 		if err := v.driver.deleteDevice(deviceHash, false); err != nil {
 			glog.Errorf("Error removing snapshot: %v", err)
 			continue
