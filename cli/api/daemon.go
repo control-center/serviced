@@ -860,7 +860,11 @@ func (d *daemon) startAgent() error {
 								updatedHost, err = host.UpdateHostInfo(*myHost)
 								if err == nil {
 									err = masterClient.UpdateHost(updatedHost)
+								} else {
+									log.WithError(err).Warn("Unable to acquire delegate host information")
 								}
+							} else {
+								log.WithError(err).Warn("Unable to find pool assignment for this delegate.")
 							}
 						}
 						log.Info("Updated master with delegate host information")
