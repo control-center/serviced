@@ -843,7 +843,7 @@ func (d *daemon) startAgent() error {
 				err = masterClient.UpdateHost(updatedHost)
 				if err != nil {
 					log.WithError(err).Warn("Unable to update master with delegate host information. Retrying silently")
-					go func(masterClient *master.Client, myHost *host.Host) {
+					go func(masterClient *master.Client, myHostID string) {
 						err := errors.New("")
 						for err != nil {
 							select {
@@ -852,13 +852,19 @@ func (d *daemon) startAgent() error {
 							default:
 								time.Sleep(5 * time.Second)
 							}
-                                                        updatedHost, err = host.UpdateHostInfo(*myHost)
+							var myHost *host.Host
+							var updatedHost host.Host
+							myHost, err = masterClient.GetHost(myHostID)
 							if err == nil {
-								err = masterClient.UpdateHost(updatedHost)
+								poolID = myHost.PoolID
+								updatedHost, err = host.UpdateHostInfo(*myHost)
+								if err == nil {
+									err = masterClient.UpdateHost(updatedHost)
+								}
 							}
 						}
 						log.Info("Updated master with delegate host information")
-					}(masterClient, myHost)
+					}(masterClient, myHostID)
 				}
 				return poolID
 			}()
