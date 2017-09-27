@@ -303,13 +303,13 @@ Volume Path:	{{.DriverPath}}
 Thin Pool
 ---------
 Logical Volume:	{{.PoolName}}
-Metadata (total/used/avail): 	{{bytes .PoolMetadataTotal}}	/ {{bytes .PoolMetadataUsed}}	({{percent .PoolMetadataUsed .PoolMetadataTotal}})	/ {{bytes .PoolMetadataAvailable}}	({{percent .PoolMetadataAvailable .PoolMetadataTotal}})
-Data (total/used/avail):	{{bytes .PoolDataTotal}}	/ {{bytes .PoolDataUsed}}	({{percent .PoolDataUsed .PoolDataTotal}})	/ {{bytes .PoolDataAvailable}}	({{percent .PoolDataAvailable .PoolDataTotal}})
+Metadata (total/used/avail): 	{{bytes .PoolMetadataTotal}}	/ {{bytes .PoolMetadataUsed}}	({{percent .PoolMetadataUsed .PoolMetadataTotal | noescape}})	/ {{bytes .PoolMetadataAvailable}}	({{percent .PoolMetadataAvailable .PoolMetadataTotal | noescape}})
+Data (total/used/avail):	{{bytes .PoolDataTotal}}	/ {{bytes .PoolDataUsed}}	({{percent .PoolDataUsed .PoolDataTotal | noescape}})	/ {{bytes .PoolDataAvailable}}	({{percent .PoolDataAvailable .PoolDataTotal | noescape}})
 {{with $parent := .}}{{range .Tenants}}
 {{.TenantID}} Application Data
 -----------------------------------------
 Volume Mount Point:	{{.VolumePath}}
-Filesystem (total/used/avail):	{{bytes .FilesystemTotal}} / {{bytes .FilesystemUsed}}	({{percent .FilesystemUsed .FilesystemTotal}}) / {{bytes .FilesystemAvailable}}	({{percent .FilesystemAvailable .FilesystemTotal}})
+Filesystem (total/used/avail):	{{bytes .FilesystemTotal}} / {{bytes .FilesystemUsed}}	({{percent .FilesystemUsed .FilesystemTotal | noescape}}) / {{bytes .FilesystemAvailable}}	({{percent .FilesystemAvailable .FilesystemTotal | noescape}})
 Virtual device size:	{{blocksToBytes .DeviceTotalBlocks}}
 {{range .Errors}}
 {{.}}
@@ -326,6 +326,7 @@ var funcMap = template.FuncMap{
 	"blocksToBytes": BlocksToBytes,
 	"bytesToBlocks": BytesToBlocks,
 	"percent":       Percent,
+	"noescape":      Noescape,
 }
 
 func (s DeviceMapperStatus) String() string {

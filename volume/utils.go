@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"html/template"
 
 	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
@@ -169,4 +170,7 @@ func Percent(amt, total uint64) string {
 }
 func BytesToBlocks(bytes uint64) uint64 {
 	return bytes / blockSize
+}
+func Noescape(s string) template.HTML {
+	return template.HTML(s)
 }
