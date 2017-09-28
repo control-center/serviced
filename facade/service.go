@@ -1043,20 +1043,31 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 
 		f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
 
-		if len(imageID) > 0 {
-			if count, err := f.serviceStore.GetServiceCountByImage(ctx, imageID); err != nil {
-				logger.WithError(err).Error("Error getting service count by imageID")
-				return err
-			} else if count == 0 {
-				if err := f.registryStore.Delete(ctx, imageID); err != nil {
-					logger.WithError(err).Error("Unable to remove unused image from the image registry")
-					return err
-				}
-			}
+		if err := f.CheckRemoveRegistryImage(ctx, imageID); err != nil {
+			logger.WithError(err).Error("Error checking registry for image removal")
+			return err
 		}
 
 		return nil
 	}, "removeService")
+}
+
+// Checks the service.
+func (f *Facade) CheckRemoveRegistryImage(ctx datastore.Context, imageID string) error {
+	if len(imageID) > 0 {
+		logger := log.WithField("imageid", imageID)
+		if count, err := f.serviceStore.GetServiceCountByImage(ctx, imageID); err != nil {
+			logger.WithError(err).Error("Error getting service count by imageID")
+			return err
+		} else if count == 0 {
+			logger.Info("Removing image from the image registry")
+			if err := f.registryStore.Delete(ctx, imageID); err != nil {
+				logger.WithError(err).Error("Unable to remove unused image from the image registry")
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, error) {
