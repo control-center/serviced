@@ -44,3 +44,18 @@ func TestStringSliceEquals(t *testing.T) {
 		t.Fatalf("Expect %+v == %+v", []string{"a", "b", "c"}, []string{"a", "b", "c"})
 	}
 }
+
+func TestCompareVersions(t *testing.T) {
+	expectations := []struct{ v1, v2 string; expected int }{
+		{ "1.4.0", "1.5.0", -1 },
+		{ "1.5.0", "1.4.0", 1 },
+		{ "1.5.0", "1.5.0", 0 },
+		{ "1.05.00.0156", "1.0.221.9289", 1 },
+		{ "1.5.0", "1.5.0b", -1 },
+	}
+	for _, e := range expectations {
+		if CompareVersions(e.v1, e.v2) != e.expected {
+			t.Fatalf("Expected utils.CompareVersions(\"%s\", \"%s\") to return %d", e.v1, e.v2, e.expected)
+		}
+	}
+}

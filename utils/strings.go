@@ -13,6 +13,11 @@
 
 package utils
 
+import (
+	"strings"
+	"fmt"
+)
+
 // StringSliceEquals compare two string slices for equality
 func StringSliceEquals(lhs []string, rhs []string) bool {
 	if lhs == nil && rhs == nil {
@@ -48,4 +53,36 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+// Compare two version strings by splitting by '.', making the slices the same length, then
+// padding the strings with 0's.  The string comparison will now work against numeric
+// versioning, as well as "1.5.2b1" style strings.
+func CompareVersions(v1, v2 string) int {
+	maxlen := 1
+	s1 := strings.Split(v1, ".")
+	s2 := strings.Split(v2, ".")
+	for _, s := range append(s1, s2...) {
+		if len(s) > maxlen {
+			maxlen = len(s)
+		}
+	}
+	if len(s1) > len(s2) {
+		t := make([]string, len(s1))
+		copy(t, s2)
+		s2 = t
+	}
+	if len(s2) > len(s1) {
+		t := make([]string, len(s2))
+		copy(t, s1)
+		s1 = t
+	}
+	format := fmt.Sprintf("%%0%ds", maxlen)
+	for i := 0; i < len(s1); i++ {
+		scomp := strings.Compare(fmt.Sprintf(format, s1[i]), fmt.Sprintf(format, s2[i]))
+		if scomp != 0 {
+			return scomp
+		}
+	}
+	return 0
 }

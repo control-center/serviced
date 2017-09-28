@@ -594,6 +594,13 @@ func (d *daemon) checkVersion() error {
 		// Update the CC Version if not current, could run upgrades here
 		ccVersion, _ := ccProps.CCVersion()
 		if servicedversion.Version != ccVersion {
+			// If the current version is less than 1.5.0, remove any orphan images
+			// from the image registry.
+			if utils.CompareVersions(ccVersion, "1.5.0") == -1 {
+				if err := d.removeOrphanRegistryImages(); err != nil {
+					return err
+				}
+			}
 			updateCCVersion = true
 		}
 	}
@@ -605,6 +612,27 @@ func (d *daemon) checkVersion() error {
 		}).Info("Updating stored version")
 		if err = properties.NewStore().Put(d.dsContext, ccProps); err != nil {
 			return fmt.Errorf("Unable to create properties object: %v", err)
+		}
+	}
+	return nil
+}
+
+// Checks the image registry store for orphaned images. Removal of services prior to
+// version 1.5.0 would orphan images in the registry, potentially causing an image
+// conflict error later.  All orphan image entries are removed when moving to version
+// 1.5.0+.
+func (d *daemon) removeOrphanRegistryImages() error {
+	log.Info("Checking the image registry for orphan images")
+	if images, err := d.facade.GetRegistryImages(d.dsContext); err != nil {
+		log.WithError(err).Error("Unable to get docker image registry entries")
+		return err
+	} else {
+		for _, image := range images {
+			imageID := image.ID()
+			if d.facade.CheckRemoveRegistryImage(d.dsContext, imageID) != nil {
+				log.WithField("imageid", imageID).WithError(err).Error("Error checking the image registry for orphan images")
+				return err
+			}
 		}
 	}
 	return nil
