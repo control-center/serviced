@@ -67,7 +67,9 @@ func initZK() {
 			},
 		},
 		Volumes:     map[string]string{"data": "/var/zookeeper"},
-		CustomStats: GetZooKeeperCustomStats,
+	}
+	if config.GetOptions().Master {
+		Zookeeper.CustomStats = GetZooKeeperCustomStats
 	}
 
 	keys := GetZooKeeperKeys()
