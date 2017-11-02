@@ -154,7 +154,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
 		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
 		cli.StringFlag{"backup-min-overhead", defaultOps.BackupMinOverhead, "Minimum free space to allow when calculating backup estimates"},
-		cli.Float64Flag{"backup-estimated-compression", defaultOps.BackupEstimatedCompression, "Estimate of compression rate to use when caluclating backup estimates"},
+		cli.Float64Flag{"backup-estimated-compression", defaultOps.BackupEstimatedCompression, "Estimate of compression rate to use when calculating backup estimates"},
 	}
 
 	c.initVersion()
