@@ -20,6 +20,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
@@ -76,40 +77,109 @@ func getInternalServiceInstances(w *rest.ResponseWriter, r *rest.Request, ctx *r
 		return
 	}
 
-	for _, running := range getIRS() {
-		if id == running.ID {
-			instance := struct {
-				InstanceID   int
-				ServiceID    string
-				ServiceName  string
-				ContainerID  string
-				DesiredState int
-				HealthStatus map[string]health.Status
-				Started      time.Time
-			}{
-				InstanceID:   running.InstanceID,
-				ServiceID:    running.ServiceID,
-				ServiceName:  running.Name,
-				ContainerID:  running.DockerID,
-				DesiredState: running.DesiredState,
-				HealthStatus: getHealthStatus(running),
-				Started:      running.StartedAt,
-			}
+	instances := []interface{}{}
+	if id == isvcs.ZookeeperIRS.ID {
+		instances = getZooKeeperInstances(ctx)
+	} else {
+		for _, running := range getIRS() {
+			if id == running.ID {
+				instance := struct {
+					InstanceID   int
+					ServiceID    string
+					ServiceName  string
+					ContainerID  string
+					DesiredState int
+					CurrentState string
+					HealthStatus map[string]health.Status
+					Started      time.Time
+				}{
+					InstanceID:   running.InstanceID,
+					ServiceID:    running.ServiceID,
+					ServiceName:  running.Name,
+					ContainerID:  running.DockerID,
+					DesiredState: running.DesiredState,
+					CurrentState: string(service.SVCCSRunning),
+					HealthStatus: getHealthStatus(running),
+					Started:      running.StartedAt,
+				}
 
-			w.WriteJson([]interface{}{instance})
-			return
+				instances = append(instances, instance)
+			}
 		}
 	}
 
-	writeJSON(w, "Internal Service Not Found.", http.StatusNotFound)
+	if len(instances) > 0 {
+		w.WriteJson(instances)
+	} else {
+		writeJSON(w, "Internal Service Not Found.", http.StatusNotFound)
+	}
+}
+
+func getZooKeeperInstances(ctx *requestContext) []interface{} {
+	instances := []interface{}{}
+
+	hostIPtoIDMap := make(map[string]string)
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	hosts, err := facade.GetReadHosts(dataCtx)
+	if err != nil {
+		// We get the hosts to pass along the host ID.
+		// If we can't get the hosts that is OK, we will just
+		// return an empty string for HostID.
+		hosts = []host.ReadHost{}
+	}
+
+	for _, h := range hosts {
+		for _, ip := range h.IPs {
+			hostIPtoIDMap[ip.IPAddress] = h.ID
+		}
+	}
+
+	for _, instance := range isvcs.GetZooKeeperInstances() {
+		hostID := ""
+		if val, ok := hostIPtoIDMap[instance.IP]; ok {
+			hostID = val
+		}
+
+		instances = append(instances, struct {
+			InstanceID          int
+			ServiceID           string
+			HostID              string
+			HostIP              string
+			ServiceName         string
+			ContainerID         string
+			DesiredState        int
+			HealthStatus        map[string]health.Status
+			Started             time.Time
+			Mode                string
+			NumberOfConnections int
+		}{
+			InstanceID:          instance.InstanceID,
+			ServiceID:           instance.ServiceID,
+			HostID:              hostID,
+			HostIP:              instance.IP,
+			ServiceName:         instance.Name,
+			ContainerID:         instance.DockerID,
+			DesiredState:        instance.DesiredState,
+			HealthStatus:        getHealthStatus(instance.RunningService),
+			Started:             instance.StartedAt,
+			Mode:                instance.Stats.Mode,
+			NumberOfConnections: instance.Stats.Connections,
+		})
+	}
+
+	return instances
 }
 
 func getInternalServiceStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	values := r.URL.Query()
 
-	runningMap := make(map[string]dao.RunningService)
+	runningMap := make(map[string][]dao.RunningService)
+
 	for _, r := range getIRS() {
-		runningMap[r.ID] = r
+		runningMap[r.ID] = append(runningMap[r.ID], r)
 	}
 
 	var ids []string
@@ -124,15 +194,9 @@ func getInternalServiceStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *re
 	data := []interface{}{}
 
 	for _, id := range ids {
-		running := runningMap[id]
 
-		instanceStatus := struct {
-			InstanceID   int
-			HealthStatus map[string]health.Status
-		}{
-			InstanceID:   running.InstanceID,
-			HealthStatus: getHealthStatus(running),
-		}
+		// get the first instance to handle creating the service status/
+		running := runningMap[id][0]
 
 		serviceStatus := struct {
 			ServiceID    string
@@ -141,8 +205,33 @@ func getInternalServiceStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *re
 		}{
 			ServiceID:    running.ID,
 			DesiredState: running.DesiredState,
-			Status:       []interface{}{instanceStatus},
 		}
+
+		// use a tmp array of statuses to aggregate
+		instanceStatuses := []interface{}{}
+
+		for _, instance := range runningMap[id] {
+			stats, err := isvcs.GetZooKeeperStatsByID(instance.InstanceID)
+			if err != nil {
+				// send back an empty status if there is an error for that instance
+				stats = isvcs.ZooKeeperStats{InstanceID: instance.InstanceID}
+			}
+
+			instanceStatus := struct {
+				InstanceID   int
+				HealthStatus map[string]health.Status
+				Stats        isvcs.ZooKeeperStats
+			}{
+				InstanceID:   instance.InstanceID,
+				HealthStatus: getHealthStatus(instance),
+				Stats:        stats,
+			}
+
+			instanceStatuses = append(instanceStatuses, instanceStatus)
+		}
+
+		// Once we have all the instance statues, add them to the serviceStatus
+		serviceStatus.Status = instanceStatuses
 
 		data = append(data, serviceStatus)
 	}
@@ -199,7 +288,7 @@ func getHealthStatus(running dao.RunningService) map[string]health.Status {
 	if running.ServiceID == "isvc-internalservices" {
 		healthChecks = isvcsRootHealth
 	} else {
-		results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(running.ServiceID, "isvc-"))
+		results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(running.ServiceID, "isvc-"), running.InstanceID)
 		if err != nil {
 			healthStatusMap["alive"] = health.Unknown
 			return healthStatusMap

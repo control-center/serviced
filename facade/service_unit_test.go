@@ -279,6 +279,31 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceFails(c *C) {
 	c.Assert(err, Equals, expectedError)
 }
 
+func (ft *FacadeUnitTest) Test_CheckRemoveRegistryImage_RemovesImage(c *C) {
+	imageID := "imageID"
+
+	// Expectations: if we get 0 from GetServiceCountByImage..
+	ft.serviceStore.On("GetServiceCountByImage", ft.ctx, imageID).Return(0, nil)
+	// .. then we should call Delete on the registryStore.
+	ft.registryStore.On("Delete", ft.ctx, imageID).Return(nil)
+
+	err := ft.Facade.CheckRemoveRegistryImage(ft.ctx, imageID)
+
+	c.Assert(err, IsNil)
+}
+
+func (ft *FacadeUnitTest) Test_CheckRemoveRegistryImage_KeepsImage(c *C) {
+	imageID := "imageID"
+
+	// Expectations: if we get 1 from GetServiceCountByImage..
+	// .. then it should exit without calling Delete on the registry store.
+	ft.serviceStore.On("GetServiceCountByImage", ft.ctx, imageID).Return(1, nil)
+
+	err := ft.Facade.CheckRemoveRegistryImage(ft.ctx, imageID)
+
+	c.Assert(err, IsNil)
+}
+
 // Test that the 'getService' function defined by facade.evaluateService() works properly on failure
 func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 	parentID := "parentServiceID"

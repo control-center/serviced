@@ -17,6 +17,34 @@
     </div>
 </div>
 
+<div ng-show="internalServiceDetailsVM.isZooKeeper()">
+    <table jelly-table data-data="internalServiceDetailsVM.service.instances" data-config="instancesTable" class="table">
+        <tr ng-repeat="instance in $data">
+            <td data-title="'label_service_instances'|translate" sortable="'id'">{{instance.id}}</td>
+
+            <td data-title="'label_service_status'|translate" sortable="'currentState'">
+                <span class="svcstate {{instance.currentState}}" translate>{{instance.currentState}}</span>
+            </td>
+
+            <td data-title="'label_service_health'|translate">
+                <health-icon data-status="instance.status"></health-icon>
+            </td>
+
+            <td data-title="'host'|translate" class="{{instance.hasHost() ? 'link': ''}}" 
+                ng-click="internalServiceDetailsVM.clickHost(instance.model.HostID)" sortable="'model.HostIP'">
+                {{instance.model.HostIP}}
+            </td>
+
+            <td data-title="'role'|translate" sortable="'mode'">{{instance.mode | translate}}</td>
+
+            <td data-title="'number_of_connections'|translate" sortable="'numberOfConnections'">
+                {{instance.numberOfConnections}}
+            </td>
+
+        </tr>
+    </table>
+</div>
+
 <graph-panel
     ng-if="internalServiceDetailsVM.service.model.MonitoringProfile.GraphConfigs.length > 0"
     data-service-id="internalServiceDetailsVM.service.id"

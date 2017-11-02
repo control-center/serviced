@@ -38,6 +38,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/logfilter"
 )
 
 var (
@@ -1271,6 +1272,127 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint
 
 	err = ft.Facade.MigrateServices(ft.CTX, request)
 	t.Assert(err, IsNil)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilter(t *C) {
+	filter := logfilter.LogFilter{
+		Name:	"filter1",
+		Filter: "some filter",
+		Version: "1.0",
+	}
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	svc, err := ft.Facade.GetService(ft.CTX, "original_service_id_tenant")
+	t.Assert(err, IsNil)
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: svc.ID,
+		LogFilters: map[string]logfilter.LogFilter{
+			filter.Name: filter,
+		},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, IsNil)
+
+	var result *logfilter.LogFilter
+	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter.Name, filter.Version)
+	t.Assert(err, IsNil)
+	t.Assert(result.Filter, Equals, filter.Filter)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilterVersion(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	filter1 := logfilter.LogFilter{
+		Name:	"filter1",
+		Filter: "some filter",
+		Version: "1.0",
+	}
+	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter1)
+
+	svc, err := ft.Facade.GetService(ft.CTX, "original_service_id_tenant")
+	t.Assert(err, IsNil)
+
+	filter2 := filter1
+	filter2.Filter = "some new filter"
+	filter2.Version = "2.0"
+	request := dao.ServiceMigrationRequest{
+		ServiceID: svc.ID,
+		LogFilters: map[string]logfilter.LogFilter{
+			filter2.Name: filter2,
+		},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, IsNil)
+
+	var result *logfilter.LogFilter
+	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter1.Name, filter1.Version)
+	t.Assert(err, IsNil)
+
+	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter2.Name, filter2.Version)
+	t.Assert(err, IsNil)
+	t.Assert(result.Filter, Equals, filter2.Filter)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	filter := logfilter.LogFilter{
+		Name:	"filter1",
+		Filter: "some filter",
+		Version: "1.0",
+	}
+	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter)
+
+	svc, err := ft.Facade.GetService(ft.CTX, "original_service_id_tenant")
+	t.Assert(err, IsNil)
+
+	filter.Filter = "some new filter"
+	request := dao.ServiceMigrationRequest{
+		ServiceID: svc.ID,
+		LogFilters: map[string]logfilter.LogFilter{
+			filter.Name: filter,
+		},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, IsNil)
+
+	var result *logfilter.LogFilter
+	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter.Name, filter.Version)
+	t.Assert(err, IsNil)
+	t.Assert(result.Filter, Equals, filter.Filter)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailsLogFilter(t *C) {
+	filter := logfilter.LogFilter{
+		Name:	"filter1",
+		Filter: "some filter",
+	}
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	svc, err := ft.Facade.GetService(ft.CTX, "original_service_id_tenant")
+	t.Assert(err, IsNil)
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: svc.ID,
+		LogFilters: map[string]logfilter.LogFilter{
+			filter.Name: filter,
+		},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Not(IsNil))
+	t.Assert(strings.Contains(err.Error(), "empty string for LogFilter.Version"), Equals, true)
+
+	_, err = ft.Facade.logFilterStore.Get(ft.CTX, filter.Name, filter.Version)
+	t.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {

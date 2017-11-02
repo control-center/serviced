@@ -43,3 +43,13 @@ chmod 640 /etc/default/serviced
 chgrp serviced /opt/serviced
 chmod 750 /opt/serviced
 
+#
+# if we have a modified cron_zenossdbpack, then keep it in place (preserve customer changes)
+#
+
+if [ -f /etc/cron.d/cron_zenossdbpack.backup ]; then
+    echo "Preserving customer modified cron_zenossdbpack."
+    mv /etc/cron.d/cron_zenossdbpack.backup /etc/cron.d/cron_zenossdbpack
+fi
+
+touch /etc/cron.d/cron_zenossdbpack

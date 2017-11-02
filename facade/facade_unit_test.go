@@ -30,6 +30,7 @@ import (
 	servicemocks "github.com/control-center/serviced/domain/service/mocks"
 	configmocks "github.com/control-center/serviced/domain/serviceconfigfile/mocks"
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
+	logfiltermocks "github.com/control-center/serviced/domain/logfilter/mocks"
 	"github.com/control-center/serviced/facade"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
 	"github.com/control-center/serviced/metrics"
@@ -51,6 +52,7 @@ type FacadeUnitTest struct {
 	serviceStore     *servicemocks.Store
 	configStore      *configmocks.Store
 	templateStore    *templatemocks.Store
+	logFilterStore   *logfiltermocks.Store
 	metricsClient    *zzkmocks.MetricsClient
 	hostauthregistry *authmocks.HostExpirationRegistryInterface
 }
@@ -106,6 +108,9 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 
 	ft.templateStore = &templatemocks.Store{}
 	ft.Facade.SetTemplateStore(ft.templateStore)
+
+	ft.logFilterStore = &logfiltermocks.Store{}
+	ft.Facade.SetLogFilterStore(ft.logFilterStore)
 
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)

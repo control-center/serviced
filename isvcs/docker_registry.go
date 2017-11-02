@@ -40,9 +40,10 @@ func initDockerRegistry() {
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
-	healthChecks := map[string]healthCheckDefinition{
-		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
-	}
+
+	healthChecks := make([]map[string]healthCheckDefinition, 1)
+	healthChecks[0] = make(map[string]healthCheckDefinition)
+	healthChecks[0][DEFAULT_HEALTHCHECK_NAME] = defaultHealthCheck
 
 	dockerPortBinding := portBinding{
 		HostIp:         "0.0.0.0",
@@ -50,6 +51,7 @@ func initDockerRegistry() {
 		HostPort:       registryPort,
 	}
 	command := `SETTINGS_FLAVOR=serviced exec /opt/registry/registry /opt/registry/registry-config.yml`
+
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
 			ID:           DockerRegistryISVC.ID,

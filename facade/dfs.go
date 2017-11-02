@@ -605,8 +605,25 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
 			logger.WithError(err).Debug("Could not rollback snapshot")
 			return alog.Error(err)
+		} else {
+			logger.Info("Rolled back snapshot")
+			if err := f.dfs.Delete(snapshot); err != nil {
+				// if we couldn't delete, untag it so the TTL reaper will get it eventually
+				info, err := f.dfs.Info(snapshot)
+				if err != nil {
+					logger.WithError(err).Warning("Could not get info for snapshot.")
+				} else if len(info.Tags) > 0 {
+					if _, err := f.dfs.Untag(info.TenantID, info.Tags[0]); err != nil {
+						logger.WithError(err).Warning("Could not untag snapshot.  Snapshot must be deleted manually!")
+					} else {
+						logger.Info("Snapshot from backup untagged.")
+					}
+				}
+			} else {
+				logger.Info("Removed snapshot after rollback")
+			}
 		}
-		logger.Info("Rolled back snapshot")
+
 	}
 	restoreDuration := time.Since(stime)
 	plog.Info("Completed restore from backup")

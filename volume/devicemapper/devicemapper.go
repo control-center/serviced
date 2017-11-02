@@ -34,6 +34,7 @@ var (
 	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
 	ErrDeleteBaseDevice     = errors.New("will not attempt to delete base device")
 	ErrBaseDeviceHash       = errors.New("can't load a volume that uses the base device")
+	ErrThinpoolDevMismatch  = errors.New("The uuid for the provided thinpool doesn't match the previous value. Check that the specified thinpool device is correct.")
 )
 
 func init() {
@@ -137,11 +138,12 @@ func (d *DeviceMapperDriver) cleanUpSnapshots() {
 
 		glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
 		v.driver.DeviceSet.Lock()
-		if err := v.driver.DeactivateDevice(deviceHash); err != nil {
+		err = v.driver.DeactivateDevice(deviceHash)
+		v.driver.DeviceSet.Unlock()
+		if err != nil {
 			glog.Errorf("Error deactivating device (%s): %s", deviceHash, err)
 			continue
 		}
-		v.driver.DeviceSet.Unlock()
 		if err := v.driver.deleteDevice(deviceHash, false); err != nil {
 			glog.Errorf("Error removing snapshot: %v", err)
 			continue
@@ -745,6 +747,65 @@ func (d *DeviceMapperDriver) MetadataPath(tenant string) string {
 	return filepath.Join(d.MetadataDir(), tenant, "metadata.json")
 }
 
+// ThinpoolDevPath returns the path of the saved thinpool device file
+func (d *DeviceMapperDriver) ThinpoolDevPath() string {
+	return filepath.Join(d.poolDir(), ".thinpooldev")
+}
+
+// Verifies that the thinPoolDev passed in matches what we've saved during the
+// previous successful initialization.
+func (d *DeviceMapperDriver) verifyThinpoolDeviceUUID(thinPoolDev string) error {
+	thinpoolDevPath := d.ThinpoolDevPath()
+
+	if _, err := os.Stat(thinpoolDevPath); err != nil {
+		// If the file doesn't exist or we can't stat it, continue.
+		return nil
+	}
+
+	bytes, err := ioutil.ReadFile(thinpoolDevPath)
+	if err != nil {
+		return err
+	}
+
+	// Initialize the calculated lvuuid, and only get it from lvdisplay if
+	// a valid for dm.thinpooldev was provided.
+	lvuuid := ""
+	if len(thinPoolDev) > 0 {
+		lvuuid, err = getlvmuuid(thinPoolDev)
+		if err != nil {
+			return err
+		}
+	}
+
+	if lvuuid != strings.TrimSpace(string(bytes)) {
+		return ErrThinpoolDevMismatch
+	}
+	return nil
+}
+
+// Saves the thinPoolDev to a file so we can verify it later.
+func (d *DeviceMapperDriver) saveThinpoolDeviceUUID(thinPoolDev string) error {
+	// Nothing to do if no thinpooldev location is provided.
+	if len(thinPoolDev) == 0 {
+		return nil
+	}
+
+	thinpoolDevPath := d.ThinpoolDevPath()
+
+	lvuuid, err := getlvmuuid(thinPoolDev)
+	if err != nil {
+		return err
+	}
+
+	fd, err := os.Create(thinpoolDevPath)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+	fd.WriteString(lvuuid)
+	return nil
+}
+
 // ensureInitialized makes sure this driver's root has been set up properly
 // for devicemapper. It is idempotent.
 func (d *DeviceMapperDriver) ensureInitialized() error {
@@ -776,6 +837,11 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 			}
 		}
 		dmoptions = append(dmoptions, "dm.fs=ext4")
+
+		if err := d.verifyThinpoolDeviceUUID(thinPoolDev); err != nil {
+			return err
+		}
+
 		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, dmoptions, nil, nil)
 		if err != nil {
 			if _, thinError := err.(devmapper.ThinpoolInitError); thinError {
@@ -793,7 +859,11 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 				return err
 			}
 		}
+
 		d.DeviceSet = deviceSet
+		if err := d.saveThinpoolDeviceUUID(thinPoolDev); err != nil {
+			return err
+		}
 		prefix, err := GetDevicePrefix(poolPath)
 		if err != nil {
 			return err
@@ -1689,6 +1759,17 @@ func getfstype(dmDevice string) (fstype []byte, err error) {
 	}
 	// This should not happen
 	return nil, errors.New("invalid output")
+}
+
+// Returns the LV_UUID for a thinpool.
+func getlvmuuid(thinpooldev string) (string, error) {
+	output, err := exec.Command("lvdisplay", "-C", "--noheadings", "--options", "lv_uuid", thinpooldev).Output()
+	if err != nil {
+		err = fmt.Errorf("Could not get the lv_uuid for %s: %s (%s)", thinpooldev, string(output), err)
+		glog.Error(err)
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func resize2fs(dmDevice string) error {

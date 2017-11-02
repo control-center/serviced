@@ -44,6 +44,9 @@ func (t *ManagerTestSuite) SetUpSuite(c *C) {
 	config.LoadOptions(config.Options{
 		IsvcsPath: c.MkDir(),
 	})
+
+	InitAllIsvcs()
+
 	t.manager = NewManager(utils.LocalDir("images"), "/tmp/serviced-test", defaultTestDockerLogDriver, defaultTestDockerLogOptions)
 	for _, testservice := range t.testservices {
 		svc := testservice.GetService(c)

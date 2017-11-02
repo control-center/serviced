@@ -77,14 +77,17 @@ func initElasticSearch() {
                 HostPort:       9200,
         }
 
+
 	defaultHealthCheck := healthCheckDefinition{
 		healthCheck: esHealthCheck(getHostIp(elasticsearch_servicedPortBinding) , 9200, ESYellow),
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 
-	healthChecks := map[string]healthCheckDefinition{
-		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	healthChecks := []map[string]healthCheckDefinition{
+		map[string]healthCheckDefinition{
+			DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+		},
 	}
 
 	elasticsearch_serviced, err = NewIService(
@@ -123,9 +126,12 @@ func initElasticSearch() {
         }
 
 	logStashHealthCheck := defaultHealthCheck
-	logStashHealthCheck.healthCheck = esHealthCheck(getHostIp(elasticsearch_logstashPortBinding), 9100, ESYellow)
-	healthChecks = map[string]healthCheckDefinition{
-		DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
+	logStashHealthCheck.healthCheck = esHealthCheck(getHostIp(elasticsearch_logstashPortBinding) , 9100, ESYellow)
+
+	healthChecks = []map[string]healthCheckDefinition{
+		map[string]healthCheckDefinition{
+			DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
+		},
 	}
 
 	elasticsearch_logstash, err = NewIService(

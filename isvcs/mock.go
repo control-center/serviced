@@ -961,6 +961,9 @@ func init() {
 		"isvc-docker-registry":        &DockerRegistryIRS,
 		"isvc-kibana":                 &KibanaIRS,
 	}
+}
+
+func InitAllIsvcs() {
 	initZK()
 	initOTSDB()
 	initLogstash()

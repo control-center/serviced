@@ -252,6 +252,7 @@ install_DIRS += $(_DESTDIR)$(prefix)/share/shell
 install_DIRS += $(_DESTDIR)$(prefix)/isvcs
 install_DIRS += $(_DESTDIR)$(sysconfdir)/default
 install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
+install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.d
 install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.hourly
 install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.weekly
 
@@ -264,9 +265,9 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.weekly
 #     $(dir)_TARGETS = src_filename:dest_filename
 #
 default_INSTCMD = cp
+$(_DESTDIR)$(sysconfdir)/cron.d_TARGETS            = pkg/cron_zenossdbpack:cron_zenossdbpack
 $(_DESTDIR)$(sysconfdir)/cron.hourly_TARGETS       = pkg/cron.hourly:serviced
 $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS       = pkg/serviced-fstrim:serviced-fstrim
-$(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS      += pkg/serviced-zenossdbpack:serviced-zenossdbpack
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-cli.yaml:logconfig-cli.yaml
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-controller.yaml:logconfig-controller.yaml
@@ -274,6 +275,7 @@ $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-server.yaml:l
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = $(GOBIN)/serviced:serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += $(GOBIN)/serviced-controller:serviced-controller
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += $(GOBIN)/serviced-storage:serviced-storage
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-zenossdbpack:serviced-zenossdbpack
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-cleanup:serviced-container-cleanup
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usage:serviced-container-usage
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version

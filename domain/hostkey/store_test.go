@@ -49,8 +49,17 @@ func (s *S) SetUpTest(c *C) {
 
 func (s *S) Test_HostKeyCRUD(c *C) {
 	hostID := "hostID"
+	keyText := `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxeGhO/4jJ7fPwXHjtZx+
+q/Ne+fhMEzGB41aD6QKij6u0LPBWynmXdJeLdIW1N8ZFF7PdpA4qAu6ouMRvOuSJ
+1qPt1hToahBxxducEp64nQ/fWN0uANjPqjlKcjj/fiSZ2ewrXYAOmnbaIQgt3fjv
+VYQgdGmHA5uyROclsutOF0shyprU2x/S8uXIK1fJM/yxukcDG6GvymW0b5mqLZZA
+Zmpt11QJ8YV5yiBtziSyYfiXTFs5yoydvRqmTIRm1CBnV3JYXio9fXv4C1BVTk11
+miqYybTUZga1O9mykjDbrwtaigb2rP1EjQzJoMLHW27edXBZUFQjedD0N20+WkUx
+0wIDAQAB
+-----END PUBLIC KEY-----`
 	expected := &HostKey{
-		PEM: DefaultKeyText,
+		PEM: keyText,
 	}
 	actual, err := s.store.Get(s.ctx, hostID)
 	c.Assert(err, NotNil)

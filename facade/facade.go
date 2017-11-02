@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/scheduler/servicestatemanager"
+	"github.com/control-center/serviced/domain/logfilter"
 )
 
 type MetricsClient interface {
@@ -47,33 +48,35 @@ var _ FacadeInterface = &Facade{}
 // New creates an initialized Facade instance
 func New() *Facade {
 	return &Facade{
-		auditLogger:   audit.NewLogger(),
-		hostStore:     host.NewStore(),
-		hostkeyStore:  hostkey.NewStore(),
-		registryStore: registry.NewStore(),
-		poolStore:     pool.NewStore(),
-		serviceStore:  service.NewStore(),
-		configStore:   serviceconfigfile.NewStore(),
-		templateStore: servicetemplate.NewStore(),
-		userStore:     user.NewStore(),
-		serviceCache:  NewServiceCache(),
-		poolCache:     NewPoolCache(),
-		hostRegistry:  auth.NewHostExpirationRegistry(),
-		deployments:   NewPendingDeploymentMgr(),
-		zzk:           getZZK(),
+		auditLogger:    audit.NewLogger(),
+		hostStore:      host.NewStore(),
+		hostkeyStore:   hostkey.NewStore(),
+		registryStore:  registry.NewStore(),
+		poolStore:      pool.NewStore(),
+		serviceStore:   service.NewStore(),
+		configStore:    serviceconfigfile.NewStore(),
+		templateStore:  servicetemplate.NewStore(),
+		logFilterStore: logfilter.NewStore(),
+		userStore:      user.NewStore(),
+		serviceCache:   NewServiceCache(),
+		poolCache:      NewPoolCache(),
+		hostRegistry:   auth.NewHostExpirationRegistry(),
+		deployments:    NewPendingDeploymentMgr(),
+		zzk:            getZZK(),
 	}
 }
 
 // Facade is an entrypoint to available controlplane methods
 type Facade struct {
-	hostStore     host.Store
-	hostkeyStore  hostkey.Store
-	registryStore registry.ImageRegistryStore
-	poolStore     pool.Store
-	templateStore servicetemplate.Store
-	serviceStore  service.Store
-	configStore   serviceconfigfile.Store
-	userStore     user.Store
+	hostStore      host.Store
+	hostkeyStore   hostkey.Store
+	registryStore  registry.ImageRegistryStore
+	poolStore      pool.Store
+	templateStore  servicetemplate.Store
+	logFilterStore logfilter.Store
+	serviceStore   service.Store
+	configStore    serviceconfigfile.Store
+	userStore      user.Store
 
 	auditLogger   audit.Logger
 	zzk           ZZK
@@ -122,6 +125,8 @@ func (f *Facade) SetConfigStore(store serviceconfigfile.Store) { f.configStore =
 func (f *Facade) SetUserStore(store user.Store) { f.userStore = store }
 
 func (f *Facade) SetTemplateStore(store servicetemplate.Store) { f.templateStore = store }
+
+func (f *Facade) SetLogFilterStore(store logfilter.Store) { f.logFilterStore = store }
 
 func (f *Facade) SetHealthCache(hcache *health.HealthStatusCache) { f.hcache = hcache }
 

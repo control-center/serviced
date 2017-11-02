@@ -711,11 +711,20 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 // MigrateServices performs a batch migration on a group of services.
 func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigrationRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.MigrateServices"))
+	logger := plog.WithFields(log.Fields{
+		"tenantid":  req.ServiceID,
+	})
+	logger.Debug("Started Facade.MigrateServices")
+	defer logger.Debug("Finished Facade.MigrateServices")
+
 	var svcAll []service.Service
 	// validate service updates
 	for _, svc := range req.Modified {
 		if _, err := f.validateServiceUpdate(ctx, svc); err != nil {
-			glog.Errorf("Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename": svc.Name,
+				"serviceid": svc.ID,
+			}).Error("Could not validate service for update")
 			return err
 		}
 		svcAll = append(svcAll, *svc)
@@ -723,10 +732,15 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	// validate service adds
 	for _, svc := range req.Added {
 		if err := f.validateServiceAdd(ctx, svc); err != nil {
-			glog.Errorf("Could not validate service %s (%s) for add: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename": svc.Name,
+				"serviceid": svc.ID,
+			}).Error("Could not validate service for add")
 			return err
 		} else if svc.ID, err = utils.NewUUID36(); err != nil {
-			glog.Errorf("Could not generate id for service %s: %s", svc.ID, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename": svc.Name,
+			}).Error("Could not generate id for new service")
 			return err
 		}
 		svcAll = append(svcAll, *svc)
@@ -735,19 +749,45 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	for _, sdreq := range req.Deploy {
 		svcs, err := f.validateServiceDeployment(ctx, sdreq.ParentID, &sdreq.Service)
 		if err != nil {
-			glog.Errorf("Could not validate service %s for deployment: %s", sdreq.Service.Name, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename":  sdreq.Service.Name,
+			}).Error("Could not validate service for deployment")
 			return err
 		}
 		svcAll = append(svcAll, svcs...)
 	}
 	// validate service migration
 	if err := f.validateServiceMigration(ctx, svcAll, req.ServiceID); err != nil {
-		glog.Errorf("Could not validate migration of services: %s", err)
+		logger.WithError(err).Error("Could not validate migration of services")
 		return err
 	}
-	glog.Infof("Validation checks passed for service migration")
+	logger.Info("Validation checks passed for service migration")
 
 	// Do migration
+	for _, filter := range req.LogFilters {
+		var action string
+		existingFilter, err := f.logFilterStore.Get(ctx, filter.Name, filter.Version)
+		if err == nil {
+			existingFilter.Filter = filter.Filter
+			err = f.logFilterStore.Put(ctx, existingFilter)
+			action = "update"
+		} else if err != nil && datastore.IsErrNoSuchEntity(err) {
+			err = f.logFilterStore.Put(ctx, &filter)
+			action = "add"
+		}
+		if err != nil {
+			logger.WithError(err).WithFields(log.Fields{
+				"action": action,
+				"filtername": filter.Name,
+			}).Error("Failed to save log filter")
+			return err
+		}
+		logger.WithFields(log.Fields{
+			"action": action,
+			"filtername": filter.Name,
+			"filterversion": filter.Version,
+		}).Debug("Service migration saved LogFilter")
+	}
 	for _, svc := range req.Modified {
 		if err := f.MigrateService(ctx, *svc); err != nil {
 			return err
@@ -760,11 +800,13 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	}
 	for _, sdreq := range req.Deploy {
 		if _, err := f.DeployService(ctx, "", sdreq.ParentID, false, sdreq.Service); err != nil {
-			glog.Errorf("Could not deploy service definition {%+v}: %s", sdreq.Service, err)
+			logger.WithError(err).WithFields(log.Fields{
+				"servicename":  sdreq.Service.Name,
+			}).Error("Could not deploy service definition")
 			return err
 		}
 	}
-	glog.Infof("Service migration completed successfully")
+	logger.Info("Service migration completed successfully")
 
 	// CC-3514 - rebuild logstash config in case the set of auditable log files has changed
 	f.ReloadLogstashConfig(ctx)
@@ -959,40 +1001,73 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 
 func (f *Facade) removeService(ctx datastore.Context, id string) error {
 	store := f.serviceStore
+	logger := plog.WithField("serviceid", id)
 
 	return f.walkServices(ctx, id, true, func(svc *service.Service) error {
+		imageID := svc.ImageID
+		logger = logger.WithFields(log.Fields{
+			"service": svc.Name,
+			"pool": svc.PoolID,
+			"imageid": imageID,
+		})
+
 		// remove all address assignments
 		for _, endpoint := range svc.Endpoints {
+			eplogger := logger.WithField("endpoint", endpoint.Name)
 			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpoint.Name); err != nil {
-				glog.Errorf("Could not find address assignment %s for service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+				eplogger.WithError(err).Error("Could not find address assignment")
 				return err
 			} else if assignment != nil {
 				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
-					glog.Errorf("Could not remove address assignment %s from service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+					eplogger.WithError(err).Error("Could not remove address assignment")
 					return err
 				}
 			}
 			endpoint.RemoveAssignment()
 		}
 		if err := f.zzk.RemoveServiceEndpoints(svc.ID); err != nil {
-			glog.Errorf("Could not remove public endpoints for service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).Error("Could not remove public endpoints for service")
 			return err
 		}
 		if err := f.zzk.RemoveService(svc.PoolID, svc.ID); err != nil {
-			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			logger.WithError(err).Error("Could not remove service from zookeeper")
 			return err
 		}
 
 		if err := store.Delete(ctx, svc.ID); err != nil {
-			glog.Errorf("Error while removing service %s (%s): %s", svc.Name, svc.ID, err)
+			logger.WithError(err).Error("Error while removing service %s")
 			return err
 		}
 
 		f.poolCache.SetDirty()
 
 		f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
+
+		if err := f.CheckRemoveRegistryImage(ctx, imageID); err != nil {
+			logger.WithError(err).Error("Error checking registry for image removal")
+			return err
+		}
+
 		return nil
 	}, "removeService")
+}
+
+// Checks the service.
+func (f *Facade) CheckRemoveRegistryImage(ctx datastore.Context, imageID string) error {
+	if len(imageID) > 0 {
+		logger := log.WithField("imageid", imageID)
+		if count, err := f.serviceStore.GetServiceCountByImage(ctx, imageID); err != nil {
+			logger.WithError(err).Error("Error getting service count by imageID")
+			return err
+		} else if count == 0 {
+			logger.Info("Removing image from the image registry")
+			if err := f.registryStore.Delete(ctx, imageID); err != nil {
+				logger.WithError(err).Error("Unable to remove unused image from the image registry")
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, error) {

@@ -594,6 +594,13 @@ func (d *daemon) checkVersion() error {
 		// Update the CC Version if not current, could run upgrades here
 		ccVersion, _ := ccProps.CCVersion()
 		if servicedversion.Version != ccVersion {
+			// If the current version is less than 1.5.0, remove any orphan images
+			// from the image registry.
+			if utils.CompareVersions(ccVersion, "1.5.0") == -1 {
+				if err := d.removeOrphanRegistryImages(); err != nil {
+					return err
+				}
+			}
 			updateCCVersion = true
 		}
 	}
@@ -605,6 +612,27 @@ func (d *daemon) checkVersion() error {
 		}).Info("Updating stored version")
 		if err = properties.NewStore().Put(d.dsContext, ccProps); err != nil {
 			return fmt.Errorf("Unable to create properties object: %v", err)
+		}
+	}
+	return nil
+}
+
+// Checks the image registry store for orphaned images. Removal of services prior to
+// version 1.5.0 would orphan images in the registry, potentially causing an image
+// conflict error later.  All orphan image entries are removed when moving to version
+// 1.5.0+.
+func (d *daemon) removeOrphanRegistryImages() error {
+	log.Info("Checking the image registry for orphan images")
+	if images, err := d.facade.GetRegistryImages(d.dsContext); err != nil {
+		log.WithError(err).Error("Unable to get docker image registry entries")
+		return err
+	} else {
+		for _, image := range images {
+			imageID := image.ID()
+			if d.facade.CheckRemoveRegistryImage(d.dsContext, imageID) != nil {
+				log.WithField("imageid", imageID).WithError(err).Error("Error checking the image registry for orphan images")
+				return err
+			}
 		}
 	}
 	return nil
@@ -843,7 +871,7 @@ func (d *daemon) startAgent() error {
 				err = masterClient.UpdateHost(updatedHost)
 				if err != nil {
 					log.WithError(err).Warn("Unable to update master with delegate host information. Retrying silently")
-					go func(masterClient *master.Client, updatedHost host.Host) {
+					go func(masterClient *master.Client, myHostID string) {
 						err := errors.New("")
 						for err != nil {
 							select {
@@ -852,10 +880,23 @@ func (d *daemon) startAgent() error {
 							default:
 								time.Sleep(5 * time.Second)
 							}
-							err = masterClient.UpdateHost(updatedHost)
+							var myHost *host.Host
+							var updatedHost host.Host
+							myHost, err = masterClient.GetHost(myHostID)
+							if err == nil {
+								poolID = myHost.PoolID
+								updatedHost, err = host.UpdateHostInfo(*myHost)
+								if err == nil {
+									err = masterClient.UpdateHost(updatedHost)
+								} else {
+									log.WithError(err).Warn("Unable to acquire delegate host information")
+								}
+							} else {
+								log.WithError(err).Warn("Unable to find pool assignment for this delegate.")
+							}
 						}
 						log.Info("Updated master with delegate host information")
-					}(masterClient, updatedHost)
+					}(masterClient, myHostID)
 				}
 				return poolID
 			}()
@@ -1347,7 +1388,14 @@ func (d *daemon) addTemplates() {
 	log.Debug("Loading service templates")
 	// Don't block startup for this. It's merely a convenience.
 	go func() {
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		// Before reading any templates from disk, see if there are filters in existing templates
+		// which need to be added to the DB
+		reloadFilters, err := d.facade.BootstrapLogFilters(d.dsContext)
+		if err != nil {
+			log.Error("Unable to load log filters from existing templates")
+		}
+
+		err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -1376,9 +1424,14 @@ func (d *daemon) addTemplates() {
 			log.Debug("Added service template")
 			return nil
 		})
-		if err != nil {
-			log.WithError(err).Warn("Unable to autoload templates from the filesystem")
+
+		if err == nil {
+			reloadFilters = true
 		} else {
+			log.WithError(err).Warn("Unable to autoload templates from the filesystem")
+		}
+
+		if reloadFilters {
 			// Now that all of the templates have been loaded, update the logstash configuration.
 			// Note this also handles the case where CC has been upgraded, but none of the templates
 			// have changed.
