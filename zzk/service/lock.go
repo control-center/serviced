@@ -33,7 +33,7 @@ type ErrLockServiceFailure struct {
 }
 
 func (e ErrLockServiceFailure) Error() string {
-	return fmt.Sprintf("% failed for service %s with pool %s: %s", e.locktype, e.serviceid, e.pool, e.err)
+	return fmt.Sprintf("%s failed for service %s with pool %s: %s", e.locktype, e.serviceid, e.pool, e.err)
 }
 
 func NewLockServiceFailure(serviceid, pool string, err error) ErrLockServiceFailure {
