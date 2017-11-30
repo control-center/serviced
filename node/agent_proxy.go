@@ -129,18 +129,24 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]applicationen
 	endpoint := applicationendpoint.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
 	endpoint.Application = "controlplane"
-	endpoint.ContainerIP = "127.0.0.1"
-	port, err := strconv.Atoi(a.uiport[1:])
+	hoststr := strings.Split(a.uiport, ":")[0]
+	if len(hoststr) == 0 {
+		// Fall back to using the master host if an interface for the uiport isn't specified.
+		hoststr = strings.Split(a.master, ":")[0]
+	}
+	portstr := strings.Split(a.uiport, ":")[1]
+	port, err := strconv.Atoi(portstr)
 	if err != nil {
 		glog.Errorf("Unable to interpret ui port.")
 		return
 	}
 	endpoint.ContainerPort = uint16(port)
+	endpoint.ContainerIP = hoststr
 	// control center should always be reachable in a container on
 	// port SERVICED_UI_ENDPOINT_PROXY via http. SERVICED_UI_ENDPOINT_PROXY
 	// proxies to SERVICED_UI_ENDPOINT via https
 	endpoint.ProxyPort = uint16(SERVICED_UI_ENDPOINT)
-	endpoint.HostPort = uint16(port)
+	endpoint.HostPort = uint16(port) //unused
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
