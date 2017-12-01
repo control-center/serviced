@@ -26,14 +26,14 @@ type ApplicationEndpoint struct {
 	Application    string
 	Purpose        string
 	HostID         string
-	HostIP         string
+	HostIP         string // Host where the endpoint is running. Used to determine if it's running locally or if we need to mux it
 	HostPort       uint16
 	ContainerID    string
-	ContainerIP    string
-	ContainerPort  uint16
+	ContainerIP    string // The container IP that we're routing to (usually a container except for the cc api endpoint)
+	ContainerPort  uint16 // The container port that we're routing to
 	Protocol       string
 	VirtualAddress string
-	ProxyPort      uint16
+	ProxyPort      uint16 // The port in the container we're listening on
 }
 
 type EndpointReport struct {
