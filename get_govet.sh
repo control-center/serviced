@@ -36,3 +36,4 @@ if [ "$go_getit" = "true" ]; then
 		go get ${GOVET_SRC}
 	fi
 fi
+dsfsdfsdf
