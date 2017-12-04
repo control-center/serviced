@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash TEST!!!!
 #######################################################
 #
 # test_lib.sh - Common library of test-related methods
