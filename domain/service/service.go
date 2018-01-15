@@ -35,7 +35,7 @@ type DesiredState int
 
 var protocolPrefixRegex = regexp.MustCompile("^(.+://)")
 
-func (state DesiredState) ToAuditAction() string{
+func (state DesiredState) ToAuditAction() string {
 	switch state {
 	case SVCRestart:
 		return "restart"
@@ -243,6 +243,7 @@ type Service struct {
 	Runs              map[string]string // FIXME: This field is deprecated. Remove when possible.
 	Commands          map[string]domain.Command
 	RAMCommitment     utils.EngNotation
+	RAMReached        uint
 	CPUCommitment     uint64
 	Actions           map[string]string
 	HealthChecks      map[string]health.HealthCheck // A health check for the service.
@@ -381,6 +382,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
+	svc.RAMReached = sd.RAMReached
 	svc.CPUCommitment = sd.CPUCommitment
 	svc.DisableShell = sd.DisableShell
 	svc.Runs = sd.Runs
@@ -815,7 +817,7 @@ func (s Service) SetAddressConfig(endpointName string, sa servicedefinition.Addr
 		}
 	}
 
-	return errors.New("endpoint not found: "+ endpointName)
+	return errors.New("endpoint not found: " + endpointName)
 }
 
 //RemoveAssignment resets a service endpoints to nothing
@@ -852,7 +854,6 @@ func (a *Service) GetID() string {
 func (a *Service) GetType() string {
 	return GetType()
 }
-
 
 //Equals are they the same
 func (s *Service) Equals(b *Service) bool {

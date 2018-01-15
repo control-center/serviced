@@ -35,6 +35,7 @@ type ServiceDetails struct {
 	Instances         int
 	InstanceLimits    domain.MinMax
 	RAMCommitment     utils.EngNotation
+	RAMReached        uint
 	Startup           string
 	HasChildren       bool
 	DeploymentID      string
@@ -45,7 +46,7 @@ type ServiceDetails struct {
 	EmergencyShutdown bool
 	UpdatedAt         time.Time
 	CreatedAt         time.Time
-        Version           string
+	Version           string
 	datastore.VersionedEntity
 }
 

@@ -369,6 +369,20 @@
                 return null;
             },
 
+            validateRAMReachedLimit: function(limitStr){
+                if(isNaN(limitStr) || limitStr === undefined){
+                    return "Invalid RAM Reache Limit value";
+                }
+                if(limitStr > 100){
+                    return "RAM Reach Limit cannot exceed 100%";
+                }
+                if(limitStr < 0){
+                    return "RAM Reached Limit cannot be less than 0%";
+                }
+
+                return null;
+            },
+
             validateRAMLimit: function(limitStr, max=Infinity){
 
                 if (limitStr === undefined || limitStr === '') {

@@ -189,6 +189,7 @@
     "label_protocol": "Protocol",
     "label_public_endpoint": "Public Endpoint",
     "label_public_endpoints": "Public Endpoints",
+    "label_ram_reached": "Auto restart if reached used % of memory",
     "label_resource_pools": "Resource Pools",
     "label_service_description": "Description",
     "label_service_health": "Health",
