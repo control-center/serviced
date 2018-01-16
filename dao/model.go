@@ -58,7 +58,7 @@ type RunningService struct {
 	ParentServiceID   string
 	InstanceID        int
 	RAMCommitment     utils.EngNotation
-	RAMReached        uint
+	RAMThreshold      uint
 	CPUCommitment     uint64
 	HostPolicy        servicedefinition.HostPolicy
 	MonitoringProfile domain.MonitorProfile

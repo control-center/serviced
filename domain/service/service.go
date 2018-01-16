@@ -243,7 +243,7 @@ type Service struct {
 	Runs              map[string]string // FIXME: This field is deprecated. Remove when possible.
 	Commands          map[string]domain.Command
 	RAMCommitment     utils.EngNotation
-	RAMReached        uint
+	RAMThreshold      uint
 	CPUCommitment     uint64
 	Actions           map[string]string
 	HealthChecks      map[string]health.HealthCheck // A health check for the service.
@@ -382,7 +382,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
-	svc.RAMReached = sd.RAMReached
+	svc.RAMThreshold = sd.RAMThreshold
 	svc.CPUCommitment = sd.CPUCommitment
 	svc.DisableShell = sd.DisableShell
 	svc.Runs = sd.Runs

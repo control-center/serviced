@@ -189,7 +189,7 @@
     "label_protocol": "Protocolo",
     "label_public_endpoint": "Punto de destino publico",
     "label_public_endpoints": "Puntos de destino publico",
-    "label_ram_reached": "Reinicio automático si se alcanza usado % de memoria",
+    "label_ram_threshold": "Reinicio automático si se alcanza usado % de memoria",
     "label_resource_pools": "Grupo de Recursos",
     "label_service_description": "Descripci\u00f3n",
     "label_service_health": "Condición",

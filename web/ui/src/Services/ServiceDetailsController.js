@@ -906,7 +906,7 @@
                             if (modalModel.model.InstanceLimits.Min > modalModel.model.Instances || modalModel.model.Instances === undefined) {
                                 return false;
                             }
-                            var err2 = utils.validateRAMReachedLimit(modalModel.model.RAMReached);
+                            var err2 = utils.validateRAMThresholdLimit(modalModel.model.RAMThreshold);
                             if(err2){
                                 this.createNotification("Error", err2).error();
                                 return false;

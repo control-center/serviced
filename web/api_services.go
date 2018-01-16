@@ -158,7 +158,7 @@ func putServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 	svc.Instances = payload.Instances
 	svc.Startup = payload.Startup
 	svc.RAMCommitment = payload.RAMCommitment
-	svc.RAMReached = payload.RAMReached
+	svc.RAMThreshold = payload.RAMThreshold
 
 	err = f.UpdateService(ctx, *svc)
 	if err != nil {

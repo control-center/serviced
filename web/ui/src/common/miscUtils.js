@@ -369,7 +369,7 @@
                 return null;
             },
 
-            validateRAMReachedLimit: function(limitStr){
+            validateRAMThresholdLimit: function(limitStr){
                 if(isNaN(limitStr) || limitStr === undefined){
                     return "Invalid RAM Reache Limit value";
                 }

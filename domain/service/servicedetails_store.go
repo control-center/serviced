@@ -550,7 +550,7 @@ var serviceDetailsFields = []string{
 	"Instances",
 	"InstanceLimits",
 	"RAMCommitment",
-	"RAMReached",
+	"RAMThreshold",
 	"Startup",
 	"DeploymentID",
 	"Launch",

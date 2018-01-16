@@ -293,21 +293,21 @@ describe('miscUtils', function() {
         });
     });
 
-    describe("validateRAMReachedLimit", function(){
+    describe("validateRAMThresholdLimit", function(){
         it("Validates an empty string", function(){
-            expect(miscUtils.validateRAMReachedLimit("")).toBe(null);
+            expect(miscUtils.validateRAMThresholdLimit("")).toBe(null);
         });
         it("Validate value", function(){
-            expect(miscUtils.validateRAMReachedLimit("50")).toBe(null);
+            expect(miscUtils.validateRAMThresholdLimit("50")).toBe(null);
         });
         it("Invalidates percentages greater than 100", function(){
-            expect(miscUtils.validateRAMReachedLimit("101")).toEqual("RAM Reach Limit cannot exceed 100%");
+            expect(miscUtils.validateRAMThresholdLimit("101")).toEqual("RAM threshold Limit cannot exceed 100%");
         });
         it("Invalidates -1", function(){
-            expect(miscUtils.validateRAMReachedLimit("-1")).toEqual("RAM Reached Limit cannot be less than 0%");
+            expect(miscUtils.validateRAMThresholdLimit("-1")).toEqual("RAM threshold Limit cannot be less than 0%");
         });
         it("Invalidates missing or invalid unit", function(){
-            expect(miscUtils.validateRAMReachedLimit("missval")).toBe("Invalid RAM Reache Limit value");
+            expect(miscUtils.validateRAMThresholdLimit("missval")).toBe("Invalid RAM threshold Limit value");
         });
 
     });

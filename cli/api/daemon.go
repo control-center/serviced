@@ -1108,7 +1108,7 @@ func (d *daemon) startAgent() error {
 					continue
 				}
 				for _, getService := range getAllServices {
-					if getService.RAMReached == 0 || getService.RAMCommitment.Value <= 0 || getService.CurrentState != string(service.SVCCSRunning) {
+					if getService.RAMThreshold == 0 || getService.RAMCommitment.Value <= 0 || getService.CurrentState != string(service.SVCCSRunning) {
 						continue
 					}
 					getServiceInstances, err := d.facade.GetServiceInstances(d.dsContext, time.Now().Add(5*-time.Minute), getService.GetID())
@@ -1125,8 +1125,8 @@ func (d *daemon) startAgent() error {
 						log.Errorln(err)
 					}
 					for _, insta := range ramMetric {
-						percent := int((float64(insta.Last)*100) / float64(getService.RAMCommitment.Value))
-						if int(percent) >= int(getService.RAMReached) {
+						percent := int((float64(insta.Last) * 100) / float64(getService.RAMCommitment.Value))
+						if int(percent) >= int(getService.RAMThreshold) {
 							a, err := strconv.Atoi(insta.InstanceID)
 							if err != nil {
 								log.Errorln(err)

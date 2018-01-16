@@ -35,7 +35,7 @@ type ServiceDetails struct {
 	Instances         int
 	InstanceLimits    domain.MinMax
 	RAMCommitment     utils.EngNotation
-	RAMReached        uint
+	RAMThreshold      uint
 	Startup           string
 	HasChildren       bool
 	DeploymentID      string

@@ -53,7 +53,7 @@ type ServiceDefinition struct {
 	LogConfigs             []LogConfig
 	Snapshot               SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
 	RAMCommitment          utils.EngNotation             // expected RAM commitment to use for scheduling
-	RAMReached             uint                          // Max of RAM Usage
+	RAMThreshold           uint                          // RAM Threshold
 	CPUCommitment          uint64                        // expected CPU commitment (#cores) to use for scheduling
 	DisableShell           bool                          // disables shell commands on the service
 	Runs                   map[string]string             // FIXME: This field is deprecated. Remove when possible.
