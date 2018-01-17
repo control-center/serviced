@@ -292,23 +292,12 @@ $(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:servic
 $(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
 
 #-----------------------------------#
-# Install targets (distro-specific) #
+# Install targets                   #
 #-----------------------------------#
-_PKG = $(strip $(PKG))
-ifeq "$(_PKG)" "deb"
-install_DIRS += $(_DESTDIR)$(sysconfdir)/init
-endif
-ifeq "$(_PKG)" "rpm"
 install_DIRS += $(_DESTDIR)/usr/lib/systemd/system
-endif
 
-ifeq "$(_PKG)" "deb"
-$(_DESTDIR)$(sysconfdir)/init_TARGETS      = pkg/serviced.upstart:serviced.conf
-endif
-ifeq "$(_PKG)" "rpm"
 $(_DESTDIR)/usr/lib/systemd/system_TARGETS = pkg/serviced.service:serviced.service
 $(_DESTDIR)$(prefix)/bin_TARGETS		  += pkg/serviced-systemd.sh:serviced-systemd.sh
-endif
 
 #-----------------------------------#
 # Install targets (service defs)    #
