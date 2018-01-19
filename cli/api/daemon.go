@@ -1136,7 +1136,9 @@ func (d *daemon) startAgent() error {
 								if err := d.facade.StopServiceInstance(d.dsContext, insta.ServiceID, a); err != nil {
 									log.Errorln(err)
 								} else {
-									log.Info("Restarted instance by RAM threshold", insta.ServiceID, a)
+									log.WithFields(logrus.Fields{
+										"serviceid": insta.ServiceID,
+									}).Info("Restarted instance for exceeding RAM threshold")
 								}
 							}
 						}
