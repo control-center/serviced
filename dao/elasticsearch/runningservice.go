@@ -88,6 +88,7 @@ func convertInstanceToRunningService(inst service.Instance) dao.RunningService {
 		Name:          inst.ServiceName,
 		DesiredState:  int(inst.DesiredState),
 		RAMCommitment: utils.NewEngNotation(inst.RAMCommitment),
+		RAMThreshold:  inst.RAMThreshold,
 		InstanceID:    inst.InstanceID,
 	}
 }

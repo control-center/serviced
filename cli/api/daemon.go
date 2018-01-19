@@ -1088,6 +1088,67 @@ func (d *daemon) startAgent() error {
 		log.Debug("Registered local Agent RPC service")
 	}
 
+	// ZEN-17361
+	if options.Master {
+		tTicker := time.NewTicker(time.Minute * 5)
+		d.waitGroup.Add(1)
+		go func() {
+			defer func() {
+				tTicker.Stop()
+				d.waitGroup.Done()
+			}()
+			for {
+				select {
+				case <-d.shutdown:
+					log.Info("Stopping RAM threshold reporter")
+					return
+				case <-tTicker.C:
+					getAllServices, err := d.facade.GetAllServices(d.dsContext)
+					if err != nil {
+						log.Errorln(err)
+						continue
+					}
+					for _, getService := range getAllServices {
+						if getService.RAMThreshold == 0 || getService.RAMCommitment.Value <= 0 || getService.CurrentState != string(service.SVCCSRunning) {
+							continue
+						}
+						getServiceInstances, err := d.facade.GetServiceInstances(d.dsContext, time.Now().Add(5*-time.Minute), getService.GetID())
+						if err != nil {
+							log.Errorln(err)
+							continue
+						}
+						ServiceInstances := make([]metrics.ServiceInstance, 0, len(getServiceInstances))
+						for _, instance := range getServiceInstances {
+							ServiceInstances = append(ServiceInstances, metrics.ServiceInstance{instance.ServiceID, instance.InstanceID})
+						}
+						ramMetric, err := d.facade.GetInstanceMemoryStats(time.Now().Add(5*-time.Minute), ServiceInstances...)
+						if err != nil {
+							log.Errorln(err)
+						}
+						for _, insta := range ramMetric {
+							percent := int((float64(insta.Last) * 100) / float64(getService.RAMCommitment.Value))
+							if int(percent) >= int(getService.RAMThreshold) {
+								a, err := strconv.Atoi(insta.InstanceID)
+								if err != nil {
+									log.Errorln(err)
+									continue
+								}
+								if err := d.facade.StopServiceInstance(d.dsContext, insta.ServiceID, a); err != nil {
+									log.Errorln(err)
+								} else {
+									log.WithFields(logrus.Fields{
+										"serviceid": insta.ServiceID,
+									}).Info("Restarted instance for exceeding RAM threshold")
+								}
+							}
+						}
+					}
+
+				}
+			}
+		}()
+	}
+
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {

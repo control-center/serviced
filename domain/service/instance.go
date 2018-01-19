@@ -57,6 +57,7 @@ type Instance struct {
 	CurrentState  InstanceCurrentState
 	HealthStatus  map[string]health.Status
 	RAMCommitment int64
+	RAMThreshold  uint
 	MemoryUsage   Usage
 	Scheduled     time.Time
 	Started       time.Time
@@ -70,6 +71,7 @@ type StrategyInstance struct {
 	ServiceID     string
 	CPUCommitment int
 	RAMCommitment uint64
+	RAMThreshold  uint
 	HostPolicy    servicedefinition.HostPolicy
 }
 
