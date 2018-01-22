@@ -56,6 +56,7 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 	if ctx.Bool("verbose") {
 		if jsonVersion, err := json.MarshalIndent(versionInfo, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal version info: %s", err)
+			os.Exit(1)
 		} else {
 			fmt.Println(string(jsonVersion))
 		}
