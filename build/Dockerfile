@@ -15,7 +15,7 @@
 # uses the output of 'lsb_release' to determine the version string of the
 # .deb pacakge, and if the base image changes here, then that string will
 # change accordingly.
-FROM ubuntu:trusty
+FROM ubuntu:xenial
 
 MAINTAINER Zenoss, Inc <dev@zenoss.com>
 
@@ -64,10 +64,10 @@ RUN apt-get update -qq && apt-get install -y -q --force-yes google-chrome-stable
 
 # Install nodejs, npm, gulp, etc
 RUN curl -sL https://deb.nodesource.com/setup_6.x | bash -
-RUN apt update -qq && apt install -y nodejs=6.9.1-1nodesource1~trusty1
+RUN apt update -qq && apt install -y nodejs=6.12.3-1nodesource1
 #RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
 # karma has dependencies that need to run native builds, so we need build-essential
-RUN apt-get update -qq && apt-get install -yq build-essential=11.6ubuntu6
+RUN apt-get update -qq && apt-get install -yq build-essential=12.1ubuntu2
 
 # Setup Xvfb - FF and chrome will connect to this DISPLAY
 # (https://github.com/keyvanfatehi/docker-chrome-xvfb)
