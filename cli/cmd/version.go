@@ -18,7 +18,9 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 
+	"encoding/json"
 	"fmt"
+	"os"
 )
 
 // Initializer for serviced version
@@ -28,21 +30,51 @@ func (c *ServicedCli) initVersion() {
 		Usage:       "shows version information",
 		Description: "",
 		Action:      c.cmdVersion,
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "verbose, v",
+				Usage: "Show JSON format",
+			},
+		},
 	})
 }
 
 // serviced version
 func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
-	fmt.Printf("Version:    %s\n", servicedversion.Version)
-	fmt.Printf("GoVersion:  %s\n", servicedversion.GoVersion)
-	fmt.Printf("Gitcommit:  %s\n", servicedversion.Gitcommit)
-	fmt.Printf("Gitbranch:  %s\n", servicedversion.Gitbranch)
-	fmt.Printf("Date:       %s\n", servicedversion.Date)
-	fmt.Printf("Buildtag:   %s\n", servicedversion.Buildtag)
-	fmt.Printf("Release:    %s\n", servicedversion.Release)
-	images := []string{
-		fmt.Sprintf("%s:%s", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG),
-		fmt.Sprintf("%s:%s", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG),
+
+	var versionInfo = map[string]string{
+		"Version":      servicedversion.Version,
+		"GoVersion":    servicedversion.GoVersion,
+		"Gitcommit":    servicedversion.Gitcommit,
+		"Gitbranch":    servicedversion.Gitbranch,
+		"Date":         servicedversion.Date,
+		"Release":      servicedversion.Release,
+		"IsvcsImage":   fmt.Sprintf("%s:%s", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG),
+		"IsvcsZKImage": fmt.Sprintf("%s:%s", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG),
 	}
-	fmt.Printf("IsvcsImages: %v\n", images)
+
+	if ctx.Bool("verbose") {
+		if jsonVersion, err := json.MarshalIndent(versionInfo, " ", "  "); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal version info: %s", err)
+			os.Exit(1)
+		} else {
+			fmt.Println(string(jsonVersion))
+		}
+	} else {
+
+		fmt.Println(versionInfo["IsvcsImage"])
+		fmt.Println(versionInfo["IsvcsZKImage"])
+
+		fmt.Printf("Version:    %s\n", versionInfo["Version"])
+		fmt.Printf("GoVersion:  %s\n", versionInfo["GoVersion"])
+		fmt.Printf("Gitcommit:  %s\n", versionInfo["Gitcommit"])
+		fmt.Printf("Gitbranch:  %s\n", versionInfo["Gitbranch"])
+		fmt.Printf("Date:       %s\n", versionInfo["Date"])
+		fmt.Printf("Buildtag:   %s\n", versionInfo["Buildtag"])
+		fmt.Printf("Release:    %s\n", versionInfo["Release"])
+		images := []string{
+			versionInfo["IsvcsImage"], versionInfo["IsvcsZKImage"],
+		}
+		fmt.Printf("IsvcsImages: %v\n", images)
+	}
 }
