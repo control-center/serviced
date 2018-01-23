@@ -61,10 +61,6 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 			fmt.Println(string(jsonVersion))
 		}
 	} else {
-
-		fmt.Println(versionInfo["IsvcsImage"])
-		fmt.Println(versionInfo["IsvcsZKImage"])
-
 		fmt.Printf("Version:    %s\n", versionInfo["Version"])
 		fmt.Printf("GoVersion:  %s\n", versionInfo["GoVersion"])
 		fmt.Printf("Gitcommit:  %s\n", versionInfo["Gitcommit"])
