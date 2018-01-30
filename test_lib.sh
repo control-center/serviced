@@ -130,7 +130,12 @@ start_serviced() {
 
     echo "Waiting $START_TIMEOUT seconds for serviced to start ..."
     retry $START_TIMEOUT  wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
-    return $?
+    err=$?
+    # Check the output of serviced healthcheck
+    sudo GOPATH=${GOPATH} PATH=${PATH} \
+        SERVICED_HOME=${SERVICED_HOME} \
+        ${SERVICED} healthcheck
+    return $err
 }
 
 # Add a host
