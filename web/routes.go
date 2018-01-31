@@ -118,7 +118,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		// Info about serviced itself
 		rest.Route{"GET", "/dockerIsLoggedIn", gz(sc.authorizedClient(restDockerIsLoggedIn))},
 		rest.Route{"GET", "/stats", gz(sc.isCollectingStats())},
-		rest.Route{"GET", "/version", gz(sc.authorizedClient(restGetServicedVersion))},
+		rest.Route{"GET", "/version", gz(restGetServicedVersion)},
 		rest.Route{"GET", "/storage", gz(sc.authorizedClient(restGetStorage))},
 
 		// V2 API
