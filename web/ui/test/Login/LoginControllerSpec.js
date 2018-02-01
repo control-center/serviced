@@ -11,6 +11,7 @@ describe('LoginControl', function() {
     beforeEach(module(authServiceMock));
     beforeEach(module(miscUtilsMock));
     beforeEach(module(zenNotifyMock));
+    beforeEach(module(resourcesFactoryMock));
 
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
