@@ -19,6 +19,11 @@ TAGS=()
 DATASET=default
 VERSION=$(cat dockerImage/VERSION)
 
+# If this is run manually, this variable won't be set.
+if [[ "$SERVICED_BINARY" == "" ]]; then
+  SERVICED_BINARY=$(which serviced)
+fi
+
 set -e
 
 while (( "$#" )); do
