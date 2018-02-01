@@ -5,6 +5,7 @@ describe('LoginControl', function() {
     var $notification = null;
     var $translate = null;
     var authService = null;
+    var resourcesFactory = null;
 
     beforeEach(module('controlplaneTest'));
     beforeEach(module(authServiceMock));
@@ -17,6 +18,7 @@ describe('LoginControl', function() {
         $notification = $injector.get('$notification');
         $translate = $injector.get('$translate');
         authService = $injector.get('authService');
+        resourcesFactory = $injector.get("resourcesFactory");
 
         var $controller = $injector.get('$controller');
         var ctrl = $controller('LoginController', {
@@ -24,7 +26,8 @@ describe('LoginControl', function() {
             $location: $location,
             $notification: $notification,
             $translate: $translate,
-            authService: authService
+            authService: authService,
+            resourcesFactory: resourcesFactory
         });
 
     }));
