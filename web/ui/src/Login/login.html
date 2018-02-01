@@ -4,6 +4,7 @@
     <input type="text" ng-model="username" class="form-control" placeholder="Username" autofocus required>
     <input type="password" ng-model="password" class="form-control" placeholder="Password" required>
     <button class="btn btn-lg btn-block btn-primary" type="submit" ng-disabled="loginDisabled" translate>{{loginButtonText}}</button>
+    <div style="color: #4e7aba;font-size: 90%;font-family: sans-serif;margin-top: 10px;" ng-show="version">Version {{version}}</div>
   </form>
   <div id="loginNotifications"></div>
 </div>
