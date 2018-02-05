@@ -127,7 +127,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		NFSClient:                  cfg.StringVal("NFS_CLIENT", "1"),
 		RPCPort:                    cfg.StringVal("RPC_PORT", fmt.Sprintf("%d", DefaultRPCPort)),
 		OutboundIP:                 cfg.StringVal("OUTBOUND_IP", ""),
-		GCloud:                      cfg.BoolVal("GCLOUD", false),
+		GCloud:                     cfg.BoolVal("GCLOUD", false),
 		DockerDNS:                  cfg.StringSlice("DOCKER_DNS", []string{}),
 		Master:                     cfg.BoolVal("MASTER", false),
 		MuxPort:                    cfg.IntVal("MUX_PORT", 22250),

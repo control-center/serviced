@@ -46,7 +46,7 @@ func (a *api) StopServiceInstance(serviceID string, instanceID int) error {
 // AttachServiceInstance locates and attaches to a running instance of a service
 func (a *api) AttachServiceInstance(serviceID string, instanceID int, command string, args []string) error {
 	var (
-		targetHost string
+		targetHost      string
 		targetContainer string
 	)
 
@@ -76,7 +76,7 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 	// attach to the container
 	if targetHost != hostID {
 		cmd, err := a.getSSHCommand(location)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		cmd = append(cmd, []string{"/usr/bin/docker", "exec", "-it", targetContainer}...)
@@ -114,7 +114,7 @@ func (a *api) LogsForServiceInstance(serviceID string, instanceID int, command s
 
 	if location.HostID != hostID {
 		cmd, err := a.getSSHCommand(location)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		cmd = append(cmd, []string{"/usr/bin/docker", "logs", location.ContainerID}...)

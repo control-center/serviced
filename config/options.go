@@ -40,7 +40,7 @@ var (
 // Default values and environment variable overrides defined by api.GetDefaultOptions()
 // Command line overrides defined by cmd.New()
 type Options struct {
-	GCloud                     bool // Running in gcloud
+	GCloud                     bool   // Running in gcloud
 	Endpoint                   string // the endpoint address to make RPC requests to
 	UIPort                     string
 	NFSClient                  string
