@@ -220,7 +220,7 @@ func (c *ServicedCli) exit(code int) error {
 // command line overrides.
 func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options {
 	options := config.Options{
-		GCloud                      cfg.BoolVal("GCLOUD", false),
+		GCloud:                      cfg.BoolVal("GCLOUD", false),
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
 		Endpoint:                   ctx.GlobalString("endpoint"),
