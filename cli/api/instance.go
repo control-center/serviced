@@ -18,6 +18,7 @@ import (
 	"syscall"
 
 	dockerclient "github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 )
@@ -46,7 +47,6 @@ func (a *api) StopServiceInstance(serviceID string, instanceID int) error {
 func (a *api) AttachServiceInstance(serviceID string, instanceID int, command string, args []string) error {
 	var (
 		targetHost      string
-		targetIP        string
 		targetContainer string
 	)
 
@@ -67,7 +67,6 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 	}
 
 	targetHost = location.HostID
-	targetIP = location.HostIP
 	targetContainer = location.ContainerID
 
 	if command == "" {
@@ -75,18 +74,18 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 	}
 
 	// attach to the container
-	cmd := []string{}
 	if targetHost != hostID {
-		cmd := []string{
-			"/usr/bin/ssh",
-			"-t", targetIP, "--",
-			"/usr/bin/docker", "exec", "-it", targetContainer,
+		cmd, err := a.getSSHCommand(location)
+		if err != nil {
+			return err
 		}
+		cmd = append(cmd, []string{"/usr/bin/docker", "exec", "-it", targetContainer}...)
+
 		cmd = append(cmd, command)
 		cmd = append(cmd, args...)
 		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
 	} else {
-		cmd = append(cmd, command)
+		cmd := []string{command}
 		cmd = append(cmd, args...)
 		return utils.AttachAndExec(targetContainer, cmd)
 	}
@@ -112,19 +111,20 @@ func (a *api) LogsForServiceInstance(serviceID string, instanceID int, command s
 	}
 
 	// report container logs
-	cmd := []string{}
+
 	if location.HostID != hostID {
-		cmd := []string{
-			"/usr/bin/ssh",
-			"-t", location.HostIP, "--",
-			"/usr/bin/docker", "logs", location.ContainerID,
+		cmd, err := a.getSSHCommand(location)
+		if err != nil {
+			return err
 		}
+		cmd = append(cmd, []string{"/usr/bin/docker", "logs", location.ContainerID}...)
 		if command != "" {
 			cmd = append(cmd, command)
 			cmd = append(cmd, args...)
 		}
 		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
 	} else {
+		cmd := []string{}
 		if command != "" {
 			cmd = append(cmd, command)
 			cmd = append(cmd, args...)
@@ -141,4 +141,30 @@ func (a *api) SendDockerAction(serviceID string, instanceID int, action string, 
 	}
 
 	return client.SendDockerAction(serviceID, instanceID, action, args)
+}
+
+func (a *api) getSSHCommand(location *service.LocationInstance) ([]string, error) {
+	if config.GetOptions().GCloud {
+		host, err := a.GetHost(location.HostID)
+		if err != nil {
+			return nil, err
+		}
+		cmd := []string{
+			"/usr/bin/gcloud",
+			"compute",
+			"ssh",
+			host.Name,
+			`--ssh-flag=-t`,
+			"--",
+			"sudo",
+		}
+		return cmd, nil
+	} else {
+		cmd := []string{
+			"/usr/bin/ssh",
+			"-t", location.HostIP, "--",
+		}
+		return cmd, nil
+	}
+
 }
