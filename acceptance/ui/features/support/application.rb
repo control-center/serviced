@@ -29,11 +29,11 @@ end
 #    Calls yourFunction().  If it encounters an error it
 #    will wait 5 seconds and retry once.
 #
-def retryMethod(function, retries, delay)
+def retryMethod(function, retries, delay, *args)
     for i in (1..retries)
         begin
             # Make an attempt at the method call, catching errors.
-            function.call()
+            function.call(*args)
             return # Success.
         rescue RSpec::Expectations::ExpectationNotMetError => e
             printf("retryMethod: %s\n" % [e.message])
@@ -48,6 +48,6 @@ def retryMethod(function, retries, delay)
     end
 
     # Allow this to throw an error.
-    function.call()
+    function.call(*args)
 end
 
