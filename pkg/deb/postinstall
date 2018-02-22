@@ -8,3 +8,4 @@ chmod 640 /etc/default/serviced
 
 chgrp serviced /opt/serviced
 chmod 750 /opt/serviced
+chmod 750 /opt/serviced/var/isvcs
