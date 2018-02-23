@@ -79,6 +79,25 @@ func (c *ServicedCli) initHost() {
 					},
 				},
 			}, {
+				Name:         "add-private",
+				ShortName:    "addme",
+				Usage:        "Adds a new host and register via common key",
+				Description:  "serviced host add HOST:PORT RESOURCE_POOL",
+				BashComplete: c.printHostAddPrivate,
+				Action:       c.cmdHostAddPrivate,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "memory",
+						Value: "",
+						Usage: "Memory to allocate on this host, e.g. 20G, 50%",
+					},
+					cli.StringFlag{
+						Name:  "nat-address",
+						Value: "",
+						Usage: "The HOST:PORT of the NAT for this delegate",
+					},
+				},
+			}, {
 				Name:         "remove",
 				ShortName:    "rm",
 				Usage:        "Removes an existing host",
@@ -145,6 +164,18 @@ func (c *ServicedCli) printHostsAll(ctx *cli.Context) {
 
 // Bash-completion command that completes the POOLID as the second argument
 func (c *ServicedCli) printHostAdd(ctx *cli.Context) {
+	var output []string
+
+	args := ctx.Args()
+	switch len(args) {
+	case 1:
+		output = c.pools()
+	}
+	fmt.Println(strings.Join(output, "\n"))
+}
+
+// Bash-completion command that completes the POOLID as the first argument
+func (c *ServicedCli) printHostAddPrivate(ctx *cli.Context) {
 	var output []string
 
 	args := ctx.Args()
@@ -284,6 +315,77 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	keyfileName := ctx.String("key-file")
 	registerHost := ctx.Bool("register")
 	c.outputDelegateKey(host, nat, privateKey, keyfileName, registerHost)
+}
+
+// serviced host add-private HOST:PORT POOLID [--memory SIZE|%] [--nat-address HOST:PORT]
+func (c *ServicedCli) cmdHostAddPrivate(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "add-private")
+		return
+	}
+
+	var address utils.URL
+	if err := address.Set(args[0]); err != nil {
+		fmt.Println(err)
+		return
+	}
+	if ip := net.ParseIP(address.Host); ip == nil {
+		// Host did not parse, try resolving
+		addr, err := net.ResolveTCPAddr("tcp", args[0])
+		if err != nil {
+			fmt.Printf("Could not resolve %s.\n\n", args[0])
+			return
+		}
+		address.Host = addr.IP.String()
+		if strings.HasPrefix(address.Host, "127.") {
+			fmt.Printf("%s must not resolve to a loopback address\n\n", args[0])
+			return
+		}
+	}
+
+	// Parse/resolve the NAT address, if provided.
+	var nat utils.URL
+	natString := ctx.String("nat-address")
+	if len(natString) > 0 {
+		if err := nat.Set(natString); err != nil {
+			fmt.Println(err)
+			return
+		}
+		if natip := net.ParseIP(nat.Host); natip == nil {
+			// NAT did not parse, try resolving
+			addr, err := net.ResolveTCPAddr("tcp", natString)
+			if err != nil {
+				fmt.Printf("Could not resolve nat address (%s): %s\n", natString, err)
+				return
+			}
+			nat.Host = addr.IP.String()
+		}
+		if strings.HasPrefix(nat.Host, "127.") {
+			fmt.Printf("The nat address %s must not resolve to a loopback address\n", natString)
+			return
+		}
+	}
+
+	cfg := api.HostConfig{
+		Address: &address,
+		Nat:     &nat,
+		PoolID:  args[1],
+		Memory:  ctx.String("memory"),
+	}
+
+	host, keyblock, err := c.driver.AddHostPrivate(cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else if keyblock == nil {
+		fmt.Fprintln(os.Stderr, "received nil key")
+		return
+	}
+
+	//c.outputCommonKey(keyblock)
+	c.outputCommonKey(host, nat, keyblock)
 }
 
 // serviced host remove HOSTID ...

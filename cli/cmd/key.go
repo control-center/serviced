@@ -20,6 +20,8 @@ import (
 	"strings"
 
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/auth"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 	"net"
@@ -168,4 +170,10 @@ func (c *ServicedCli) outputDelegateKey(host *host.Host, nat utils.URL, keyData 
 		fmt.Println("Wrote delegate key file to", keyfileName)
 	}
 	fmt.Println(host.ID)
+}
+
+func (c *ServicedCli) outputCommonKey(host *host.Host, nat utils.URL, keyData []byte) {
+	//keyfileName := auth.DelegateKeyFileName
+	keyfileName := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)
+	c.outputDelegateKey(host, nat, keyData, keyfileName, true)
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
+	//"github.com/control-center/serviced/logging"
 )
 
 // HostConfig is the deserialized object from the command-line
@@ -43,6 +44,12 @@ type AuthHost struct {
 	host.Host
 	Authenticated bool
 }
+
+/*
+var (
+	log = logging.PackageLogger()
+)
+*/
 
 func getAuthInfo(client master.ClientInterface, hosts []host.Host) ([]AuthHost, error) {
 	hostIDs := []string{}
@@ -144,10 +151,10 @@ func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	}
 
 	req := agent.BuildHostRequest{
-		IP:      config.Address.Host,
-		Port:    config.Address.Port,
-		PoolID:  config.PoolID,
-		Memory:  config.Memory,
+		IP:     config.Address.Host,
+		Port:   config.Address.Port,
+		PoolID: config.PoolID,
+		Memory: config.Memory,
 	}
 
 	h, err := agentClient.BuildHost(req)
@@ -170,6 +177,57 @@ func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	} else {
 		return host_, privateKey, nil
 	}
+}
+
+// Adds a new host and uses a common key to register it.
+func (a *api) AddHostPrivate(config HostConfig) (*host.Host, []byte, error) {
+	// if a nat is configured then we connect rpc to the nat, otherwise
+	// connect to the host address.
+	log.Infof("REX AddHostPrivate %+v\n", config)
+	var rpcAddress string
+	if len(config.Nat.Host) > 0 {
+		rpcAddress = config.Nat.String()
+	} else {
+		rpcAddress = config.Address.String()
+	}
+	log.Infof("REX rpcAddress: %+v\n", rpcAddress)
+	agentClient, err := a.connectAgent(rpcAddress)
+	if err != nil {
+		log.Errorf("REX Couldn't get the agent: %+v\n", err)
+		return nil, nil, err
+	}
+
+	req := agent.BuildHostRequest{
+		IP:     config.Address.Host,
+		Port:   config.Address.Port,
+		PoolID: config.PoolID,
+		Memory: config.Memory,
+	}
+
+	h, err := agentClient.BuildHost(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.Infof("Built a host! %+v\n", h)
+
+	masterClient, err := a.connectMaster()
+	if err != nil {
+		log.Errorf("REX Couldn't the connection to master: %+v\n", err)
+		return nil, nil, err
+	}
+	log.Infof("REX Got the connection to master! %+v\n", masterClient)
+
+	host_ := h
+
+	var masterPublicKey []byte
+	if masterPublicKey, err = masterClient.AddHostPrivate(*h); err != nil {
+		log.Errorf("REX AHP failed: %+v\n", err)
+		return nil, nil, err
+	}
+
+	log.Infof("REX GOT IT!, %+v", masterPublicKey)
+	return host_, masterPublicKey, nil
 }
 
 // Removes an existing host by its id

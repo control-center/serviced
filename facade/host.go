@@ -61,6 +61,19 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	return key, alog.Error(err)
 }
 
+func (f *Facade) AddHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddHostPrivate"))
+	alog := f.auditLogger.Message(ctx, "Adding Host").Action(audit.Add).Entity(entity)
+	glog.V(2).Infof("Facade.AddHostPrivate: %v", entity)
+	if err := f.DFSLock(ctx).LockWithTimeout("add host", userLockTimeout); err != nil {
+		glog.Warningf("Cannot add host: %s", err)
+		return nil, alog.Error(err)
+	}
+	defer f.DFSLock(ctx).Unlock()
+	key, err := f.addHostPrivate(ctx, entity)
+	return key, alog.Error(err)
+}
+
 func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
@@ -115,6 +128,64 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	return delegatePEMBlock, err
 }
 
+func (f *Facade) addHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error) {
+	/*
+		exists, err := f.GetHost(ctx, entity.ID)
+		if err != nil {
+			return nil, err
+		}
+		if exists != nil {
+			return nil, fmt.Errorf("host already exists: %s", entity.ID)
+		}
+	*/
+
+	// validate Pool exists
+	pool, err := f.GetResourcePool(ctx, entity.PoolID)
+	if err != nil {
+		return nil, fmt.Errorf("error verifying pool exists: %v", err)
+	}
+	if pool == nil {
+		return nil, fmt.Errorf("error creating host, pool %s does not exists", entity.PoolID)
+	}
+
+	// verify that there are no virtual IPs with the given host IP(s)
+	for _, ip := range entity.IPs {
+		if exists, err := f.HasIP(ctx, pool.ID, ip.IPAddress); err != nil {
+			return nil, fmt.Errorf("error verifying ip %s exists: %v", ip.IPAddress, err)
+		} else if exists {
+			return nil, fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)
+		}
+	}
+
+	/*
+		ec := newEventCtx()
+		err = nil
+		defer f.afterEvent(afterHostAdd, ec, entity, err)
+		if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
+			return nil, err
+		}
+	*/
+
+	// Load the shared key.
+	commonPEMBlock, err := f.useCommonKey(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	entity.CreatedAt = now
+	entity.UpdatedAt = now
+
+	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+		return nil, err
+	}
+	err = f.zzk.AddHost(entity)
+
+	f.poolCache.SetDirty()
+
+	return commonPEMBlock, err
+}
+
 // Generate and store an RSA key for the host
 func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	// Generate new key
@@ -123,6 +194,43 @@ func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) (
 		"host_ip": entity.IPAddr,
 		"host_id": entity.ID}
 	publicPEM, privatePEM, err := auth.GenerateRSAKeyPairPEM(delegateHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the master public key
+	masterHeaders := map[string]string{"purpose": "master"}
+	masterPublicKey, err := auth.GetMasterPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	masterPEM, err := auth.PEMFromRSAPublicKey(masterPublicKey, masterHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the key
+	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
+	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	// Reset the host's "authenticated" status
+	f.RemoveHostExpiration(ctx, entity.ID)
+
+	// Concatenate and return keys
+	delegatePEMBlock := append(privatePEM, masterPEM...)
+	return delegatePEMBlock, nil
+}
+
+func (f *Facade) useCommonKey(ctx datastore.Context, entity *host.Host) ([]byte, error) {
+	// Fetch common key
+	delegateHeaders := map[string]string{
+		"purpose": "delegate",
+		"host_ip": entity.IPAddr,
+		"host_id": entity.ID}
+	publicPEM, privatePEM, err := auth.LoadCommonRSAKeyPairPEM(delegateHeaders)
 	if err != nil {
 		return nil, err
 	}
