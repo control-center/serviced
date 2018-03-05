@@ -255,9 +255,7 @@ func LoadKeyPairFromFile(filename string) (public crypto.PublicKey, private cryp
 // LoadCommonRSAKeyPairPEM loads the common keys from a specific file.
 func LoadCommonRSAKeyPairPEM(headers map[string]string) (public []byte, private []byte, err error) {
 	keyfile := filepath.Join(config.GetOptions().EtcPath, CommonKeyFilename)
-	log.Infof("Loading common keypair from %s \n", keyfile)
 	publicKey, privateKey, err := LoadKeyPairFromFile(keyfile)
-	log.Infof("Loaded private and public keys:\n    %+v\n    %+v\n", publicKey, privateKey)
 	if err != nil {
 		return nil, nil, err
 	}

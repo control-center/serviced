@@ -173,7 +173,6 @@ func (c *ServicedCli) outputDelegateKey(host *host.Host, nat utils.URL, keyData 
 }
 
 func (c *ServicedCli) outputCommonKey(host *host.Host, nat utils.URL, keyData []byte) {
-	//keyfileName := auth.DelegateKeyFileName
 	keyfileName := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)
 	c.outputDelegateKey(host, nat, keyData, keyfileName, true)
 }

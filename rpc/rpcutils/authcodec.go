@@ -52,7 +52,6 @@ var (
 		"ControlCenterAgent.ReportInstanceDead":  struct{}{},
 		"ControlCenterAgent.SendLogMessage":      struct{}{},
 		"ControlCenterAgent.AddHostPrivate":      struct{}{},
-		//"Master.AddHostPrivate":                  struct{}{},
 	}
 	endian = binary.BigEndian
 

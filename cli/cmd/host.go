@@ -384,7 +384,6 @@ func (c *ServicedCli) cmdHostAddPrivate(ctx *cli.Context) {
 		return
 	}
 
-	//c.outputCommonKey(keyblock)
 	c.outputCommonKey(host, nat, keyblock)
 }
 

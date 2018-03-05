@@ -61,6 +61,8 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	return key, alog.Error(err)
 }
 
+// AddHost registers a host with serviced. Returns the host's _public_ key.
+// Returns an error if host already exists or if the host's IP is a virtual IP.
 func (f *Facade) AddHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddHostPrivate"))
 	alog := f.auditLogger.Message(ctx, "Adding Host").Action(audit.Add).Entity(entity)
@@ -129,16 +131,6 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 }
 
 func (f *Facade) addHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error) {
-	/*
-		exists, err := f.GetHost(ctx, entity.ID)
-		if err != nil {
-			return nil, err
-		}
-		if exists != nil {
-			return nil, fmt.Errorf("host already exists: %s", entity.ID)
-		}
-	*/
-
 	// validate Pool exists
 	pool, err := f.GetResourcePool(ctx, entity.PoolID)
 	if err != nil {
