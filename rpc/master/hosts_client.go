@@ -56,7 +56,7 @@ func (c *Client) AddHost(host host.Host) ([]byte, error) {
 	return response, nil
 }
 
-//AddHost adds and registers a host with an agreed-upon shared secret keypair
+//AddHost adds and registers a host with an agreed-upon shared secret keypair. Returns master's public key.
 func (c *Client) AddHostPrivate(host host.Host) ([]byte, error) {
 	response := []byte{}
 	if err := c.call("AddHostPrivate", host, &response); err != nil {

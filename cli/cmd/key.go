@@ -172,6 +172,7 @@ func (c *ServicedCli) outputDelegateKey(host *host.Host, nat utils.URL, keyData 
 	fmt.Println(host.ID)
 }
 
+// Registers a host with the given keydata, and stores the key at the location designated by auth.DelegateKeyFileName
 func (c *ServicedCli) outputCommonKey(host *host.Host, nat utils.URL, keyData []byte) {
 	keyfileName := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)
 	c.outputDelegateKey(host, nat, keyData, keyfileName, true)

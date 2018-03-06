@@ -323,25 +323,25 @@ func (c *ServicedCli) cmdHostAddPrivate(ctx *cli.Context) {
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add-private")
-		return
+		os.Exit(1)
 	}
 
 	var address utils.URL
 	if err := address.Set(args[0]); err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
 	if ip := net.ParseIP(address.Host); ip == nil {
 		// Host did not parse, try resolving
 		addr, err := net.ResolveTCPAddr("tcp", args[0])
 		if err != nil {
 			fmt.Printf("Could not resolve %s.\n\n", args[0])
-			return
+			os.Exit(1)
 		}
 		address.Host = addr.IP.String()
 		if strings.HasPrefix(address.Host, "127.") {
 			fmt.Printf("%s must not resolve to a loopback address\n\n", args[0])
-			return
+			os.Exit(1)
 		}
 	}
 
@@ -351,20 +351,20 @@ func (c *ServicedCli) cmdHostAddPrivate(ctx *cli.Context) {
 	if len(natString) > 0 {
 		if err := nat.Set(natString); err != nil {
 			fmt.Println(err)
-			return
+			os.Exit(1)
 		}
 		if natip := net.ParseIP(nat.Host); natip == nil {
 			// NAT did not parse, try resolving
 			addr, err := net.ResolveTCPAddr("tcp", natString)
 			if err != nil {
 				fmt.Printf("Could not resolve nat address (%s): %s\n", natString, err)
-				return
+				os.Exit(1)
 			}
 			nat.Host = addr.IP.String()
 		}
 		if strings.HasPrefix(nat.Host, "127.") {
 			fmt.Printf("The nat address %s must not resolve to a loopback address\n", natString)
-			return
+			os.Exit(1)
 		}
 	}
 
@@ -378,10 +378,10 @@ func (c *ServicedCli) cmdHostAddPrivate(ctx *cli.Context) {
 	host, keyblock, err := c.driver.AddHostPrivate(cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return
+		os.Exit(1)
 	} else if keyblock == nil {
 		fmt.Fprintln(os.Stderr, "received nil key")
-		return
+		os.Exit(1)
 	}
 
 	c.outputCommonKey(host, nat, keyblock)

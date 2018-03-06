@@ -32,7 +32,6 @@ var (
 		"Master.AuthenticateHost",
 		"Agent.BuildHost",
 		"ControlCenterAgent.Ping",
-		"Agent.AddHostPrivate",
 		"Master.AddHostPrivate",
 	}
 	// RPC calls that do not require admin access:

@@ -65,7 +65,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 // Returns an error if host already exists or if the host's IP is a virtual IP.
 func (f *Facade) AddHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddHostPrivate"))
-	alog := f.auditLogger.Message(ctx, "Adding Host").Action(audit.Add).Entity(entity)
+	alog := f.auditLogger.Message(ctx, "Adding Host with common key").Action(audit.Add).Entity(entity)
 	glog.V(2).Infof("Facade.AddHostPrivate: %v", entity)
 	if err := f.DFSLock(ctx).LockWithTimeout("add host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add host: %s", err)
@@ -148,15 +148,6 @@ func (f *Facade) addHostPrivate(ctx datastore.Context, entity *host.Host) ([]byt
 			return nil, fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)
 		}
 	}
-
-	/*
-		ec := newEventCtx()
-		err = nil
-		defer f.afterEvent(afterHostAdd, ec, entity, err)
-		if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
-			return nil, err
-		}
-	*/
 
 	// Load the shared key.
 	commonPEMBlock, err := f.useCommonKey(ctx, entity)

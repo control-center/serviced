@@ -172,7 +172,7 @@ func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	}
 }
 
-// Adds a new host and uses a common key to register it.
+// Adds a new host and uses a common key to register it. Returns the host and the master's public key.
 func (a *api) AddHostPrivate(config HostConfig) (*host.Host, []byte, error) {
 	// if a nat is configured then we connect rpc to the nat, otherwise
 	// connect to the host address.
