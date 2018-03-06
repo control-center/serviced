@@ -34,6 +34,7 @@ import (
 const (
 	DelegateKeyFileName = "delegate.keys"
 	MasterKeyFileName   = ".keys/master.keys"
+	CommonKeyFilename   = "common.key"
 )
 
 var (
@@ -249,6 +250,24 @@ func LoadKeyPairFromFile(filename string) (public crypto.PublicKey, private cryp
 		return nil, nil, err
 	}
 	return LoadRSAKeyPairPackage(data)
+}
+
+// LoadCommonRSAKeyPairPEM loads the common keys from a specific file.
+func LoadCommonRSAKeyPairPEM(headers map[string]string) (public []byte, private []byte, err error) {
+	keyfile := filepath.Join(config.GetOptions().EtcPath, CommonKeyFilename)
+	publicKey, privateKey, err := LoadKeyPairFromFile(keyfile)
+	if err != nil {
+		return nil, nil, err
+	}
+	if private, err = PEMFromRSAPrivateKey(privateKey, headers); err != nil {
+		log.Errorf("Error loading private key: %+v\n", err)
+		return nil, nil, err
+	}
+	if public, err = PEMFromRSAPublicKey(publicKey, headers); err != nil {
+		log.Errorf("Error loading public key: %+v\n", err)
+		return nil, nil, err
+	}
+	return public, private, nil
 }
 
 // LoadDelegateKeysFromPEM loads the local delegate keys (master public, delegate private)

@@ -44,6 +44,29 @@ func (_m *FacadeInterface) AddHost(ctx datastore.Context, entity *host.Host) ([]
 	return r0, r1
 }
 
+// AddHostPrivate provides a mock function with given fields: ctx, entity
+func (_m *FacadeInterface) AddHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error) {
+	ret := _m.Called(ctx, entity)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(datastore.Context, *host.Host) []byte); ok {
+		r0 = rf(ctx, entity)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, *host.Host) error); ok {
+		r1 = rf(ctx, entity)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // AddPublicEndpointPort provides a mock function with given fields: ctx, serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart
 func (_m *FacadeInterface) AddPublicEndpointPort(ctx datastore.Context, serviceid string, endpointName string, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 	ret := _m.Called(ctx, serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
@@ -189,7 +212,7 @@ func (_m *FacadeInterface) RemoveIPs(ctx datastore.Context, args []string) error
 	if rf, ok := ret.Get(0).(func(datastore.Context, []string) error); ok {
 		r0 = rf(ctx, args)
 	} else {
-		 r0 = ret.Error(0)
+		r0 = ret.Error(0)
 	}
 
 	return r0
@@ -197,16 +220,16 @@ func (_m *FacadeInterface) RemoveIPs(ctx datastore.Context, args []string) error
 
 // SetIPs  provides a mock function with given fields: ctx, assignmentRequest
 func (_m *FacadeInterface) SetIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) error {
-        ret := _m.Called(ctx, assignmentRequest)
+	ret := _m.Called(ctx, assignmentRequest)
 
-        var r0 error
-        if rf, ok := ret.Get(0).(func(datastore.Context, addressassignment.AssignmentRequest) error); ok {
-                r0 = rf(ctx, assignmentRequest)
-        } else {
-                r0 = ret.Error(0)
-        }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, addressassignment.AssignmentRequest) error); ok {
+		r0 = rf(ctx, assignmentRequest)
+	} else {
+		r0 = ret.Error(0)
+	}
 
-        return r0
+	return r0
 }
 
 // ClearEmergencyStopFlag provides a mock function with given fields: ctx, serviceID
@@ -1498,7 +1521,7 @@ func (_m *FacadeInterface) SetHostExpiration(ctx datastore.Context, hostID strin
 }
 
 //StartService provides a mock function with given fields: ctx, ScheduleServiceRequest
-func (_m *FacadeInterface) StartService(ctx datastore.Context,  request dao.ScheduleServiceRequest) (int, error) {
+func (_m *FacadeInterface) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 
 	ret := _m.Called(ctx, request)
 
@@ -1520,7 +1543,7 @@ func (_m *FacadeInterface) StartService(ctx datastore.Context,  request dao.Sche
 }
 
 //StopService provides a mock function with given fields: ctx, ScheduleServiceRequest
-func (_m *FacadeInterface) StopService(ctx datastore.Context,  request dao.ScheduleServiceRequest) (int, error) {
+func (_m *FacadeInterface) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 
 	ret := _m.Called(ctx, request)
 
@@ -1540,8 +1563,9 @@ func (_m *FacadeInterface) StopService(ctx datastore.Context,  request dao.Sched
 
 	return r0, r1
 }
+
 //RestartService provides a mock function with given fields: ctx, ScheduleServiceRequest
-func (_m *FacadeInterface) RestartService(ctx datastore.Context,  request dao.ScheduleServiceRequest) (int, error) {
+func (_m *FacadeInterface) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 
 	ret := _m.Called(ctx, request)
 
@@ -1561,7 +1585,6 @@ func (_m *FacadeInterface) RestartService(ctx datastore.Context,  request dao.Sc
 
 	return r0, r1
 }
-
 
 // SyncServiceRegistry provides a mock function with given fields: ctx, svc
 func (_m *FacadeInterface) SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error {
@@ -1745,13 +1768,13 @@ func (_m *FacadeInterface) GetServiceNamePath(ctx datastore.Context, serviceID s
 	}
 
 	var r1 string
-        if rf, ok := ret.Get(0).(func(datastore.Context, string) string); ok {
-                r1 = rf(ctx, serviceID)
-        } else {
-                if ret.Get(0) != nil {
-                        r1 = ret.Get(0).(string)
-                }
-        }
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) string); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r1 = ret.Get(0).(string)
+		}
+	}
 
 	var r2 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
