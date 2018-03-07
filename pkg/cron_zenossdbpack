@@ -14,4 +14,4 @@ MAILTO=root
 # *   *   *  *  *   user-name  command to be executed
 ########################################################################################
 
-0 0 * * sun root /opt/serviced/bin/serviced-zenossdbpack
+0 0 * * * root /opt/serviced/bin/serviced-zenossdbpack
