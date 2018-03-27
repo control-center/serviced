@@ -54,6 +54,10 @@ type HostStateHandler interface {
 	// PauseContainer pauses a running container.  Returns nil if the container
 	// has stopped or if it doesn't exist.
 	PauseContainer(serviceID string, instanceID int) error
+
+	// FindContainer looks up a container or returns error if the container does
+	// not exist or has already stopped.
+	FindContainer(serviceID string, instanceID int) error
 }
 
 // HostStateListener is the listener for monitoring service instances
@@ -219,16 +223,8 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 			return
 		}
 
-		// set up a listener on container state
-		cstate, err := GetState(l.conn, req)
-		if err != nil {
-			logger.WithError(err).Error("Could not get service state")
-			l.cleanUpContainers([]string{stateID}, true)
-			return
-		}
-
 		// set the state of this instance
-		containerExit, ssdat, ok = l.setInstanceState(containerExit, ssdat, hsdat, stateID, serviceID, instanceID, req, logger, cstate)
+		containerExit, ssdat, ok = l.setInstanceState(containerExit, ssdat, hsdat, stateID, serviceID, instanceID, req, logger)
 		if !ok {
 			return
 		}
@@ -279,7 +275,7 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 }
 
 func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssdat *ServiceState, hsdat *HostState,
-	stateID, serviceID string, instanceID int, req StateRequest, logger *log.Entry, cstate *State) (<-chan time.Time, *ServiceState, bool) {
+	stateID, serviceID string, instanceID int, req StateRequest, logger *log.Entry) (<-chan time.Time, *ServiceState, bool) {
 
 	var err error
 
@@ -320,6 +316,21 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 				return nil, nil, false
 			}
 
+			// CC-3926
+			if err := l.handler.FindContainer(serviceID, instanceID); err != nil {
+				logger.WithError(err).Error("Container not found")
+
+				if err := UpdateState(l.conn, req, func(s *State) bool {
+					s.ServiceState = *ssdat
+					if s.DesiredState == service.SVCRun {
+						s.DesiredState = service.SVCRestart
+					}
+					return true
+				}); err != nil {
+					logger.WithError(err).Error("Could not set state for restarting container")
+					return nil, nil, false
+				}
+			}
 		} else if ssdat.Paused {
 			// resume paused container
 			if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
@@ -340,12 +351,7 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			}
 
 			logger.Debug("Resumed paused container")
-		} else {
-			if cstate.Status != "started" && cstate.Status != "starting" {
-                                l.cleanUpContainers([]string{stateID}, true)
-                                return nil, nil, false
-                        }
-	}
+		}
 	case service.SVCRestart:
 		// only try to restart once if the container hasn't already been
 		// restarted.

@@ -59,6 +59,26 @@ func (a *HostAgent) setInstanceState(serviceID string, instanceID int, state ser
 	})
 }
 
+// FindContainer looks up a container or returns error if the container does
+// not exist or has already stopped.
+func (a *HostAgent) FindContainer(serviceID string, instanceID int) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+
+	// find the container by name
+	ctrName := fmt.Sprintf("%s-%d", serviceID, instanceID)
+	_, err := docker.FindContainer(ctrName)
+	if err != nil {
+		logger.WithError(err).Debug("Could not look up container")
+		return err
+	}
+
+	return nil
+}
+
+
 // StopContainer stops running container or returns nil if the container does
 // not exist or has already stopped.
 func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
