@@ -315,22 +315,6 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 				logger.WithError(err).Error("Could not set state for started container")
 				return nil, nil, false
 			}
-
-			// CC-3926
-			if err := l.handler.FindContainer(serviceID, instanceID); err != nil {
-				logger.WithError(err).Error("Container not found")
-
-				if err := UpdateState(l.conn, req, func(s *State) bool {
-					s.ServiceState = *ssdat
-					if s.DesiredState == service.SVCRun {
-						s.DesiredState = service.SVCRestart
-					}
-					return true
-				}); err != nil {
-					logger.WithError(err).Error("Could not set state for restarting container")
-					return nil, nil, false
-				}
-			}
 		} else if ssdat.Paused {
 			// resume paused container
 			if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
@@ -351,6 +335,22 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			}
 
 			logger.Debug("Resumed paused container")
+		} else {
+			// CC-3926
+                        if err := l.handler.FindContainer(serviceID, instanceID); err != nil {
+                                logger.WithError(err).Error("Container not found")
+
+                                if err := UpdateState(l.conn, req, func(s *State) bool {
+                                        s.ServiceState = *ssdat
+                                        if s.DesiredState == service.SVCRun {
+                                                s.DesiredState = service.SVCRestart
+                                        }
+                                        return true
+                                }); err != nil {
+                                        logger.WithError(err).Error("Could not set state for restarting container")
+                                        return nil, nil, false
+                                }
+                        }
 		}
 	case service.SVCRestart:
 		// only try to restart once if the container hasn't already been
