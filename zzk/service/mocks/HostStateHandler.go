@@ -108,3 +108,15 @@ func (_m *HostStateHandler) PauseContainer(serviceID string, instanceID int) err
 
 	return r0
 }
+func (_m *HostStateHandler) FindContainer(serviceID string, instanceID int) error {
+	ret := _m.Called(serviceID, instanceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int) error); ok {
+		r0 = rf(serviceID, instanceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

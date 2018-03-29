@@ -270,6 +270,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState2(c *C) {
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 	listener := NewHostStateListener(handler, hostId, shutdown)
 	listener.SetConnection(conn)
 
@@ -429,6 +430,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) { containerExit <- time.Now() })
 	listener := NewHostStateListener(handler, hostId, shutdown)
 	listener.SetConnection(conn)
@@ -513,6 +515,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 
 	done := make(chan struct{})
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
@@ -636,6 +639,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 
 	done := make(chan struct{})
 
@@ -665,6 +669,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 	var retShutdown <-chan interface{} = shutdown
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(nil, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil).Once()
 	containerExit <- time.Now()
 	timer = time.NewTimer(time.Second)
@@ -765,6 +770,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 
 	done := make(chan struct{})
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
@@ -1117,6 +1123,7 @@ func (t *ZZKTest) TestHostStateListener_PostProcess(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 	done := make(chan struct{})
 
 	ok, err := conn.Exists("/services/serviceid/")
@@ -1222,6 +1229,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Cancel_ReSpawn(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 	done := make(chan struct{})
 
 	ok, err := conn.Exists("/services/serviceid/")
@@ -1338,6 +1346,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Cancel_Shutdown(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil)
 	done := make(chan struct{})
 
 	ok, err := conn.Exists("/services/serviceid/")
@@ -1973,6 +1982,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartPauseStart(c *C) {
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
 
+	handler.On("FindContainer", serviceId, 1).Return(nil).Once()
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(nil, nil).Once()
 	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil).Once()
 
@@ -2042,7 +2052,8 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartPauseStart(c *C) {
 	}
 
 	// Resume the container
-	handler.On("ResumeContainer", serviceId, 1).Return(nil)
+	handler.On("ResumeContainer", serviceId, 1).Return(nil).Once()
+	handler.On("FindContainer", serviceId, 1).Return(nil).Once()
 	err = UpdateState(conn, req, func(s *State) bool {
 		s.DesiredState = service.SVCRun
 		return true
@@ -2094,7 +2105,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartPauseStart(c *C) {
 	shutdowndone := listener.GetShutdownComplete()
 	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) {
 		containerExit <- time.Now()
-	}).Once()
+	})//.Once()
 	close(shutdown)
 	timer.Reset(time.Second)
 	select {
