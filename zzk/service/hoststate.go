@@ -247,9 +247,22 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 
 		logger.Debug("Waiting for event on host state")
 		select {
-		case <-hsevt:
-		case <-ssevt:
-		case <-ipevt:
+		case hostStateEvent := <-hsevt:
+			if hostStateEvent.Err != nil {
+				logger.Infof("Host state listener received signal from host state connection: %s", hostStateEvent.Err.Error())
+			}
+		case serviceStateEvent := <-ssevt:
+			if serviceStateEvent.Err != nil {
+				logger.WithField("service", serviceID).Infof("Host state listener received signal from service state connection: %s", serviceStateEvent.Err.Error())
+			}
+		case ipEvent := <-ipevt:
+			ireq := IPRequest{
+				IPAddress: ssdat.AssignedIP,
+				HostID:    l.hostID,
+			}
+			if ipEvent.Err != nil {
+				logger.WithField("ip", ireq.IPID()).Infof("Host state listener received signal from host ip connection: %s", ipEvent.Err.Error())
+			}
 		case timeExit := <-containerExit:
 			ssdat, ok = l.handleContainerExit(timeExit, ssdat, stateID, req, logger)
 			if !ok {
