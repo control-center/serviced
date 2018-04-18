@@ -80,6 +80,8 @@ type FacadeInterface interface {
 
 	AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error)
 
+	AddHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error)
+
 	GetHost(ctx datastore.Context, hostID string) (*host.Host, error)
 
 	GetHosts(ctx datastore.Context) ([]host.Host, error)
@@ -210,9 +212,9 @@ type FacadeInterface interface {
 
 	GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error)
 
-	StartService(ctx datastore.Context, request dao.ScheduleServiceRequest)(int, error)
+	StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
-	RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest)(int, error)
+	RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
-	StopService(ctx datastore.Context, request dao.ScheduleServiceRequest)(int, error)
+	StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 }

@@ -14,6 +14,7 @@ Feature: Application Management
     Then I should see "Application Template"
       And I should see "Deployment ID"
       And I should see "Public Endpoints"
+      And I should wait "20" seconds
       And I should see "Internal Services"
       And I should see "Description"
 

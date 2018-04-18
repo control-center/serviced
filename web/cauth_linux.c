@@ -18,7 +18,8 @@
 #define MY_REALLOC(ptr, size) \
   do { ptr = realloc(ptr, size); if (0) { fprintf(stderr, "ERROR %s:%d] realloced %p size:%lu for %s\n", __FILE__, __LINE__, ptr, size, #ptr); } } while (0)
 
-#define _CP_MAX_GROUPS 100
+// Limit kernels >= 2.6.3 have a limit of 65536 groups. Windows 2000+ limits groups to 1015 or 1024
+#define _CP_MAX_GROUPS 65536
 #define _CP_ROOT "root"
 
 static const int max_size = 16 * 1024 * 1024;

@@ -164,13 +164,13 @@ deb: stage_deb
 		-d libdevmapper1.02.1 \
 		-d libdevmapper-event1.02.1 \
 		-d nfs-common \
-		-d 'docker-ce (= 17.09.0.ce)' \
+		-d docker-ce \
 		-d logrotate \
 		-d conntrack \
 		-d rsync \
 		-d lvm2 \
 		-d sysstat \
-		-d cronie \
+		-d cron \
 		-t deb \
 		-a x86_64 \
 		-C $(PKGROOT) \

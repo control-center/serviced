@@ -73,6 +73,16 @@ func (s *Server) AddHost(host host.Host, hostReply *[]byte) error {
 	return nil
 }
 
+//AddHostPrivate adds the host using a shared key approved of beforehand and returns the master's public key.
+func (s *Server) AddHostPrivate(host host.Host, hostReply *[]byte) error {
+	masterPublicKey, err := s.f.AddHostPrivate(s.context(), &host)
+	if err != nil {
+		return err
+	}
+	*hostReply = masterPublicKey
+	return nil
+}
+
 // UpdateHost updates the host
 func (s *Server) UpdateHost(host host.Host, _ *struct{}) error {
 	return s.f.UpdateHost(s.context(), &host)

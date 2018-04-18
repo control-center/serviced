@@ -189,6 +189,7 @@
     "label_protocol": "Protocol",
     "label_public_endpoint": "Public Endpoint",
     "label_public_endpoints": "Public Endpoints",
+    "label_ram_threshold": "Restart when memory usage exceeds % of requested RAM",
     "label_resource_pools": "Resource Pools",
     "label_service_description": "Description",
     "label_service_health": "Health",

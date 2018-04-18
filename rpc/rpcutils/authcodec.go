@@ -28,7 +28,12 @@ import (
 
 var (
 	// RPC Calls that do not require authentication or who handle authentication separately:
-	NonAuthenticatingCalls = []string{"Master.AuthenticateHost", "Agent.BuildHost", "ControlCenterAgent.Ping"}
+	NonAuthenticatingCalls = []string{
+		"Master.AuthenticateHost",
+		"Agent.BuildHost",
+		"ControlCenterAgent.Ping",
+		"Master.AddHostPrivate",
+	}
 	// RPC calls that do not require admin access:
 	NonAdminRequiredCalls = map[string]struct{}{
 		"Master.GetHost":                         struct{}{},
@@ -45,6 +50,7 @@ var (
 		"ControlCenterAgent.ReportHealthStatus":  struct{}{},
 		"ControlCenterAgent.ReportInstanceDead":  struct{}{},
 		"ControlCenterAgent.SendLogMessage":      struct{}{},
+		"ControlCenterAgent.AddHostPrivate":      struct{}{},
 	}
 	endian = binary.BigEndian
 

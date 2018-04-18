@@ -144,10 +144,10 @@ func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	}
 
 	req := agent.BuildHostRequest{
-		IP:      config.Address.Host,
-		Port:    config.Address.Port,
-		PoolID:  config.PoolID,
-		Memory:  config.Memory,
+		IP:     config.Address.Host,
+		Port:   config.Address.Port,
+		PoolID: config.PoolID,
+		Memory: config.Memory,
 	}
 
 	h, err := agentClient.BuildHost(req)
@@ -170,6 +170,49 @@ func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	} else {
 		return host_, privateKey, nil
 	}
+}
+
+// Adds a new host and uses a common key to register it. Returns the host and the master's public key.
+func (a *api) AddHostPrivate(config HostConfig) (*host.Host, []byte, error) {
+	// if a nat is configured then we connect rpc to the nat, otherwise
+	// connect to the host address.
+	var rpcAddress string
+	if len(config.Nat.Host) > 0 {
+		rpcAddress = config.Nat.String()
+	} else {
+		rpcAddress = config.Address.String()
+	}
+	agentClient, err := a.connectAgent(rpcAddress)
+	if err != nil {
+		log.Errorf("Couldn't connect to the agent: %+v\n", err)
+		return nil, nil, err
+	}
+
+	req := agent.BuildHostRequest{
+		IP:     config.Address.Host,
+		Port:   config.Address.Port,
+		PoolID: config.PoolID,
+		Memory: config.Memory,
+	}
+
+	h, err := agentClient.BuildHost(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	masterClient, err := a.connectMaster()
+	if err != nil {
+		log.Errorf("Couldn't connect to master: %+v\n", err)
+		return nil, nil, err
+	}
+
+	var masterPublicKey []byte
+	if masterPublicKey, err = masterClient.AddHostPrivate(*h); err != nil {
+		log.Errorf("AddHostPrivate failed: %+v\n", err)
+		return nil, nil, err
+	}
+
+	return h, masterPublicKey, nil
 }
 
 // Removes an existing host by its id
