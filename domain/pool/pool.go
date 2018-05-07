@@ -56,6 +56,8 @@ type ResourcePool struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	MonitoringProfile domain.MonitorProfile
+	ReassignVIPS      chan struct{}
+	ReassignedVIPS    chan struct{}
 	Permissions       Permission
 	datastore.VersionedEntity
 }

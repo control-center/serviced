@@ -127,6 +127,26 @@ func (l *PoolListener) Spawn(shutdown <-chan interface{}, poolID string) {
 				logger.WithError(err).Warn("Error Syncing")
 				timeout.Reset(l.Timeout)
 			}
+
+			select {
+			case <- node.ResourcePool.ReassignVIPS:
+				err = l.synchronizer.Sync(*node.ResourcePool, assignments)
+				if syncError, ok := err.(SyncError); ok {
+					logger.WithError(syncError).WithField("count", len(syncError)).
+						Warn("Errors encountered while syncing virtual IPs")
+
+					for _, e := range syncError {
+						logger.WithError(e).Debug("Sync error")
+					}
+
+					timeout.Reset(l.Timeout)
+				} else if err != nil {
+					logger.WithError(err).Warn("Error Syncing")
+					timeout.Reset(l.Timeout)
+				} else {
+					node.ResourcePool.ReassignedVIPS <- struct{}{}
+				}
+			}
 		}
 
 		select {
