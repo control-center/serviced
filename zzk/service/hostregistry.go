@@ -270,19 +270,31 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 						select {
 						case <-h.isOnline:
+
+							var p PoolNode
+							if err := h.conn.Get("/pools/"+h.poolid, &p); err != nil {
+								logger.WithError(err).Warn("Could not look up resource pool for connection timeout")
+								return
+							}
 							// Only reschedule services without address
 							// assignments.
 
-							h.handler.UnassignAll(h.poolid, hostid)
-
-							count := DeleteHostStatesWhen(h.conn, h.poolid, hostid, func(s *State) bool {
-								return s.DesiredState == service.SVCStop || !s.Static
-							})
-							logger.WithField("unscheduled", count).Warn("Host is experiencing an outage.  Cleaned up orphaned nodes")
+							err = h.handler.UnassignAll(h.poolid, hostid)
+							if err != nil {
+								logger.WithError(err).Warn("Could not unassign services for a host.")
+								return
+							}
+							p.ResourcePool.ReassignVIPS <- struct{}{}
 
 							// To prevent a tight loop, wait for something to
 							// happen.
 							select {
+							case <- p.ResourcePool.ReassignedVIPS:
+								// services with vips are successfully synced
+								count := DeleteHostStatesWhen(h.conn, h.poolid, hostid, func(s *State) bool {
+								return s.DesiredState == service.SVCStop || !s.Static
+							})
+							logger.WithField("unscheduled", count).Warn("Host is experiencing an outage.  Cleaned up orphaned nodes")
 							case <-availEv:
 							case <-onlineEv:
 							case <-cancel:
