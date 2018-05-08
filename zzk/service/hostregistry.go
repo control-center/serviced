@@ -88,6 +88,8 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 	stop := make(chan struct{})
 	defer func() { close(stop) }()
 
+	var connectionTimeout time.Duration
+
 	for {
 
 		// does the host exist?
@@ -142,9 +144,11 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 			isOnline = false
 			outage = time.Now()
 
+			connectionTimeout = h.getTimeout()
+
 			firstTimeout = true
 			offlineTimer.Stop()
-			offlineTimer = time.NewTimer(h.getTimeout())
+			offlineTimer = time.NewTimer(connectionTimeout)
 
 		} else if isAvailable && !isOnline {
 
@@ -257,7 +261,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 					// online.
 					if firstTimeout {
 						onlineTimer.Stop()
-						onlineTimer = time.NewTimer(h.getTimeout())
+						onlineTimer = time.NewTimer(connectionTimeout)
 						firstTimeout = false
 					}
 
@@ -273,12 +277,15 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 							// Only reschedule services without address
 							// assignments.
 
-							h.handler.UnassignAll(h.poolid, hostid)
+							err := h.handler.UnassignAll(h.poolid, hostid)
+							if err != nil {
+								logger.WithError(err).Warn("Got an error while unassigning services.")
+							}
 
 							count := DeleteHostStatesWhen(h.conn, h.poolid, hostid, func(s *State) bool {
 								return s.DesiredState == service.SVCStop || !s.Static
 							})
-							logger.WithField("unscheduled", count).Warn("Host is experiencing an outage.  Cleaned up orphaned nodes")
+							logger.WithField("unscheduled", count).WithField("connection_timeout", connectionTimeout).Warn("Host is experiencing an outage.  Cleaned up orphaned nodes.")
 
 							// To prevent a tight loop, wait for something to
 							// happen.
