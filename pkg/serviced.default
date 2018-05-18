@@ -282,3 +282,6 @@
 
 # Set if running in gcloud; currently causes gcloud ssh tool to be used during attach and logs
 # SERVICED_GCLOUD=false
+
+# Should the master run the ZooKeeper ISVC, default to true. Only set if running ZK elsewhere
+# SERVICED_START_ZK=true

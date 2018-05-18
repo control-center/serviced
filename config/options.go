@@ -127,6 +127,7 @@ type Options struct {
 	StorageMinimumFreeSpace    string            // The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
 	BackupEstimatedCompression float64           // Best guess for tgz compression ratio (uncompressed size / compressed size) used to determine whether sufficient disk space is available for taking a backup
 	BackupMinOverhead          string            // Warn user if estimated backup size would leave less than this amount of space free
+	StartZK                    bool  //Should ZooKeeper ISVC be started
 }
 
 // GetOptions returns a COPY of the global options struct

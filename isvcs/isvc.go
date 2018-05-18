@@ -60,7 +60,7 @@ func PreInit() error {
 	return nil
 }
 
-func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
+func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker, startZK bool) {
 	if err := PreInit(); err != nil {
 		log.WithFields(logrus.Fields{
 			"isvc": "PreInit",
@@ -84,11 +84,13 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			"isvc": "elasticsearch-logstash",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
-	zookeeper.docker = dockerAPI
-	if err := Mgr.Register(zookeeper); err != nil {
-		log.WithFields(logrus.Fields{
-			"isvc": "zookeeper",
-		}).WithError(err).Fatal("Unable to register internal service")
+	if startZK {
+		zookeeper.docker = dockerAPI
+		if err := Mgr.Register(zookeeper); err != nil {
+			log.WithFields(logrus.Fields{
+				"isvc": "zookeeper",
+			}).WithError(err).Fatal("Unable to register internal service")
+		}
 	}
 	logstash.docker = dockerAPI
 	if err := Mgr.Register(logstash); err != nil {
