@@ -84,13 +84,17 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			"isvc": "elasticsearch-logstash",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
-	if startZK {
-		zookeeper.docker = dockerAPI
-		if err := Mgr.Register(zookeeper); err != nil {
-			log.WithFields(logrus.Fields{
-				"isvc": "zookeeper",
-			}).WithError(err).Fatal("Unable to register internal service")
-		}
+	zookeeper.docker = dockerAPI
+	if !startZK {
+		// Don't start the ZK process but keep the container so that
+		// healtchecks for the ZK cluster are reported.
+		zookeeper.Command = func() string { return "sleep infinity" }
+		zookeeper.PortBindings = []portBinding{}
+	}
+	if err := Mgr.Register(zookeeper); err != nil {
+		log.WithFields(logrus.Fields{
+			"isvc": "zookeeper",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	logstash.docker = dockerAPI
 	if err := Mgr.Register(logstash); err != nil {
