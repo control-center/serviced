@@ -15,55 +15,69 @@ package isvcs
 
 var opentsdb *IService
 
-func initOTSDB() {
+func initOTSDB(bigtable bool) {
 	var err error
+	var portBindings []portBinding
+
 	command := `cd /opt/zenoss && exec supervisord -n -c /opt/zenoss/etc/supervisor.conf`
 	opentsdbPortBinding := portBinding{
 		HostIp:         "0.0.0.0",
 		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_4242_HOSTIP",
 		HostPort:       4242,
 	}
+	portBindings = append(portBindings, opentsdbPortBinding)
 	metricConsumerPortBinding := portBinding{
 		HostIp:         "0.0.0.0",
 		HostIpOverride: "", // metric-consumer should always be open
 		HostPort:       8443,
 	}
+	portBindings = append(portBindings, metricConsumerPortBinding)
 	metricConsumerAdminPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_58443_HOSTIP",
 		HostPort:       58443,
 	}
+	portBindings = append(portBindings, metricConsumerAdminPortBinding)
 	centralQueryPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_8888_HOSTIP",
 		HostPort:       8888,
 	}
+	portBindings = append(portBindings, centralQueryPortBinding)
 	centralQueryAdminPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_58888_HOSTIP",
 		HostPort:       58888,
 	}
+	portBindings = append(portBindings, centralQueryAdminPortBinding)
 	hbasePortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_9090_HOSTIP",
 		HostPort:       9090,
 	}
+	if !bigtable{
+		portBindings = append(portBindings, hbasePortBinding)
+	}
 
+	volumes := map[string]string{}
+	if !bigtable{
+		volumes = map[string]string{"hbase": "/opt/zenoss/var/hbase"}
+	}
+	otsdbImage := IMAGE_REPO
+	otsdbTag := IMAGE_TAG
+    if bigtable {
+        otsdbImage = OTSDB_BT_REPO
+        otsdbTag = OTSDB_BT_TAG
+    }
 	opentsdb, err = NewIService(
 		IServiceDefinition{
 			ID:      OpentsdbISVC.ID,
 			Name:    "opentsdb",
-			Repo:    IMAGE_REPO,
-			Tag:     IMAGE_TAG,
+			Repo:    otsdbImage,
+			Tag:     otsdbTag,
 			Command: func() string { return command },
-			PortBindings: []portBinding{
-				opentsdbPortBinding,
-				metricConsumerPortBinding,
-				metricConsumerAdminPortBinding,
-				centralQueryPortBinding,
-				centralQueryAdminPortBinding,
-				hbasePortBinding},
-			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
+			PortBindings: portBindings,
+			Volumes: volumes,
 		})
 	if err != nil {
 		log.WithError(err).Fatal("Unable to initialize opentsdb internal service container")
