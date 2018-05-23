@@ -170,7 +170,8 @@ func (d *daemon) getEsClusterName(name string) string {
 func (d *daemon) startISVCS() {
 	options := config.GetOptions()
 	startZK := options.StartZK
-	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker, startZK)
+	bigtable := options.GCloud
+	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker, startZK, bigtable)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	servicedClusterName := d.getEsClusterName("elasticsearch-serviced")
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", servicedClusterName); err != nil {

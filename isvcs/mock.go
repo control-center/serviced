@@ -963,9 +963,9 @@ func init() {
 	}
 }
 
-func InitAllIsvcs() {
+func InitAllIsvcs(bigtable bool) {
 	initZK()
-	initOTSDB()
+	initOTSDB(bigtable)
 	initLogstash()
 	initElasticSearch()
 	initDockerRegistry()

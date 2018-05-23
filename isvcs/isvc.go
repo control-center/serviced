@@ -37,6 +37,8 @@ const (
 	IMAGE_TAG     = "v61"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG  = "v10"
+	OTSDB_BT_REPO = "zenoss/isvcs-metrics-bigtable"
+	OTSDB_BT_TAG  = "v1"
 )
 
 type IServiceHealthResult struct {
@@ -47,9 +49,9 @@ type IServiceHealthResult struct {
 }
 
 //
-func PreInit() error {
+func PreInit(bigtable bool) error {
 	// Setup the initial Isvcs
-	InitAllIsvcs()
+	InitAllIsvcs(bigtable)
 
 	// Set the environment map.
 	if err := setIsvcsEnv(); err != nil {
@@ -60,8 +62,8 @@ func PreInit() error {
 	return nil
 }
 
-func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker, startZK bool) {
-	if err := PreInit(); err != nil {
+func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker, startZK bool, bigtable bool) {
+	if err := PreInit(bigtable); err != nil {
 		log.WithFields(logrus.Fields{
 			"isvc": "PreInit",
 		}).WithError(err).Fatal("Unable to initialize ISVCS")
@@ -123,7 +125,7 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 }
 
 func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
-	if err := PreInit(); err != nil {
+	if err := PreInit(false); err != nil {
 		log.WithFields(logrus.Fields{
 			"isvc": "PreInit",
 		}).WithError(err).Fatal("Unable to initialize ISVCS")
