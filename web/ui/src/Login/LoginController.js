@@ -12,6 +12,7 @@
         }
 
         if (utils.useAuth0()) {
+            disableLoginButton();
             authService.auth0login();
         }
 

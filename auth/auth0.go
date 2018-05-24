@@ -22,7 +22,7 @@ type jwtAuth0Claims struct {
 	ExpiresAt int64    `json:"exp,omitempty"`
 	Audience  []string `json:"aud,omitempty"`
 	Groups    []string `json:"https://zenoss.com/groups,omitempty"`
-	Subject   string   `json:"sub, omitempty"`
+	Subject   string   `json:"sub,omitempty"`
 }
 
 func (t *jwtAuth0Claims) Valid() error {
@@ -64,6 +64,8 @@ func (t *jwtAuth0Claims) Expiration() int64 {
 func (t *jwtAuth0Claims) User() string {
 	// Auth0 returns username in the subj field in the form <source>|<username>.
 	// Strip off the source and only return the username.
+	// Per review comment, there may be two '|' characters in some cases. We are
+	// using the last field, which should be the username.
 	fields := strings.Split(t.Subject, "|")
 	return fields[len(fields)-1]
 }
@@ -146,7 +148,6 @@ func getPemCert(token *jwt.Token) ([]byte, error) {
 }
 
 func getRSAPublicKey(token *jwt.Token) (*rsa.PublicKey, error) {
-	//glog.V(0).Info("getRSAPublicKey() entry")
 	certBytes, err := getPemCert(token)
 	if err != nil {
 		glog.Warning("error getting Pem Cert from auth0: ", err)
