@@ -155,6 +155,11 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
 		cli.StringFlag{"backup-min-overhead", defaultOps.BackupMinOverhead, "Minimum free space to allow when calculating backup estimates"},
 		cli.Float64Flag{"backup-estimated-compression", defaultOps.BackupEstimatedCompression, "Estimate of compression rate to use when calculating backup estimates"},
+		cli.StringFlag{"auth0-domain", defaultOps.Auth0Domain, "Domain configured for tenant in Auth0. Ref: https://auth0.com/docs/getting-started/the-basics#domain"},
+		cli.StringFlag{"auth0-audience", defaultOps.Auth0Audience, "Audience configured for application (?) in Auth0."},
+		cli.StringFlag{"auth0-group", defaultOps.Auth0Group, "Group configured for application in Auth0"},
+		cli.StringFlag{"auth0-client-id", defaultOps.Auth0ClientID, "Client ID of Auth0 application"},
+		cli.StringFlag{"auth0-scope", defaultOps.Auth0Scope, "Scope to request in Auth0"},
 	}
 
 	c.initVersion()
@@ -302,6 +307,11 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		StorageMinimumFreeSpace:    ctx.GlobalString("storage-min-free"),
 		BackupEstimatedCompression: ctx.Float64("backup-estimated-compression"),
 		BackupMinOverhead:          ctx.String("backup-min-overhead"),
+		Auth0Domain:                ctx.String("auth0-domain"),
+		Auth0Audience:              ctx.String("auth0-audience"),
+		Auth0Group:                 ctx.String("auth0-group"),
+		Auth0ClientID:              ctx.String("auth0-client-id"),
+		Auth0Scope:                 ctx.String("auth0-scope"),
 	}
 
 	// Long story, but due to the way codegangsta handles bools and the way we start system services vs

@@ -501,6 +501,9 @@
                 requestObj = {
                     method: method,
                     url: url,
+                    headers: {
+                        'Authorization': "Bearer " + window.sessionStorage.getItem("auth0AccessToken")
+                    },
                     data: payload
                 };
 

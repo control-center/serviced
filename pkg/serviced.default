@@ -288,3 +288,18 @@
 
 # Should metrics be stored in bigtable, opentsdb.conf for ISVCs needs to be updated if set to true
 # SERVICED_BIGTABLE_METRICS=false
+
+# Domain configured for tenant in Auth0. Ref: https://auth0.com/docs/getting-started/the-basics#domain
+# SERVICED_AUTH0_DOMAIN=
+
+# 'API Audience' configured in API object in Auth0 (https://manage/auth0.com/#/apis)
+# SERVICED_AUTH0_AUDIENCE=
+
+# Group membership required for access via Auth0
+# SERVICED_AUTH0_GROUP=
+
+# Scope required for access via Auth0
+# SERVICED_AUTH0_SCOPE=
+
+# Client ID for Auth0 application object (https://manage.auth0.com/#/applications)
+# SERVICED_AUTH0_CLIENT_ID=

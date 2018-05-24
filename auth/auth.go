@@ -55,12 +55,18 @@ var (
 	ErrBadToken = errors.New("Could not extract token")
 	// ErrRestTokenExpired is thrown when an rest token is expired
 	ErrRestTokenExpired = errors.New("Rest token expired")
-	// ErrBadRestToken is throwbn when the rest token cant be extracted or parsed
+	// ErrBadRestToken is thrown when the rest token cant be extracted or parsed
 	ErrBadRestToken = errors.New("Invalid rest token")
 	// ErrRestTokenBadSig is thrown when a rest token has a bad signature
 	ErrRestTokenBadSig = errors.New("Rest token signature cannot be verified")
 	// ErrSSHFailed is thrown when we can't ssh to a remote host to register keys
 	ErrSSHFailed = errors.New("Unable to make an ssh connection to host")
+	// ErrRestTokenExpired is thrown when an rest token is expired
+	ErrAuth0TokenExpired = errors.New("auth0 token expired")
+	// ErrAuth0TokenBadIssuer is thrown when the issuer claim in an auth0 token does not match the value configured in the API
+	ErrAuth0TokenBadIssuer = errors.New("auth0 token issuer does not match value configured in API")
+	// ErrAuth0TokenBadAudience is thrown when the audience claim in an auth0 token does not match the value of the target API
+	ErrAuth0TokenBadAudience = errors.New("auth0 token audience does not match the target API")
 
 	log = logging.PackageLogger()
 )

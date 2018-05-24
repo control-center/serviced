@@ -34,6 +34,7 @@ import (
 
 const sessionCookie = "ZCPToken"
 const usernameCookie = "ZUsername"
+const auth0TokenCookie = "auth0AccessToken"
 
 var adminGroup = "sudo"
 
@@ -146,15 +147,80 @@ func loginWithTokenOK(r *rest.Request, token string) bool {
 	}
 }
 
-func loginOK(r *rest.Request) bool {
+func loginWithAuth0TokenOK(r *rest.Request, token string) (auth.Auth0Token, bool) {
+	auth0Token, err := auth.ParseAuth0Token(token)
+	if err != nil {
+		msg := "Unable to parse auth0 rest token"
+		plog.WithError(err).WithField("url", r.URL.String()).Debug(msg)
+		return nil, false
+	} else {
+		if !auth0Token.HasAdminAccess() {
+			msg := "Could not login with auth0 rest token. Insufficient permissions."
+			plog.WithField("url", r.URL.String()).Debug(msg)
+			return nil, false
+		} else {
+			return auth0Token, true
+		}
+	}
+}
+
+func loginWithAuth0CookieOk(r *rest.Request) bool {
+	cookie, err := r.Request.Cookie(auth0TokenCookie)
+	if err != nil {
+		glog.V(1).Info("Error getting cookie ", err)
+		return false
+	}
+	token := cookie.Value
+	_, result := loginWithAuth0TokenOK(r, token)
+	return result
+}
+
+func loginOK(w *rest.ResponseWriter, r *rest.Request) bool {
 	token, tErr := auth.ExtractRestToken(r.Request)
 	if tErr != nil { // There is a token in the header but we could not extract it
 		msg := "Unable to extract auth token from header"
 		plog.WithError(tErr).WithField("url", r.URL.String()).Debug(msg)
 		return false
-	} else if token != "" {
-		return loginWithTokenOK(r, token)
+	} else if token != "null" && token != "" {
+		// try Auth0 login first. If that fails, try token login
+		if parsed, ok := loginWithAuth0TokenOK(r, token); ok {
+			// Set cookie with token, so api calls can work.
+			// Secure and HttpOnly flags are important to mitigate CSRF/XSRF attack risk.
+			exp := parsed.Expiration()
+			expireTime := time.Unix(exp, 0)
+
+			http.SetCookie(
+				w.ResponseWriter,
+				&http.Cookie{
+					Name:     auth0TokenCookie,
+					Value:    token,
+					Path:     "/",
+					Expires:  expireTime,
+					Secure:   true,
+					HttpOnly: true,
+				})
+
+			// not setting secure, httponly on name cookie - this should be for display only
+			http.SetCookie(
+				w.ResponseWriter,
+				&http.Cookie{
+					Name:     usernameCookie,
+					Value:    parsed.User(),
+					Path:     "/",
+					Expires:  expireTime,
+					Secure:   false,
+					HttpOnly: false,
+				})
+			return true
+		}
+		if loginWithTokenOK(r, token) {
+			return true
+		}
+		return false
 	} else {
+		if loginWithAuth0CookieOk(r) {
+			return true
+		}
 		return loginWithBasicAuthOK(r)
 	}
 }
@@ -163,31 +229,38 @@ func loginOK(r *rest.Request) bool {
  * Perform logout, return JSON
  */
 func restLogout(w *rest.ResponseWriter, r *rest.Request) {
+	glog.V(2).Info("restLogout() called.")
+	// Read session cookie and delete session
 	cookie, err := r.Request.Cookie(sessionCookie)
 	if err != nil {
-		glog.V(1).Info("Unable to read session cookie")
+		glog.V(2).Info("Unable to read session cookie")
 	} else {
 		deleteSessionT(cookie.Value)
-		glog.V(1).Infof("Deleted session %s for explicit logout", cookie.Value)
+		glog.V(2).Infof("Deleted session %s for explicit logout", cookie.Value)
 	}
 
+	// Blank out all login cookies
+	writeBlankCookie(w, r, auth0TokenCookie)
+	writeBlankCookie(w, r, sessionCookie)
+	writeBlankCookie(w, r, usernameCookie)
+	w.WriteJson(&simpleResponse{"Logged out", loginLink()})
+}
+
+func writeBlankCookie(w *rest.ResponseWriter, r *rest.Request, cname string) {
 	http.SetCookie(
 		w.ResponseWriter,
 		&http.Cookie{
-			Name:   sessionCookie,
+			Name:   cname,
 			Value:  "",
 			Path:   "/",
 			MaxAge: -1,
 		})
-
-	w.WriteJson(&simpleResponse{"Logged out", loginLink()})
 }
 
 func restLoginWithBasicAuth(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	creds := login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
-		glog.V(1).Info("Unable to decode login payload ", err)
 		restBadRequest(w, err)
 		return
 	}
@@ -232,7 +305,6 @@ func restLoginWithBasicAuth(w *rest.ResponseWriter, r *rest.Request, ctx *reques
 				Path:   "/",
 				MaxAge: 0,
 			})
-
 		w.WriteJson(&simpleResponse{"Accepted", homeLink()})
 	} else {
 		writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
@@ -249,7 +321,9 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		plog.WithError(tErr).Warning(msg)
 		writeJSON(w, &simpleResponse{msg, loginLink()}, http.StatusUnauthorized)
 	} else if token != "" {
-		if loginWithTokenOK(r, token) {
+		if _, ok := loginWithAuth0TokenOK(r, token); ok {
+			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
+		} else if loginWithTokenOK(r, token) {
 			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
 		} else {
 			writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
@@ -260,15 +334,14 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 }
 
 func validateLogin(creds *login, client master.ClientInterface) bool {
+	glog.V(1).Info("validateLogin()")
 	systemUser, err := client.GetSystemUser()
 	if err == nil && creds.Username == systemUser.Name {
 		validated := cpValidateLogin(creds, client)
-
 		if validated {
 			return validated
 		}
 	}
-
 	return pamValidateLogin(creds, adminGroup)
 }
 
@@ -285,7 +358,6 @@ func cpValidateLogin(creds *login, client master.ClientInterface) bool {
 	if err != nil {
 		glog.Errorf("Unable to validate credentials %s", err)
 	}
-
 	return result
 }
 

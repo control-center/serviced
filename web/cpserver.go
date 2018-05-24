@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
@@ -57,6 +58,14 @@ type ServiceConfig struct {
 	uiConfig    UIConfig
 	facade      facade.FacadeInterface
 	vhostmgr    *VHostManager
+}
+
+// Auth0Config contains configuration values pertaining to Auth0
+type Auth0Config struct {
+	Auth0ClientID string
+	Auth0Domain   string
+	Auth0Audience string
+	Auth0Scope    string
 }
 
 var defaultHostAlias string
@@ -256,7 +265,7 @@ func routeToInternalServiceProxy(path string, target string, requiresAuth bool, 
 	// Wrap the normal http.Handler in a rest.handlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
 		// All proxied requests should be authenticated first
-		if requiresAuth && !loginOK(r) {
+		if requiresAuth && !loginOK(w, r) {
 			restUnauthorized(w)
 			return
 		}
@@ -287,7 +296,7 @@ func (sc *ServiceConfig) unAuthorizedClient(realfunc handlerClientFunc) handlerF
 
 func (sc *ServiceConfig) authorizedClient(realfunc handlerClientFunc) handlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
-		if !loginOK(r) {
+		if !loginOK(w, r) {
 			restUnauthorized(w)
 			return
 		}
@@ -346,7 +355,7 @@ func (sc *ServiceConfig) newRequestHandler(check checkFunc, realfunc ctxhandlerF
 
 func (sc *ServiceConfig) checkAuth(realfunc ctxhandlerFunc) handlerFunc {
 	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
-		if !loginOK(r) {
+		if !loginOK(w, r) {
 			restUnauthorized(w)
 			return false
 		}
@@ -505,4 +514,18 @@ func (sc *ServiceConfig) startVHostListener(shutdown <-chan interface{}) {
 			}
 		}
 	}()
+}
+
+// Get Auth0 Config info for UI
+func restGetAuth0Config(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	opts := config.GetOptions()
+	auth0Config := Auth0Config{
+		Auth0Scope:    opts.Auth0Scope,
+		Auth0ClientID: opts.Auth0ClientID,
+		Auth0Audience: opts.Auth0Audience,
+		Auth0Domain:   opts.Auth0Domain,
+	}
+	w.Write([]byte("var Auth0Config = "))
+	w.WriteJson(auth0Config)
+	w.Write([]byte(";\n"))
 }
