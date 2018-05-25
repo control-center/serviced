@@ -16,11 +16,11 @@ package master
 import (
 	"time"
 
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
@@ -50,6 +50,9 @@ type ClientInterface interface {
 
 	// AddHost adds a Host
 	AddHost(h host.Host) ([]byte, error)
+
+	// AddHostPrivate adds a Host and registers it with a shared key
+	AddHostPrivate(h host.Host) ([]byte, error)
 
 	// UpdateHost updates a host
 	UpdateHost(h host.Host) error
@@ -242,7 +245,7 @@ type ClientInterface interface {
 	// Assignment management functions
 
 	// Remove the IP assignment of a service's endpoints
-	RemoveIPs(args []string)  error
+	RemoveIPs(args []string) error
 
 	// Assigns an IP address to a services that haven't IP Assignment by default
 	SetIPs(request addressassignment.AssignmentRequest) error

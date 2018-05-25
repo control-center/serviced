@@ -23,8 +23,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/logging"
+	"github.com/control-center/serviced/utils"
 )
 
 var (

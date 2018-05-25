@@ -43,6 +43,29 @@ func (_m *ClientInterface) AddHost(h host.Host) ([]byte, error) {
 	return r0, r1
 }
 
+// AddHostPrivate provides a mock function with given fields: h
+func (_m *ClientInterface) AddHostPrivate(h host.Host) ([]byte, error) {
+	ret := _m.Called(h)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(host.Host) []byte); ok {
+		r0 = rf(h)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(host.Host) error); ok {
+		r1 = rf(h)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // AddPublicEndpointPort provides a mock function with given fields: serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart
 func (_m *ClientInterface) AddPublicEndpointPort(serviceid string, endpointName string, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 	ret := _m.Called(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
@@ -421,11 +444,11 @@ func (_m *ClientInterface) GetEvaluatedService(serviceID string, instanceID int)
 	}
 
 	var r2 string
-        if rf, ok := ret.Get(1).(func(string, int) string); ok {
-                r2 = rf(serviceID, instanceID)
-        } else {
-                r2 = ret.Get(1).(string)
-        }
+	if rf, ok := ret.Get(1).(func(string, int) string); ok {
+		r2 = rf(serviceID, instanceID)
+	} else {
+		r2 = ret.Get(1).(string)
+	}
 
 	var r3 error
 	if rf, ok := ret.Get(2).(func(string, int) error); ok {
@@ -1161,7 +1184,7 @@ func (_m *ClientInterface) WaitService(serviceIDs []string, state service.Desire
 
 func (_m *ClientInterface) RemoveIPs(args []string) error {
 	ret := _m.Called(args)
-        var r0 error
+	var r0 error
 	if rf, ok := ret.Get(0).(func([]string) error); ok {
 		r0 = rf(args)
 	} else {
@@ -1171,16 +1194,16 @@ func (_m *ClientInterface) RemoveIPs(args []string) error {
 }
 
 func (_m *ClientInterface) SetIPs(assignmentRequest addressassignment.AssignmentRequest) error {
-        ret := _m.Called(assignmentRequest)
+	ret := _m.Called(assignmentRequest)
 
-        var r0 error
-        if rf, ok := ret.Get(0).(func(addressassignment.AssignmentRequest) error); ok {
-                r0 = rf(assignmentRequest)
-        } else {
-                r0 = ret.Error(0)
-        }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(addressassignment.AssignmentRequest) error); ok {
+		r0 = rf(assignmentRequest)
+	} else {
+		r0 = ret.Error(0)
+	}
 
-        return r0
+	return r0
 }
 
 var _ master.ClientInterface = (*ClientInterface)(nil)

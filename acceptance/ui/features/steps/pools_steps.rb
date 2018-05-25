@@ -121,13 +121,21 @@ Then (/^I should see the Interface field$/) do
     CC.UI.PoolsPage.interface_input.visible?
 end
 
-Then (/^the "(.*)" button should (not )?be disabled$/) do |name, enabled|
+def checkEnabledState(name, enabled)
+    # Called in a retryMethod loop to catch StaleElementException from angular.
     button = find(:xpath, "//button[@name='" + getTableValue(name) + "']")
     if (enabled)
         not button.has_css?('disabled')
     else
         button.has_css?('disabled')
     end
+end
+
+Then (/^the "(.*)" button should (not )?be disabled$/) do |name, enabled|
+    # because of the way angular works, the element can be refreshed betwen the
+    # find and the has_css check.  Retry this up to 3 times, with a 1 second
+    # pause between attempts.
+    retryMethod( method( :checkEnabledState ), 3, 1, name, enabled)
 end
 
 def visitPoolsPage()

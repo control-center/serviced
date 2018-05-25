@@ -279,3 +279,6 @@
 
 # The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
 # SERVICED_STORAGE_MIN_FREE=3G
+
+# Set if running in gcloud; currently causes gcloud ssh tool to be used during attach and logs
+# SERVICED_GCLOUD=false

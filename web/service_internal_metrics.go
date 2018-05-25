@@ -31,7 +31,7 @@ var internalCounterStats = []string{
 }
 var internalGaugeStats = []string{
 	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.open_connections.tcp", "net.open_connections.udp",
-	"net.open_connections.raw", "docker.usageinkernelmode", "docker.usageinusermode", 
+	"net.open_connections.raw", "docker.usageinkernelmode", "docker.usageinusermode",
 }
 var internalTenantStats = []string{
 	"storage.filesystem.available.%s", "storage.filesystem.used.%s",
@@ -112,7 +112,7 @@ func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
 			Type:        "area",
 			Tags:        tags,
 			YAxisLabel:  "% CPU Used",
-			Description: "% CPU Used Over Last Hour",
+			Description: "% CPU Used",
 			MinY:        &zero,
 			Range:       &tRange,
 			Units:       "Percent",
@@ -150,7 +150,7 @@ func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
 			Type:        "area",
 			Tags:        tags,
 			YAxisLabel:  "bytes",
-			Description: "Memory Used Over Last Hour",
+			Description: "Memory Used",
 			MinY:        &zero,
 			Range:       &tRange,
 			Units:       "Bytes",
@@ -245,7 +245,7 @@ func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
 			Tags:        tags,
 			YAxisLabel:  "Bps",
 			Range:       &tRange,
-			Description: "Bytes per second over last hour",
+			Description: "Bytes per second",
 			MinY:        &zero,
 			Units:       "Bytes per second",
 			Base:        1024,
@@ -303,7 +303,7 @@ func getTenantGraphConfigs(tenantID string) []domain.GraphConfig {
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			YAxisLabel:  "bytes",
-			Description: "DFS Used Over Last Hour",
+			Description: "DFS Used",
 			MinY:        &zero,
 			Range:       &tRange,
 			Units:       "Bytes",

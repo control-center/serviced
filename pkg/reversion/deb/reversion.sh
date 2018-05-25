@@ -5,8 +5,8 @@ then
 	echo "ERROR: incorrect number of arguments"
 	echo "USAGE: $0 sourceRepoClass sourceVersion targetVersion"
 	echo ""
-	echo "Example - reversion unstable 1.0.0-2113~trusty to 1.0.0rc1:"
-	echo "$0 unstable 1.0.0-2113~trusty 1.0.0rc1"
+	echo "Example - reversion unstable 1.0.0-2113~xenial to 1.0.0rc1:"
+	echo "$0 unstable 1.0.0-2113~xenial  1.0.0rc1"
 	echo ""
 	echo "Example - reversion testing 1.0.0rc1 to 1.0.0:"
 	echo "$0 testing 1.0.0rc1 1.0.0"
@@ -22,7 +22,7 @@ set -x
 
 # Add the source repo
 REPO_URL=http://${SOURCE_CLASS}.zenoss.io/apt/ubuntu
-sh -c 'echo "deb [ arch=amd64 ] '$REPO_URL' trusty universe" \
+sh -c 'echo "deb [ arch=amd64 ] '$REPO_URL' xenial universe" \
   > /etc/apt/sources.list.d/zenoss.list'
 apt-get update
 

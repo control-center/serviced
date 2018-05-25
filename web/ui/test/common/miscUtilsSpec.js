@@ -293,6 +293,25 @@ describe('miscUtils', function() {
         });
     });
 
+    describe("validateRAMThresholdLimit", function(){
+        it("Validates an empty string", function(){
+            expect(miscUtils.validateRAMThresholdLimit("")).toBe(null);
+        });
+        it("Validate value", function(){
+            expect(miscUtils.validateRAMThresholdLimit("50")).toBe(null);
+        });
+        it("Invalidates percentages greater than 100", function(){
+            expect(miscUtils.validateRAMThresholdLimit("101")).toEqual("RAM threshold Limit cannot exceed 100%");
+        });
+        it("Invalidates -1", function(){
+            expect(miscUtils.validateRAMThresholdLimit("-1")).toEqual("RAM threshold Limit cannot be less than 0%");
+        });
+        it("Invalidates missing or invalid unit", function(){
+            expect(miscUtils.validateRAMThresholdLimit("missval")).toBe("Invalid RAM threshold Limit value");
+        });
+
+    });
+
     describe("validatePortNumber", function(){        
         it("Invalidates undefined ports", function() {
             expect(miscUtils.validatePortNumber(undefined, $translate)).toEqual("port_number_invalid");

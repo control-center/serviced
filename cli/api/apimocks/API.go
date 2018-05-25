@@ -53,6 +53,38 @@ func (_m *API) AddHost(_a0 api.HostConfig) (*host.Host, []byte, error) {
 	return r0, r1, r2
 }
 
+// AddHostPrivate provides a mock function with given fields: _a0
+func (_m *API) AddHostPrivate(_a0 api.HostConfig) (*host.Host, []byte, error) {
+	ret := _m.Called(_a0)
+
+	var r0 *host.Host
+	if rf, ok := ret.Get(0).(func(api.HostConfig) *host.Host); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*host.Host)
+		}
+	}
+
+	var r1 []byte
+	if rf, ok := ret.Get(1).(func(api.HostConfig) []byte); ok {
+		r1 = rf(_a0)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
+		}
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(api.HostConfig) error); ok {
+		r2 = rf(_a0)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // AddPublicEndpointPort provides a mock function with given fields: serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart
 func (_m *API) AddPublicEndpointPort(serviceid string, endpointName string, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 	ret := _m.Called(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
@@ -233,16 +265,16 @@ func (_m *API) RemoveIP(args []string) error {
 
 // SetIP provides a mock function with given fields: _a0
 func (_m *API) SetIP(_a0 api.IPConfig) error {
-        ret := _m.Called(_a0)
+	ret := _m.Called(_a0)
 
-        var r0 error
-        if rf, ok := ret.Get(0).(func(api.IPConfig) error); ok {
-                r0 = rf(_a0)
-        } else {
-                r0 = ret.Error(0)
-        }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(api.IPConfig) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
 
-        return r0
+	return r0
 }
 
 // AttachServiceInstance provides a mock function with given fields: serviceID, instanceID, command, args

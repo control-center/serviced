@@ -154,7 +154,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
 		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
 		cli.StringFlag{"backup-min-overhead", defaultOps.BackupMinOverhead, "Minimum free space to allow when calculating backup estimates"},
-		cli.Float64Flag{"backup-estimated-compression", defaultOps.BackupEstimatedCompression, "Estimate of compression rate to use when caluclating backup estimates"},
+		cli.Float64Flag{"backup-estimated-compression", defaultOps.BackupEstimatedCompression, "Estimate of compression rate to use when calculating backup estimates"},
 	}
 
 	c.initVersion()
@@ -220,6 +220,7 @@ func (c *ServicedCli) exit(code int) error {
 // command line overrides.
 func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options {
 	options := config.Options{
+		GCloud:                     cfg.BoolVal("GCLOUD", false),
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
 		Endpoint:                   ctx.GlobalString("endpoint"),

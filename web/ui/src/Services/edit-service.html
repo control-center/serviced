@@ -27,6 +27,16 @@
 </div>
 
 <div class="form-group">
+  <label for="new_service_ram_reached">
+      <span translate>label_ram_threshold</span>: <span class="warningMessage">*</span>
+  </label>
+  <div class="input-group input-group-sm col-xs-2">
+      <input class="form-control" id="new_service_ram_threshold" type="number" min="0" max="100" placeholder="90" ng-model="model.RAMThreshold">
+      <span class="input-group-addon">%</span>
+  </div>
+</div>
+
+<div class="form-group">
     <label for="edit_service_pool">
         <span translate>label_service_pool</span>: <span class="warningMessage">*</span>
     </label>

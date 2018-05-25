@@ -58,6 +58,7 @@ type RunningService struct {
 	ParentServiceID   string
 	InstanceID        int
 	RAMCommitment     utils.EngNotation
+	RAMThreshold      uint
 	CPUCommitment     uint64
 	HostPolicy        servicedefinition.HostPolicy
 	MonitoringProfile domain.MonitorProfile
@@ -134,10 +135,10 @@ type RestoreRequest struct {
 }
 
 type BackupEstimate struct {
-	AvailableBytes   uint64
-	EstimatedBytes   uint64
-	AvailableString  string
-	EstimatedString  string
-	BackupPath	 string
-	AllowBackup      bool
+	AvailableBytes  uint64
+	EstimatedBytes  uint64
+	AvailableString string
+	EstimatedString string
+	BackupPath      string
+	AllowBackup     bool
 }

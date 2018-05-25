@@ -837,7 +837,7 @@ func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *d
 	w.Write([]byte(logs))
 }
 
-func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request) {
 	w.WriteJson(servicedversion.GetVersion())
 }
 

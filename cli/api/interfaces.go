@@ -25,8 +25,8 @@ import (
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/script"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -42,6 +42,7 @@ type API interface {
 	GetHost(string) (*host.Host, error)
 	GetHostMap() (map[string]host.Host, error)
 	AddHost(HostConfig) (*host.Host, []byte, error)
+	AddHostPrivate(HostConfig) (*host.Host, []byte, error)
 	RemoveHost(string) error
 	GetHostMemory(string) (*metrics.MemoryUsageStats, error)
 	SetHostMemory(HostUpdateConfig) error

@@ -179,8 +179,9 @@ go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
 
 #
 # BUILD_VERSION is the version of the serviced-build docker image
+# If the build image version changes, then zenoss-deploy needs to be updated
 #
-BUILD_VERSION = v1.3.0-8
+BUILD_VERSION = v1.6.0-0
 export BUILD_VERSION
 
 #
@@ -292,23 +293,12 @@ $(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:servic
 $(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
 
 #-----------------------------------#
-# Install targets (distro-specific) #
+# Install targets                   #
 #-----------------------------------#
-_PKG = $(strip $(PKG))
-ifeq "$(_PKG)" "deb"
-install_DIRS += $(_DESTDIR)$(sysconfdir)/init
-endif
-ifeq "$(_PKG)" "rpm"
 install_DIRS += $(_DESTDIR)/usr/lib/systemd/system
-endif
 
-ifeq "$(_PKG)" "deb"
-$(_DESTDIR)$(sysconfdir)/init_TARGETS      = pkg/serviced.upstart:serviced.conf
-endif
-ifeq "$(_PKG)" "rpm"
 $(_DESTDIR)/usr/lib/systemd/system_TARGETS = pkg/serviced.service:serviced.service
 $(_DESTDIR)$(prefix)/bin_TARGETS		  += pkg/serviced-systemd.sh:serviced-systemd.sh
-endif
 
 #-----------------------------------#
 # Install targets (service defs)    #
