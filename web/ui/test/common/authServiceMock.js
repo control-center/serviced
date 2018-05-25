@@ -6,6 +6,7 @@ var authServiceMock = function($provide) {
     $provide.factory('authService', function() {
         var mock = jasmine.createSpyObj('authService', [
             'setLoggedIn',
+            'auth0Login',
             'login',
             'logout',
             'checkLogin'
