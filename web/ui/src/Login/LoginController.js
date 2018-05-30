@@ -4,11 +4,16 @@
 (function() {
     'use strict';
 
-    controlplane.controller("LoginController", ["$scope", "$location", "$notification", "$translate", "authService", "resourcesFactory",
-    function($scope, $location, $notification, $translate, authService, resourcesFactory) {
+    controlplane.controller("LoginController", ["$scope", "$location", "$notification", "$translate", "authService", "resourcesFactory", "miscUtils",
+    function($scope, $location, $notification, $translate, authService, resourcesFactory, utils) {
 
         if(navigator.userAgent.indexOf("Trident") > -1 && navigator.userAgent.indexOf("MSIE 7.0") > -1){
             $notification.create("", $translate.instant("compatibility_mode"), $("#loginNotifications")).warning(false);
+        }
+
+        if (utils.useAuth0()) {
+            disableLoginButton();
+            authService.auth0login();
         }
 
         enableLoginButton();

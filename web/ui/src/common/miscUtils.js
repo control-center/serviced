@@ -8,8 +8,8 @@
     var TIMEMULTIPLIER = {w: 6048e5, d: 864e5, h: 36e5, m: 6e4, s: 1e3,  ms: 1};
 
     angular.module("miscUtils", [])
-    .factory("miscUtils", [ "$parse", "log",
-    function($parse, log){
+    .factory("miscUtils", [ "$parse", "log", "angularAuth0",
+    function($parse, log, angularAuth0){
 
         //polyfill endsWith so phantomjs won't complain :/
         if (!String.prototype.endsWith) {
@@ -93,12 +93,39 @@
 
         var utils = {
 
+            useAuth0: function() {
+                if (window.Auth0Config.Auth0Scope && window.Auth0Config.Auth0Audience && window.Auth0Config.Auth0Domain && window.Auth0Config.Auth0ClientID) {
+                    return true;
+                }
+                return false;
+            },
+
             // TODO - use angular $location object to make this testable
             unauthorized: function() {
                 log.error('You don\'t appear to be logged in.');
-                // show the login page and then refresh so we lose any incorrect state. CC-279
-                window.location.href = "/#/login";
-                window.location.reload();
+
+                if (utils.useAuth0()) {
+                    // first, see if we already have a login session
+                    angularAuth0.checkSession({}, (err, result) => {
+                        if (err) {
+                            // no session or some other error - kick back to auth0 login
+                            console.error("auth0 checkSession() returned an error: " + JSON.stringify(err));
+                            angularAuth0.authorize();
+                        } else if (result && result.idToken && result.accessToken) {
+                            // we got a session refresh from auth0. Update the token cookies and carry on.
+                            window.sessionStorage.setItem("auth0AccessToken", result.accessToken);
+                            window.sessionStorage.setItem("auth0IDToken", result.idToken);
+                        } else {
+                            // refresh worked, but didn't have tokens. Kick back to login screen.
+                            window.location.href = "/#/login";
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    // show the login page and then refresh so we lose any incorrect state. CC-279
+                    window.location.href = "/#/login";
+                    window.location.reload();
+                }
             },
 
             indentClass: function(depth) {

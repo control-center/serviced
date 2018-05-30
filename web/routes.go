@@ -83,7 +83,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.checkAuth(restAddVirtualHost))},
 		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.checkAuth(restRemoveVirtualHost))},
 		rest.Route{"POST", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.checkAuth(restVirtualHostEnable))},
-
 		// Services (Endpoint Ports)
 		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/ports/*portname", gz(sc.checkAuth(restAddPort))},
 		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/ports/*portname", gz(sc.checkAuth(restRemovePort))},
@@ -112,6 +111,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", gz(favIcon)},
+		rest.Route{"GET", "/static/globals.js", sc.noAuth(restGetAuth0Config)},
 		rest.Route{"GET", "/static/*resource", gz(staticData)},
 		rest.Route{"GET", "/licenses.html", gz(licenses)},
 

@@ -17,6 +17,7 @@ describe('servicesFactory', function() {
         module(resourcesFactoryMock);
         module(instancesFactoryMock);
         module(translateMock);
+        module(angularAuth0Mock);
     });
 
     var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus, instancesFactory;
@@ -252,6 +253,7 @@ describe('servicesFactory Service object', function() {
         module(resourcesFactoryMock);
         module(instancesFactoryMock);
         module(translateMock);
+        module(angularAuth0Mock);
     });
 
     var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus;

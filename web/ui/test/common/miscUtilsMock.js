@@ -20,6 +20,7 @@ var miscUtilsMock = function($provide) {
             'isIpAddress',
             'needsHostAlias',
             'parseEngineeringNotation',
+            'useAuth0',
             'validateRAMLimit',
             'validatePortNumber'
         ]);
