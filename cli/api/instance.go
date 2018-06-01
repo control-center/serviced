@@ -144,11 +144,11 @@ func (a *api) SendDockerAction(serviceID string, instanceID int, action string, 
 }
 
 func (a *api) getSSHCommand(location *service.LocationInstance) ([]string, error) {
-	if config.GetOptions().GCloud {
-		host, err := a.GetHost(location.HostID)
-		if err != nil {
-			return nil, err
-		}
+	host, err := a.GetHost(location.HostID)
+	if err != nil {
+		return nil, err
+	}
+	if config.GetOptions().GCloud && len(host.NatIP) <= 0 {
 		cmd := []string{
 			"/usr/bin/gcloud",
 			"compute",
@@ -160,9 +160,13 @@ func (a *api) getSSHCommand(location *service.LocationInstance) ([]string, error
 		}
 		return cmd, nil
 	} else {
+		hostname := location.HostIP
+		if len(host.NatIP) > 0 {
+			hostname = host.NatIP
+		}
 		cmd := []string{
 			"/usr/bin/ssh",
-			"-t", location.HostIP, "--",
+			"-t", hostname, "--",
 		}
 		return cmd, nil
 	}

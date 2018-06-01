@@ -155,6 +155,10 @@ func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 		return nil, nil, err
 	}
 
+	if len(config.Nat.Host) > 0 {
+		h.NatIP = config.Nat.Host
+	}
+
 	masterClient, err := a.connectMaster()
 	if err != nil {
 		return nil, nil, err

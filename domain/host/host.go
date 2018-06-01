@@ -75,6 +75,7 @@ type Host struct {
 	}
 	MonitoringProfile domain.MonitorProfile
 	datastore.VersionedEntity
+	NatIP string
 }
 
 //ReadHost is a minimal representation of hosts.
