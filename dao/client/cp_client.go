@@ -154,6 +154,10 @@ func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected
 	return s.rpcClient.Call("ControlCenter.StopService", request, affected, 0)
 }
 
+func (s *ControlClient) PauseService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlCenter.PauseService", request, affected, 0)
+}
+
 func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *int) (err error) {
 	return s.rpcClient.Call("ControlCenter.WaitService", request, nil, 0)
 }

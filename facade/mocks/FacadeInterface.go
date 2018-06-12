@@ -1564,6 +1564,28 @@ func (_m *FacadeInterface) StopService(ctx datastore.Context, request dao.Schedu
 	return r0, r1
 }
 
+//PauseService provides a mock function with given fields: ctx, ScheduleServiceRequest
+func (_m *FacadeInterface) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+
+	ret := _m.Called(ctx, request)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.ScheduleServiceRequest) int); ok {
+		r0 = rf(ctx, request)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.ScheduleServiceRequest) error); ok {
+		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(0)
+	}
+
+	return r0, r1
+}
+
 //RestartService provides a mock function with given fields: ctx, ScheduleServiceRequest
 func (_m *FacadeInterface) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 

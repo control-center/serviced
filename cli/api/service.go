@@ -382,6 +382,18 @@ func (a *api) StopService(config SchedulerConfig) (int, error) {
 	return affected, err
 }
 
+// PauseService stops a service
+func (a *api) PauseService(config SchedulerConfig) (int, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return 0, err
+	}
+
+	var affected int
+	err = client.PauseService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous}, &affected)
+	return affected, err
+}
+
 // AssignIP assigns an IP address to a service
 func (a *api) AssignIP(config IPConfig) error {
 	client, err := a.connectDAO()
