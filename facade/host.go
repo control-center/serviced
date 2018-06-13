@@ -140,6 +140,12 @@ func (f *Facade) addHostPrivate(ctx datastore.Context, entity *host.Host) ([]byt
 		return nil, fmt.Errorf("error creating host, pool %s does not exists", entity.PoolID)
 	}
 
+	existingHost, _ := f.GetHost(ctx, entity.ID)
+	if existingHost != nil && existingHost.PoolID == entity.PoolID && existingHost.IPAddr == entity.IPAddr {
+		//same host is being added again, ignore the add and return the pem block
+		return f.useCommonKey(ctx, entity)
+	}
+
 	// verify that there are no virtual IPs with the given host IP(s)
 	for _, ip := range entity.IPs {
 		if exists, err := f.HasIP(ctx, pool.ID, ip.IPAddress); err != nil {
