@@ -217,4 +217,6 @@ type FacadeInterface interface {
 	RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
 	StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
+
+	PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 }

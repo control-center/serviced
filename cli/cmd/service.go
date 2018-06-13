@@ -200,6 +200,22 @@ func (c *ServicedCli) initService() {
 					},
 				},
 			}, {
+				Name:         "pause",
+				Usage:        "Pauses one or more services",
+				Description:  "serviced service pause SERVICEID ...",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServicePause,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{
+						Name:  "auto-launch",
+						Usage: "Recursively schedules child services",
+					},
+					cli.BoolFlag{
+						Name:  "sync, s",
+						Usage: "Schedules services synchronously",
+					},
+				},
+			},{
 				Name:         "shell",
 				Usage:        "Starts a service instance",
 				Description:  "serviced service shell SERVICEID [COMMAND]",
@@ -1273,6 +1289,35 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		fmt.Println("Service(s) already stopped")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to stop\n", affected)
+	}
+}
+
+// serviced service pause SERVICEID
+func (c *ServicedCli) cmdServicePause(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "pause")
+		return
+	}
+
+	serviceIDs := make([]string, len(args))
+	for i, svcID := range args {
+		svc, _, err := c.searchForService(svcID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		serviceIDs[i] = svc.ID
+	}
+
+	if affected, err := c.driver.PauseService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if affected == 0 {
+		fmt.Println("Service(s) already paused")
+	} else {
+		fmt.Printf("Scheduled %d service(s) to pause\n", affected)
 	}
 }
 

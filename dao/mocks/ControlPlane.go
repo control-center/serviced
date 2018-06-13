@@ -179,6 +179,18 @@ func (_m *ControlPlane) StopService(request dao.ScheduleServiceRequest, affected
 
 	return r0
 }
+func (_m *ControlPlane) PauseService(request dao.ScheduleServiceRequest, affected *int) error {
+	ret := _m.Called(request, affected)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.ScheduleServiceRequest, *int) error); ok {
+		r0 = rf(request, affected)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ControlPlane) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
 	ret := _m.Called(request, unused)
 
