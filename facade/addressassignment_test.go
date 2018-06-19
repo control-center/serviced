@@ -62,7 +62,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 				Application: "ep1",
 				Purpose:     "export",
 				Protocol:    "tcp",
-				Port:		 1234,
+				PortNumber:  1234,
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     1234,
 					Protocol: "tcp",
