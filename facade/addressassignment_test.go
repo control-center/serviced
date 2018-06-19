@@ -62,6 +62,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 				Application: "ep1",
 				Purpose:     "export",
 				Protocol:    "tcp",
+				PortNumber:  1234,
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     1234,
 					Protocol: "tcp",
@@ -86,6 +87,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 				Application: "ep2a",
 				Purpose:     "export",
 				Protocol:    "tcp",
+				PortNumber:   2123,
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     2123,
 					Protocol: "tcp",
@@ -96,6 +98,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 				Application: "ep2b",
 				Purpose:     "export",
 				Protocol:    "tcp",
+				PortNumber:   2124,
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     2124,
 					Protocol: "tcp",

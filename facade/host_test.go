@@ -132,7 +132,7 @@ func (s *FacadeIntegrationTest) Test_HostGetKey(t *C) {
 	t.Assert(err, IsNil)
 }
 
-func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
+	func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
 	//create pool for testing
 	resoucePool := pool.New("poolid")
 	s.Facade.AddResourcePool(s.CTX, resoucePool)
@@ -188,6 +188,8 @@ func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
 		service.ServiceEndpoint{},
 	}
 	s1.Endpoints[0].Name = "name"
+	s1.Endpoints[0].Application = "Application"
+	s1.Endpoints[0].Purpose = "export"
 	s1.Endpoints[0].AddressConfig = servicedefinition.AddressResourceConfig{Port: 123, Protocol: "tcp"}
 	aa := addressassignment.AddressAssignment{ID: "id", HostID: h1.ID}
 	s1.Endpoints[0].SetAssignment(aa)
