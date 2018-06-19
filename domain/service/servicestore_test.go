@@ -459,11 +459,13 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 				Name: "application1",
 				Purpose:     "export",
 				Protocol:    "tcp",
+				PortNumber:  12345,
 			}, {
 				Application: "application2",
 				Name: "application2",
 				Purpose:     "import",
 				Protocol:    "udp",
+				PortNumber:  23456,
 			},
 		},
 	}
@@ -479,8 +481,9 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 			{
 				Name: "application1",
 				Application: "application1",
-				Purpose:     "importall",
+				Purpose:     "import_all",
 				Protocol:    "tcp",
+				PortNumber:  44321,
 			},
 		},
 	}
