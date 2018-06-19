@@ -175,6 +175,7 @@ var endpoint_testcases = []struct {
 		Endpoints: []ServiceEndpoint{
 			BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
+					Name:        "something",
 					Purpose:     "something",
 					Protocol:    "tcp",
 					PortNumber:  1000,
