@@ -61,8 +61,12 @@ func (endpoint ServiceEndpoint) ValidEntity() error {
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("endpoint.Name", endpoint.Name))
 	violations.Add(validation.StringIn(endpoint.Purpose, "export", "import", "import_all"))
-	violations.Add(validation.StringIn(endpoint.Protocol, "tcp", "udp"))
-	violations.Add(validation.ValidPort(int(endpoint.PortNumber)))
+
+	if endpoint.Protocol != "" {
+		violations.Add(validation.StringIn(endpoint.Protocol, "tcp", "udp"))
+		violations.Add(validation.ValidPort(int(endpoint.PortNumber)))
+	}
+
 	violations.Add(validation.NotEmpty("endpoint.Application", endpoint.Application))
 	violations.Add(validation.NotEmpty("endpoint.ApplicationTemplate", endpoint.ApplicationTemplate))
 
