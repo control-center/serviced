@@ -46,8 +46,28 @@ func (s *Service) ValidEntity() error {
 	// validate the monitoring profile
 	vErr.Add(s.MonitoringProfile.ValidEntity())
 
+	for _, ep := range s.Endpoints {
+		vErr.Add(ep.ValidEntity())
+	}
+
 	if vErr.HasError() {
 		return vErr
+	}
+	return nil
+}
+
+// ValidEntity ensures the enpoint has valid values, does not check vhosts, public ports and assignments
+func (endpoint ServiceEndpoint) ValidEntity() error {
+	violations := validation.NewValidationError()
+	violations.Add(validation.NotEmpty("endpoint.Name", endpoint.Name))
+	violations.Add(validation.StringIn(endpoint.Purpose, "export", "import", "import_all"))
+	violations.Add(validation.StringIn(endpoint.Protocol, "tcp", "udp"))
+	violations.Add(validation.ValidPort(int(endpoint.PortNumber)))
+	violations.Add(validation.NotEmpty("endpoint.Application", endpoint.Application))
+	violations.Add(validation.NotEmpty("endpoint.ApplicationTemplate", endpoint.ApplicationTemplate))
+
+	if violations.HasError() {
+		return violations
 	}
 	return nil
 }
