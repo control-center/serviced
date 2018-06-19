@@ -456,10 +456,12 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 		Endpoints: []ServiceEndpoint{
 			{
 				Application: "application1",
+				Name: "application1",
 				Purpose:     "export",
 				Protocol:    "tcp",
 			}, {
 				Application: "application2",
+				Name: "application2",
 				Purpose:     "import",
 				Protocol:    "udp",
 			},
@@ -475,6 +477,7 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 		DeploymentID:    "deployment_id",
 		Endpoints: []ServiceEndpoint{
 			{
+				Name: "application1",
 				Application: "application1",
 				Purpose:     "importall",
 				Protocol:    "tcp",

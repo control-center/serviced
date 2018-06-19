@@ -176,7 +176,7 @@ var endpoint_testcases = []struct {
 			BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
 					Name:        "something",
-					Purpose:     "something",
+					Purpose:     "export",
 					Protocol:    "tcp",
 					PortNumber:  1000,
 					Application: "{{(context (parent .)).RemoteHost}}_collector",
