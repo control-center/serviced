@@ -563,7 +563,6 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 				Protocol:    "tcp",
 				PortNumber:  8081,
 				Application: "websvc",
-				ApplicationTemplate: "websvc",
 				Purpose:     "import",
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     8081,

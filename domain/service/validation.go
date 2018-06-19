@@ -68,7 +68,6 @@ func (endpoint ServiceEndpoint) ValidEntity() error {
 	}
 
 	violations.Add(validation.NotEmpty("endpoint.Application", endpoint.Application))
-	violations.Add(validation.NotEmpty("endpoint.ApplicationTemplate", endpoint.ApplicationTemplate))
 
 	if violations.HasError() {
 		return violations
