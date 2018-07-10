@@ -107,7 +107,7 @@
 
                 if (utils.useAuth0()) {
                     if (AUTH_IN_PROGRESS) {
-                        console.info("unauthorized(): auth in progress - do nothing.")
+                        console.info("unauthorized(): auth in progress - do nothing.");
                     } else {
                         AUTH_IN_PROGRESS = true;
                         // first, see if we already have a login session
