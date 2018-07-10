@@ -6,6 +6,7 @@
     "use strict";
 
     var TIMEMULTIPLIER = {w: 6048e5, d: 864e5, h: 36e5, m: 6e4, s: 1e3,  ms: 1};
+    var AUTH_IN_PROGRESS = false;
 
     angular.module("miscUtils", [])
     .factory("miscUtils", [ "$parse", "log", "angularAuth0",
@@ -105,22 +106,32 @@
                 log.error('You don\'t appear to be logged in.');
 
                 if (utils.useAuth0()) {
-                    // first, see if we already have a login session
-                    angularAuth0.checkSession({}, (err, result) => {
-                        if (err) {
-                            // no session or some other error - kick back to auth0 login
-                            console.error("auth0 checkSession() returned an error: " + JSON.stringify(err));
-                            angularAuth0.authorize();
-                        } else if (result && result.idToken && result.accessToken) {
-                            // we got a session refresh from auth0. Update the token cookies and carry on.
-                            window.sessionStorage.setItem("auth0AccessToken", result.accessToken);
-                            window.sessionStorage.setItem("auth0IDToken", result.idToken);
-                        } else {
-                            // refresh worked, but didn't have tokens. Kick back to login screen.
-                            window.location.href = "/#/login";
-                            window.location.reload();
-                        }
-                    });
+                    if (AUTH_IN_PROGRESS) {
+                        console.info("unauthorized(): auth in progress - do nothing.");
+                    } else {
+                        AUTH_IN_PROGRESS = true;
+                        // first, see if we already have a login session
+                        console.info("calling Auth0 checkSession()");
+                        angularAuth0.checkSession({}, (err, result) => {
+                            if (err) {
+                                // no session or some other error - kick back to auth0 login
+                                console.error("auth0 checkSession() returned an error: " + JSON.stringify(err));
+                                AUTH_IN_PROGRESS = false;
+                                console.info("calling Auth0 authorize()");
+                                angularAuth0.authorize();
+                            } else if (result && result.idToken && result.accessToken) {
+                                // we got a session refresh from auth0. Update the token cookies and carry on.
+                                window.sessionStorage.setItem("auth0AccessToken", result.accessToken);
+                                window.sessionStorage.setItem("auth0IDToken", result.idToken);
+                                AUTH_IN_PROGRESS = false;
+                            } else {
+                                // refresh worked, but didn't have tokens. Kick back to login screen.
+                                AUTH_IN_PROGRESS = false;
+                                window.location.href = "/#/login";
+                                window.location.reload();
+                            }
+                        });
+                    }
                 } else {
                     // show the login page and then refresh so we lose any incorrect state. CC-279
                     window.location.href = "/#/login";
