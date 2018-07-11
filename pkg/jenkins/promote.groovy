@@ -21,7 +21,18 @@ pipeline {
     stages {
         stage('Fetch source artifact') {
             steps {
-                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: 'gs://cz-${params.SOURCE_MATURITY}/serviced/${params.SOURCE_VERSION}/*.deb', localDirectory: '.')
+                echo "SOURCE_MATURITY = ${params.SOURCE_MATURITY}"
+                echo "SOURCE_VERSION = ${params.SOURCE_VERSION}"
+                echo "TARGET_MATURITY = ${params.TARGET_MATURITY}"
+                echo "TARGET_MATURITY = ${params.TARGET_MATURITY}"
+
+                script {
+                    uri = "gs://cz-${params.SOURCE_MATURITY}/serviced/${params.SOURCE_VERSION}/*.deb"
+                }
+
+                echo "URL is $uri"
+
+                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: $uri, localDirectory: '.')
             }
         }
 
@@ -37,7 +48,7 @@ pipeline {
                     dpkg -f "${FILE}"
                     
                     # run reversion
-                    dpkg-reversion -b -v ${params.TARGET_VERSION} "${FILE}"
+                    deb-reversion -b -v ${params.TARGET_VERSION} "${FILE}"
 
                     echo -e "\\nMetadata for the source package"
                     serviced_${params.TARGET_VERSION}_amd64.deb 

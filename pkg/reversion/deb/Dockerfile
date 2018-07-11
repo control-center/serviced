@@ -6,5 +6,5 @@ MAINTAINER Zenoss <dev@zenoss.com>
 
 # devscripts contains the deb-reversion script
 RUN apt-get update -y
-RUN apt-get install -y wget devscripts
+RUN apt-get install -y wget devscripts sudo
 
