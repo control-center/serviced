@@ -20,7 +20,7 @@ pipeline {
     stages {
         stage('Fetch source artifact') {
             steps {
-                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: 'gs://cz-${SOURCE_MATURITY}/serviced/${SOURCE_VERSION}/*.deb')
+                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: 'gs://cz-${params.SOURCE_MATURITY}/serviced/${params.SOURCE_VERSION}/*.deb')
             }
         }
 
@@ -36,17 +36,17 @@ pipeline {
                     dpkg -f "${FILE}"
                     
                     # run reversion
-                    dpkg-reversion -b -v ${TARGET_VERSION} "${FILE}"
+                    dpkg-reversion -b -v ${params.TARGET_VERSION} "${FILE}"
 
                     echo -e "\\nMetadata for the source package"
-                    serviced_${TARGET_VERSION}_amd64.deb 
+                    serviced_${params.TARGET_VERSION}_amd64.deb 
                 """
             }
         }
 
         stage('Promote artifact') {
             steps {
-                googleStorageUpload(credentialsId: 'zing-registry-188222', bucket: 'gs://cz-${TARGET_MATURITY}/serviced', pattern:'output/*.deb', pathPrefix: 'output')
+                googleStorageUpload(credentialsId: 'zing-registry-188222', bucket: 'gs://cz-${params.TARGET_MATURITY}/serviced', pattern:'output/*.deb', pathPrefix: 'output')
             }
         }
     }
