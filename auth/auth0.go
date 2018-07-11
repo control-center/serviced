@@ -221,3 +221,12 @@ func ParseAuth0Token(token string) (Auth0Token, error) {
 	glog.Warning("ParseAuth0Token: ", ErrIdentityTokenInvalid)
 	return nil, ErrIdentityTokenInvalid
 }
+
+func Auth0IsConfigured() bool {
+	opts := config.GetOptions()
+	return len(opts.Auth0Scope) > 0 &&
+		len(opts.Auth0ClientID) > 0 &&
+		len(opts.Auth0Audience) > 0 &&
+		len(opts.Auth0Domain) > 0 &&
+		len(opts.Auth0Group) > 0
+}

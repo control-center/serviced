@@ -181,8 +181,15 @@ func loginOK(w *rest.ResponseWriter, r *rest.Request) bool {
 		msg := "Unable to extract auth token from header"
 		plog.WithError(tErr).WithField("url", r.URL.String()).Debug(msg)
 		return false
-	} else if token != "null" && token != "" {
-		// try Auth0 login first. If that fails, try token login
+	}
+	if auth.Auth0IsConfigured() {
+		return auth0LoginOK(w, r, token)
+	}
+	return basicAuthLoginOK(w, r, token)
+}
+
+func auth0LoginOK(w *rest.ResponseWriter, r *rest.Request, token string) bool {
+	if token != "null" && token != "" {
 		if parsed, ok := loginWithAuth0TokenOK(r, token); ok {
 			// Set cookie with token, so api calls can work.
 			// Secure and HttpOnly flags are important to mitigate CSRF/XSRF attack risk.
@@ -213,14 +220,16 @@ func loginOK(w *rest.ResponseWriter, r *rest.Request) bool {
 				})
 			return true
 		}
-		if loginWithTokenOK(r, token) {
-			return true
-		}
 		return false
 	} else {
-		if loginWithAuth0CookieOk(r) {
-			return true
-		}
+		return loginWithAuth0CookieOk(r)
+	}
+}
+
+func basicAuthLoginOK(w *rest.ResponseWriter, r *rest.Request, token string) bool {
+	if token != "null" && token != "" {
+		return loginWithTokenOK(r, token)
+	} else {
 		return loginWithBasicAuthOK(r)
 	}
 }
@@ -321,13 +330,16 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		plog.WithError(tErr).Warning(msg)
 		writeJSON(w, &simpleResponse{msg, loginLink()}, http.StatusUnauthorized)
 	} else if token != "" {
-		if _, ok := loginWithAuth0TokenOK(r, token); ok {
-			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
+		if auth.Auth0IsConfigured() {
+			if _, ok := loginWithAuth0TokenOK(r, token); ok {
+				w.WriteJson(&simpleResponse{"Accepted", homeLink()})
+				return
+			}
 		} else if loginWithTokenOK(r, token) {
 			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
-		} else {
-			writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
+			return
 		}
+		writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
 	} else {
 		restLoginWithBasicAuth(w, r, ctx)
 	}
