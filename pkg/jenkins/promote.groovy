@@ -20,7 +20,7 @@ pipeline {
     stages {
         stage('Fetch source artifact') {
             steps {
-                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: 'gs://cz-${params.SOURCE_MATURITY}/serviced/${params.SOURCE_VERSION}/*.deb')
+                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: 'gs://cz-${params.SOURCE_MATURITY}/serviced/${params.SOURCE_VERSION}/*.deb', localDirectory: '.')
             }
         }
 
