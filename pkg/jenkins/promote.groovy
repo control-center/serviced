@@ -7,6 +7,7 @@ pipeline {
     agent {
         dockerfile {
             dir 'pkg/reversion/deb'
+            label 'docker-centos-7-4'
         }
     }
 
