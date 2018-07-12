@@ -64,7 +64,7 @@ pipeline {
         }
     }
     post {
-        cleanup {
+        always {
             sh """
                 sudo rm -rf output
                 sudo rm -rf input
