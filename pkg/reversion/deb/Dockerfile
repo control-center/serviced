@@ -4,6 +4,8 @@
 FROM ubuntu:16.04
 MAINTAINER Zenoss <dev@zenoss.com>
 
+USER root
+
 # devscripts contains the deb-reversion script
 RUN apt-get update -y
 RUN apt-get install -y wget devscripts sudo
