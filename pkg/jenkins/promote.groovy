@@ -5,17 +5,15 @@
 pipeline {
 
     agent {
-        dockerfile {
-            dir 'pkg/reversion/deb'
-            label 'docker-centos-7-4'
-        }
+        label 'docker-centos-7-4'
     }
 
     parameters {
         choice(name: 'SOURCE_MATURITY', choices: 'unstable\ntesting', description: 'The maturity for packages to be promoted.')
         string(name: 'SOURCE_VERSION', description: 'If looking for unstable, provide the build number of the desired \'merge-start\' serviced build.')
         choice(name: 'TARGET_MATURITY', choices: 'testing\nstable', description: 'The maturity for promoted packages.')
-        string(name: 'TARGET_VERSION', description: '')
+        string(name: 'TARGET_VERSION', description: 'e.g. 1.6.0')
+        string(name: 'RELEASE_PHASE', description: 'RC1, RC2, etc.')
     }
 
     stages {
@@ -27,7 +25,11 @@ pipeline {
                 echo "TARGET_MATURITY = ${params.TARGET_MATURITY}"
 
                 script {
-                    uri = "gs://cz-${params.SOURCE_MATURITY}/serviced/${params.SOURCE_VERSION}/*.deb"
+                    path = ${params.SOURCE_VERSION}
+                    if (${params.SOURCE_MATURITY} == 'unstable') {
+                        path = ${params.SOURCE_VERSION} + "/*"
+                    }
+                    uri = "gs://cz-${params.SOURCE_MATURITY}/serviced/${path}.deb"
                 }
 
                 echo "URL is $uri"
@@ -39,27 +41,34 @@ pipeline {
         stage('Repackage') {
             steps {
                 sh """
-                    rm -rf output
-                    ls -la
-                    dpkg-deb -f *.deb
-                    FILE=`ls *.deb`
-                    mkdir -p output && cd output
-                    echo -e "\\nMetadata for the source package"
-                    dpkg -f "${FILE}"
+                    docker build -t zenoss/serviced-promote:deb $WORKSPACE/pkg/reversion/deb
+    
+                    sudo mkdir -p input
+                    sudo mv *.deb input
+                    sudo mkdir -p output
                     
-                    # run reversion
-                    deb-reversion -b -v ${params.TARGET_VERSION} "${FILE}"
-
-                    echo -e "\\nMetadata for the source package"
-                    serviced_${params.TARGET_VERSION}_amd64.deb 
+                    docker run -v $WORKSPACE/output:/output -v $WORKSPACE/input:/input zenoss/serviced-promote:deb \
+                        bash -c "cd /output && deb-reversion -b -v ${params.TARGET_VERSION}-${param.RELEASE_PHASE} /input/$debfile"
                 """
             }
         }
 
         stage('Promote artifact') {
             steps {
-                googleStorageUpload(credentialsId: 'zing-registry-188222', bucket: 'gs://cz-${params.TARGET_MATURITY}/serviced', pattern:'output/*.deb', pathPrefix: 'output')
+                script {
+                    uri = "gs://cz-${params.TARGET_MATURITY}/serviced/"
+                }
+
+                googleStorageUpload(credentialsId: 'zing-registry-188222', bucket: "${uri}", pattern:'output/*.deb', pathPrefix: 'output')
             }
+        }
+    }
+    post {
+        cleanup {
+            sh """
+                sudo rm -rf output
+                sudo rm -rf input
+            """
         }
     }
 
