@@ -9,11 +9,13 @@ pipeline {
     }
 
     parameters {
-        choice(name: 'SOURCE_MATURITY', choices: 'unstable\ntesting', description: 'The maturity for packages to be promoted.')
-        string(name: 'SOURCE_VERSION', description: 'If looking for unstable, provide the build number of the desired \'merge-start\' serviced build.')
-        choice(name: 'TARGET_MATURITY', choices: 'testing\nstable', description: 'The maturity for promoted packages.')
+        choice(name: 'SOURCE_MATURITY', choices: 'unstable\ntesting', description: 'The maturity for the package to be promoted.')
+        string(name: 'SOURCE_VERSION', description: 'If looking for unstable, provide the build number from the \'merge-start\' \
+                serviced build for the artifact. For testing, provide just the version part of the deb filename: \
+                The <b>1.6.0-RC0</b> from serviced_1.6.0-RC0_amd64.deb')
+        choice(name: 'TARGET_MATURITY', choices: 'testing\nstable', description: 'The maturity for the promoted package.')
         string(name: 'TARGET_VERSION', description: 'e.g. 1.6.0')
-        string(name: 'RELEASE_PHASE', description: 'RC1, RC2, etc.')
+        string(name: 'RELEASE_PHASE', description: 'RC1, RC2, for testing. 0, 1, x for stable.')
     }
 
     stages {
