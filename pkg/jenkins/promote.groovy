@@ -22,7 +22,7 @@ pipeline {
                 echo "SOURCE_MATURITY = ${params.SOURCE_MATURITY}"
                 echo "SOURCE_VERSION = ${params.SOURCE_VERSION}"
                 echo "TARGET_MATURITY = ${params.TARGET_MATURITY}"
-                echo "TARGET_MATURITY = ${params.TARGET_MATURITY}"
+                echo "TARGET_VERSION = ${params.TARGET_VERSION}"
 
                 script {
                     path = "${params.SOURCE_VERSION}"
@@ -40,7 +40,7 @@ pipeline {
                 }
             }
         }
-        stage('Repackage') {
+        stage('Repackage and upload') {
             steps {
                 script {
                     try  {
@@ -54,6 +54,8 @@ pipeline {
                             docker run -v $WORKSPACE/output:/output -v $WORKSPACE/input:/input zenoss/serviced-promote:deb \
                                 bash -c "cd /output && deb-reversion -b -v ${params.TARGET_VERSION}-${params.RELEASE_PHASE} /input/$debfile"
                         """
+                        uri = "gs://cz-${params.TARGET_MATURITY}/serviced/"
+                        googleStorageUpload(credentialsId: 'zing-registry-188222', bucket: "${uri}", pattern:'output/*.deb', pathPrefix: 'output')
                     }
                     finally {
                         sh """
@@ -62,15 +64,6 @@ pipeline {
                         """
                     }
                 }
-            }
-        }
-        stage('Promote artifact') {
-            steps {
-                script {
-                    uri = "gs://cz-${params.TARGET_MATURITY}/serviced/"
-                }
-
-                googleStorageUpload(credentialsId: 'zing-registry-188222', bucket: "${uri}", pattern:'output/*.deb', pathPrefix: 'output')
             }
         }
     }
