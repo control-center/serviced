@@ -26,15 +26,17 @@ pipeline {
 
                 script {
                     path = "serviced_${params.SOURCE_VERSION}_amd64"
+                    pathPrefix = "serviced"
                     if ("${params.SOURCE_MATURITY}" == 'unstable') {
                         path = "${params.SOURCE_VERSION}/*"
+                        pathPrefix = "serviced/${params.SOURCE_VERSION}"
                     }
                     uri = "gs://cz-${params.SOURCE_MATURITY}/serviced/${path}.deb"
                 }
 
                 echo "URL is ${uri}"
 
-                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: "${uri}", localDirectory: '.', pathPrefix: "serviced/${params.SOURCE_VERSION}")
+                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: "${uri}", localDirectory: '.', pathPrefix: "${pathPrefix}")
                 script {
                     debfile = sh returnStdout: true, script: "ls *.deb"
                 }
