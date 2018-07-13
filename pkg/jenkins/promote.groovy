@@ -25,7 +25,7 @@ pipeline {
                 echo "TARGET_VERSION = ${params.TARGET_VERSION}"
 
                 script {
-                    path = "${params.SOURCE_VERSION}"
+                    path = "serviced_${params.SOURCE_VERSION}_amd64"
                     if ("${params.SOURCE_MATURITY}" == 'unstable') {
                         path = "${params.SOURCE_VERSION}/*"
                     }
