@@ -25,34 +25,45 @@ pipeline {
                 echo "TARGET_MATURITY = ${params.TARGET_MATURITY}"
 
                 script {
-                    path = ${params.SOURCE_VERSION}
-                    if (${params.SOURCE_MATURITY} == 'unstable') {
-                        path = ${params.SOURCE_VERSION} + "/*"
+                    path = "${params.SOURCE_VERSION}"
+                    if ("${params.SOURCE_MATURITY}" == 'unstable') {
+                        path = "${params.SOURCE_VERSION}/*"
                     }
                     uri = "gs://cz-${params.SOURCE_MATURITY}/serviced/${path}.deb"
                 }
 
-                echo "URL is $uri"
+                echo "URL is ${uri}"
 
-                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: $uri, localDirectory: '.')
+                googleStorageDownload(credentialsId: 'zing-registry-188222', bucketUri: "${uri}", localDirectory: '.', pathPrefix: "serviced/${params.SOURCE_VERSION}")
+                script {
+                    debfile = sh returnStdout: true, script: "ls *.deb"
+                }
             }
         }
-
         stage('Repackage') {
             steps {
-                sh """
-                    docker build -t zenoss/serviced-promote:deb $WORKSPACE/pkg/reversion/deb
-    
-                    sudo mkdir -p input
-                    sudo mv *.deb input
-                    sudo mkdir -p output
-                    
-                    docker run -v $WORKSPACE/output:/output -v $WORKSPACE/input:/input zenoss/serviced-promote:deb \
-                        bash -c "cd /output && deb-reversion -b -v ${params.TARGET_VERSION}-${param.RELEASE_PHASE} /input/$debfile"
-                """
+                script {
+                    try  {
+                        sh """
+                            docker build -t zenoss/serviced-promote:deb $WORKSPACE/pkg/reversion/deb
+            
+                            sudo mkdir -p input
+                            sudo mv *.deb input
+                            sudo mkdir -p output
+                            
+                            docker run -v $WORKSPACE/output:/output -v $WORKSPACE/input:/input zenoss/serviced-promote:deb \
+                                bash -c "cd /output && deb-reversion -b -v ${params.TARGET_VERSION}-${params.RELEASE_PHASE} /input/$debfile"
+                        """
+                    }
+                    finally {
+                        sh """
+                            sudo rm -rf input
+                            sudo rm -rf output
+                        """
+                    }
+                }
             }
         }
-
         stage('Promote artifact') {
             steps {
                 script {
@@ -63,13 +74,4 @@ pipeline {
             }
         }
     }
-    post {
-        always {
-            sh """
-                sudo rm -rf output
-                sudo rm -rf input
-            """
-        }
-    }
-
 }
