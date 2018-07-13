@@ -183,7 +183,11 @@ func loginOK(w *rest.ResponseWriter, r *rest.Request) bool {
 		return false
 	}
 	if auth.Auth0IsConfigured() {
-		return auth0LoginOK(w, r, token)
+		if auth0LoginOK(w, r, token) {
+			return true
+		}
+		// CC-4109: even with auth0 configured, we still need token authentication for REST calls.
+		return loginWithTokenOK(r, token)
 	}
 	return basicAuthLoginOK(w, r, token)
 }
@@ -325,16 +329,15 @@ func restLoginWithBasicAuth(w *rest.ResponseWriter, r *rest.Request, ctx *reques
  */
 func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	token, tErr := auth.ExtractRestToken(r.Request)
+	glog.V(0).Info("restLogin()")
 	if tErr != nil { // There is a token in the header but we could not extract it
 		msg := "Unable to extract auth token from header"
 		plog.WithError(tErr).Warning(msg)
 		writeJSON(w, &simpleResponse{msg, loginLink()}, http.StatusUnauthorized)
 	} else if token != "" {
-		if auth.Auth0IsConfigured() {
-			if _, ok := loginWithAuth0TokenOK(r, token); ok {
-				w.WriteJson(&simpleResponse{"Accepted", homeLink()})
-				return
-			}
+		if _, ok := loginWithAuth0TokenOK(r, token); ok {
+			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
+			return
 		} else if loginWithTokenOK(r, token) {
 			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
 			return
