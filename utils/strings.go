@@ -45,6 +45,20 @@ func StringSliceEquals(lhs []string, rhs []string) bool {
 	return true
 }
 
+// Extract all strings from an array of interfaces. If the input array contains items that are not strings, set the output flag (allConverted) to false.
+func InterfaceArrayToStringArray(inArray []interface{}) ([]string, bool) {
+	var outArray []string
+	allConverted := true
+	for _, item := range inArray {
+		if istr, ok := item.(string); ok {
+			outArray = append(outArray, istr)
+		} else {
+			allConverted = false
+		}
+	}
+	return outArray, allConverted
+}
+
 //StringInSlice test if a string exists in a slice
 func StringInSlice(a string, list []string) bool {
 	for _, b := range list {

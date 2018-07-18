@@ -17,12 +17,31 @@ import (
 )
 
 type jwtAuth0Claims struct {
-	Issuer    string   `json:"iss,omitempty"`
-	IssuedAt  int64    `json:"iat,omitempty"`
-	ExpiresAt int64    `json:"exp,omitempty"`
-	Audience  []string `json:"aud,omitempty"`
-	Groups    []string `json:"https://zenoss.com/groups,omitempty"`
-	Subject   string   `json:"sub,omitempty"`
+	Issuer    string      `json:"iss,omitempty"`
+	IssuedAt  int64       `json:"iat,omitempty"`
+	ExpiresAt int64       `json:"exp,omitempty"`
+	Audience  interface{} `json:"aud,omitempty"`
+	Groups    []string    `json:"https://zenoss.com/groups,omitempty"`
+	Subject   string      `json:"sub,omitempty"`
+}
+
+func (t *jwtAuth0Claims) CheckAudience(expected string) bool {
+	if audstr, ok := t.Audience.(string); ok {
+		return audstr == expected
+	}
+	if audstrary, ok := t.Audience.([]string); ok {
+	    return utils.StringInSlice(expected, audstrary)
+	}
+	if audifrary, ok := t.Audience.([]interface{}); ok {
+		if audstrary, ok := utils.InterfaceArrayToStringArray(audifrary); ok {
+			return utils.StringInSlice(expected, audstrary)
+		}
+	}
+
+	// An unexpected type. We'll get the type name for the error
+	//name := reflect.TypeOf(t.Audience)
+	log.Error("Unexpected Audience type")
+	return false
 }
 
 func (t *jwtAuth0Claims) Valid() error {
@@ -34,9 +53,11 @@ func (t *jwtAuth0Claims) Valid() error {
 	if t.Issuer != expectedIssuer {
 		return ErrAuth0TokenBadIssuer
 	}
-	if !utils.StringInSlice(opts.Auth0Audience, t.Audience) {
+
+	if !t.CheckAudience(opts.Auth0Audience) {
 		return ErrAuth0TokenBadAudience
 	}
+
 	return nil
 }
 
