@@ -15,7 +15,6 @@ pipeline {
                 The <b>1.6.0-RC0</b> from serviced_1.6.0-RC0_amd64.deb')
         choice(name: 'TARGET_MATURITY', choices: 'testing\nstable', description: 'The maturity for the promoted package.')
         string(name: 'TARGET_VERSION', description: 'e.g. 1.6.0')
-        string(name: 'RELEASE_PHASE', description: 'RC1, RC2, for testing. 0, 1, x for stable.')
     }
 
     stages {
@@ -56,7 +55,7 @@ pipeline {
                             sudo mkdir -p output
                             
                             docker run -v $WORKSPACE/output:/output -v $WORKSPACE/input:/input zenoss/serviced-promote:deb \
-                                bash -c "cd /output && deb-reversion -b -v ${params.TARGET_VERSION}-${params.RELEASE_PHASE} /input/$debfile"
+                                bash -c "cd /output && deb-reversion -b -v ${params.TARGET_VERSION}-${BUILD_NUMBER} /input/$debfile"
                         """
                         uri = "gs://cz-${params.TARGET_MATURITY}/serviced/"
                         googleStorageUpload(credentialsId: 'zing-registry-188222', bucket: "${uri}", pattern:'output/*.deb', pathPrefix: 'output')
