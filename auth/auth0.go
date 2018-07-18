@@ -25,22 +25,24 @@ type jwtAuth0Claims struct {
 	Subject   string      `json:"sub,omitempty"`
 }
 
+// Parse the interface{} that populates Audience - we get string from some certs, and an array of strings (which parses as an array of interfaces) from others.
 func (t *jwtAuth0Claims) CheckAudience(expected string) bool {
-	if audstr, ok := t.Audience.(string); ok {
-		return audstr == expected
+	// String
+	if audienceString, ok := t.Audience.(string); ok {
+		return audienceString == expected
 	}
-	if audstrary, ok := t.Audience.([]string); ok {
-	    return utils.StringInSlice(expected, audstrary)
+	// Array of strings - not likely to show up, but here for completeness
+	if audienceStringArray, ok := t.Audience.([]string); ok {
+	    return utils.StringInSlice(expected, audienceStringArray)
 	}
-	if audifrary, ok := t.Audience.([]interface{}); ok {
-		if audstrary, ok := utils.InterfaceArrayToStringArray(audifrary); ok {
-			return utils.StringInSlice(expected, audstrary)
+	// Array of interfaces (which is really an array of strings
+	if audienceIterfaceArray, ok := t.Audience.([]interface{}); ok {
+		// Convert to string array
+		if audienceStringArray, ok := utils.InterfaceArrayToStringArray(audienceIterfaceArray); ok {
+			return utils.StringInSlice(expected, audienceStringArray)
 		}
 	}
-
-	// An unexpected type. We'll get the type name for the error
-	//name := reflect.TypeOf(t.Audience)
-	log.Error("Unexpected Audience type")
+	log.Error("Unexpected type for Audience in JWT claims")
 	return false
 }
 
