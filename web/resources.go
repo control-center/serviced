@@ -103,6 +103,7 @@ func getISVCS() []service.Service {
 	services = append(services, isvcs.OpentsdbISVC)
 	services = append(services, isvcs.DockerRegistryISVC)
 	services = append(services, isvcs.KibanaISVC)
+	services = append(services, isvcs.ApiKeyProxyISVC)
 	return services
 }
 
@@ -116,6 +117,7 @@ func getIRS() []dao.RunningService {
 	services = append(services, isvcs.OpentsdbIRS)
 	services = append(services, isvcs.DockerRegistryIRS)
 	services = append(services, isvcs.KibanaIRS)
+	services = append(services, isvcs.ApiKeyProxyIRS)
 	return services
 }
 

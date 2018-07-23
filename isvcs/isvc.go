@@ -25,6 +25,9 @@ import (
 	"os"
 	"strings"
 	"time"
+	"bytes"
+	"regexp"
+	"os/exec"
 )
 
 var (
@@ -33,12 +36,14 @@ var (
 )
 
 const (
-	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v61"
-	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG  = "v10"
-	OTSDB_BT_REPO = "zenoss/isvcs-metrics-bigtable"
-	OTSDB_BT_TAG  = "v1"
+	IMAGE_REPO          = "zenoss/serviced-isvcs"
+	IMAGE_TAG           = "v61"
+	ZK_IMAGE_REPO       = "zenoss/isvcs-zookeeper"
+	ZK_IMAGE_TAG        = "v10"
+	OTSDB_BT_REPO       = "zenoss/isvcs-metrics-bigtable"
+	OTSDB_BT_TAG        = "v1"
+	API_KEY_PROXY_REPO = "zenosszing/api-key-proxy"
+	API_KEY_PROXY_TAG  = "latest"
 )
 
 type IServiceHealthResult struct {
@@ -122,6 +127,12 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			"isvc": "kibana",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
+	apiKeyProxy.docker = dockerAPI
+	if err := Mgr.Register(apiKeyProxy); err != nil {
+		log.WithFields(logrus.Fields{
+			"isvc": "api-key-proxy",
+		}).WithError(err).Fatal("Unable to register internal service")
+	}
 }
 
 func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
@@ -145,6 +156,36 @@ func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig ma
 	}
 }
 
+// Get the IP of the docker0 interface, which can be used to access the serviced API from inside the container.
+// inspiration: the following is used for the same purpose during deploy/provision:
+// ip addr show docker0 | grep inet | grep -v inet6 | awk '{print $2}' | awk -F / '{print $1}'
+func getDockerIP() string {
+	// Execute 'ip -4 -br addr show docker0'
+	c1 := exec.Command("ip", "-4", "-br", "addr", "show", "docker0")
+	var out bytes.Buffer
+	c1.Stdout = &out
+	err := c1.Run()
+	if err != nil {
+		log.WithField("command", c1).Infof("Error calling command: %s", err)
+		return ""
+	}
+	outstr := out.String()
+	// use a regex to extract the ip address from the result.
+	// We're expecting something that looks like: ###.###.###.###/##
+	// We use a capture group to exclude the trailing /##.
+	re := regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)/\d+`)
+	addr := re.FindStringSubmatch(outstr)
+	if addr != nil && len(addr) > 1 {
+		return addr[1]
+	}
+	log.WithFields(logrus.Fields{"match": addr, "output": outstr,}).Info("Output was not as expected")
+	return ""
+}
+
+func shouldRunApiProxy() bool {
+	return true
+}
+
 // This function sets up key pieces of information for ISVCS in the environment map.
 // (Adapted from the cmd.go cli function of the same name)
 func setIsvcsEnv() error {
@@ -160,6 +201,27 @@ func setIsvcsEnv() error {
 			return err
 		}
 	}
+
+	if shouldRunApiProxy() {
+		// Add variables for api proxy
+		apiIp := getDockerIP()
+		if apiIp == "" {
+			return ErrNoDockerIP
+		}
+		proxyToAddr := fmt.Sprintf("https://%s:%s", apiIp, strings.TrimLeft(options.UIPort, ":"))
+		apiProxyVars := []string{
+			"api-key-proxy:KEYPROXY_PROXY_LISTENER_PORT=" + options.KeyProxyListenPort,
+			"api-key-proxy:KEYPROXY_PROXY_LOCATION_USES_TLS=true",
+			fmt.Sprintf("api-key-proxy:KEYPROXY_ZPROXY_LOCATION=%s", proxyToAddr),
+			fmt.Sprintf("api-key-proxy:KEYPROXY_JSON_SERVER=%s", options.KeyProxyJsonServer),
+		}
+		for _, val := range apiProxyVars {
+			if err := AddEnv(val); err != nil {
+				return err
+			}
+		}
+	}
+	// Add variables specified in options
 	for _, val := range options.IsvcsENV {
 		if err := AddEnv(val); err != nil {
 			return err

@@ -160,6 +160,8 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"auth0-group", defaultOps.Auth0Group, "Group configured for application in Auth0"},
 		cli.StringFlag{"auth0-client-id", defaultOps.Auth0ClientID, "Client ID of Auth0 application"},
 		cli.StringFlag{"auth0-scope", defaultOps.Auth0Scope, "Scope to request in Auth0"},
+		cli.StringFlag{"keyproxy-json-server", defaultOps.KeyProxyJsonServer, "URL for API key server (cc auth token endpoint)"},
+		cli.StringFlag{"keyproxy-listen-port", defaultOps.KeyProxyListenPort, "Port for API key proxy to listen on"},
 	}
 
 	c.initVersion()
@@ -312,6 +314,8 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		Auth0Group:                 ctx.String("auth0-group"),
 		Auth0ClientID:              ctx.String("auth0-client-id"),
 		Auth0Scope:                 ctx.String("auth0-scope"),
+		KeyProxyJsonServer:         ctx.String("keyproxy-json-server"),
+		KeyProxyListenPort:         ctx.String("keyproxy-listen-port"),
 	}
 
 	// Long story, but due to the way codegangsta handles bools and the way we start system services vs

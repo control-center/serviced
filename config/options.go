@@ -134,6 +134,9 @@ type Options struct {
 	Auth0Group                 string            // Group membership required in Auth0 token for login
 	Auth0ClientID              string            // ClientID of Auth0 Application
 	Auth0Scope                 string            // Auth0 Scope for request.
+	KeyProxyJsonServer         string            // Address of api-key-server endpoint for getting CC Access tokens
+	KeyProxyListenPort         string            // Port where api-key-proxy will listen 
+
 }
 
 // GetOptions returns a COPY of the global options struct
