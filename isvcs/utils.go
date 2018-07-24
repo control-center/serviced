@@ -14,12 +14,12 @@
 package isvcs
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"os"
 	"os/exec"
-	"bytes"
 	"regexp"
-	"github.com/Sirupsen/logrus"
 )
 
 var randomSource string
@@ -50,7 +50,6 @@ func uuid() string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
-
 // Get the IP of the docker0 interface, which can be used to access the serviced API from inside the container.
 // inspiration: the following is used for the same purpose during deploy/provision:
 // ip addr show docker0 | grep inet | grep -v inet6 | awk '{print $2}' | awk -F / '{print $1}'
@@ -73,6 +72,6 @@ func getDockerIP() string {
 	if addr != nil && len(addr) > 1 {
 		return addr[1]
 	}
-	log.WithFields(logrus.Fields{"match": addr, "output": outstr,}).Info("Output was not as expected")
+	log.WithFields(logrus.Fields{"match": addr, "output": outstr}).Info("Output was not as expected")
 	return ""
 }

@@ -33,12 +33,12 @@ var (
 )
 
 const (
-	IMAGE_REPO          = "zenoss/serviced-isvcs"
-	IMAGE_TAG           = "v61"
-	ZK_IMAGE_REPO       = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG        = "v10"
-	OTSDB_BT_REPO       = "zenoss/isvcs-metrics-bigtable"
-	OTSDB_BT_TAG        = "v1"
+	IMAGE_REPO         = "zenoss/serviced-isvcs"
+	IMAGE_TAG          = "v61"
+	ZK_IMAGE_REPO      = "zenoss/isvcs-zookeeper"
+	ZK_IMAGE_TAG       = "v10"
+	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
+	OTSDB_BT_TAG       = "v1"
 	API_KEY_PROXY_REPO = "zenosszing/api-key-proxy"
 	API_KEY_PROXY_TAG  = "latest"
 )
