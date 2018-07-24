@@ -37,7 +37,7 @@ func initApiKeyProxy() {
 	logger := log.WithFields(logrus.Fields{"isvc": "APIKeyProxy"})
 
 	startApiKeyProxy := config.GetOptions().StartAPIKeyProxy
-	logger.WithField("StartAPIKeyProxy", startApiKeyProxy).Info("initApiKeyProxy()")
+	logger.WithField("StartAPIKeyProxy", startApiKeyProxy).Debug("initApiKeyProxy()")
 
 	var err error
 	command := `/bin/supervisord -n -c etc/api-key-proxy/supervisord.conf`
