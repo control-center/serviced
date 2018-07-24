@@ -129,6 +129,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		OutboundIP:                 cfg.StringVal("OUTBOUND_IP", ""),
 		GCloud:                     cfg.BoolVal("GCLOUD", false),
 		StartZK:                    cfg.BoolVal("START_ZK", true),
+		StartAPIKeyProxy:           cfg.BoolVal("START_API_KEY_PROXY", false),
 		BigTableMetrics:            cfg.BoolVal("BIGTABLE_METRICS", false),
 		DockerDNS:                  cfg.StringSlice("DOCKER_DNS", []string{}),
 		Master:                     cfg.BoolVal("MASTER", false),

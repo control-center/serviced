@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"errors"
 )
 
 var (
@@ -64,7 +65,7 @@ func PreInit(bigtable bool) error {
 	return nil
 }
 
-func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker, startZK bool, bigtable bool) {
+func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker, startZK bool, bigtable bool, startApiKeyProxy bool) {
 	if err := PreInit(bigtable); err != nil {
 		log.WithFields(logrus.Fields{
 			"isvc": "PreInit",
@@ -124,11 +125,15 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			"isvc": "kibana",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
-	apiKeyProxy.docker = dockerAPI
-	if err := Mgr.Register(apiKeyProxy); err != nil {
-		log.WithFields(logrus.Fields{
-			"isvc": "api-key-proxy",
-		}).WithError(err).Fatal("Unable to register internal service")
+	if startApiKeyProxy {
+		apiKeyProxy.docker = dockerAPI
+		if err := Mgr.Register(apiKeyProxy); err != nil {
+			log.WithFields(logrus.Fields{
+				"isvc": "api-key-proxy",
+			}).WithError(err).Fatal("Unable to register internal service")
+		}
+	} else {
+		log.WithFields(logrus.Fields{"isvc": "api-key-proxy",}).Debug("NOT starting service per config.")
 	}
 }
 
@@ -153,10 +158,6 @@ func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig ma
 	}
 }
 
-func shouldRunApiProxy() bool {
-	return true
-}
-
 // This function sets up key pieces of information for ISVCS in the environment map.
 // (Adapted from the cmd.go cli function of the same name)
 func setIsvcsEnv() error {
@@ -173,13 +174,17 @@ func setIsvcsEnv() error {
 		}
 	}
 
-	if shouldRunApiProxy() {
+	// Configure api key proxy isvc only if indicated in configuration.
+	if options.StartAPIKeyProxy {
 		// Add variables for api proxy
 		apiIp := getDockerIP()
 		if apiIp == "" {
 			return ErrNoDockerIP
 		}
 		proxyToAddr := fmt.Sprintf("https://%s:%s", apiIp, strings.TrimLeft(options.UIPort, ":"))
+		if options.KeyProxyJsonServer == "" {
+			return errors.New("Configuration error: SERVICED_KEYPROXY_JSON_SERVER must be set if SERVICED_START_API_KEY_PROXY is true.")
+		}
 		apiProxyVars := []string{
 			"api-key-proxy:KEYPROXY_PROXY_LISTENER_PORT=" + options.KeyProxyListenPort,
 			"api-key-proxy:KEYPROXY_PROXY_LOCATION_USES_TLS=true",

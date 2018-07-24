@@ -128,6 +128,7 @@ type Options struct {
 	BackupEstimatedCompression float64           // Best guess for tgz compression ratio (uncompressed size / compressed size) used to determine whether sufficient disk space is available for taking a backup
 	BackupMinOverhead          string            // Warn user if estimated backup size would leave less than this amount of space free
 	StartZK                    bool              // Should ZooKeeper ISVC be started
+	StartAPIKeyProxy           bool              // Should API Key Proxy ISVC be started
 	BigTableMetrics            bool              // Should serviced metrics be stored in gcp bigtable
 	Auth0Domain                string            // Domain configured for tenant in Auth0. Ref: https://auth0.com/docs/getting-started/the-basics#domain
 	Auth0Audience              string            // Audience configured for application (?) in Auth0

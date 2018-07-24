@@ -34,9 +34,17 @@ func getKeyProxyPort() uint16 {
 }
 
 func initApiKeyProxy() {
+	logger := log.WithFields(logrus.Fields{"isvc": "APIKeyProxy"})
+
+	startApiKeyProxy := config.GetOptions().StartAPIKeyProxy
+	logger.WithField("StartAPIKeyProxy", startApiKeyProxy).Info("initApiKeyProxy()")
 
 	var err error
 	command := `/bin/supervisord -n -c etc/api-key-proxy/supervisord.conf`
+	//
+	//if !startApiKeyProxy {
+	//	command = `sleep infinity`
+	//}
 
 	apiKeyPortBinding := portBinding{
 		HostIp:         "0.0.0.0",
@@ -116,16 +124,23 @@ func SetKeyProxyAnsweringHealthCheck() HealthCheckFunction {
 		logger := log.WithFields(logrus.Fields{"HealthCheckName": API_KEY_PROXY_SERVER_INTERNAL_API_HEALTHCHECK_NAME})
 		TestURL := fmt.Sprintf("%s%s", getProxyURL(), "/apiproxy/RUOK")
 		logger.WithFields(logrus.Fields{"TestURL": TestURL}).Debug("Starting Key Proxy Server check")
+		tries := 0
 		for {
+			tries++
 			select {
 			case <-halt:
 				logger.Debug("Stopped health checks for API Key Proxy Server Internal API Check")
 				return nil
 			default:
 				if err := CheckURL(TestURL); err != nil {
-					logger.WithError(err).
-						WithFields(logrus.Fields{"TestURL": TestURL}).
-						Debug("Bad response from Serviced API server.")
+					if tries <= 3 {
+						logger.WithError(err).
+							WithFields(logrus.Fields{
+								"TestURL": TestURL,
+								"SERVICED_KEYPROXY_JSON_SERVER": config.GetOptions().KeyProxyJsonServer,
+							}).
+							Info("Error connecting to Serviced API server. Verify that SERVICED_KEYPROXY_JSON_SERVER is set properly and that the server is running.")
+					}
 					time.Sleep(1 * time.Second)
 					continue
 				}

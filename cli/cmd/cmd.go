@@ -229,6 +229,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 	options := config.Options{
 		GCloud:                     cfg.BoolVal("GCLOUD", false),
 		StartZK:                    cfg.BoolVal("START_ZK", true),
+		StartAPIKeyProxy:           cfg.BoolVal("START_API_KEY_PROXY", false),
 		BigTableMetrics:            cfg.BoolVal("BIGTABLE_METRICS", false),
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
