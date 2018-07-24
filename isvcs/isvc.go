@@ -65,7 +65,7 @@ func PreInit(bigtable bool) error {
 	return nil
 }
 
-func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker, startZK bool, bigtable bool, startApiKeyProxy bool) {
+func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker, startZK bool, bigtable bool) {
 	if err := PreInit(bigtable); err != nil {
 		log.WithFields(logrus.Fields{
 			"isvc": "PreInit",
@@ -125,7 +125,7 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			"isvc": "kibana",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
-	if startApiKeyProxy {
+	if config.GetOptions().StartAPIKeyProxy {
 		apiKeyProxy.docker = dockerAPI
 		if err := Mgr.Register(apiKeyProxy); err != nil {
 			log.WithFields(logrus.Fields{

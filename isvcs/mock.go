@@ -1068,7 +1068,7 @@ func init() {
 		"isvc-opentsdb":               &OpentsdbISVC,
 		"isvc-docker-registry":        &DockerRegistryISVC,
 		"isvc-kibana":                 &KibanaISVC,
-		"isvc-api-key-proxy":         &ApiKeyProxyISVC,
+		"isvc-api-key-proxy":          &ApiKeyProxyISVC,
 	}
 
 	IRSMap = map[string]*dao.RunningService{
@@ -1080,7 +1080,7 @@ func init() {
 		"isvc-opentsdb":               &OpentsdbIRS,
 		"isvc-docker-registry":        &DockerRegistryIRS,
 		"isvc-kibana":                 &KibanaIRS,
-		"isvc-api-key-proxy":         &ApiKeyProxyIRS,
+		"isvc-api-key-proxy":          &ApiKeyProxyIRS,
 	}
 }
 
