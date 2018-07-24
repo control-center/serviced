@@ -175,21 +175,21 @@ func ParseAuth0Token(token string) (Auth0Token, error) {
 	parsed, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		// Validate the algorithm matches the key
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			glog.Warning("error getting RSA key from PEM: ", ErrInvalidSigningMethod)
+			log.Debugf("error getting RSA key from PEM: ", ErrInvalidSigningMethod.Error())
 			return nil, ErrInvalidSigningMethod
 		}
 
 		// extract public key from token
 		key, err := getRSAPublicKey(token)
 		if err != nil {
-			glog.Warning("error getting RSA key from PEM: ", err)
+			log.WithError(err).Debugf("error getting RSA key from PEM")
 			return nil, fmt.Errorf("error getting RSA key from PEM: %v\n", err)
 		}
 		return key, nil
 	})
 	if err != nil {
 		if verr, ok := err.(*jwt.ValidationError); ok {
-			glog.Warning("Validation error from jwt.ParseWIthClaims(): ", verr)
+			log.WithError(verr).Debug("Validation error from jwt.ParseWIthClaims()")
 			if verr.Inner != nil && (verr.Inner == ErrIdentityTokenExpired || verr.Inner == ErrIdentityTokenBadSig) {
 				return nil, verr.Inner
 			}
