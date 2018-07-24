@@ -25,9 +25,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"bytes"
-	"regexp"
-	"os/exec"
 )
 
 var (
@@ -154,32 +151,6 @@ func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig ma
 			}
 		}
 	}
-}
-
-// Get the IP of the docker0 interface, which can be used to access the serviced API from inside the container.
-// inspiration: the following is used for the same purpose during deploy/provision:
-// ip addr show docker0 | grep inet | grep -v inet6 | awk '{print $2}' | awk -F / '{print $1}'
-func getDockerIP() string {
-	// Execute 'ip -4 -br addr show docker0'
-	c1 := exec.Command("ip", "-4", "-br", "addr", "show", "docker0")
-	var out bytes.Buffer
-	c1.Stdout = &out
-	err := c1.Run()
-	if err != nil {
-		log.WithField("command", c1).Infof("Error calling command: %s", err)
-		return ""
-	}
-	outstr := out.String()
-	// use a regex to extract the ip address from the result.
-	// We're expecting something that looks like: ###.###.###.###/##
-	// We use a capture group to exclude the trailing /##.
-	re := regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)/\d+`)
-	addr := re.FindStringSubmatch(outstr)
-	if addr != nil && len(addr) > 1 {
-		return addr[1]
-	}
-	log.WithFields(logrus.Fields{"match": addr, "output": outstr,}).Info("Output was not as expected")
-	return ""
 }
 
 func shouldRunApiProxy() bool {
