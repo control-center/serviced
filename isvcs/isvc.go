@@ -41,7 +41,7 @@ const (
 	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
 	OTSDB_BT_TAG       = "v1"
 	API_KEY_PROXY_REPO = "zenosszing/api-key-proxy"
-	API_KEY_PROXY_TAG  = "latest"
+	API_KEY_PROXY_TAG  = "2018-07-26-0"
 )
 
 type IServiceHealthResult struct {
