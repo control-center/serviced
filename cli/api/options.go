@@ -129,6 +129,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		OutboundIP:                 cfg.StringVal("OUTBOUND_IP", ""),
 		GCloud:                     cfg.BoolVal("GCLOUD", false),
 		StartZK:                    cfg.BoolVal("START_ZK", true),
+		StartAPIKeyProxy:           cfg.BoolVal("START_API_KEY_PROXY", false),
 		BigTableMetrics:            cfg.BoolVal("BIGTABLE_METRICS", false),
 		DockerDNS:                  cfg.StringSlice("DOCKER_DNS", []string{}),
 		Master:                     cfg.BoolVal("MASTER", false),
@@ -200,6 +201,9 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		Auth0Group:    cfg.StringVal("AUTH0_GROUP", ""),
 		Auth0ClientID: cfg.StringVal("AUTH0_CLIENT_ID", ""),
 		Auth0Scope:    cfg.StringVal("AUTH0_SCOPE", ""),
+		// Parameters for api-key-proxy isvc configuration
+		KeyProxyJsonServer:   cfg.StringVal("KEYPROXY_JSON_SERVER", ""),
+		KeyProxyListenPort:   cfg.StringVal("KEYPROXY_LISTEN_PORT", ":6443"), 
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")

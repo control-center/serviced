@@ -53,6 +53,7 @@ var (
 	ErrNotRunning       = errors.New("isvc: not running")
 	ErrRunning          = errors.New("isvc: running")
 	ErrBadContainerSpec = errors.New("isvc: bad service specification")
+	ErrNoDockerIP       = errors.New("isvc: unable to get IP for docker interface")
 
 	loggedHostIPOverride bool
 )

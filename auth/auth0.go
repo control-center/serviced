@@ -17,12 +17,33 @@ import (
 )
 
 type jwtAuth0Claims struct {
-	Issuer    string   `json:"iss,omitempty"`
-	IssuedAt  int64    `json:"iat,omitempty"`
-	ExpiresAt int64    `json:"exp,omitempty"`
-	Audience  []string `json:"aud,omitempty"`
-	Groups    []string `json:"https://zenoss.com/groups,omitempty"`
-	Subject   string   `json:"sub,omitempty"`
+	Issuer    string      `json:"iss,omitempty"`
+	IssuedAt  int64       `json:"iat,omitempty"`
+	ExpiresAt int64       `json:"exp,omitempty"`
+	Audience  interface{} `json:"aud,omitempty"`
+	Groups    []string    `json:"https://zenoss.com/groups,omitempty"`
+	Subject   string      `json:"sub,omitempty"`
+}
+
+// Parse the interface{} that populates Audience - we get string from some certs, and an array of strings (which parses as an array of interfaces) from others.
+func (t *jwtAuth0Claims) CheckAudience(expected string) bool {
+	// String
+	if audienceString, ok := t.Audience.(string); ok {
+		return audienceString == expected
+	}
+	// Array of strings - not likely to show up, but here for completeness
+	if audienceStringArray, ok := t.Audience.([]string); ok {
+	    return utils.StringInSlice(expected, audienceStringArray)
+	}
+	// Array of interfaces (which is really an array of strings
+	if audienceIterfaceArray, ok := t.Audience.([]interface{}); ok {
+		// Convert to string array
+		if audienceStringArray, ok := utils.InterfaceArrayToStringArray(audienceIterfaceArray); ok {
+			return utils.StringInSlice(expected, audienceStringArray)
+		}
+	}
+	log.Error("Unexpected type for Audience in JWT claims")
+	return false
 }
 
 func (t *jwtAuth0Claims) Valid() error {
@@ -34,9 +55,11 @@ func (t *jwtAuth0Claims) Valid() error {
 	if t.Issuer != expectedIssuer {
 		return ErrAuth0TokenBadIssuer
 	}
-	if !utils.StringInSlice(opts.Auth0Audience, t.Audience) {
+
+	if !t.CheckAudience(opts.Auth0Audience) {
 		return ErrAuth0TokenBadAudience
 	}
+
 	return nil
 }
 

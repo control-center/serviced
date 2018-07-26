@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"errors"
 )
 
 var (
@@ -33,12 +34,14 @@ var (
 )
 
 const (
-	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v61"
-	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG  = "v10"
-	OTSDB_BT_REPO = "zenoss/isvcs-metrics-bigtable"
-	OTSDB_BT_TAG  = "v1"
+	IMAGE_REPO         = "zenoss/serviced-isvcs"
+	IMAGE_TAG          = "v61"
+	ZK_IMAGE_REPO      = "zenoss/isvcs-zookeeper"
+	ZK_IMAGE_TAG       = "v10"
+	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
+	OTSDB_BT_TAG       = "v1"
+	API_KEY_PROXY_REPO = "zenosszing/api-key-proxy"
+	API_KEY_PROXY_TAG  = "2018-07-26-0"
 )
 
 type IServiceHealthResult struct {
@@ -122,6 +125,16 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			"isvc": "kibana",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
+	if config.GetOptions().StartAPIKeyProxy {
+		apiKeyProxy.docker = dockerAPI
+		if err := Mgr.Register(apiKeyProxy); err != nil {
+			log.WithFields(logrus.Fields{
+				"isvc": "api-key-proxy",
+			}).WithError(err).Fatal("Unable to register internal service")
+		}
+	} else {
+		log.WithFields(logrus.Fields{"isvc": "api-key-proxy",}).Debug("NOT starting service per config.")
+	}
 }
 
 func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
@@ -160,6 +173,31 @@ func setIsvcsEnv() error {
 			return err
 		}
 	}
+
+	// Configure api key proxy isvc only if indicated in configuration.
+	if options.StartAPIKeyProxy {
+		// Add variables for api proxy
+		apiIp := getDockerIP()
+		if apiIp == "" {
+			return ErrNoDockerIP
+		}
+		proxyToAddr := fmt.Sprintf("https://%s:%s", apiIp, strings.TrimLeft(options.UIPort, ":"))
+		if options.KeyProxyJsonServer == "" {
+			return errors.New("Configuration error: SERVICED_KEYPROXY_JSON_SERVER must be set if SERVICED_START_API_KEY_PROXY is true.")
+		}
+		apiProxyVars := []string{
+			"api-key-proxy:KEYPROXY_PROXY_LISTENER_PORT=" + options.KeyProxyListenPort,
+			"api-key-proxy:KEYPROXY_PROXY_LOCATION_USES_TLS=true",
+			fmt.Sprintf("api-key-proxy:KEYPROXY_ZPROXY_LOCATION=%s", proxyToAddr),
+			fmt.Sprintf("api-key-proxy:KEYPROXY_JSON_SERVER=%s", options.KeyProxyJsonServer),
+		}
+		for _, val := range apiProxyVars {
+			if err := AddEnv(val); err != nil {
+				return err
+			}
+		}
+	}
+	// Add variables specified in options
 	for _, val := range options.IsvcsENV {
 		if err := AddEnv(val); err != nil {
 			return err
