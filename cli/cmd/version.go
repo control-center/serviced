@@ -43,14 +43,15 @@ func (c *ServicedCli) initVersion() {
 func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 
 	var versionInfo = map[string]string{
-		"Version":      servicedversion.Version,
-		"GoVersion":    servicedversion.GoVersion,
-		"Gitcommit":    servicedversion.Gitcommit,
-		"Gitbranch":    servicedversion.Gitbranch,
-		"Date":         servicedversion.Date,
-		"Release":      servicedversion.Release,
-		"IsvcsImage":   fmt.Sprintf("%s:%s", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG),
-		"IsvcsZKImage": fmt.Sprintf("%s:%s", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG),
+		"Version":            servicedversion.Version,
+		"GoVersion":          servicedversion.GoVersion,
+		"Gitcommit":          servicedversion.Gitcommit,
+		"Gitbranch":          servicedversion.Gitbranch,
+		"Date":               servicedversion.Date,
+		"Release":            servicedversion.Release,
+		"IsvcsImage":         fmt.Sprintf("%s:%s", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG),
+		"IsvcsZKImage":       fmt.Sprintf("%s:%s", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG),
+		"IsvcsApiProxyImage": fmt.Sprintf("%s:%s", isvcs.API_KEY_PROXY_REPO, isvcs.API_KEY_PROXY_TAG),
 	}
 
 	if ctx.Bool("verbose") {
@@ -69,7 +70,7 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 		fmt.Printf("Buildtag:   %s\n", versionInfo["Buildtag"])
 		fmt.Printf("Release:    %s\n", versionInfo["Release"])
 		images := []string{
-			versionInfo["IsvcsImage"], versionInfo["IsvcsZKImage"],
+			versionInfo["IsvcsImage"], versionInfo["IsvcsZKImage"], versionInfo["IsvcsApiProxyImage"],
 		}
 		fmt.Printf("IsvcsImages: %v\n", images)
 	}

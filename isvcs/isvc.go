@@ -20,12 +20,12 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 
+	"errors"
 	"fmt"
 	"github.com/control-center/serviced/config"
 	"os"
 	"strings"
 	"time"
-	"errors"
 )
 
 var (
@@ -40,7 +40,7 @@ const (
 	ZK_IMAGE_TAG       = "v10"
 	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
 	OTSDB_BT_TAG       = "v1"
-	API_KEY_PROXY_REPO = "zenosszing/api-key-proxy"
+	API_KEY_PROXY_REPO = "gcr.io/zing-registry-188222/api-key-proxy"
 	API_KEY_PROXY_TAG  = "2018-07-26-0"
 )
 
@@ -133,7 +133,7 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			}).WithError(err).Fatal("Unable to register internal service")
 		}
 	} else {
-		log.WithFields(logrus.Fields{"isvc": "api-key-proxy",}).Debug("NOT starting service per config.")
+		log.WithFields(logrus.Fields{"isvc": "api-key-proxy"}).Debug("NOT starting service per config.")
 	}
 }
 
