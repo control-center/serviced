@@ -14,6 +14,7 @@
 package isvcs
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
@@ -115,7 +116,7 @@ func SetKeyServerReachableHealthCheck() HealthCheckFunction {
 func getProxyURL() string {
 	servicedIP := getDockerIP()
 	port := strings.TrimLeft(config.GetOptions().KeyProxyListenPort, ":")
-	proxyURL := fmt.Sprintf("http://%s:%s", servicedIP, port)
+	proxyURL := fmt.Sprintf("https://%s:%s", servicedIP, port)
 	return proxyURL
 }
 
@@ -136,7 +137,7 @@ func SetKeyProxyAnsweringHealthCheck() HealthCheckFunction {
 					if tries <= 3 {
 						logger.WithError(err).
 							WithFields(logrus.Fields{
-								"TestURL": TestURL,
+								"TestURL":                       TestURL,
 								"SERVICED_KEYPROXY_JSON_SERVER": config.GetOptions().KeyProxyJsonServer,
 							}).
 							Info("Error connecting to Serviced API server. Verify that SERVICED_KEYPROXY_JSON_SERVER is set properly and that the server is running.")
@@ -153,7 +154,14 @@ func SetKeyProxyAnsweringHealthCheck() HealthCheckFunction {
 
 func CheckURL(TestURL string) error {
 	logger := log.WithFields(logrus.Fields{"URL": TestURL})
-	resp, err := http.Get(TestURL)
+
+	// configure transport to ignore key errors - we're using a self-signed key.
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	resp, err := client.Get(TestURL)
 	if err != nil {
 		logger.
 			WithError(err).
