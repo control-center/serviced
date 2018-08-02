@@ -262,9 +262,10 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	defer f.DFSLock(ctx).Unlock()
 
 	// validate the host exists
-	if host, err := f.GetHost(ctx, entity.ID); err != nil {
+	foundhost, err := f.GetHost(ctx, entity.ID)
+	if err != nil {
 		return alog.Error(err)
-	} else if host == nil {
+	} else if foundhost == nil {
 		return alog.Error(fmt.Errorf("host does not exist: %s", entity.ID))
 	}
 
@@ -275,13 +276,15 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 		return alog.Error(fmt.Errorf("pool does not exist: %s", entity.PoolID))
 	}
 
-	var err error
 	ec := newEventCtx()
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
 
 	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
 		return alog.Error(err)
 	}
+
+	// Preserve the NAT IP. Delegates won't know their own.
+	entity.NatIP = foundhost.NatIP
 
 	entity.UpdatedAt = time.Now()
 	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {

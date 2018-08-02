@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"github.com/control-center/serviced/config"
 )
 
 // Initializer for serviced version
@@ -43,14 +44,19 @@ func (c *ServicedCli) initVersion() {
 func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 
 	var versionInfo = map[string]string{
-		"Version":      servicedversion.Version,
-		"GoVersion":    servicedversion.GoVersion,
-		"Gitcommit":    servicedversion.Gitcommit,
-		"Gitbranch":    servicedversion.Gitbranch,
-		"Date":         servicedversion.Date,
-		"Release":      servicedversion.Release,
-		"IsvcsImage":   fmt.Sprintf("%s:%s", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG),
-		"IsvcsZKImage": fmt.Sprintf("%s:%s", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG),
+		"Version":            servicedversion.Version,
+		"GoVersion":          servicedversion.GoVersion,
+		"Gitcommit":          servicedversion.Gitcommit,
+		"Gitbranch":          servicedversion.Gitbranch,
+		"Date":               servicedversion.Date,
+		"Release":            servicedversion.Release,
+		"IsvcsImage":         fmt.Sprintf("%s:%s", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG),
+		"IsvcsZKImage":       fmt.Sprintf("%s:%s", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG),
+	}
+
+	// Only populate the 'IsvcsApiProxyImage' value if the api proxy is configured to start.
+	if config.GetOptions().StartAPIKeyProxy {
+		versionInfo["IsvcsApiProxyImage"] = fmt.Sprintf("%s:%s", isvcs.API_KEY_PROXY_REPO, isvcs.API_KEY_PROXY_TAG)
 	}
 
 	if ctx.Bool("verbose") {
@@ -70,6 +76,9 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 		fmt.Printf("Release:    %s\n", versionInfo["Release"])
 		images := []string{
 			versionInfo["IsvcsImage"], versionInfo["IsvcsZKImage"],
+		}
+		if image, exists := versionInfo["IsvcsApiProxyImage"]; exists {
+			images = append(images, image)
 		}
 		fmt.Printf("IsvcsImages: %v\n", images)
 	}

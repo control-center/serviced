@@ -31,6 +31,7 @@ var LogstashISVC s.Service
 var OpentsdbISVC s.Service
 var DockerRegistryISVC s.Service
 var KibanaISVC s.Service
+var ApiKeyProxyISVC s.Service
 var ISVCSMap map[string]*s.Service
 
 var InternalServicesIRS dao.RunningService
@@ -41,6 +42,7 @@ var LogstashIRS dao.RunningService
 var OpentsdbIRS dao.RunningService
 var DockerRegistryIRS dao.RunningService
 var KibanaIRS dao.RunningService
+var ApiKeyProxyIRS dao.RunningService
 var IRSMap map[string]*dao.RunningService
 
 func init() {
@@ -939,6 +941,123 @@ func init() {
 			},
 		},
 	}
+	ApiKeyProxyIRS = dao.RunningService{
+		Name:         "API Key Proxy",
+		Description:  "Internal API Key Proxy",
+		ID:           "isvc-api-key-proxy",
+		ServiceID:    "isvc-api-key-proxy",
+		DesiredState: 1,
+		StartedAt:    time.Now(),
+	}
+	ApiKeyProxyISVC = s.Service{
+		Name:            "API Key Proxy",
+		ID:              "isvc-api-key-proxy",
+		Startup:         "KEYPROXY_ZPROXY_LOCATION=https://localhost:443 KEYPROXY_PROXY_LOCATION_USES_TLS=true",
+		Description:     "Internal API key proxy",
+		ParentServiceID: "isvc-internalservices",
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "cpu",
+					Name:        "CPU Usage",
+					Description: "CPU Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "docker.usageinkernelmode", Name: "CPU System"},
+						domain.Metric{ID: "docker.usageinusermode", Name: "CPU User"},
+					},
+				},
+				domain.MetricConfig{
+					ID:          "memory",
+					Name:        "Memory Usage",
+					Description: "Memory Usage Statistics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "cgroup.memory.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
+			GraphConfigs: []domain.GraphConfig{
+				domain.GraphConfig{
+					ID:     "cpuUsage",
+					Name:   "CPU Usage",
+					Footer: false,
+					Format: "%4.2f",
+					MaxY:   nil,
+					MinY:   &zero,
+					Range: &domain.GraphConfigRange{
+						End:   "0s-ago",
+						Start: "1h-ago",
+					},
+					YAxisLabel: "% Used",
+					ReturnSet:  "EXACT",
+					Type:       "area",
+					Tags:       map[string][]string{"isvcname": []string{"api-key-proxy"}},
+					Units:      "Percent",
+					DataPoints: []domain.DataPoint{
+						domain.DataPoint{
+							ID:           "system",
+							MetricSource: "cpu",
+							Aggregator:   "avg",
+							Fill:         false,
+							Format:       "%4.2f",
+							Legend:       "CPU (System)",
+							Metric:       "docker.usageinkernelmode",
+							Name:         "CPU (System)",
+							Rate:         false,
+							Type:         "area",
+						},
+						domain.DataPoint{
+							ID:           "system",
+							MetricSource: "cpu",
+							Aggregator:   "avg",
+							Fill:         false,
+							Format:       "%4.2f",
+							Legend:       "CPU (User)",
+							Metric:       "docker.usageinusermode",
+							Name:         "CPU (User)",
+							Rate:         false,
+							Type:         "area",
+						},
+					},
+				},
+				domain.GraphConfig{
+					ID:     "memoryUsage",
+					Name:   "Memory Usage",
+					Footer: false,
+					Format: "%4.2f",
+					MaxY:   nil,
+					MinY:   &zero,
+					Range: &domain.GraphConfigRange{
+						End:   "0s-ago",
+						Start: "1h-ago",
+					},
+					YAxisLabel: "bytes",
+					ReturnSet:  "EXACT",
+					Type:       "area",
+					Tags:       map[string][]string{"isvcname": []string{"api-key-proxy"}},
+					Units:      "Bytes",
+					Base:       1024,
+					DataPoints: []domain.DataPoint{
+						domain.DataPoint{
+							ID:           "rssmemory",
+							MetricSource: "memory",
+							Aggregator:   "avg",
+							Fill:         false,
+							Format:       "%4.2f",
+							Legend:       "Memory Usage",
+							Metric:       "cgroup.memory.totalrss",
+							Name:         "Memory Usage",
+							Rate:         false,
+							Type:         "area",
+						},
+					},
+				},
+			},
+		},
+	}
+
 
 	ISVCSMap = map[string]*s.Service{
 		"isvc-internalservices":       &InternalServicesISVC,
@@ -949,6 +1068,7 @@ func init() {
 		"isvc-opentsdb":               &OpentsdbISVC,
 		"isvc-docker-registry":        &DockerRegistryISVC,
 		"isvc-kibana":                 &KibanaISVC,
+		"isvc-api-key-proxy":          &ApiKeyProxyISVC,
 	}
 
 	IRSMap = map[string]*dao.RunningService{
@@ -960,6 +1080,7 @@ func init() {
 		"isvc-opentsdb":               &OpentsdbIRS,
 		"isvc-docker-registry":        &DockerRegistryIRS,
 		"isvc-kibana":                 &KibanaIRS,
+		"isvc-api-key-proxy":          &ApiKeyProxyIRS,
 	}
 }
 
@@ -970,4 +1091,5 @@ func InitAllIsvcs(bigtable bool) {
 	initElasticSearch()
 	initDockerRegistry()
 	initKibana()
+	initApiKeyProxy()
 }

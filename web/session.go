@@ -181,8 +181,19 @@ func loginOK(w *rest.ResponseWriter, r *rest.Request) bool {
 		msg := "Unable to extract auth token from header"
 		plog.WithError(tErr).WithField("url", r.URL.String()).Debug(msg)
 		return false
-	} else if token != "null" && token != "" {
-		// try Auth0 login first. If that fails, try token login
+	}
+	if auth.Auth0IsConfigured() {
+		if auth0LoginOK(w, r, token) {
+			return true
+		}
+		// CC-4109: even with auth0 configured, we still need token authentication for REST calls.
+		return loginWithTokenOK(r, token)
+	}
+	return basicAuthLoginOK(w, r, token)
+}
+
+func auth0LoginOK(w *rest.ResponseWriter, r *rest.Request, token string) bool {
+	if token != "null" && token != "" {
 		if parsed, ok := loginWithAuth0TokenOK(r, token); ok {
 			// Set cookie with token, so api calls can work.
 			// Secure and HttpOnly flags are important to mitigate CSRF/XSRF attack risk.
@@ -213,14 +224,16 @@ func loginOK(w *rest.ResponseWriter, r *rest.Request) bool {
 				})
 			return true
 		}
-		if loginWithTokenOK(r, token) {
-			return true
-		}
 		return false
 	} else {
-		if loginWithAuth0CookieOk(r) {
-			return true
-		}
+		return loginWithAuth0CookieOk(r)
+	}
+}
+
+func basicAuthLoginOK(w *rest.ResponseWriter, r *rest.Request, token string) bool {
+	if token != "null" && token != "" {
+		return loginWithTokenOK(r, token)
+	} else {
 		return loginWithBasicAuthOK(r)
 	}
 }
@@ -316,6 +329,7 @@ func restLoginWithBasicAuth(w *rest.ResponseWriter, r *rest.Request, ctx *reques
  */
 func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	token, tErr := auth.ExtractRestToken(r.Request)
+	glog.V(0).Info("restLogin()")
 	if tErr != nil { // There is a token in the header but we could not extract it
 		msg := "Unable to extract auth token from header"
 		plog.WithError(tErr).Warning(msg)
@@ -323,11 +337,12 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	} else if token != "" {
 		if _, ok := loginWithAuth0TokenOK(r, token); ok {
 			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
+			return
 		} else if loginWithTokenOK(r, token) {
 			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
-		} else {
-			writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
+			return
 		}
+		writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
 	} else {
 		restLoginWithBasicAuth(w, r, ctx)
 	}

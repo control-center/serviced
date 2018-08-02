@@ -169,6 +169,9 @@ func (a *Host) Equals(b *Host) bool {
 	if !a.MonitoringProfile.Equals(&b.MonitoringProfile) {
 		return false
 	}
+	if a.NatIP != b.NatIP {
+		return false
+	}
 
 	return true
 }

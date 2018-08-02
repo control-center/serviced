@@ -151,10 +151,12 @@ func (a *api) getSSHCommand(location *service.LocationInstance) ([]string, error
 	if config.GetOptions().GCloud && len(host.NatIP) <= 0 {
 		cmd := []string{
 			"/usr/bin/gcloud",
+			"beta",
 			"compute",
 			"ssh",
 			host.Name,
 			`--ssh-flag=-t`,
+			"--internal-ip",
 			"--",
 			"sudo",
 		}

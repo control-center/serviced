@@ -303,3 +303,13 @@
 
 # Client ID for Auth0 application object (https://manage.auth0.com/#/applications)
 # SERVICED_AUTH0_CLIENT_ID=
+
+# Address of server for API keys (http://${JSON_API_ILB_IP}:9090/ccAccessToken)
+# SERVICED_KEYPROXY_JSON_SERVER=
+
+# Enable or disable key proxy server (only applicable where proxy server is running)
+# SERVICED_START_API_KEY_PROXY=false
+
+# Port for API key proxy to listen on (:6443)
+# SERVICED_KEYPROXY_LISTEN_PORT=:6443
+
