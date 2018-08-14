@@ -198,7 +198,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		// Auth0 configuration parameters. Default to empty strings - must edit in serviced.conf to configure for auth0.
 		Auth0Domain:   cfg.StringVal("AUTH0_DOMAIN", ""),
 		Auth0Audience: cfg.StringVal("AUTH0_AUDIENCE", ""),
-		Auth0Group:    cfg.StringVal("AUTH0_GROUP", ""),
+		Auth0Group:    cfg.StringSlice("AUTH0_GROUP", []string{}),
 		Auth0ClientID: cfg.StringVal("AUTH0_CLIENT_ID", ""),
 		Auth0Scope:    cfg.StringVal("AUTH0_SCOPE", ""),
 		// Parameters for api-key-proxy isvc configuration

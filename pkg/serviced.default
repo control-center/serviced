@@ -295,7 +295,7 @@
 # 'API Audience' configured in API object in Auth0 (https://manage/auth0.com/#/apis)
 # SERVICED_AUTH0_AUDIENCE=
 
-# Group membership required for access via Auth0
+# Group membership required for access via Auth0. Can be a comma-separated list of groups.
 # SERVICED_AUTH0_GROUP=
 
 # Scope required for access via Auth0
