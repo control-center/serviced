@@ -95,12 +95,20 @@ func (t *jwtAuth0Claims) User() string {
 
 func (t *jwtAuth0Claims) HasAdminAccess() bool {
 	opts := config.GetOptions()
+	// the group(s) defined in the config
 	auth0Group := opts.Auth0Group
-	if !utils.StringInSlice(auth0Group, t.Groups) {
-		glog.Warning("Auth0 Admin access denied - '" + auth0Group + "' not found in Groups.")
-		return false
+	groupArray := strings.Split(auth0Group, ",")
+	found := false
+	for _, group := range groupArray {
+		if utils.StringInSlice(strings.TrimSpace(group), t.Groups) {
+			found = true
+			break
+		}
 	}
-	return true
+	if !found {
+		glog.Warning("Auth0 Admin access denied - [" + auth0Group + "] not found in Groups.")
+	}
+	return found
 }
 
 type JSONWebkeys struct {
