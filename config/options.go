@@ -132,7 +132,7 @@ type Options struct {
 	BigTableMetrics            bool              // Should serviced metrics be stored in gcp bigtable
 	Auth0Domain                string            // Domain configured for tenant in Auth0. Ref: https://auth0.com/docs/getting-started/the-basics#domain
 	Auth0Audience              string            // Audience configured for application (?) in Auth0
-	Auth0Group                 string            // Group membership required in Auth0 token for login
+	Auth0Group                 []string          // Group membership(s) required in Auth0 token for login, comma separated list
 	Auth0ClientID              string            // ClientID of Auth0 Application
 	Auth0Scope                 string            // Auth0 Scope for request.
 	KeyProxyJsonServer         string            // Address of api-key-server endpoint for getting CC Access tokens
