@@ -71,11 +71,15 @@ func (q *chanQueue) TakeChan(timeout time.Duration) (<-chan interface{}, <-chan 
 			atomic.AddInt32(&q.size, -1)
 			resultChan <- item
 		} else {
+			timer := time.NewTimer(timeout)
+			// just to be sure we won't miss anything
+			defer timer.Stop()
 			select {
 			case item := <-q.qChan:
 				atomic.AddInt32(&q.size, -1)
 				resultChan <- item
-			case <-time.After(timeout):
+			// CC-4119 Calling time.After(timeout) caused a memory leak
+			case <-timer.C:
 				timeoutChan <- fmt.Errorf("Timeout waiting on queue item: %s", timeout)
 			}
 		}
