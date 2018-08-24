@@ -101,7 +101,7 @@ type V2PerformanceData struct {
 
 type V2ResultData struct {
 	Datapoints []V2Datapoint     `json:"datapoints"`
-	Metric     string            `json:"metric, omitempty"`
+	Metric     string            `json:"metric,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
