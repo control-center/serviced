@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2014-2018 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -48,6 +48,10 @@ func (s *Service) ValidEntity() error {
 
 	for _, ep := range s.Endpoints {
 		vErr.Add(ep.ValidEntity())
+	}
+
+	for _, hc := range s.HealthChecks {
+		vErr.Add(hc.ValidEntity())
 	}
 
 	if vErr.HasError() {

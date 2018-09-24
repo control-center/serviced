@@ -1,4 +1,4 @@
-// Copyright 2014-2016 The Serviced Authors.
+// Copyright 2014-2018 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 package container
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
@@ -74,10 +75,10 @@ const (
 
 // Logforwarder configuration for filebeat
 type LogforwarderOptions struct {
-	Enabled       bool          // True if enabled
-	Path          string        // Path to the logforwarder program (e.g. filebeat)
-	ConfigFile    string        // Path to the config file for filebeat
-	SettleTime    time.Duration // time to wait for forwarder to flush its buffer before exiting
+	Enabled    bool          // True if enabled
+	Path       string        // Path to the logforwarder program (e.g. filebeat)
+	ConfigFile string        // Path to the config file for filebeat
+	SettleTime time.Duration // time to wait for forwarder to flush its buffer before exiting
 }
 
 // ControllerOptions are options to be run when starting a new proxy server
@@ -98,14 +99,14 @@ type ControllerOptions struct {
 		CertPEMFile string // Path to the cert file when TLS is used
 	}
 	Logforwarder LogforwarderOptions
-	Metric struct {
+	Metric       struct {
 		Address       string // TCP port to host the metric service, :22350
 		RemoteEndoint string // The url to forward metric queries
 	}
 	VirtualAddressSubnet string // The subnet of virtual addresses, 10.3
 	MetricForwarding     bool   // Whether or not the Controller should forward metrics
-	HostIPs		     string // The ip addresses of the host
-	ServiceNamePath	     string // Path of the service
+	HostIPs              string // The ip addresses of the host
+	ServiceNamePath      string // Path of the service
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -345,7 +346,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 
 	if options.Logforwarder.Enabled && len(service.LogConfigs) > 0 {
 		if err := setupLogstashFiles(c.hostID, options.HostIPs, options.ServiceNamePath, service,
-				options.Service.InstanceID, options.Logforwarder); err != nil {
+			options.Service.InstanceID, options.Logforwarder); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
@@ -825,7 +826,12 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 }
 
 func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStatusKey, hc health.HealthCheck) {
-	hc.Ping(cancel, func(stat health.HealthStatus) {
+	logger := plog.WithFields(log.Fields{
+		"service":     key.ServiceID,
+		"instance":    key.InstanceID,
+		"healthcheck": key.HealthCheckName,
+	})
+	hc.Ping(cancel, key, func(stat health.HealthStatus) {
 		req := master.HealthStatusRequest{
 			Key:     key,
 			Value:   stat,
@@ -838,6 +844,10 @@ func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStat
 		}
 		defer client.Close()
 		client.ReportHealthStatus(req, nil)
+		if stat.KillFlag {
+			logger.WithField("kill_count_limit", hc.KillCountLimit).Infof("KillFlag has been set. Shutting down the controller.")
+			c.shutdown()
+		}
 	})
 }
 

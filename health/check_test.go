@@ -1,4 +1,4 @@
-// Copyright 2016 The Serviced Authors.
+// Copyright 2016-2018 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build test
+// +build unit test
 
 package health_test
 
@@ -30,7 +30,14 @@ type jsonhealthcheck struct {
 	Tolerance int
 }
 
-var _ = Suite(&HealthCheckTestSuite{})
+var (
+	_     = Suite(&HealthCheckTestSuite{})
+	hcKey = HealthStatusKey{
+		InstanceID:      0,
+		ServiceID:       "serviceid",
+		HealthCheckName: "healthcheck",
+	}
+)
 
 type HealthCheckTestSuite struct{}
 
@@ -170,7 +177,7 @@ func (s *HealthCheckTestSuite) TestNotRunning(c *C) {
 		Tolerance: 0,
 	}
 	stat := check.NotRunning()
-	c.Check(stat.Status, Equals, NotRunning)
+	c.Check(int(stat.Status), Equals, NotRunning)
 	c.Check(stat.StartedAt.IsZero(), Equals, false)
 	c.Check(stat.Duration, Equals, time.Duration(0))
 }
@@ -184,7 +191,7 @@ func (s *HealthCheckTestSuite) TestUnknown(c *C) {
 		Tolerance: 0,
 	}
 	stat := check.Unknown()
-	c.Check(stat.Status, Equals, Unknown)
+	c.Check(int(stat.Status), Equals, Unknown)
 	c.Check(stat.StartedAt.IsZero(), Equals, false)
 	c.Check(stat.Duration, Equals, time.Duration(0))
 }
@@ -197,7 +204,7 @@ func (s *HealthCheckTestSuite) TestRun_Passed(c *C) {
 		Interval:  time.Second,
 		Tolerance: 0,
 	}
-	stat := check.Run()
+	stat := check.Run(hcKey)
 	c.Check(stat.Status, Equals, OK)
 	c.Check(stat.Duration > 0, Equals, true)
 }
@@ -210,8 +217,8 @@ func (s *HealthCheckTestSuite) TestRun_Timeout(c *C) {
 		Interval:  time.Second,
 		Tolerance: 0,
 	}
-	stat := check.Run()
-	c.Check(stat.Status, Equals, Timeout)
+	stat := check.Run(hcKey)
+	c.Check(int(stat.Status), Equals, Timeout)
 	c.Check(stat.Duration >= check.Timeout, Equals, true)
 	c.Check(stat.Duration < 5*time.Second, Equals, true)
 }
@@ -224,8 +231,8 @@ func (s *HealthCheckTestSuite) TestRun_Failed(c *C) {
 		Interval:  time.Second,
 		Tolerance: 0,
 	}
-	stat := check.Run()
-	c.Check(stat.Status, Equals, Failed)
+	stat := check.Run(hcKey)
+	c.Check(int(stat.Status), Equals, Failed)
 	c.Check(stat.Duration > 0, Equals, true)
 }
 
@@ -240,7 +247,7 @@ func (s *HealthCheckTestSuite) TestPing(c *C) {
 	cancel := make(chan struct{})
 	startTime := time.Now()
 	interval := 0
-	check.Ping(cancel, func(stat HealthStatus) {
+	check.Ping(cancel, hcKey, func(stat HealthStatus) {
 		switch interval {
 		case 0:
 			c.Check(time.Since(startTime) < check.Interval, Equals, true)
@@ -252,5 +259,157 @@ func (s *HealthCheckTestSuite) TestPing(c *C) {
 			c.Errorf("Ping ran %d times longer than expected", interval-1)
 		}
 		interval++
+	})
+}
+
+func (s *HealthCheckTestSuite) TestKillScript_MatchingSingleExitCode(c *C) {
+	// Verify that if we fail a healthcheck 3 times that the result has the kill flag when
+	// our exit code matches the single exit code in our list.
+	hc := HealthCheck{
+		Script:         "exit 28",
+		Timeout:        time.Second,
+		Interval:       500 * time.Millisecond,
+		Tolerance:      0,
+		KillExitCodes:  []int{28},
+		KillCountLimit: 3,
+	}
+	cancel := make(chan struct{})
+	interval := 0
+	hc.Ping(cancel, hcKey, func(status HealthStatus) {
+		interval++
+		switch interval {
+		case 1:
+			c.Check(hc.KillCounter, Equals, 1)
+			c.Check(status.KillFlag, Equals, false)
+		case 2:
+			c.Check(hc.KillCounter, Equals, 2)
+			c.Check(status.KillFlag, Equals, false)
+		case 3:
+			c.Check(hc.KillCounter, Equals, 3)
+			c.Check(status.KillFlag, Equals, true)
+			close(cancel)
+		}
+	})
+}
+
+func (s *HealthCheckTestSuite) TestKillScript_MatchingMultipleExitCodes(c *C) {
+	// Verify that if we fail a healthcheck 3 times that the result has the kill flag when
+	// our exit code matches one of the multiple exit codes in our list.
+	hc := HealthCheck{
+		Script:         "exit 28",
+		Timeout:        time.Second,
+		Interval:       500 * time.Millisecond,
+		Tolerance:      0,
+		KillExitCodes:  []int{15, 28, 55},
+		KillCountLimit: 3,
+	}
+	cancel := make(chan struct{})
+	interval := 0
+	hc.Ping(cancel, hcKey, func(status HealthStatus) {
+		interval++
+		switch interval {
+		case 1:
+			c.Check(hc.KillCounter, Equals, 1)
+			c.Check(status.KillFlag, Equals, false)
+		case 2:
+			c.Check(hc.KillCounter, Equals, 2)
+			c.Check(status.KillFlag, Equals, false)
+		case 3:
+			c.Check(hc.KillCounter, Equals, 3)
+			c.Check(status.KillFlag, Equals, true)
+			close(cancel)
+		}
+	})
+}
+
+func (s *HealthCheckTestSuite) TestKillScript_MatchingEmptyExitCodes(c *C) {
+	// Verify that if we fail a healthcheck 3 times that the result has the kill flag when
+	// our exit code list is empty.
+	hc := HealthCheck{
+		Script:         "exit 28",
+		Timeout:        time.Second,
+		Interval:       500 * time.Millisecond,
+		Tolerance:      0,
+		KillExitCodes:  []int{},
+		KillCountLimit: 3,
+	}
+	cancel := make(chan struct{})
+	interval := 0
+	hc.Ping(cancel, hcKey, func(status HealthStatus) {
+		interval++
+		switch interval {
+		case 1:
+			c.Check(hc.KillCounter, Equals, 1)
+			c.Check(status.KillFlag, Equals, false)
+		case 2:
+			c.Check(hc.KillCounter, Equals, 2)
+			c.Check(status.KillFlag, Equals, false)
+		case 3:
+			c.Check(hc.KillCounter, Equals, 3)
+			c.Check(status.KillFlag, Equals, true)
+			close(cancel)
+		}
+	})
+}
+
+func (s *HealthCheckTestSuite) TestKillScript_KillCountResetsOnRecovery(c *C) {
+	// Verify that if we have 2 failing kill codes, then the check recovers (exit 0), that
+	// the kill counter is reset to 0.
+	hc := HealthCheck{
+		Script:         "exit 28",
+		Timeout:        time.Second,
+		Interval:       500 * time.Millisecond,
+		Tolerance:      0,
+		KillExitCodes:  []int{28},
+		KillCountLimit: 3,
+	}
+	cancel := make(chan struct{})
+	interval := 0
+	hc.Ping(cancel, hcKey, func(status HealthStatus) {
+		interval++
+		switch interval {
+		case 1:
+			c.Check(hc.KillCounter, Equals, 1)
+			c.Check(status.KillFlag, Equals, false)
+		case 2:
+			c.Check(hc.KillCounter, Equals, 2)
+			c.Check(status.KillFlag, Equals, false)
+			hc.Script = "exit 0"
+		case 3:
+			c.Check(hc.KillCounter, Equals, 0)
+			c.Check(status.KillFlag, Equals, false)
+			close(cancel)
+		}
+	})
+}
+
+func (s *HealthCheckTestSuite) TestKillScript_KillCountResetsOnOtherErrors(c *C) {
+	// Verify that if we have 2 failing kill codes, then the script exits on any other
+	// non-zero code (but doesn't match our kill code list), that the counter resets to 0.
+	hc := HealthCheck{
+		Script:         "exit 28",
+		Timeout:        time.Second,
+		Interval:       500 * time.Millisecond,
+		Tolerance:      0,
+		KillExitCodes:  []int{28},
+		KillCountLimit: 3,
+	}
+	cancel := make(chan struct{})
+	interval := 0
+	hc.Ping(cancel, hcKey, func(status HealthStatus) {
+		interval++
+		switch interval {
+		case 1:
+			c.Check(hc.KillCounter, Equals, 1)
+			c.Check(status.KillFlag, Equals, false)
+		case 2:
+			c.Check(hc.KillCounter, Equals, 2)
+			c.Check(status.KillFlag, Equals, false)
+			hc.Script = "exit 1"
+		case 3:
+			c.Check(hc.KillCounter, Equals, 0)
+			c.Check(status.KillFlag, Equals, false)
+			close(cancel)
+		}
 	})
 }
