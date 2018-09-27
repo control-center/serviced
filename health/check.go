@@ -1,4 +1,4 @@
-// Copyright 2016 The Serviced Authors.
+// Copyright 2016-2018 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,7 +17,15 @@ import (
 	"encoding/json"
 	"errors"
 	"os/exec"
+	"syscall"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/logging"
+)
+
+var (
+	plog = logging.PackageLogger()
 )
 
 // DefaultTolerance is the default coefficient used to determine when a health
@@ -94,6 +102,7 @@ type HealthStatus struct {
 	Status    Status
 	StartedAt time.Time
 	Duration  time.Duration
+	KillFlag  bool
 }
 
 // HealthCheck is the health check object.
@@ -102,20 +111,30 @@ type HealthCheck struct {
 	Timeout   time.Duration
 	Interval  time.Duration
 	Tolerance int
+	// Kill properties will kill the container if the observed error code is in the error code list
+	// and this happens <count>-times.  If the error codes list is empty and the kill count is >0, then any
+	// non-zero error code will count toward the kill count.
+	KillExitCodes  []int
+	KillCountLimit int
+	KillCounter    int
 }
 
 // MarshalJSON implements json.Marshaller
 func (hc HealthCheck) MarshalJSON() ([]byte, error) {
 	jhc := struct {
-		Script    string
-		Timeout   float64
-		Interval  float64
-		Tolerance int
+		Script         string
+		Timeout        float64
+		Interval       float64
+		Tolerance      int
+		KillExitCodes  []int `json:",omitempty"`
+		KillCountLimit int   `json:",omitempty"`
 	}{
-		Script:    hc.Script,
-		Timeout:   hc.Timeout.Seconds(),
-		Interval:  hc.Interval.Seconds(),
-		Tolerance: hc.Tolerance,
+		Script:         hc.Script,
+		Timeout:        hc.Timeout.Seconds(),
+		Interval:       hc.Interval.Seconds(),
+		Tolerance:      hc.Tolerance,
+		KillCountLimit: hc.KillCountLimit,
+		KillExitCodes:  hc.KillExitCodes,
 	}
 	return json.Marshal(jhc)
 }
@@ -123,19 +142,23 @@ func (hc HealthCheck) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements json.Unmarshaller
 func (hc *HealthCheck) UnmarshalJSON(data []byte) error {
 	jhc := struct {
-		Script    string
-		Timeout   float64
-		Interval  float64
-		Tolerance int
+		Script         string
+		Timeout        float64
+		Interval       float64
+		Tolerance      int
+		KillExitCodes  []int `json:",omitempty"`
+		KillCountLimit int   `json:",omitempty"`
 	}{}
 	if err := json.Unmarshal(data, &jhc); err != nil {
 		return err
 	}
 	*hc = HealthCheck{
-		Script:    jhc.Script,
-		Timeout:   time.Duration(jhc.Timeout) * time.Second,
-		Interval:  time.Duration(jhc.Interval) * time.Second,
-		Tolerance: jhc.Tolerance,
+		Script:         jhc.Script,
+		Timeout:        time.Duration(jhc.Timeout) * time.Second,
+		Interval:       time.Duration(jhc.Interval) * time.Second,
+		Tolerance:      jhc.Tolerance,
+		KillCountLimit: jhc.KillCountLimit,
+		KillExitCodes:  jhc.KillExitCodes,
 	}
 	return nil
 }
@@ -178,7 +201,12 @@ func (hc *HealthCheck) Unknown() HealthStatus {
 
 // Run returns the health status as a result of running the health check
 // script.
-func (hc *HealthCheck) Run() (stat HealthStatus) {
+func (hc *HealthCheck) Run(key HealthStatusKey) (stat HealthStatus) {
+	logger := plog.WithFields(log.Fields{
+		"service":     key.ServiceID,
+		"instance":    key.InstanceID,
+		"healthcheck": key.HealthCheckName,
+	})
 	stat.StartedAt = time.Now()
 	cmd := exec.Command("sh", "-c", hc.Script)
 	cmd.Start()
@@ -189,8 +217,47 @@ func (hc *HealthCheck) Run() (stat HealthStatus) {
 	case err := <-errC:
 		timer.Stop()
 		if err != nil {
+			// If the command gives an error, the healthcheck status is Failed (curl command failed, connection
+			// refused, or any other error message including one that might contribute to the kill count)
 			stat.Status = Failed
+			if hc.KillCountLimit > 0 {
+				logger.Debug("Healthcheck has a KillCount.. checking the exit code")
+
+				if len(hc.KillExitCodes) == 0 {
+					// No error codes listed means any error code will count toward the health check kill count.
+					hc.KillCounter++
+					logger.Debugf("No KillExitCodes provided; KillCounter is now %d", hc.KillCounter)
+				} else if exitError, ok := err.(*exec.ExitError); ok {
+					// Get the exit code and compare to our kill code list.
+					ws := exitError.Sys().(syscall.WaitStatus)
+					exitcode := ws.ExitStatus()
+					logger.Debugf("Got exit code: %d", exitcode)
+					found := false
+					for i := range hc.KillExitCodes {
+						if hc.KillExitCodes[i] == exitcode {
+							hc.KillCounter++
+							logger.Infof("found matching exit code %d.. KillCounter is now %d", exitcode, hc.KillCounter)
+							found = true
+							break
+						}
+					}
+					if !found {
+						// This isn't in our list of kill codes; we don't care about any of the others.  Reset the count
+						logger.Debug("No matching exit code was found")
+						if hc.KillCounter > 0 {
+							logger.Infof("Resetting KillCounter. KillCounter was %d", hc.KillCounter)
+							hc.KillCounter = 0
+						}
+					}
+				} else {
+					logger.WithError(err).Warn("Unable to read the health check exit code")
+				}
+			}
 		} else {
+			if hc.KillCounter > 0 {
+				logger.Infof("Resetting KillCounter. KillCounter was %d", hc.KillCounter)
+				hc.KillCounter = 0
+			}
 			stat.Status = OK
 		}
 	case <-timer.C:
@@ -203,13 +270,14 @@ func (hc *HealthCheck) Run() (stat HealthStatus) {
 }
 
 // Ping performs the health check on the specified interval.
-func (hc *HealthCheck) Ping(cancel <-chan struct{}, report func(HealthStatus)) {
+func (hc *HealthCheck) Ping(cancel <-chan struct{}, key HealthStatusKey, report func(HealthStatus)) {
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 	for {
 		select {
 		case <-timer.C:
-			stat := hc.Run()
+			stat := hc.Run(key)
+			stat.KillFlag = hc.KillCountLimit > 0 && hc.KillCounter >= hc.KillCountLimit
 			timer.Reset(hc.Interval)
 			report(stat)
 		case <-cancel:
