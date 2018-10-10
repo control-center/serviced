@@ -37,7 +37,7 @@ const (
 	IMAGE_REPO         = "zenoss/serviced-isvcs"
 	IMAGE_TAG          = "v61"
 	ZK_IMAGE_REPO      = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG       = "v10"
+	ZK_IMAGE_TAG       = "v11"
 	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
 	OTSDB_BT_TAG       = "v1"
 	API_KEY_PROXY_REPO = "gcr.io/zing-registry-188222/api-key-proxy"
@@ -173,7 +173,16 @@ func setIsvcsEnv() error {
 			return err
 		}
 	}
-
+	if zkusername := options.IsvcsZKUsername; zkusername != "" {
+		if err := AddEnv("zookeeper:ZK_USERNAME=" + zkusername); err != nil {
+			return err
+		}
+	}
+	if zkpasswd := options.IsvcsZKPasswd; zkpasswd != "" {
+		if err := AddEnv("zookeeper:ZK_PASSWD=" + zkpasswd); err != nil {
+			return err
+		}
+	}
 	// Configure api key proxy isvc only if indicated in configuration.
 	if options.StartAPIKeyProxy {
 		// Add variables for api proxy

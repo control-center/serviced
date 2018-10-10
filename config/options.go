@@ -104,6 +104,8 @@ type Options struct {
 	IsvcsENV                   []string          // Isvcs env variables
 	IsvcsZKID                  int               // Zookeeper server id when running as a quorum
 	IsvcsZKQuorum              []string          // Members of the zookeeper quorum
+	IsvcsZKUsername            string            // Zookeeper username required for quorum authentication
+	IsvcsZKPasswd              string            // Zookeeper password required for quorum authentication
 	TLSCiphers                 []string          // List of tls ciphers supported for http
 	TLSMinVersion              string            // Minimum TLS version supported for http
 	DockerLogDriver            string            // Which log driver to use with containers
@@ -136,7 +138,7 @@ type Options struct {
 	Auth0ClientID              string            // ClientID of Auth0 Application
 	Auth0Scope                 string            // Auth0 Scope for request.
 	KeyProxyJsonServer         string            // Address of api-key-server endpoint for getting CC Access tokens
-	KeyProxyListenPort         string            // Port where api-key-proxy will listen 
+	KeyProxyListenPort         string            // Port where api-key-proxy will listen
 
 }
 
