@@ -27,6 +27,12 @@ import (
 
 var apiKeyProxy *IService
 
+// configure transport to ignore key errors - we're using a self-signed key.
+var tlsTransport = &http.Transport{
+	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+}
+var tlsClient = &http.Client{Transport: tlsTransport}
+
 const API_KEY_PROXY_SERVER_HEALTHCHECK_NAME = "api-key-server-running"
 const API_KEY_PROXY_SERVER_INTERNAL_API_HEALTHCHECK_NAME = "internal-api-reachable"
 
@@ -42,10 +48,6 @@ func initApiKeyProxy() {
 
 	var err error
 	command := `/bin/supervisord -n -c etc/api-key-proxy/supervisord.conf`
-	//
-	//if !startApiKeyProxy {
-	//	command = `sleep infinity`
-	//}
 
 	apiKeyPortBinding := portBinding{
 		HostIp:         "0.0.0.0",
@@ -155,20 +157,19 @@ func SetKeyProxyAnsweringHealthCheck() HealthCheckFunction {
 func CheckURL(TestURL string) error {
 	logger := log.WithFields(logrus.Fields{"URL": TestURL})
 
-	// configure transport to ignore key errors - we're using a self-signed key.
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
+	// clean up transport connection pool - mostly here for hygiene purposes
+	defer tlsTransport.CloseIdleConnections()
 
-	resp, err := client.Get(TestURL)
+	resp, err := tlsClient.Get(TestURL)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		logger.
 			WithError(err).
 			Debug("GET operation returned error.")
 		return err
 	}
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		logger.
