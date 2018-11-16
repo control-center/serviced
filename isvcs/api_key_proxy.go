@@ -161,7 +161,7 @@ func CheckURL(TestURL string) error {
 	defer tlsTransport.CloseIdleConnections()
 
 	resp, err := tlsClient.Get(TestURL)
-	if resp != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
