@@ -372,7 +372,7 @@ func init() {
 	ZookeeperISVC = s.Service{
 		Name:            "Zookeeper",
 		ID:              "isvc-zookeeper",
-		Startup:         "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
+		Startup:         "/opt/zookeeper-3.4.10/bin/zkServer.sh start-foreground",
 		Description:     "Internal ZooKeeper",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,

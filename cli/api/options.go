@@ -173,6 +173,8 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		IsvcsENV:                   cfg.StringNumberedList("ISVCS_ENV", []string{}),
 		IsvcsZKID:                  cfg.IntVal("ISVCS_ZOOKEEPER_ID", 0),
 		IsvcsZKQuorum:              cfg.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
+		IsvcsZKUsername:            cfg.StringVal("ISVCS_ZOOKEEPER_USERNAME", ""),
+		IsvcsZKPasswd:              cfg.StringVal("ISVCS_ZOOKEEPER_PASSWD", ""),
 		TLSCiphers:                 cfg.StringSlice("TLS_CIPHERS", utils.GetDefaultCiphers("http")),
 		TLSMinVersion:              cfg.StringVal("TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
 		DockerLogDriver:            cfg.StringVal("DOCKER_LOG_DRIVER", "json-file"),
@@ -202,8 +204,8 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		Auth0ClientID: cfg.StringVal("AUTH0_CLIENT_ID", ""),
 		Auth0Scope:    cfg.StringVal("AUTH0_SCOPE", ""),
 		// Parameters for api-key-proxy isvc configuration
-		KeyProxyJsonServer:   cfg.StringVal("KEYPROXY_JSON_SERVER", ""),
-		KeyProxyListenPort:   cfg.StringVal("KEYPROXY_LISTEN_PORT", ":6443"), 
+		KeyProxyJsonServer: cfg.StringVal("KEYPROXY_JSON_SERVER", ""),
+		KeyProxyListenPort: cfg.StringVal("KEYPROXY_LISTEN_PORT", ":6443"),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")

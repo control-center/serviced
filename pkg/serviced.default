@@ -201,6 +201,12 @@
 # zookeeper quorum.  This takes the form of <ZKID#>@<IPAddress>:<PeerPort>:<LeaderPort>
 # SERVICED_ISVCS_ZOOKEEPER_QUORUM=1@host1:2888:3888,2@host2:2888:3888,3@host3:2888:3888
 
+# Specify zk username for md5 authentication for zookeeper quorum
+# SERVICED_ISVCS_ZOOKEEPER_USERNAME=
+
+# Specify zk password for md5 authentication for zookeeper quorum
+# SERVICED_ISVCS_ZOOKEEPER_PASSWD=
+
 # Specify the log driver for all docker containers logs, including isvc containers on the master node.
 # Direct port of Docker --log-driver option. Values include json-file, syslog, journald, gelf, fluentd, and none.
 # SERVICED_DOCKER_LOG_DRIVER=json-file
