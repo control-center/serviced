@@ -14,6 +14,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +33,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -504,6 +506,32 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{
 						Name:	"proto",
 						Usage:	"determine the port protocol your service will use",
+					},
+				},
+			},
+			{
+				Name: "config",
+				Usage: "Manage config files for services",
+				Description: "serviced service config",
+				Subcommands: []cli.Command{
+					{
+						Name: "list",
+						Usage: "List all configs for a given service",
+						Description: "serviced service config list SERVICEID",
+						Action: c.cmdServiceConfigList,
+					},
+					{
+						Name: "edit",
+						Usage: "List all configs for a given service",
+						Description: "serviced service config list SERVICEID",
+						Action: c.cmdServiceConfigEdit,
+				    Flags: []cli.Flag{
+				    	cli.StringFlag{
+					    	Name:  "editor, e",
+    						Value: os.Getenv("EDITOR"),
+	    					Usage: "Editor used to update the service definition",
+					    },
+				    },
 					},
 				},
 			},
@@ -1054,6 +1082,117 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	}
 
 	if service, err := c.driver.UpdateService(reader); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service")
+	} else {
+		fmt.Println(service.ID)
+	}
+}
+
+// serviced service config list SERVICEID [CONFIGFILE]
+func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "config list")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	configs := service.ConfigFiles
+
+	if len(args) < 2 {
+		configList := make([]string, 0)
+
+		for filename := range configs {
+			configList = append(configList, filename)
+		}
+		configJson := map[string]([]string){
+			"ConfigFiles": configList,
+		}
+		if configJsonOut, err := json.MarshalIndent(configJson, " ", "  "); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+	  } else {
+		  fmt.Printf("%s\n\n", configJsonOut)
+		  return
+		}
+	} else {
+		filename := args[1]
+		if _, found := configs[filename]; found {
+			fmt.Printf("%s", configs[filename].Content)
+		} else {
+			fmt.Printf("Config file %s not found.\n", filename)
+			return
+		}
+	}
+}
+
+// serviced service config edit SERVICEID CONFIGFILE [--editor]
+func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "config edit")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	configs := service.ConfigFiles
+	filename := args[1]
+	if _, found := configs[filename]; !found {
+		fmt.Printf("Config file %s not found.\n", filename)
+		return
+	}
+	configfile := configs[filename]
+	contents := []byte(configfile.Content)
+	splitfilename := strings.Split(filename, "/")
+	shortname := splitfilename[len(splitfilename)-1]
+	name := fmt.Sprintf("serviced_service_edit_%s_%s", service.ID, shortname)
+	reader, err := openEditor(contents, name, ctx.String("editor"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	newcontents := new(bytes.Buffer)
+	newcontents.ReadFrom(reader)
+	newfile := servicedefinition.ConfigFile{
+		Filename: configfile.Filename,
+		Owner: configfile.Owner,
+		Permissions: configfile.Permissions,
+		Content: string(newcontents.Bytes()),
+	}
+	service.ConfigFiles[filename] = newfile
+	jsonService, err := json.MarshalIndent(service, " ", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
+		return
+	}
+	if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
