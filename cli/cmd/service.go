@@ -217,7 +217,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Schedules services synchronously",
 					},
 				},
-			},{
+			}, {
 				Name:         "shell",
 				Usage:        "Starts a service instance",
 				Description:  "serviced service shell SERVICEID [COMMAND]",
@@ -494,44 +494,44 @@ func (c *ServicedCli) initService() {
 			},
 			{
 				Name:         "set-ip",
-                                Usage:        "Setting an IP address to a service's endpoints requiring an explicit IP address. If ip is not provided it does an automatic assignment",
-                                Description:  "serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]",
-                                BashComplete: c.printServicesFirst,
-                                Action:       c.cmdServiceSetIP,
-				Flags:	[]cli.Flag{
+				Usage:        "Setting an IP address to a service's endpoints requiring an explicit IP address. If ip is not provided it does an automatic assignment",
+				Description:  "serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceSetIP,
+				Flags: []cli.Flag{
 					cli.IntFlag{
-						Name:	"port",
-						Usage:	"determine the port your service will use",
+						Name:  "port",
+						Usage: "determine the port your service will use",
 					},
 					cli.StringFlag{
-						Name:	"proto",
-						Usage:	"determine the port protocol your service will use",
+						Name:  "proto",
+						Usage: "determine the port protocol your service will use",
 					},
 				},
 			},
 			{
-				Name: "config",
-				Usage: "Manage config files for services",
+				Name:        "config",
+				Usage:       "Manage config files for services",
 				Description: "serviced service config",
 				Subcommands: []cli.Command{
 					{
-						Name: "list",
-						Usage: "List all config files for a given service, or the contents of one named file.",
+						Name:        "list",
+						Usage:       "List all config files for a given service, or the contents of one named file.",
 						Description: "serviced service config list SERVICEID [FILENAME]",
-						Action: c.cmdServiceConfigList,
+						Action:      c.cmdServiceConfigList,
 					},
 					{
-						Name: "edit",
-						Usage: "Edit one config file for a given service",
+						Name:        "edit",
+						Usage:       "Edit one config file for a given service",
 						Description: "serviced service config edit SERVICEID FILENAME",
-						Action: c.cmdServiceConfigEdit,
-				    Flags: []cli.Flag{
-						cli.StringFlag{
-							Name:  "editor, e",
-							Value: os.Getenv("EDITOR"),
-							Usage: "Editor used to update the config file ",
-					    },
-				    },
+						Action:      c.cmdServiceConfigEdit,
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:  "editor, e",
+								Value: os.Getenv("EDITOR"),
+								Usage: "Editor used to update the config file ",
+							},
+						},
 					},
 				},
 			},
@@ -1125,9 +1125,9 @@ func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
 		if configJsonOut, err := json.MarshalIndent(configJson, " ", "  "); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
-	  } else {
-		  fmt.Printf("%s\n\n", configJsonOut)
-		  return
+		} else {
+			fmt.Printf("%s\n\n", configJsonOut)
+			return
 		}
 	} else {
 		filename := args[1]
@@ -1181,10 +1181,10 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 	newcontents := new(bytes.Buffer)
 	newcontents.ReadFrom(reader)
 	newfile := servicedefinition.ConfigFile{
-		Filename: configfile.Filename,
-		Owner: configfile.Owner,
+		Filename:    configfile.Filename,
+		Owner:       configfile.Owner,
 		Permissions: configfile.Permissions,
-		Content: string(newcontents.Bytes()),
+		Content:     string(newcontents.Bytes()),
 	}
 	service.ConfigFiles[filename] = newfile
 	jsonService, err := json.MarshalIndent(service, " ", "  ")
@@ -1234,17 +1234,17 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 // serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
 func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
 	args := ctx.Args()
-        if len(args) != 2 {
-                fmt.Printf("Incorrect Usage.\n\n")
-                cli.ShowCommandHelp(ctx, "remove-ip")
-                return
+	if len(args) != 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove-ip")
+		return
 	}
 
 	svc, _, err := c.searchForService(ctx.Args().First())
-        if err != nil {
-                fmt.Fprintln(os.Stderr, err)
-                return
-        }
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 	serviceID := svc.ID
 	endpointName := ctx.Args()[1]
 
@@ -1257,11 +1257,11 @@ func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
 
 // serviced service set-ip <SERVICEID> <ENDPOINTNAME> [IPADDRESS] [--port=PORT] [--proto=PROTOCOL]
 func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
-        args := ctx.Args()
-        if len(args) < 3 {
-                fmt.Printf("Incorrect Usage.\n\n")
-                cli.ShowCommandHelp(ctx, "set-ip")
-                return
+	args := ctx.Args()
+	if len(args) < 3 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "set-ip")
+		return
 	}
 
 	if args[len(args)-1] == "--generate-bash-completion" {
@@ -1277,9 +1277,9 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 	}
 
 	var endpointName string
-        if len(args) > 1 {
-                endpointName = args[1]
-        }
+	if len(args) > 1 {
+		endpointName = args[1]
+	}
 
 	var ipAddress string
 	if len(args) > 2 {
@@ -1299,11 +1299,11 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 	}
 
 	cfg := api.IPConfig{
-		ServiceID:	svc.ID,
-		IPAddress:	ipAddress,
-		Port:		uint16(ctx.Int("port")),
-		Proto:		ctx.String("proto"),
-		EndpointName:	endpointName,
+		ServiceID:    svc.ID,
+		IPAddress:    ipAddress,
+		Port:         uint16(ctx.Int("port")),
+		Proto:        ctx.String("proto"),
+		EndpointName: endpointName,
 	}
 
 	if err := c.driver.SetIP(cfg); err != nil {
