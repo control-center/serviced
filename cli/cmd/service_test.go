@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -90,6 +91,14 @@ var DefaultTestServices = []service.Service{
 				PortNumber:  9080,
 				Protocol:    "tcp",
 				Purpose:     "import",
+			},
+		},
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"/etc/test.conf": servicedefinition.ConfigFile{
+				Filename: "/etc/test.conf",
+				Owner: "1001",
+				Permissions: "600",
+				Content: "#-----test.conf\n\n# This is a test conf file.\n",
 			},
 		},
 	}, {
@@ -704,6 +713,97 @@ func ExampleServicedCLI_CmdServiceEdit_err() {
 
 	// Output:
 	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceConfigList_usage() {
+  InitServiceAPITest("serviced", "service", "config", "list")
+	// Output:
+  // Incorrect Usage.
+  //
+  // NAME:
+  //    list - List all config files for a given service, or the contents of one named file.
+  //
+  // USAGE:
+  //    command list [command options] [arguments...]
+  //
+  // DESCRIPTION:
+  //    serviced service config list SERVICEID [FILENAME]
+  //
+  // OPTIONS:
+}
+
+func ExampleServicedCLI_CmdServiceConfigList() {
+  InitServiceAPITest("serviced", "service", "config", "list", "test-service-1")
+	// Output:
+	// {
+	//    "ConfigFiles": [
+	//      "/etc/test.conf"
+	//    ]
+	//  }
+}
+
+func ExampleServicedCLI_CmdServiceConfigListSingle() {
+  InitServiceAPITest("serviced", "service", "config", "list", "test-service-1", "/etc/test.conf")
+	// Output:
+	// #-----test.conf
+	//
+	// # This is a test conf file.
+	//
+}
+
+func ExampleServicedCLI_CmdServiceConfigList_noservice() {
+	pipeStderr(func() {
+	  InitServiceAPITest("serviced", "service", "config", "list", "test-service-0")
+	})
+	// Output:
+  // service not found
+}
+
+func ExampleServicedCLI_CmdServiceConfigListSingle_nofile() {
+	pipeStderr(func() {
+	  InitServiceAPITest("serviced", "service", "config", "list", "test-service-1", "/etc/nothere.conf")
+	})
+	// Output:
+	// Config file /etc/nothere.conf not found.
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit_usage() {
+	InitServiceAPITest("serviced", "service", "config", "edit")
+	// Output:
+  // Incorrect Usage.
+  //
+  // NAME:
+  //    edit - Edit one config file for a given service
+  //
+  // USAGE:
+  //    command edit [command options] [arguments...]
+  //
+  // DESCRIPTION:
+  //    serviced service config edit SERVICEID FILENAME
+  //
+  // OPTIONS:
+	//    --editor, -e 	Editor used to update the config file
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit_noservice() {
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "config", "edit", "test-service-0", "/etc/nothere.conf")
+	})
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit_nofile() {
+	// File not found
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "config", "edit", "test-service-1", "/etc/nothere.conf") })
+
+	// Output:
+	// Config file /etc/nothere.conf not found.
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit() {
+	// Hard to test that an editor was opened.
+	InitServiceAPITest("serviced", "service", "config", "edit", "test-service-1", "/etc/test.conf")
 }
 
 func ExampleServicedCLI_CmdServiceAssignIPs() {

@@ -516,20 +516,20 @@ func (c *ServicedCli) initService() {
 				Subcommands: []cli.Command{
 					{
 						Name: "list",
-						Usage: "List all configs for a given service",
-						Description: "serviced service config list SERVICEID",
+						Usage: "List all config files for a given service, or the contents of one named file.",
+						Description: "serviced service config list SERVICEID [FILENAME]",
 						Action: c.cmdServiceConfigList,
 					},
 					{
 						Name: "edit",
-						Usage: "List all configs for a given service",
-						Description: "serviced service config list SERVICEID",
+						Usage: "Edit one config file for a given service",
+						Description: "serviced service config edit SERVICEID FILENAME",
 						Action: c.cmdServiceConfigEdit,
 				    Flags: []cli.Flag{
-				    	cli.StringFlag{
-					    	Name:  "editor, e",
-    						Value: os.Getenv("EDITOR"),
-	    					Usage: "Editor used to update the service definition",
+						cli.StringFlag{
+							Name:  "editor, e",
+							Value: os.Getenv("EDITOR"),
+							Usage: "Editor used to update the config file ",
 					    },
 				    },
 					},
@@ -1095,7 +1095,7 @@ func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "config list")
+		cli.ShowCommandHelp(ctx, "list")
 		return
 	}
 
@@ -1145,7 +1145,7 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "config edit")
+		cli.ShowCommandHelp(ctx, "edit")
 		return
 	}
 
