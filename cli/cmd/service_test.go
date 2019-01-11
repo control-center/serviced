@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -90,6 +91,14 @@ var DefaultTestServices = []service.Service{
 				PortNumber:  9080,
 				Protocol:    "tcp",
 				Purpose:     "import",
+			},
+		},
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"/etc/test.conf": servicedefinition.ConfigFile{
+				Filename:    "/etc/test.conf",
+				Owner:       "1001",
+				Permissions: "600",
+				Content:     "#-----test.conf\n\n# This is a test conf file.\n",
 			},
 		},
 	}, {
@@ -706,6 +715,99 @@ func ExampleServicedCLI_CmdServiceEdit_err() {
 	// service not found
 }
 
+func ExampleServicedCLI_CmdServiceConfigList_usage() {
+	InitServiceAPITest("serviced", "service", "config", "list")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    list - List all config files for a given service, or the contents of one named file.
+	//
+	// USAGE:
+	//    command list [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service config list SERVICEID [FILENAME]
+	//
+	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdServiceConfigList() {
+	InitServiceAPITest("serviced", "service", "config", "list", "test-service-1")
+	// Output:
+	// {
+	//    "ConfigFiles": [
+	//      "/etc/test.conf"
+	//    ]
+	//  }
+}
+
+func ExampleServicedCLI_CmdServiceConfigListSingle() {
+	InitServiceAPITest("serviced", "service", "config", "list", "test-service-1", "/etc/test.conf")
+	// Output:
+	// #-----test.conf
+	//
+	// # This is a test conf file.
+	//
+}
+
+func ExampleServicedCLI_CmdServiceConfigList_noservice() {
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "config", "list", "test-service-0")
+	})
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceConfigListSingle_nofile() {
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "config", "list", "test-service-1", "/etc/nothere.conf")
+	})
+	// Output:
+	// Config file /etc/nothere.conf not found.
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit_usage() {
+	InitServiceAPITest("serviced", "service", "config", "edit")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    edit - Edit one config file for a given service
+	//
+	// USAGE:
+	//    command edit [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service config edit SERVICEID FILENAME
+	//
+	// OPTIONS:
+	//    --editor, -e 	Editor used to update the config file
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit_noservice() {
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "config", "edit", "test-service-0", "/etc/nothere.conf")
+	})
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit_nofile() {
+	// File not found
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "config", "edit", "test-service-1", "/etc/nothere.conf")
+	})
+
+	// Output:
+	// Config file /etc/nothere.conf not found.
+}
+
+func ExampleServicedCLI_CmdServiceConfigEdit() {
+	// Hard to test that an editor was opened.
+	InitServiceAPITest("serviced", "service", "config", "edit", "test-service-1", "/etc/test.conf")
+}
+
 func ExampleServicedCLI_CmdServiceAssignIPs() {
 	// Auto-assign
 	InitServiceAPITest("serviced", "service", "assign-ip", "test-service-1")
@@ -780,18 +882,18 @@ func ExampleServicedCLI_CmdServiceRemoveIPs_fail() {
 	defer func() { DefaultServiceAPITest.errs["RemoveIP"] = nil }()
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "remove-ip", "test-service-3") })
 
-        // Incorrect Usage.
+	// Incorrect Usage.
 
-        // NAME:
-        //    remove-ip - Remove the IP assignment of a service's endpoints
+	// NAME:
+	//    remove-ip - Remove the IP assignment of a service's endpoints
 
-        // USAGE:
-        //    ommand remove-ip [command options] [arguments...]
+	// USAGE:
+	//    ommand remove-ip [command options] [arguments...]
 
-        // DESCRIPTION:
-        //    serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
+	// DESCRIPTION:
+	//    serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
 
-        // OPTIONS:
+	// OPTIONS:
 }
 
 func ExampleServicedCLI_CmdServiceRemoveIPs_err() {
@@ -831,14 +933,18 @@ func ExampleServicedCLI_CmdServiceSetIPs_usage() {
 func ExampleServicedCLI_CmdServiceSetIPs_fail() {
 	DefaultServiceAPITest.errs["SetIP"] = ErrInvalidService
 	defer func() { DefaultServiceAPITest.errs["SetIP"] = nil }()
-	pipeStderr(func() { InitServiceAPITest("serviced", "service", "set-ip", "test-service-2", "test-endpoint", "127.0.0.1", "--port=8080", "--proto=tcp") })
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "set-ip", "test-service-2", "test-endpoint", "127.0.0.1", "--port=8080", "--proto=tcp")
+	})
 
 	// Output:
 	// invalid service
 }
 
 func ExampleServicedCLI_CmdServiceSetIPs_err() {
-	pipeStderr(func() { InitServiceAPITest("serviced", "service", "set-ip", "test-service-0", "test-endpoint", "127.0.0.1") })
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "set-ip", "test-service-0", "test-endpoint", "127.0.0.1")
+	})
 
 	// Please specify the valid port number.
 
@@ -848,12 +954,12 @@ func ExampleServicedCLI_CmdServiceSetIPs_err() {
 	// USAGE:
 	//    command set-ip [command options] [arguments...]
 
-        // DESCRIPTION:
-        //    serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]
+	// DESCRIPTION:
+	//    serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]
 
-        // OPTIONS:
-        //    --port '0'   determine the port your service will use
-        //    --proto      determine the port protocol your service will use
+	// OPTIONS:
+	//    --port '0'   determine the port your service will use
+	//    --proto      determine the port protocol your service will use
 }
 
 func ExampleServicedCLI_CmdServiceStart_usage() {

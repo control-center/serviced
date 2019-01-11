@@ -14,6 +14,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +33,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -215,7 +217,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Schedules services synchronously",
 					},
 				},
-			},{
+			}, {
 				Name:         "shell",
 				Usage:        "Starts a service instance",
 				Description:  "serviced service shell SERVICEID [COMMAND]",
@@ -492,18 +494,44 @@ func (c *ServicedCli) initService() {
 			},
 			{
 				Name:         "set-ip",
-                                Usage:        "Setting an IP address to a service's endpoints requiring an explicit IP address. If ip is not provided it does an automatic assignment",
-                                Description:  "serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]",
-                                BashComplete: c.printServicesFirst,
-                                Action:       c.cmdServiceSetIP,
-				Flags:	[]cli.Flag{
+				Usage:        "Setting an IP address to a service's endpoints requiring an explicit IP address. If ip is not provided it does an automatic assignment",
+				Description:  "serviced service set-ip <SERVICEID> <ENDPOINTNAME> [ADDRESS] [--port=PORT] [--proto=PROTOCOL]",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceSetIP,
+				Flags: []cli.Flag{
 					cli.IntFlag{
-						Name:	"port",
-						Usage:	"determine the port your service will use",
+						Name:  "port",
+						Usage: "determine the port your service will use",
 					},
 					cli.StringFlag{
-						Name:	"proto",
-						Usage:	"determine the port protocol your service will use",
+						Name:  "proto",
+						Usage: "determine the port protocol your service will use",
+					},
+				},
+			},
+			{
+				Name:        "config",
+				Usage:       "Manage config files for services",
+				Description: "serviced service config",
+				Subcommands: []cli.Command{
+					{
+						Name:        "list",
+						Usage:       "List all config files for a given service, or the contents of one named file.",
+						Description: "serviced service config list SERVICEID [FILENAME]",
+						Action:      c.cmdServiceConfigList,
+					},
+					{
+						Name:        "edit",
+						Usage:       "Edit one config file for a given service",
+						Description: "serviced service config edit SERVICEID FILENAME",
+						Action:      c.cmdServiceConfigEdit,
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:  "editor, e",
+								Value: os.Getenv("EDITOR"),
+								Usage: "Editor used to update the config file ",
+							},
+						},
 					},
 				},
 			},
@@ -1062,6 +1090,117 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	}
 }
 
+// serviced service config list SERVICEID [CONFIGFILE]
+func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "list")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	configs := service.ConfigFiles
+
+	if len(args) < 2 {
+		configList := make([]string, 0)
+
+		for filename := range configs {
+			configList = append(configList, filename)
+		}
+		configJson := map[string]([]string){
+			"ConfigFiles": configList,
+		}
+		if configJsonOut, err := json.MarshalIndent(configJson, " ", "  "); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else {
+			fmt.Printf("%s\n\n", configJsonOut)
+			return
+		}
+	} else {
+		filename := args[1]
+		if _, found := configs[filename]; found {
+			fmt.Printf("%s", configs[filename].Content)
+		} else {
+			fmt.Printf("Config file %s not found.\n", filename)
+			return
+		}
+	}
+}
+
+// serviced service config edit SERVICEID CONFIGFILE [--editor]
+func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "edit")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	configs := service.ConfigFiles
+	filename := args[1]
+	if _, found := configs[filename]; !found {
+		fmt.Printf("Config file %s not found.\n", filename)
+		return
+	}
+	configfile := configs[filename]
+	contents := []byte(configfile.Content)
+	splitfilename := strings.Split(filename, "/")
+	shortname := splitfilename[len(splitfilename)-1]
+	name := fmt.Sprintf("serviced_service_edit_%s_%s", service.ID, shortname)
+	reader, err := openEditor(contents, name, ctx.String("editor"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	newcontents := new(bytes.Buffer)
+	newcontents.ReadFrom(reader)
+	newfile := servicedefinition.ConfigFile{
+		Filename:    configfile.Filename,
+		Owner:       configfile.Owner,
+		Permissions: configfile.Permissions,
+		Content:     string(newcontents.Bytes()),
+	}
+	service.ConfigFiles[filename] = newfile
+	jsonService, err := json.MarshalIndent(service, " ", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
+		return
+	}
+	if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service")
+	} else {
+		fmt.Println(service.ID)
+	}
+}
+
 // serviced service assign-ip SERVICEID [IPADDRESS]
 func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 	args := ctx.Args()
@@ -1095,17 +1234,17 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 // serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
 func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
 	args := ctx.Args()
-        if len(args) != 2 {
-                fmt.Printf("Incorrect Usage.\n\n")
-                cli.ShowCommandHelp(ctx, "remove-ip")
-                return
+	if len(args) != 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove-ip")
+		return
 	}
 
 	svc, _, err := c.searchForService(ctx.Args().First())
-        if err != nil {
-                fmt.Fprintln(os.Stderr, err)
-                return
-        }
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 	serviceID := svc.ID
 	endpointName := ctx.Args()[1]
 
@@ -1118,11 +1257,11 @@ func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
 
 // serviced service set-ip <SERVICEID> <ENDPOINTNAME> [IPADDRESS] [--port=PORT] [--proto=PROTOCOL]
 func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
-        args := ctx.Args()
-        if len(args) < 3 {
-                fmt.Printf("Incorrect Usage.\n\n")
-                cli.ShowCommandHelp(ctx, "set-ip")
-                return
+	args := ctx.Args()
+	if len(args) < 3 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "set-ip")
+		return
 	}
 
 	if args[len(args)-1] == "--generate-bash-completion" {
@@ -1138,9 +1277,9 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 	}
 
 	var endpointName string
-        if len(args) > 1 {
-                endpointName = args[1]
-        }
+	if len(args) > 1 {
+		endpointName = args[1]
+	}
 
 	var ipAddress string
 	if len(args) > 2 {
@@ -1160,11 +1299,11 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 	}
 
 	cfg := api.IPConfig{
-		ServiceID:	svc.ID,
-		IPAddress:	ipAddress,
-		Port:		uint16(ctx.Int("port")),
-		Proto:		ctx.String("proto"),
-		EndpointName:	endpointName,
+		ServiceID:    svc.ID,
+		IPAddress:    ipAddress,
+		Port:         uint16(ctx.Int("port")),
+		Proto:        ctx.String("proto"),
+		EndpointName: endpointName,
 	}
 
 	if err := c.driver.SetIP(cfg); err != nil {
