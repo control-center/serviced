@@ -164,6 +164,9 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"auth0-scope", defaultOps.Auth0Scope, "Scope to request in Auth0"},
 		cli.StringFlag{"keyproxy-json-server", defaultOps.KeyProxyJsonServer, "URL for API key server (cc auth token endpoint)"},
 		cli.StringFlag{"keyproxy-listen-port", defaultOps.KeyProxyListenPort, "Port for API key proxy to listen on"},
+		cli.IntFlag{Name: "instances", Usage: "Service instance count"},
+		cli.StringFlag{"ramCommitment", "", "Service RAM commitment"},
+		cli.StringFlag{"ramThreshold", "", "Service RAM threshold"},
 	}
 
 	c.initVersion()
