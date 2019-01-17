@@ -1,5 +1,6 @@
 <div class="container login-container">
-  <form id="login" class="form-signin {{extra_class}}" ng-submit="login()" form-autofill-fix>
+  <form id="login" autocomplete="off" class="form-signin {{extra_class}}" ng-submit="login()" form-autofill-fix>
+    <input type="password" autocomplete="off" style="display:none;" disabled>
     <img class="loginLogo" src="static/img/theMcKrakenLogo.png" style="padding: 0 0 35px;">
     <input type="text" ng-model="username" class="form-control" placeholder="Username" autofocus required>
     <input type="password" ng-model="password" class="form-control" placeholder="Password" required>
