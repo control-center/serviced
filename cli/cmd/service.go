@@ -1207,12 +1207,7 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 		Content:     string(newcontents.Bytes()),
 	}
 	service.ConfigFiles[filename] = newfile
-	jsonService, err := json.MarshalIndent(service, " ", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
-		return
-	}
-	if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
+	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
@@ -2040,12 +2035,7 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	if modified {
-		jsonService, err := json.MarshalIndent(service, " ", "  ")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
-			return
-		}
-		if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
+		if service, err := c.driver.UpdateServiceObj(*service); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "received nil service")
