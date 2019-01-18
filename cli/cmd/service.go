@@ -510,6 +510,26 @@ func (c *ServicedCli) initService() {
 				},
 			},
 			{
+				Name: "tune",
+				Usage: "Adjust instance count, RAM commitment, or RAM threshold for a service.",
+				Description: "serviced service tune SERVICEID",
+				Action: c.cmdServiceTune,
+				Flags: []cli.Flag{
+					cli.IntFlag{
+						Name: "instances",
+						Usage: "Instance count for this service",
+					},
+					cli.StringFlag{
+						Name: "ramCommitment",
+						Usage: "RAM Commitment for this service",
+					},
+					cli.StringFlag{
+						Name: "ramThreshold",
+						Usage: "RAM Threshold for this service",
+					},
+				},
+			},
+			{
 				Name:        "config",
 				Usage:       "Manage config files for services",
 				Description: "serviced service config",
@@ -1187,12 +1207,7 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 		Content:     string(newcontents.Bytes()),
 	}
 	service.ConfigFiles[filename] = newfile
-	jsonService, err := json.MarshalIndent(service, " ", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
-		return
-	}
-	if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
+	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
@@ -1956,4 +1971,81 @@ func (c *ServicedCli) cmdServiceClearEmergency(ctx *cli.Context) {
 	}
 
 	fmt.Printf("Cleared emergency status for %d services\n", count)
+}
+
+// serviced service tune SERVICEID
+func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "tune")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	// Check the arguments
+	modified := false
+	if ctx.IsSet("instances") {
+		oldInstanceCount := service.Instances
+		newInstanceCount := ctx.Int("instances")
+		if oldInstanceCount != newInstanceCount {
+			service.Instances = newInstanceCount
+			modified = true
+		}
+	}
+
+	if ctx.IsSet("ramCommitment") {
+		oldCommitment := service.RAMCommitment
+		ramCommitment, err := utils.ParseEngineeringNotation(ctx.String("ramCommitment"))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		newCommitment := utils.NewEngNotation(int64(ramCommitment))
+
+		if oldCommitment.Value != newCommitment.Value {
+			service.RAMCommitment = newCommitment
+			modified = true
+		}
+	}
+
+	if ctx.IsSet("ramThreshold") {
+		oldThreshold := service.RAMThreshold
+		ramThreshold := ctx.String("ramThreshold")
+		newThreshold, err := utils.ParsePercentage(ramThreshold, service.RAMCommitment.Value)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		if uint64(oldThreshold) != newThreshold {
+			service.RAMThreshold = uint(newThreshold)
+			modified = true
+		}
+	}
+
+	if modified {
+		if service, err := c.driver.UpdateServiceObj(*service); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else if service == nil {
+			fmt.Fprintln(os.Stderr, "received nil service")
+		} else {
+			fmt.Println(service.ID)
+		}
+	} else {
+		fmt.Printf("No changes submitted.\n\n")
+		cli.ShowCommandHelp(ctx, "tune")
+		return
+	}
+
 }

@@ -308,6 +308,15 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.ServiceDetails
 	return &details, nil
 }
 
+func (t ServiceAPITest) UpdateServiceObj(svc service.Service) (*service.ServiceDetails, error) {
+	if _, err := t.GetService(svc.ID); err != nil {
+		return nil, err
+	}
+
+	details := serviceToServiceDetails(svc)
+	return &details, nil
+}
+
 func servicesToServiceDetails(svcs []service.Service) []service.ServiceDetails {
 	detailsList := []service.ServiceDetails{}
 	for _, svc := range svcs {
@@ -1484,4 +1493,84 @@ func ExampleServicedCLI_CmdServiceClearEmergency_usage() {
 	//
 	// OPTIONS:
 	//
+}
+
+func ExampleServiceCLI_CmdServiceTune_usage() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune") })
+	// Output:
+	//Incorrect Usage.
+	//
+	// NAME:
+	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
+	//
+	// USAGE:
+	//    command tune [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service tune SERVICEID
+	//
+	// OPTIONS:
+	//    --instances '0'	Instance count for this service
+	//    --ramCommitment 	RAM Commitment for this service
+	//    --ramThreshold 	RAM Threshold for this service
+}
+
+func ExampleServiceCLI_CmdServiceTune_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-0") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceTune_nokwargs() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-1") })
+	// Output:
+	// No changes submitted.
+	//
+	// NAME:
+	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
+	//
+	// USAGE:
+	//    command tune [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service tune SERVICEID
+	//
+	// OPTIONS:
+	//    --instances '0'	Instance count for this service
+	//    --ramCommitment 	RAM Commitment for this service
+	//    --ramThreshold 	RAM Threshold for this service
+}
+
+func ExampleServiceCLI_CmdServiceTune_nochanges() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-3", "--instances=2") })
+	// Output:
+	// No changes submitted.
+	//
+	// NAME:
+	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
+	//
+	// USAGE:
+	//    command tune [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service tune SERVICEID
+	//
+	// OPTIONS:
+	//    --instances '0'	Instance count for this service
+	//    --ramCommitment 	RAM Commitment for this service
+	//    --ramThreshold 	RAM Threshold for this service
+}
+
+func ExampleServiceCLI_CmdServiceTune_toomany() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-2", "--instances=5") })
+	// Output:
+	// test-service-2
+}
+
+func ExampleServiceCLI_CmdServiceTune_commitment() {
+	InitServiceAPITest("serviced", "service", "tune", "test-service-1", "--ramCommitment=256M")
+}
+
+func ExampleServiceCLI_CmdServiceTune_threshold() {
+	InitServiceAPITest("serviced", "service", "tune", "test-service-1", "--ramThreshold='80%'")
 }
