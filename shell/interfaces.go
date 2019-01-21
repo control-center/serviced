@@ -35,6 +35,7 @@ type ProcessServer struct {
 	actor ProcessActor
 }
 
+// ProcessConfig - Configuration of process running the shell
 type ProcessConfig struct {
 	ServiceID   string
 	IsTTY       bool
