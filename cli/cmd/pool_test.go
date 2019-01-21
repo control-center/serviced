@@ -280,7 +280,7 @@ func TestServicedCLI_CmdPoolAdd_perm(t *testing.T) {
 	test := EmptyPoolAPI()
 	assertPerm := func(poolID string, expected pool.Permission) {
 		if p, err := test.GetResourcePool(poolID); err != nil {
-			t.Fatalf("GetResourcePool(\"%s\"): %s", err.Error())
+			t.Fatalf("GetResourcePool(\"%s\"): %s", poolID, err.Error())
 		} else {
 			if p.Permissions != expected {
 				t.Fatalf("Unexpected Permission for %s: %d != %d", poolID, p.Permissions, expected)
@@ -419,7 +419,7 @@ func TestServicedCLI_CmdPoolSetPermission(t *testing.T) {
 	test := EmptyPoolAPI()
 	assertPerm := func(poolID string, expected pool.Permission) {
 		if p, err := test.GetResourcePool(poolID); err != nil {
-			t.Fatalf("GetResourcePool(\"%s\"): %s", err.Error())
+			t.Fatalf("GetResourcePool(\"%s\"): %s", poolID, err.Error())
 		} else {
 			if p.Permissions != expected {
 				t.Fatalf("Unexpected Permission for %s: %d != %d", poolID, p.Permissions, expected)

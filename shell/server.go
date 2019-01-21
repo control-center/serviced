@@ -26,7 +26,6 @@ import (
 
 	"github.com/control-center/go-socket.io"
 
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/logging"
 	worker "github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
@@ -45,8 +44,6 @@ var (
 
 const (
 	PROCESSKEY      string = "process"
-	MAXBUFFER       int    = 8192
-	DOCKER_ENDPOINT        = "unix:///var/run/docker.sock"
 )
 
 
@@ -331,8 +328,9 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	}
 	defer masterClient.Close()
 	logger.Info("Connected to master")
-	svc := &service.Service{}
-	if svc, err = masterClient.GetService(cfg.ServiceID); err != nil {
+
+	svc, err := masterClient.GetService(cfg.ServiceID)
+	if err != nil {
 		logger.WithError(err).Error("Could not get services")
 		return nil, err
 	}

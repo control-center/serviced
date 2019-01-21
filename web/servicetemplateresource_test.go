@@ -251,7 +251,7 @@ func (s *TestWebSuite) TestRestDeployAppTemplateStatusFails(c *C) {
 		On("DeployTemplateStatus", deploymentID, lastStatus, time.Duration(timeout)*time.Millisecond).
 		Return("", expectedError)
 
-	fmt.Printf("%+x\n%s\n%+x\n", payload, requestJSON, request)
+	fmt.Printf("%+x\n%s\n%+v\n", payload, requestJSON, request)
 	restDeployAppTemplateStatus(&(s.writer), &request, s.ctx)
 
 	s.assertAltServerError(c, expectedError)

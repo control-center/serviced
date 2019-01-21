@@ -356,7 +356,7 @@ func (s *MySuite) TestConcurrentClientCalls(c *C) {
 	echoStrings := make([]string, numCalls)
 
 	for i := 0; i < numCalls; i++ {
-		echoStrings[i] = fmt.Sprintf("String%s", i)
+		echoStrings[i] = fmt.Sprintf("String%d", i)
 	}
 	wg := sync.WaitGroup{}
 	for _, s := range echoStrings {
