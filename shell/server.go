@@ -38,17 +38,15 @@ import (
 var (
 	empty interface{}
 
+	// ErrShellDisabled - Shell disabled error message
 	ErrShellDisabled = errors.New("shell has been disabled for this service")
 
 	plog = logging.PackageLogger()
 )
 
 const (
-	PROCESSKEY      string = "process"
-	MAXBUFFER       int    = 8192
-	DOCKER_ENDPOINT        = "unix:///var/run/docker.sock"
+	PROCESSKEY string = "process"
 )
-
 
 func NewProcessForwarderServer(addr string) *ProcessServer {
 	server := &ProcessServer{
@@ -62,6 +60,7 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	return server
 }
 
+// NewProcessExecutorServer - Create and return a processServer instance
 func NewProcessExecutorServer(masterAddress, agentAddress, dockerRegistry, controllerBinary string) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
@@ -75,13 +74,13 @@ func NewProcessExecutorServer(masterAddress, agentAddress, dockerRegistry, contr
 	return server
 }
 
-func (p *ProcessServer) Handle(pattern string, handler http.Handler) error {
-	p.sio.Handle(pattern, handler)
+func (s *ProcessServer) Handle(pattern string, handler http.Handler) error {
+	s.sio.Handle(pattern, handler)
 	return nil
 }
 
-func (p *ProcessServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p.sio.ServeHTTP(w, r)
+func (s *ProcessServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.sio.ServeHTTP(w, r)
 }
 
 func (s *ProcessServer) onProcess(ns *socketio.NameSpace, cfg *ProcessConfig) {
@@ -316,6 +315,7 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 }
 
+// StartDocker - Start a docker container
 func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistry, controller string) (*exec.Cmd, error) {
 	logger := plog.WithFields(log.Fields{
 		"masteraddress":   masterAddress,
@@ -331,14 +331,16 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	}
 	defer masterClient.Close()
 	logger.Info("Connected to master")
-	svc := &service.Service{}
-	if svc, err = masterClient.GetService(cfg.ServiceID); err != nil {
+
+	svc, err := masterClient.GetService(cfg.ServiceID)
+	if err != nil {
 		logger.WithError(err).Error("Could not get services")
 		return nil, err
 	}
 
-	// can we create a shell for this service?
 	logger = logger.WithField("servicename", svc.Name)
+
+	// can we create a shell for this service?
 	if svc.DisableShell {
 		logger.Warning("Shell commands are disabled for service")
 		return nil, ErrShellDisabled
@@ -354,7 +356,9 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 		return nil, err
 	}
 	defer workerClient.Close()
+
 	logger = logger.WithField("imageid", svc.ImageID)
+
 	logger.Info("Connected to delegate; pulling image")
 	image, err := workerClient.PullImage(dockerRegistry, svc.ImageID, time.Minute)
 	if err != nil {
@@ -363,52 +367,63 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	}
 	logger.Info("Pulled image, setting up shell")
 
-	dir, binary := filepath.Split(controller)
-	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
-
-	// bind mount the pwd
-	dir, err = os.Getwd()
-	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
-
-	// get the shell command
-	shellcmd := cfg.Command
-	if cfg.Command == "" {
-		shellcmd = "su -"
-	}
-
-	// get the serviced command
-	svcdcmd := fmt.Sprintf("/serviced/%s", binary)
-
-	// get the proxy command
-	proxycmd := []string{
-		svcdcmd,
-		fmt.Sprintf("--logtostderr=%t", cfg.LogToStderr),
-		"--autorestart=false",
-		"--disable-metric-forwarding",
-		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
-		fmt.Sprintf("--logstash-settle-time=%s", cfg.LogStash.SettleTime),
-		svc.ID,
-		"0",
-		shellcmd,
-	}
-
 	// get the docker start command
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		logger.WithError(err).Error("Docker not found")
 		return nil, err
 	}
-	resourceBinding := fmt.Sprintf("%s:%s", utils.ResourcesDir(), utils.RESOURCES_CONTAINER_DIRECTORY )
-	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", resourceBinding, "-u", "root", "-w", "/"}
+
+	argv := buildDockerArgs(osWrapImpl{}, svc, cfg, controller, docker, image)
+	logger.Debugf("command: docker %+v", argv)
+	logger.Info("Shell initialized for service, starting")
+	return exec.Command(docker, argv...), nil
+}
+
+// Wrap the use of os.Getwd and os.Getenv so that the output of those
+// functions can be controlled for testing purposes.
+type osWrap interface {
+	Getwd() (string, error)
+	Getenv(key string) string
+}
+
+type osWrapImpl struct {
+}
+
+func (osWrapImpl) Getwd() (string, error) {
+	return os.Getwd()
+}
+
+func (osWrapImpl) Getenv(key string) string {
+	return os.Getenv(key)
+}
+
+func buildDockerArgs(wrap osWrap, svc *service.Service, cfg *ProcessConfig, controller string, docker string, image string) []string {
+	argv := []string{"run", "-u", "root", "-w", "/"}
+
+	dir, binary := filepath.Split(controller)
+	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
+
+	// bind mount the current directory
+	dir, _ = wrap.Getwd()
+	pwdVolume := fmt.Sprintf("%s:/mnt/pwd", dir)
+
+	resourceBinding := fmt.Sprintf("%s:%s", utils.ResourcesDir(), utils.RESOURCES_CONTAINER_DIRECTORY)
+
+	// add the mount volume arguments
+	argv = append(
+		argv,
+		"-v", servicedVolume,
+		"-v", pwdVolume,
+		"-v", resourceBinding,
+	)
 	for _, mount := range cfg.Mount {
-		hostPath, containerPath, err := parseMountArg(mount)
-		if err != nil {
-			return nil, err
+		hostPath, containerPath, _ := parseMountArg(mount)
+		if len(hostPath) == 0 {
+			continue
 		}
 		argv = append(argv, "-v", fmt.Sprintf("%s:%s", hostPath, containerPath))
 	}
-
-	argv = append(argv, cfg.Envv...)
 
 	if cfg.SaveAs != "" {
 		argv = append(argv, fmt.Sprintf("--name=%s", cfg.SaveAs))
@@ -420,17 +435,43 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 		argv = append(argv, "-i", "-t")
 	}
 
-	argv = append(argv, "-e", fmt.Sprintf("SERVICED_VERSION=%s ", servicedversion.Version))
-	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
-	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
-	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image))
-	//The SERVICED_UI_PORT environment variable is deprecated and services should always use port 443 to contact serviced from inside a container
-	argv = append(argv, "-e", "SERVICED_UI_PORT=443")
+	// Add the environment variables
+	argv = append(
+		argv,
+		"-e", fmt.Sprintf("SERVICED_VERSION=%s ", servicedversion.Version),
+		"-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", wrap.Getenv("SERVICED_NOREGISTRY")),
+		"-e", "SERVICED_IS_SERVICE_SHELL=true",
+		"-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image),
+		//The SERVICED_UI_PORT environment variable is deprecated and services
+		//should always use port 443 to contact serviced from inside a container
+		"-e", "SERVICED_UI_PORT=443",
+	)
+	tz := wrap.Getenv("TZ")
+	if len(tz) > 0 {
+		argv = append(argv, "-e", fmt.Sprintf("TZ=%s", tz))
+	}
 
 	argv = append(argv, image)
-	argv = append(argv, proxycmd...)
 
-	logger.Debugf("command: docker %+v", argv)
-	logger.Info("Shell initialized for service, starting")
-	return exec.Command(docker, argv...), nil
+	// get the shell command
+	shellcmd := cfg.Command
+	if cfg.Command == "" {
+		shellcmd = "su -"
+	}
+
+	// get the proxy command
+	argv = append(
+		argv,
+		fmt.Sprintf("/serviced/%s", binary),
+		fmt.Sprintf("--logtostderr=%t", cfg.LogToStderr),
+		"--autorestart=false",
+		"--disable-metric-forwarding",
+		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
+		fmt.Sprintf("--logstash-settle-time=%s", cfg.LogStash.SettleTime),
+		svc.ID,
+		"0",
+		shellcmd,
+	)
+
+	return argv
 }
