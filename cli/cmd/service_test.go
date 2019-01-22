@@ -308,6 +308,15 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.ServiceDetails
 	return &details, nil
 }
 
+func (t ServiceAPITest) UpdateServiceObj(svc service.Service) (*service.ServiceDetails, error) {
+	if _, err := t.GetService(svc.ID); err != nil {
+		return nil, err
+	}
+
+	details := serviceToServiceDetails(svc)
+	return &details, nil
+}
+
 func servicesToServiceDetails(svcs []service.Service) []service.ServiceDetails {
 	detailsList := []service.ServiceDetails{}
 	for _, svc := range svcs {

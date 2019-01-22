@@ -1207,12 +1207,7 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 		Content:     string(newcontents.Bytes()),
 	}
 	service.ConfigFiles[filename] = newfile
-	jsonService, err := json.MarshalIndent(service, " ", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
-		return
-	}
-	if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
+	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
@@ -2012,34 +2007,29 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 
 	if ctx.IsSet("ramCommitment") {
 		oldCommitment := service.RAMCommitment
-
-		newCommitment, err := utils.ParseEngineeringNotation(ctx.String("ramCommitment"))
+		ramCommitment, err := utils.ParseEngineeringNotation(ctx.String("ramCommitment"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
+		newCommitment := utils.NewEngNotation(int64(ramCommitment))
 
-
-		if oldCommitment.Value != newCommitment {
-                        service.RAMCommitment, err = utils.NewEngNotationFromString(ctx.String("ramCommitment"))
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return
-			}
+		if oldCommitment.Value != newCommitment.Value {
+			service.RAMCommitment = newCommitment
 			modified = true
 		}
 	}
 
 	if ctx.IsSet("ramThreshold") {
-		oldThreshold := uint64(service.RAMThreshold)
-		newThreshold, err := utils.ParsePercentage(ctx.String("ramThreshold"), service.RAMCommitment.Value)
+		oldThreshold := service.RAMThreshold
+		ramThreshold := ctx.String("ramThreshold")
+		newThreshold, err := utils.ParsePercentage(ramThreshold, service.RAMCommitment.Value)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		if oldThreshold != newThreshold {
-			percent, _ := strconv.Atoi(strings.TrimSuffix(ctx.String("ramThreshold"),"%"))
-			service.RAMThreshold = uint(percent)
+		if uint64(oldThreshold) != newThreshold {
+			service.RAMThreshold = uint(newThreshold)
 			modified = true
 		}
 	}
@@ -2058,8 +2048,7 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 			fmt.Println(service.ID)
 		}
 	} else {
-		fmt.Printf("No changes submitted.\n\n")
-		cli.ShowCommandHelp(ctx, "tune")
+		fmt.Printf("Service already reflects desired configured - no changes made\n\n")
 		return
 	}
 

@@ -320,6 +320,11 @@ func (a *api) UpdateService(reader io.Reader) (*service.ServiceDetails, error) {
 		return nil, fmt.Errorf("could not unmarshal json: %s", err)
 	}
 
+	return a.UpdateServiceObj(s)
+}
+
+// UpdateServiceObj updates an existing service
+func (a *api) UpdateServiceObj(s service.Service) (*service.ServiceDetails, error) {
 	// Connect to the client
 	client, err := a.connectDAO()
 	if err != nil {

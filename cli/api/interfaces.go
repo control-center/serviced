@@ -74,6 +74,7 @@ type API interface {
 	CloneService(string, string) (*service.ServiceDetails, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.ServiceDetails, error)
+	UpdateServiceObj(service.Service) (*service.ServiceDetails, error)
 	StartService(SchedulerConfig) (int, error)
 	RestartService(SchedulerConfig) (int, error)
 	RebalanceService(SchedulerConfig) (int, error)
