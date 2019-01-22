@@ -76,6 +76,14 @@ func ParseEngineeringNotation(in string) (uint64, error) {
 	return val, nil
 }
 
+func NewEngNotationFromString(in string) (EngNotation, error) {
+	value, err := ParseEngineeringNotation(in)
+        if err != nil {
+		return EngNotation{},err
+        }
+	return EngNotation{in,uint64(value)},nil
+}
+
 func ParsePercentage(in string, value uint64) (uint64, error) {
 	if in == "" {
 		return 0, nil

@@ -2012,29 +2012,34 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 
 	if ctx.IsSet("ramCommitment") {
 		oldCommitment := service.RAMCommitment
-		ramCommitment, err := utils.ParseEngineeringNotation(ctx.String("ramCommitment"))
+
+		newCommitment, err := utils.ParseEngineeringNotation(ctx.String("ramCommitment"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		newCommitment := utils.NewEngNotation(int64(ramCommitment))
 
-		if oldCommitment.Value != newCommitment.Value {
-			service.RAMCommitment = newCommitment
+
+		if oldCommitment.Value != newCommitment {
+                        service.RAMCommitment, err = utils.NewEngNotationFromString(ctx.String("ramCommitment"))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return
+			}
 			modified = true
 		}
 	}
 
 	if ctx.IsSet("ramThreshold") {
-		oldThreshold := service.RAMThreshold
-		ramThreshold := ctx.String("ramThreshold")
-		newThreshold, err := utils.ParsePercentage(ramThreshold, service.RAMCommitment.Value)
+		oldThreshold := uint64(service.RAMThreshold)
+		newThreshold, err := utils.ParsePercentage(ctx.String("ramThreshold"), service.RAMCommitment.Value)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		if uint64(oldThreshold) != newThreshold {
-			service.RAMThreshold = uint(newThreshold)
+		if oldThreshold != newThreshold {
+			percent, _ := strconv.Atoi(strings.TrimSuffix(ctx.String("ramThreshold"),"%"))
+			service.RAMThreshold = uint(percent)
 			modified = true
 		}
 	}
