@@ -75,3 +75,11 @@ func TestStruct(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestNewEngNotationFromString(t *testing.T)
+	value := "10K"
+	en, err := NewEngNotationFromString(value)
+	if err != nil || en.Value != (10 * (1 << 10))  || en.source != "10K" {
+                t.Fail()
+        }
+}

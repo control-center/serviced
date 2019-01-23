@@ -1524,7 +1524,7 @@ func ExampleServiceCLI_CmdServiceTune_noservice() {
 func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-1") })
 	// Output:
-	// No changes submitted.
+	// Incorrect Usage
 	//
 	// NAME:
 	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
@@ -1544,21 +1544,7 @@ func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 func ExampleServiceCLI_CmdServiceTune_nochanges() {
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-3", "--instances=2") })
 	// Output:
-	// No changes submitted.
-	//
-	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
-	//
-	// USAGE:
-	//    command tune [command options] [arguments...]
-	//
-	// DESCRIPTION:
-	//    serviced service tune SERVICEID
-	//
-	// OPTIONS:
-	//    --instances '0'	Instance count for this service
-	//    --ramCommitment 	RAM Commitment for this service
-	//    --ramThreshold 	RAM Threshold for this service
+	// Service already reflects desired configured - no changes made
 }
 
 func ExampleServiceCLI_CmdServiceTune_toomany() {

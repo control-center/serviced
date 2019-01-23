@@ -1976,7 +1976,7 @@ func (c *ServicedCli) cmdServiceClearEmergency(ctx *cli.Context) {
 // serviced service tune SERVICEID
 func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 1 {
+	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "tune")
 		return
