@@ -1976,7 +1976,7 @@ func (c *ServicedCli) cmdServiceClearEmergency(ctx *cli.Context) {
 // serviced service tune SERVICEID
 func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "tune")
 		return
@@ -1995,6 +1995,12 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	// Check the arguments
+	if !ctx.IsSet("instances") && !ctx.IsSet("ramThreshold") && !ctx.IsSet("ramThreshold") {
+		fmt.Printf("Incorrect Usage.\n\n")
+                cli.ShowCommandHelp(ctx, "tune")
+                return
+	}
+
 	modified := false
 	if ctx.IsSet("instances") {
 		oldInstanceCount := service.Instances
