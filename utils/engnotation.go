@@ -31,6 +31,17 @@ func NewEngNotation(value int64) EngNotation {
 	return EngNotation{source: fmt.Sprintf("%d", value), Value: uint64(value)}
 }
 
+func NewEngNotationFromString(in string) (EngNotation, error) {
+	if value, err := ParseEngineeringNotation(in); err != nil {
+		return EngNotation{},err
+        } else {
+		return EngNotation{
+			source: in,
+			Value: uint64(value),
+		},nil
+	}
+}
+
 func (e *EngNotation) UnmarshalJSON(b []byte) (err error) {
 	json.Unmarshal(b, &e.source)
 	e.Value, err = ParseEngineeringNotation(e.source)
@@ -74,14 +85,6 @@ func ParseEngineeringNotation(in string) (uint64, error) {
 		return 0, fmt.Errorf("Parsing engineering notation for '%s'", in)
 	}
 	return val, nil
-}
-
-func NewEngNotationFromString(in string) (EngNotation, error) {
-	value, err := ParseEngineeringNotation(in)
-        if err != nil {
-		return EngNotation{},err
-        }
-	return EngNotation{in,uint64(value)},nil
 }
 
 func ParsePercentage(in string, value uint64) (uint64, error) {

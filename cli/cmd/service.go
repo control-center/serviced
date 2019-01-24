@@ -1982,6 +1982,11 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 		return
 	}
 
+	if ctx.IsSet("help") {
+		cli.ShowCommandHelp(ctx, "tune")
+		return
+	}
+
 	svcDetails, _, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -1995,10 +2000,10 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	// Check the arguments
-	if !ctx.IsSet("instances") && !ctx.IsSet("ramThreshold") && !ctx.IsSet("ramThreshold") {
+	if !ctx.IsSet("instances") && !ctx.IsSet("ramCommitment") && !ctx.IsSet("ramThreshold") {
 		fmt.Printf("Incorrect Usage.\n\n")
-                cli.ShowCommandHelp(ctx, "tune")
-                return
+		cli.ShowCommandHelp(ctx, "tune")
+		return
 	}
 
 	modified := false
@@ -2013,12 +2018,11 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 
 	if ctx.IsSet("ramCommitment") {
 		oldCommitment := service.RAMCommitment
-		ramCommitment, err := utils.ParseEngineeringNotation(ctx.String("ramCommitment"))
+		newCommitment, err := utils.NewEngNotationFromString(ctx.String("ramCommitment"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		newCommitment := utils.NewEngNotation(int64(ramCommitment))
 
 		if oldCommitment.Value != newCommitment.Value {
 			service.RAMCommitment = newCommitment
