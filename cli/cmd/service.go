@@ -73,7 +73,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Comma-delimited list describing which fields to display",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -93,7 +93,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Comma-delimited list describing which fields to display",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -131,7 +131,7 @@ func (c *ServicedCli) initService() {
 						Usage: "name to append to service name, volumes, endpoints",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -144,7 +144,7 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceRemove,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -161,7 +161,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Editor used to update the service definition",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -173,7 +173,7 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceAssignIP,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -193,7 +193,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Schedules services synchronously",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -217,7 +217,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Stops all instances before restarting them, instead of performing a rolling restart",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -237,7 +237,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Schedules services synchronously",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -257,7 +257,7 @@ func (c *ServicedCli) initService() {
 						Usage: "Schedules services synchronously",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -283,7 +283,7 @@ func (c *ServicedCli) initService() {
 						Usage: "bind mount: HOST_PATH[,CONTAINER_PATH]",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -322,7 +322,7 @@ func (c *ServicedCli) initService() {
 						Usage: "container username used to run command",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -334,7 +334,7 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceAttach,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -346,7 +346,7 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceAction,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -358,7 +358,7 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceLogs,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -374,7 +374,7 @@ func (c *ServicedCli) initService() {
 						Usage: "shows the tags associated with each snapshot",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -396,7 +396,7 @@ func (c *ServicedCli) initService() {
 						Usage: "a unique tag for the snapshot",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -420,7 +420,7 @@ func (c *ServicedCli) initService() {
 						Usage: "verify endpoints",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -457,7 +457,7 @@ func (c *ServicedCli) initService() {
 								Usage: "Show JSON format",
 							},
 							cli.BoolFlag{
-								Name:  "no-prefix-match",
+								Name:  "no-prefix-match, np",
 								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 							},
 						},
@@ -487,7 +487,7 @@ func (c *ServicedCli) initService() {
 										Usage: "Show JSON format",
 									},
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -503,7 +503,7 @@ func (c *ServicedCli) initService() {
 										Usage: "Restart the service after adding the port if the service is currently running",
 									},
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -516,7 +516,7 @@ func (c *ServicedCli) initService() {
 								Action:      c.cmdPublicEndpointsPortRemove,
 								Flags: []cli.Flag{
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -528,7 +528,7 @@ func (c *ServicedCli) initService() {
 								Action:      c.cmdPublicEndpointsPortEnable,
 								Flags: []cli.Flag{
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -560,7 +560,7 @@ func (c *ServicedCli) initService() {
 										Usage: "Show JSON format",
 									},
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -572,7 +572,7 @@ func (c *ServicedCli) initService() {
 								Action:      c.cmdPublicEndpointsVHostAdd,
 								Flags: []cli.Flag{
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -585,7 +585,7 @@ func (c *ServicedCli) initService() {
 								Action:      c.cmdPublicEndpointsVHostRemove,
 								Flags: []cli.Flag{
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -597,7 +597,7 @@ func (c *ServicedCli) initService() {
 								Action:      c.cmdPublicEndpointsVHostEnable,
 								Flags: []cli.Flag{
 									cli.BoolFlag{
-										Name:  "no-prefix-match",
+										Name:  "no-prefix-match, np",
 										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 									},
 								},
@@ -614,7 +614,7 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceClearEmergency,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -627,7 +627,7 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceRemoveIP,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -648,7 +648,7 @@ func (c *ServicedCli) initService() {
 						Usage: "determine the port protocol your service will use",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -672,7 +672,7 @@ func (c *ServicedCli) initService() {
 						Usage: "RAM Threshold for this service",
 					},
 					cli.BoolFlag{
-						Name:  "no-prefix-match",
+						Name:  "no-prefix-match, np",
 						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
@@ -689,7 +689,7 @@ func (c *ServicedCli) initService() {
 						Action:      c.cmdServiceConfigList,
 						Flags: []cli.Flag{
 							cli.BoolFlag{
-								Name:  "no-prefix-match",
+								Name:  "no-prefix-match, np",
 								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 							},
 						},
@@ -706,7 +706,7 @@ func (c *ServicedCli) initService() {
 								Usage: "Editor used to update the config file",
 							},
 							cli.BoolFlag{
-								Name:  "no-prefix-match",
+								Name:  "no-prefix-match, np",
 								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 							},
 						},

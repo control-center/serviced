@@ -3002,7 +3002,7 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string, nopre
 	svcPath = strings.ToLower(svcPath)
 
 	// First pass: get all services that match either ID exactly or name by regex.
-	// The default matching is to use a "containes" regex. This is overridable
+	// The default matching is to use a "contains" regex. This is overridable
 	// via the noprefix boolean which changes the regex to an "ends with" match
 	parent, current = path.Split(svcPath)
 
