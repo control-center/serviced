@@ -1453,7 +1453,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 		DeploymentID:    "deployment_id_2",
 	}
 	svcnoprefix1 := service.Service{
-                ID:              "svcnoprefix",
+                ID:              "svcnoprefix1id",
                 PoolID:          "testPool",
                 Name:            "svc_noprefix",
                 Launch:          "auto",
@@ -1461,7 +1461,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
                 DeploymentID:    "deployment_id",
         }
         svcnoprefix2 := service.Service{
-                ID:              "svcnoprefix2",
+                ID:              "svcnoprefix2id",
                 PoolID:          "testPool",
                 Name:            "svc_noprefix2",
                 Launch:          "auto",
@@ -1494,11 +1494,11 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 
 	// Default is substring match
 	ft.assertPathResolvesToServices(c, "svc_d", false, svcd, svcd2, svc2d, svcdother)
-	ft.assertPathResolvesToServices(c, "2", false, svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "2", false, svcd2, svc2d, svcnoprefix2)
 
 	// Leading slash indicates nothing special
-	ft.assertPathResolvesToServices(c, "/svc_d", false, svcd, svcd2, svcdother)
-	ft.assertPathResolvesToServices(c, "/vc_d", false)
+	ft.assertPathResolvesToServices(c, "/svc_d", false, svcd, svcd2, svc2d, svcdother)
+	ft.assertPathResolvesToServices(c, "/vc_d", false, svcd, svcd2, svc2d, svcdother)
 
 	// Must be able to restrict by deployment ID
 	ft.assertPathResolvesToServices(c, "deployment_id/svc_d", false, svcd, svcd2, svc2d)
@@ -1518,10 +1518,9 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 	ft.assertPathResolvesToServices(c, "", false)
 
 	// Test name no prefix matching
-	ft.assertPathResolvesToServices(c, "svc_noprefix", false, svcnoprefix, svcnoprefix2)
+	ft.assertPathResolvesToServices(c, "svc_noprefix", false, svcnoprefix1, svcnoprefix2)
 	ft.assertPathResolvesToServices(c, "svc_noprefix2", false, svcnoprefix2)
-	ft.assertPathResolvesToServices(c, "svc_noprefix", true, svcnoprefix)
-
+	ft.assertPathResolvesToServices(c, "svc_noprefix", true, svcnoprefix1)
 
 }
 
