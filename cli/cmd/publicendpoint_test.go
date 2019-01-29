@@ -336,6 +336,7 @@ func ExampleServicedCLI_CmdPublicEndpointsPortEnable_InvalidArgCount() {
 	//    serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> true|false
 	//
 	// OPTIONS:
+	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortEnable_InvalidService() {
@@ -386,6 +387,7 @@ func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidArgCount() {
 	//    serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>
 	//
 	// OPTIONS:
+	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidService() {
@@ -429,6 +431,7 @@ func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidArgCount() {
 	//    serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false
 	//
 	// OPTIONS:
+	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidService() {

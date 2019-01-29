@@ -703,7 +703,7 @@ func (c *ServicedCli) initService() {
 							cli.StringFlag{
 								Name:  "editor, e",
 								Value: os.Getenv("EDITOR"),
-								Usage: "Editor used to update the config file ",
+								Usage: "Editor used to update the config file",
 							},
 							cli.BoolFlag{
 								Name:  "no-prefix-match",
