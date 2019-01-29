@@ -468,12 +468,12 @@ func (a *api) GetHostMap() (map[string]host.Host, error) {
 	return hostmap, nil
 }
 
-func (a *api) ResolveServicePath(path string) ([]service.ServiceDetails, error) {
+func (a *api) ResolveServicePath(path string, noprefix bool) ([]service.ServiceDetails, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
-	return client.ResolveServicePath(path)
+	return client.ResolveServicePath(path,noprefix)
 }
 
 func (a *api) ClearEmergency(serviceID string) (int, error) {

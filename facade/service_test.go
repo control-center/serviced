@@ -1452,6 +1452,24 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 		ParentServiceID: "",
 		DeploymentID:    "deployment_id_2",
 	}
+	svcnoprefix1 := service.Service{
+                ID:              "svcnoprefix",
+                PoolID:          "testPool",
+                Name:            "svc_noprefix",
+                Launch:          "auto",
+                ParentServiceID: "svcbid",
+                DeploymentID:    "deployment_id",
+        }
+        svcnoprefix2 := service.Service{
+                ID:              "svcnoprefix2",
+                PoolID:          "testPool",
+                Name:            "svc_noprefix2",
+                Launch:          "auto",
+                ParentServiceID: "svcbid",
+                DeploymentID:    "deployment_id",
+        }
+
+
 	c.Assert(ft.Facade.AddService(ft.CTX, svca), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcb), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcc), IsNil)
@@ -1459,43 +1477,51 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 	c.Assert(ft.Facade.AddService(ft.CTX, svcd2), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svc2d), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcdother), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcnoprefix1), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcnoprefix2), IsNil)
 
-	ft.assertPathResolvesToServices(c, "/svc_a/svc_b/svc_c", svcc)
-	ft.assertPathResolvesToServices(c, "svc_a/svc_b/svc_c", svcc)
-	ft.assertPathResolvesToServices(c, "svc_b/svc_c", svcc)
-	ft.assertPathResolvesToServices(c, "/svc_b/svc_c", svcc)
-	ft.assertPathResolvesToServices(c, "svc_c", svcc)
-	ft.assertPathResolvesToServices(c, "/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "/svc_a/svc_b/svc_c", false, svcc)
+	ft.assertPathResolvesToServices(c, "svc_a/svc_b/svc_c", false, svcc)
+	ft.assertPathResolvesToServices(c, "svc_b/svc_c", false, svcc)
+	ft.assertPathResolvesToServices(c, "/svc_b/svc_c", false, svcc)
+	ft.assertPathResolvesToServices(c, "svc_c", false, svcc)
+	ft.assertPathResolvesToServices(c, "/svc_c", false, svcc)
 
-	ft.assertPathResolvesToServices(c, "/svc_a", svca)
-	ft.assertPathResolvesToServices(c, "svc_a", svca)
-	ft.assertPathResolvesToServices(c, "/svc_b", svcb)
-	ft.assertPathResolvesToServices(c, "svc_b", svcb)
+	ft.assertPathResolvesToServices(c, "/svc_a", false, svca)
+	ft.assertPathResolvesToServices(c, "svc_a", false, svca)
+	ft.assertPathResolvesToServices(c, "/svc_b", false, svcb)
+	ft.assertPathResolvesToServices(c, "svc_b", false, svcb)
 
 	// Default is substring match
-	ft.assertPathResolvesToServices(c, "svc_d", svcd, svcd2, svc2d, svcdother)
-	ft.assertPathResolvesToServices(c, "2", svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "svc_d", false, svcd, svcd2, svc2d, svcdother)
+	ft.assertPathResolvesToServices(c, "2", false, svcd2, svc2d)
 
-	// Leading slash indicates prefix match
-	ft.assertPathResolvesToServices(c, "/svc_d", svcd, svcd2, svcdother)
-	ft.assertPathResolvesToServices(c, "/vc_d")
+	// Leading slash indicates nothing special
+	ft.assertPathResolvesToServices(c, "/svc_d", false, svcd, svcd2, svcdother)
+	ft.assertPathResolvesToServices(c, "/vc_d", false)
 
 	// Must be able to restrict by deployment ID
-	ft.assertPathResolvesToServices(c, "deployment_id/svc_d", svcd, svcd2, svc2d)
-	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_d", svcdother)
+	ft.assertPathResolvesToServices(c, "deployment_id/svc_d", false, svcd, svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_d", false, svcdother)
 
 	// Path has to exist underneath that deployment to match
-	ft.assertPathResolvesToServices(c, "deployment_id/svc_b/svc_d", svcd, svcd2, svc2d)
-	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_b/svc_d")
+	ft.assertPathResolvesToServices(c, "deployment_id/svc_b/svc_d", false, svcd, svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_b/svc_d", false)
 
 	// Make sure invalid matches don't match
-	ft.assertPathResolvesToServices(c, "notathing")
-	ft.assertPathResolvesToServices(c, "svc_d/svc_b")
-	ft.assertPathResolvesToServices(c, "sv_a")
+	ft.assertPathResolvesToServices(c, "notathing", false)
+	ft.assertPathResolvesToServices(c, "svc_d/svc_b", false)
+	ft.assertPathResolvesToServices(c, "sv_a", false)
 
 	// Empty paths shouldn't match anything
-	ft.assertPathResolvesToServices(c, "/")
-	ft.assertPathResolvesToServices(c, "")
+	ft.assertPathResolvesToServices(c, "/", false)
+	ft.assertPathResolvesToServices(c, "", false)
+
+	// Test name no prefix matching
+	ft.assertPathResolvesToServices(c, "svc_noprefix", false, svcnoprefix, svcnoprefix2)
+	ft.assertPathResolvesToServices(c, "svc_noprefix2", false, svcnoprefix2)
+	ft.assertPathResolvesToServices(c, "svc_noprefix", true, svcnoprefix)
+
 
 }
 
@@ -3753,8 +3779,8 @@ func (ft *FacadeIntegrationTest) createServiceDeploymentRequest(t *C) *dao.Servi
 	return &deployRequest
 }
 
-func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string, services ...service.Service) {
-	details, err := ft.Facade.ResolveServicePath(ft.CTX, path)
+func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string, noprefix bool, services ...service.Service) {
+	details, err := ft.Facade.ResolveServicePath(ft.CTX, path, noprefix)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, len(services))
 	foundids := make([]string, len(details))

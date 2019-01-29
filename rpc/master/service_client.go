@@ -100,10 +100,20 @@ func (c *Client) GetTenantID(serviceID string) (string, error) {
 }
 
 // ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb") to zero or more ServiceDetails.
-func (c *Client) ResolveServicePath(path string) ([]service.ServiceDetails, error) {
+func (c *Client) ResolveServicePath(path string, noprefix bool) ([]service.ServiceDetails, error) {
+	resolveServiceRequest := ResolveServiceRequest{
+		Path: path,
+		NoPrefix: noprefix,
+	}
 	svcs := []service.ServiceDetails{}
-	err := c.call("ResolveServicePath", path, &svcs)
-	return svcs, err
+
+	plog.WithFields(logrus.Fields{
+                "path": path,
+                "noprefix": noprefix,
+        }).Info("Trying to find service")
+
+	err := c.call("ResolveServicePath", resolveServiceRequest, &svcs)
+        return svcs, err
 }
 
 // ClearEmergency clears the EmergencyShutdown flag on a service and all child services

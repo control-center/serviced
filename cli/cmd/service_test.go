@@ -188,7 +188,7 @@ func (t ServiceAPITest) GetAllServiceDetails() ([]service.ServiceDetails, error)
 	return servicesToServiceDetails(t.services), nil
 }
 
-func (t ServiceAPITest) ResolveServicePath(name string) ([]service.ServiceDetails, error) {
+func (t ServiceAPITest) ResolveServicePath(name string, noprefix bool) ([]service.ServiceDetails, error) {
 	if t.errs["ResolveServicePath"] != nil {
 		return nil, t.errs["ResolveServicePath"]
 	}
