@@ -211,13 +211,36 @@ func attachAndRun(dockerID, command string) error {
 	} else if command == "" {
 		return nil
 	}
-
-	output, err := utils.AttachAndRun(dockerID, []string{command})
-	if err != nil {
-		err = fmt.Errorf("%s (%s)", string(output), err)
-		glog.Errorf("Could not pause container %s: %s", dockerID, err)
+	type out struct {
+		response string
+		err      error
 	}
-	return err
+	done := make(chan out)
+
+	go func() {
+		output, err := utils.AttachAndRun(dockerID, []string{command})
+		done <- out{string(output), err}
+	}()
+
+	select {
+		case result := <- done: {
+			if result.err != nil {
+				glog.Errorf("Could not pause container %s: %s", dockerID, result.err)
+				return result.err
+			}
+		}
+		// replace hardcoded timeout with f.dfs.Timeout() - 10 sec
+		case <- time.After(time.Duration(290 * time.Second)): {
+			kill := "quiesce=$(ps aux | grep '.*quiesce.*sh.*' | grep -v grep | awk '{print $2}');" +
+					"if [ \"$quiesce\" ]; then kill $quiesce; fi"
+			_, err := utils.AttachAndRun(dockerID, []string{kill})
+			if err != nil {
+				return fmt.Errorf("Error killing quiesce process: %v\n", err)
+			}
+			return fmt.Errorf("Timeout running command: %v\n", command)
+		}
+	}
+	return nil
 }
 
 /*
