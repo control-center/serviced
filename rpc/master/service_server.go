@@ -40,6 +40,11 @@ type EvaluateServiceRequest struct {
 	InstanceID int
 }
 
+type ResolveServiceRequest struct {
+	Path  string
+	NoPrefix bool
+}
+
 type EvaluateServiceResponse struct {
 	Service          service.Service
 	TenantID         string
@@ -134,8 +139,8 @@ func (s *Server) GetTenantID(serviceID string, tenantId *string) error {
 }
 
 // ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb") to zero or more ServiceDetails.
-func (s *Server) ResolveServicePath(path string, response *[]service.ServiceDetails) error {
-	svcs, err := s.f.ResolveServicePath(s.context(), path)
+func (s *Server) ResolveServicePath(request ResolveServiceRequest, response *[]service.ServiceDetails) error {
+	svcs, err := s.f.ResolveServicePath(s.context(), request.Path, request.NoPrefix)
 	if err != nil {
 		return err
 	}
