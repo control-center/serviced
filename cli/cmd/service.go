@@ -2000,7 +2000,7 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	// Check the arguments
-	if !ctx.IsSet("instances") && !ctx.IsSet("ramCommitment") && !ctx.IsSet("ramThreshold") {
+	if !(ctx.IsSet("instances") || ctx.IsSet("ramCommitment") || ctx.IsSet("ramThreshold")) {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "tune")
 		return
