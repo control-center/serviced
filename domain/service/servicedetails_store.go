@@ -243,7 +243,7 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 	newquery := fmt.Sprintf("%s", string(regex[:idx]))
 
 	if noprefix {
-	// Set query to "ends wih" style
+	// Set query to "ends with" style
 		newquery = fmt.Sprintf(".*%s", newquery)
 	} else {
 	// Set query to "contains" style
