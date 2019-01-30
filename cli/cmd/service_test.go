@@ -640,7 +640,7 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 	//    serviced service remove SERVICEID
 	//
 	// OPTIONS:
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 
 }
 
@@ -700,8 +700,8 @@ func ExampleServicedCLI_CmdServiceEdit_usage() {
 	//    serviced service edit SERVICEID
 	//
 	// OPTIONS:
-	//    --editor, -e 	Editor used to update the service definition
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --editor, -e 		Editor used to update the service definition
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceEdit_fail() {
@@ -741,7 +741,7 @@ func ExampleServicedCLI_CmdServiceConfigList_usage() {
 	//    serviced service config list SERVICEID [FILENAME]
 	//
 	// OPTIONS:
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceConfigList() {
@@ -794,8 +794,8 @@ func ExampleServicedCLI_CmdServiceConfigEdit_usage() {
 	//    serviced service config edit SERVICEID FILENAME
 	//
 	// OPTIONS:
-	//    --editor, -e 	Editor used to update the config file
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --editor, -e 		Editor used to update the config file
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceConfigEdit_noservice() {
@@ -847,7 +847,7 @@ func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
 	//    serviced service assign-ip SERVICEID [IPADDRESS]
 	//
 	// OPTIONS:
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceAssignIPs_fail() {
@@ -992,9 +992,9 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	//    serviced service start SERVICEID ...
 	//
 	// OPTIONS:
-	//    --auto-launch	Recursively schedules child services
-	//    --sync, -s		Schedules services synchronously
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --auto-launch		Recursively schedules child services
+	//    --sync, -s			Schedules services synchronously
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
@@ -1038,10 +1038,10 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	//    serviced service restart { SERVICEID | INSTANCEID } ...
 	//
 	// OPTIONS:
-	//    --auto-launch	Recursively schedules child services
-	//    --sync, -s		Schedules services synchronously
-	//    --rebalance		Stops all instances before restarting them, instead of performing a rolling restart
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --auto-launch		Recursively schedules child services
+	//    --sync, -s			Schedules services synchronously
+	//    --rebalance			Stops all instances before restarting them, instead of performing a rolling restart
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {
@@ -1100,9 +1100,9 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 	//    serviced service stop SERVICEID ...
 	//
 	// OPTIONS:
-	//    --auto-launch	Recursively schedules child services
-	//    --sync, -s		Schedules services synchronously
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --auto-launch		Recursively schedules child services
+	//    --sync, -s			Schedules services synchronously
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceStop_err() {
@@ -1339,8 +1339,8 @@ func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
 	//    serviced service list-snapshots SERVICEID
 	//
 	// OPTIONS:
-	//    --show-tags, -t	shows the tags associated with each snapshot
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --show-tags, -t		shows the tags associated with each snapshot
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_fail() {
@@ -1396,9 +1396,9 @@ func ExampleServicedCLI_CmdServiceSnapshot_usage() {
 	//    serviced service snapshot SERVICEID
 	//
 	// OPTIONS:
-	//    --description, -d 	a description of the snapshot
-	//    --tag, -t 		a unique tag for the snapshot
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --description, -d 		a description of the snapshot
+	//    --tag, -t 			a unique tag for the snapshot
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 
 }
 
@@ -1434,10 +1434,10 @@ func ExampleServicedCLI_CmdServiceEndpoints_usage() {
 	//    serviced service endpoints SERVICEID
 	//
 	// OPTIONS:
-	//    --imports, -i	include only imported endpoints
-	//    --all, -a		include all endpoints (imports and exports)
-	//    --verify, -v		verify endpoints
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --imports, -i		include only imported endpoints
+	//    --all, -a			include all endpoints (imports and exports)
+	//    --verify, -v			verify endpoints
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 
 }
 
@@ -1503,7 +1503,7 @@ func ExampleServicedCLI_CmdServiceClearEmergency_usage() {
 	//    serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }
 	//
 	// OPTIONS:
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceTune_usage() {
@@ -1521,10 +1521,10 @@ func ExampleServiceCLI_CmdServiceTune_usage() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --instances '0'	Instance count for this service
-	//    --ramCommitment 	RAM Commitment for this service
-	//    --ramThreshold 	RAM Threshold for this service
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --instances '0'		Instance count for this service
+	//    --ramCommitment 		RAM Commitment for this service
+	//    --ramThreshold 		RAM Threshold for this service
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceTune_noservice() {
@@ -1548,10 +1548,10 @@ func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --instances '0'	Instance count for this service
-	//    --ramCommitment 	RAM Commitment for this service
-	//    --ramThreshold 	RAM Threshold for this service
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --instances '0'		Instance count for this service
+	//    --ramCommitment 		RAM Commitment for this service
+	//    --ramThreshold 		RAM Threshold for this service
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceTune_nochanges() {
@@ -1569,10 +1569,10 @@ func ExampleServiceCLI_CmdServiceTune_nochanges() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --instances '0'	Instance count for this service
-	//    --ramCommitment 	RAM Commitment for this service
-	//    --ramThreshold 	RAM Threshold for this service
-	//    --no-prefix-match	Make SERVICEID matches on name strict 'ends with' matches
+	//    --instances '0'		Instance count for this service
+	//    --ramCommitment 		RAM Commitment for this service
+	//    --ramThreshold 		RAM Threshold for this service
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceTune_toomany() {
