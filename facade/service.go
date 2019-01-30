@@ -2056,7 +2056,19 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 				return result.Err
 			}
 		case <-timeoutC:
-			return fmt.Errorf("timeout")
+			if dstate.String() == "pause" {
+				errMessage := "Error while pausing services"
+				for svcID := range processing {
+					s, err := f.GetService(ctx, svcID)
+						if err != nil {
+							glog.Errorf("Error while getting service %s: %s", svcID, err)
+								return err
+						}
+						errMessage += fmt.Sprintf("\n%v id:%v", s.Name, svcID)
+				}
+				return errors.New(errMessage)
+			}
+		return fmt.Errorf("timeout")
 		}
 	}
 

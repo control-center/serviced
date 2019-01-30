@@ -337,8 +337,10 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	// pause the running container
 	a.setInstanceState(serviceID, instanceID, service.StatePausing)
 	if err := attachAndRun(ctrName, svc.Snapshot.Pause); err != nil {
-		logger.WithError(err).Debug("Could not pause running container")
-		return err
+		logger.WithError(err).Warn("Could not pause running container")
+		a.setInstanceState(serviceID, instanceID, service.StateRunning)
+		// block here to trigger timeout in facade/service.go
+		select{}
 	}
 	logger.Debug("Paused running container")
 	a.setInstanceState(serviceID, instanceID, service.StatePaused)
