@@ -93,7 +93,7 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 	var serviceIDs []string
 	services := ctx.StringSlice("service")
 	for _, service := range services {
-		svc, _, err := c.searchForService(service)
+		svc, _, err := c.searchForService(service,ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return

@@ -72,6 +72,10 @@ func (c *ServicedCli) initService() {
 						Value: "Name,ServiceID,Inst,ImageID,Pool,DState,Launch,DepID",
 						Usage: "Comma-delimited list describing which fields to display",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:        "status",
@@ -87,6 +91,10 @@ func (c *ServicedCli) initService() {
 						Name:  "show-fields",
 						Value: "Name,ServiceID,Status,HC Fail,Healthcheck,Healthcheck Status,Uptime,RAM,Cur/Max/Avg,Hostname,InSync,DockerID",
 						Usage: "Comma-delimited list describing which fields to display",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -122,6 +130,10 @@ func (c *ServicedCli) initService() {
 						Value: "",
 						Usage: "name to append to service name, volumes, endpoints",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "remove",
@@ -130,6 +142,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove SERVICEID",
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceRemove,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "edit",
 				Usage:        "Edits an existing service in a text editor",
@@ -142,6 +160,10 @@ func (c *ServicedCli) initService() {
 						Value: os.Getenv("EDITOR"),
 						Usage: "Editor used to update the service definition",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "assign-ip",
@@ -149,6 +171,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service assign-ip SERVICEID [IPADDRESS]",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceAssignIP,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "start",
 				Usage:        "Starts one or more services",
@@ -163,6 +191,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -184,6 +216,10 @@ func (c *ServicedCli) initService() {
 						Name:  "rebalance",
 						Usage: "Stops all instances before restarting them, instead of performing a rolling restart",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "stop",
@@ -200,6 +236,10 @@ func (c *ServicedCli) initService() {
 						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "pause",
@@ -215,6 +255,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -237,6 +281,10 @@ func (c *ServicedCli) initService() {
 						Name:  "mount",
 						Value: &cli.StringSlice{},
 						Usage: "bind mount: HOST_PATH[,CONTAINER_PATH]",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -273,6 +321,10 @@ func (c *ServicedCli) initService() {
 						Value: "",
 						Usage: "container username used to run command",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "attach",
@@ -280,18 +332,36 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service attach { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
 				Description:  "serviced service action { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "logs",
 				Usage:        "Output the logs of a running service container - calls docker logs",
 				Description:  "serviced service logs { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE }",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -302,6 +372,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "show-tags, t",
 						Usage: "shows the tags associated with each snapshot",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -320,6 +394,10 @@ func (c *ServicedCli) initService() {
 						Name:  "tag, t",
 						Value: "",
 						Usage: "a unique tag for the snapshot",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -340,6 +418,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "verify, v",
 						Usage: "verify endpoints",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -374,6 +456,10 @@ func (c *ServicedCli) initService() {
 								Name:  "verbose, v",
 								Usage: "Show JSON format",
 							},
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
 						},
 					},
 					{
@@ -400,6 +486,10 @@ func (c *ServicedCli) initService() {
 										Name:  "verbose, v",
 										Usage: "Show JSON format",
 									},
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
 								},
 							},
 							{
@@ -412,6 +502,10 @@ func (c *ServicedCli) initService() {
 										Name:  "restart, r",
 										Usage: "Restart the service after adding the port if the service is currently running",
 									},
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
 								},
 							},
 							{
@@ -420,12 +514,24 @@ func (c *ServicedCli) initService() {
 								Usage:       "Remove a port public endpoint from a service",
 								Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
 								Action:      c.cmdPublicEndpointsPortRemove,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 							{
 								Name:        "enable",
 								Usage:       "Enable/Disable a port public endpoint for a service",
 								Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> true|false",
 								Action:      c.cmdPublicEndpointsPortEnable,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 						},
 					},
@@ -453,6 +559,10 @@ func (c *ServicedCli) initService() {
 										Name:  "verbose, v",
 										Usage: "Show JSON format",
 									},
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
 								},
 							},
 							{
@@ -460,6 +570,12 @@ func (c *ServicedCli) initService() {
 								Usage:       "Add a vhost public endpoint to a service",
 								Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
 								Action:      c.cmdPublicEndpointsVHostAdd,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 							{
 								Name:        "remove",
@@ -467,12 +583,24 @@ func (c *ServicedCli) initService() {
 								Usage:       "Remove a vhost public endpoint from a service",
 								Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
 								Action:      c.cmdPublicEndpointsVHostRemove,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 							{
 								Name:        "enable",
 								Usage:       "Enable/Disable a vhost public endpoint for a service",
 								Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false",
 								Action:      c.cmdPublicEndpointsVHostEnable,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 						},
 					},
@@ -484,6 +612,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceClearEmergency,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			},
 			{
 				Name:         "remove-ip",
@@ -491,6 +625,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove-ip <SERVICEID> <ENDPOINTNAME>",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRemoveIP,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			},
 			{
 				Name:         "set-ip",
@@ -507,25 +647,33 @@ func (c *ServicedCli) initService() {
 						Name:  "proto",
 						Usage: "determine the port protocol your service will use",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			},
 			{
-				Name: "tune",
-				Usage: "Adjust instance count, RAM commitment, or RAM threshold for a service.",
+				Name:        "tune",
+				Usage:       "Adjust instance count, RAM commitment, or RAM threshold for a service.",
 				Description: "serviced service tune SERVICEID",
-				Action: c.cmdServiceTune,
+				Action:      c.cmdServiceTune,
 				Flags: []cli.Flag{
 					cli.IntFlag{
-						Name: "instances",
+						Name:  "instances",
 						Usage: "Instance count for this service",
 					},
 					cli.StringFlag{
-						Name: "ramCommitment",
+						Name:  "ramCommitment",
 						Usage: "RAM Commitment for this service",
 					},
 					cli.StringFlag{
-						Name: "ramThreshold",
+						Name:  "ramThreshold",
 						Usage: "RAM Threshold for this service",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			},
@@ -539,6 +687,12 @@ func (c *ServicedCli) initService() {
 						Usage:       "List all config files for a given service, or the contents of one named file.",
 						Description: "serviced service config list SERVICEID [FILENAME]",
 						Action:      c.cmdServiceConfigList,
+						Flags: []cli.Flag{
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
+						},
 					},
 					{
 						Name:        "edit",
@@ -549,7 +703,11 @@ func (c *ServicedCli) initService() {
 							cli.StringFlag{
 								Name:  "editor, e",
 								Value: os.Getenv("EDITOR"),
-								Usage: "Editor used to update the config file ",
+								Usage: "Editor used to update the config file",
+							},
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 							},
 						},
 					},
@@ -744,7 +902,7 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 // searchForService gets the service and instance id from a provided service
 // string, being either a deploymentPath/servicepath/instanceid or
 // serviceid/instanceid
-func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails, int, error) {
+func (c *ServicedCli) searchForService(keyword string, prefix bool) (*service.ServiceDetails, int, error) {
 
 	// If the last segment is an integer, it is an instance ID
 	servicepath, instanceIDString := path.Split(keyword)
@@ -756,7 +914,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails,
 		instanceID = num
 	}
 
-	matches, err := c.driver.ResolveServicePath(servicepath)
+	matches, err := c.driver.ResolveServicePath(servicepath, prefix)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -822,7 +980,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	showIndividualHealthChecks = strings.Contains(fieldsToShow, "Healthcheck") || strings.Contains(fieldsToShow, "Healthcheck Status")
 
 	if len(ctx.Args()) > 0 {
-		svc, _, err := c.searchForService(ctx.Args().First())
+		svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -874,7 +1032,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 // serviced service list [--verbose, -v] [SERVICEID]
 func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
-		svc, _, err := c.searchForService(ctx.Args().First())
+		svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -996,7 +1154,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	if parentServiceID := ctx.String("parent-id"); parentServiceID == "" {
 		fmt.Fprintln(os.Stderr, "Must specify a parent service ID")
 		return
-	} else if parentService, _, err = c.searchForService(parentServiceID); err != nil {
+	} else if parentService, _, err = c.searchForService(parentServiceID, ctx.Bool("no-prefix-match")); err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching for parent service: %s", err)
 		return
 	}
@@ -1028,7 +1186,7 @@ func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching for service: %s", err)
 		return
@@ -1053,7 +1211,7 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1076,7 +1234,7 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1119,7 +1277,7 @@ func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1169,7 +1327,7 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1225,7 +1383,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1255,7 +1413,7 @@ func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1285,7 +1443,7 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1337,7 +1495,7 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 
 	serviceIDs := make([]string, len(args))
 	for i, svcID := range args {
-		svc, _, err := c.searchForService(svcID)
+		svc, _, err := c.searchForService(svcID, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -1371,7 +1529,7 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 	}
 
 	for _, arg := range args {
-		svc, instanceID, err := c.searchForService(arg)
+		svc, instanceID, err := c.searchForService(arg, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -1428,7 +1586,7 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 
 	serviceIDs := make([]string, len(args))
 	for i, svcID := range args {
-		svc, _, err := c.searchForService(svcID)
+		svc, _, err := c.searchForService(svcID, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -1457,7 +1615,7 @@ func (c *ServicedCli) cmdServicePause(ctx *cli.Context) {
 
 	serviceIDs := make([]string, len(args))
 	for i, svcID := range args {
-		svc, _, err := c.searchForService(svcID)
+		svc, _, err := c.searchForService(svcID, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -1499,7 +1657,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		isTTY   bool
 	)
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
@@ -1576,7 +1734,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if args[len(args)-1] == "--generate-bash-completion" {
 		// if "serviced service run SERVICE_ID --generate-bash-completion" is executed
 		if len(args) == 2 {
-			svcDetails, _, err := c.searchForService(args[0])
+			svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 			if err == nil {
 				for _, cmd := range c.serviceCommands(svcDetails.ID) {
 					fmt.Println(cmd)
@@ -1593,7 +1751,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv    []string
 	)
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
@@ -1658,7 +1816,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		return c.exit(1)
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -1699,7 +1857,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		// if a tab is pressed after serviced service SERVICE_ID and the
 		// service is found
 		if len(args) == 2 {
-			svc, _, err := c.searchForService(ctx.Args().First())
+			svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 			if err == nil {
 				actions := c.serviceActions(svc.ID)
 				fmt.Println(strings.Join(actions, "\n"))
@@ -1710,7 +1868,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		return c.exit(0)
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -1762,7 +1920,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 		return c.exit(1)
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -1794,7 +1952,7 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1847,7 +2005,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		description = ctx.String("description")
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
@@ -1882,7 +2040,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1958,7 +2116,7 @@ func (c *ServicedCli) cmdServiceClearEmergency(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1982,7 +2140,7 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

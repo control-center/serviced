@@ -438,12 +438,12 @@ func (_m *Store) GetAllIPAssignments(ctx datastore.Context) ([]service.BaseIPAss
 
 	return r0, r1
 }
-func (_m *Store) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx, query, prefix)
+func (_m *Store) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, noprefix bool) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, query, noprefix)
 
 	var r0 []service.ServiceDetails
 	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool) []service.ServiceDetails); ok {
-		r0 = rf(ctx, query, prefix)
+		r0 = rf(ctx, query, noprefix)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -452,7 +452,7 @@ func (_m *Store) GetServiceDetailsByIDOrName(ctx datastore.Context, query string
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool) error); ok {
-		r1 = rf(ctx, query, prefix)
+		r1 = rf(ctx, query, noprefix)
 	} else {
 		r1 = ret.Error(1)
 	}
