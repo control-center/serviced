@@ -48,6 +48,13 @@ var DefaultServiceAPITest = ServiceAPITest{
 	endpoints: DefaultEndpoints,
 }
 
+var Example1Context = map[string]interface{}{
+	"home.name": "Alphas",
+	"away.name": "Bravos",
+	"home.score": 19,
+	"away.score": 12,
+}
+
 var DefaultTestServices = []service.Service{
 	{
 		ID:             "test-service-1",
@@ -101,6 +108,7 @@ var DefaultTestServices = []service.Service{
 				Content:     "#-----test.conf\n\n# This is a test conf file.\n",
 			},
 		},
+		Context: Example1Context,
 	}, {
 		ID:             "test-service-2",
 		Name:           "Zope",
@@ -732,7 +740,7 @@ func ExampleServicedCLI_CmdServiceConfigList_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    list - List all config files for a given service, or the contents of one named file.
+	//    list - List all config files for a given service, or the contents of one named file
 	//
 	// USAGE:
 	//    command list [command options] [arguments...]
@@ -764,9 +772,7 @@ func ExampleServicedCLI_CmdServiceConfigListSingle() {
 }
 
 func ExampleServicedCLI_CmdServiceConfigList_noservice() {
-	pipeStderr(func() {
-		InitServiceAPITest("serviced", "service", "config", "list", "test-service-0")
-	})
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "config", "list", "test-service-0") })
 	// Output:
 	// service not found
 }
@@ -799,9 +805,7 @@ func ExampleServicedCLI_CmdServiceConfigEdit_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceConfigEdit_noservice() {
-	pipeStderr(func() {
-		InitServiceAPITest("serviced", "service", "config", "edit", "test-service-0", "/etc/nothere.conf")
-	})
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "config", "edit", "test-service-0", "/etc/nothere.conf") })
 	// Output:
 	// service not found
 }
@@ -1512,7 +1516,7 @@ func ExampleServiceCLI_CmdServiceTune_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
+	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service
 	//
 	// USAGE:
 	//    command tune [command options] [arguments...]
@@ -1539,7 +1543,7 @@ func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
+	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service
 	//
 	// USAGE:
 	//    command tune [command options] [arguments...]
@@ -1572,4 +1576,186 @@ func ExampleServiceCLI_CmdServiceTune_commitment() {
 
 func ExampleServiceCLI_CmdServiceTune_threshold() {
 	InitServiceAPITest("serviced", "service", "tune", "test-service-1", "--ramThreshold='80%'")
+}
+
+func ExampleServiceCLI_CmdServiceVariableList_usage() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "list") })
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    list - List one or all config variables and their values for a given service
+	//
+	// USAGE:
+	//    command list [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable list SERVICEID
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableList_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "list", "test-service-0") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableList() {
+	InitServiceAPITest("serviced", "service", "variable", "list", "test-service-1")
+	// Output:
+	// away.name Bravos
+	// away.score 12
+	// home.name Alphas
+	// home.score 19
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet_usage() {
+	InitServiceAPITest("serviced", "service", "variable", "get")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    get - Find the value of a config variable for a service
+	//
+	// USAGE:
+	//    command get [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable get SERVICEID VARIABLE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "get", "test-service-0", "wickets") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet_badvariable() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "get", "test-service-1", "wickets") })
+	// Output:
+	// Variable wickets not found.
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet() {
+	InitServiceAPITest("serviced", "service", "variable", "get", "test-service-1", "home.name")
+	// Output:
+	// Alphas
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_usage() {
+	InitServiceAPITest("serviced", "service", "variable", "set")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    set - Add or update one variable's value for a given service
+	//
+	// USAGE:
+	//    command set [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable set SERVICEID VARIABLE VALUE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "set", "test-service-0", "wickets", "12") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_novariable() {
+	InitServiceAPITest("serviced", "service", "variable", "set", "test-service-1")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    set - Add or update one variable's value for a given service
+	//
+	// USAGE:
+	//    command set [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable set SERVICEID VARIABLE VALUE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_novalue() {
+	InitServiceAPITest("serviced", "service", "variable", "set", "test-service-1", "wickets")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    set - Add or update one variable's value for a given service
+	//
+	// USAGE:
+	//    command set [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable set SERVICEID VARIABLE VALUE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet() {
+	InitServiceAPITest("serviced", "service", "variable", "set", "test-service-1", "wickets", "9")
+	// Output:
+	// test-service-1
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_usage() {
+	InitServiceAPITest("serviced", "service", "variable", "unset")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    unset - Remove a variable from a given service
+	//
+	// USAGE:
+	//    command unset [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable unset SERVICEID VARIABLE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-0", "wickets") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_novariable() {
+	InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-1")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    unset - Remove a variable from a given service
+	//
+	// USAGE:
+	//    command unset [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable unset SERVICEID VARIABLE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_badvariable() {
+	InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-1", "wickets")
+	// Output:
+	// Variable wickets not found.
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset() {
+	InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-1", "home.name")
+	// Output:
+	// test-service-1
 }
