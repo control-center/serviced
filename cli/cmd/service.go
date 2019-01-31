@@ -2140,11 +2140,6 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 		return
 	}
 
-	if ctx.IsSet("help") {
-		cli.ShowCommandHelp(ctx, "tune")
-		return
-	}
-
 	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -2203,11 +2198,6 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	if modified {
-		jsonService, err := json.MarshalIndent(service, " ", "  ")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
-			return
-		}
 		if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
