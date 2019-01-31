@@ -2198,7 +2198,7 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	if modified {
-		if service, err := c.driver.UpdateService(strings.NewReader(string(jsonService))); err != nil {
+		if service, err := c.driver.UpdateService(*service); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "received nil service")
