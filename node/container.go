@@ -27,6 +27,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/iptables"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
@@ -260,6 +261,7 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 
 // ResumeContainer resumes a paused container
 func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
+	commandTimeout := time.Duration(config.GetOptions().MaxDFSTimeout - 10) * time.Second
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -292,8 +294,8 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 
 	// resume the paused container
 	a.setInstanceState(serviceID, instanceID, service.StateResuming)
-	if err := attachAndRun(ctrName, svc.Snapshot.Resume); err != nil {
-		logger.WithError(err).Debug("Could not resume paused container")
+	if err := attachAndRun(ctrName, svc.Snapshot.Resume, commandTimeout); err != nil {
+		logger.WithError(err).Warn("Could not resume paused container")
 		return err
 	}
 	logger.Debug("Resumed paused container")
@@ -304,6 +306,7 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 
 // PauseContainer pauses a running container
 func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
+	commandTimeout := time.Duration(config.GetOptions().MaxDFSTimeout - 10) * time.Second
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -336,8 +339,12 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 
 	// pause the running container
 	a.setInstanceState(serviceID, instanceID, service.StatePausing)
-	if err := attachAndRun(ctrName, svc.Snapshot.Pause); err != nil {
+	if err := attachAndRun(ctrName, svc.Snapshot.Pause, commandTimeout); err != nil {
 		logger.WithError(err).Warn("Could not pause running container")
+		// try running 'quiesce-*.sh resume' script
+		if err := attachAndRun(ctrName, svc.Snapshot.Resume, commandTimeout); err != nil {
+			logger.WithError(err).Warn("Could not resume container")
+		}
 		a.setInstanceState(serviceID, instanceID, service.StateRunning)
 		// block here to trigger timeout in facade/service.go
 		select{}

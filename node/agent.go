@@ -59,6 +59,8 @@ import (
 const (
 	dockerEndpoint     = "unix:///var/run/docker.sock"
 	circularBufferSize = 1000
+	killQuiesce        = "quiesce=$(ps aux | grep '.*quiesce.*sh.*' | grep -v grep | awk '{print $2}');" +
+				"if [ \"$quiesce\" ]; then kill $quiesce; fi"
 )
 
 // HostAgent is an instance of the control center Agent.
@@ -205,7 +207,7 @@ func (a *HostAgent) SetVIP(v VIP) {
 	a.vip = v
 }
 
-func attachAndRun(dockerID, command string) error {
+func attachAndRun(dockerID, command string, timeout time.Duration) error {
 	if dockerID == "" {
 		return errors.New("missing docker ID")
 	} else if command == "" {
@@ -225,15 +227,12 @@ func attachAndRun(dockerID, command string) error {
 	select {
 		case result := <- done: {
 			if result.err != nil {
-				glog.Errorf("Could not pause container %s: %s", dockerID, result.err)
+				glog.Errorf("Could not run command: %s; %s: %s", command, dockerID, result.err)
 				return result.err
 			}
 		}
-		// replace hardcoded timeout with f.dfs.Timeout() - 10 sec
-		case <- time.After(time.Duration(290 * time.Second)): {
-			kill := "quiesce=$(ps aux | grep '.*quiesce.*sh.*' | grep -v grep | awk '{print $2}');" +
-					"if [ \"$quiesce\" ]; then kill $quiesce; fi"
-			_, err := utils.AttachAndRun(dockerID, []string{kill})
+		case <- time.After(timeout): {
+			_, err := utils.AttachAndRun(dockerID, []string{killQuiesce})
 			if err != nil {
 				return fmt.Errorf("Error killing quiesce process: %v\n", err)
 			}
