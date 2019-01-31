@@ -1471,7 +1471,7 @@ func (c *ServicedCli) cmdServiceVariableList(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1504,7 +1504,7 @@ func (c *ServicedCli) cmdServiceVariableGet(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1518,23 +1518,25 @@ func (c *ServicedCli) cmdServiceVariableGet(ctx *cli.Context) {
 
 	key := args[1]
 	if service.Context == nil {
-		service.Context = make(map[string]interface{})
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
 	}
-	variables := service.Context
-	if value, ok := variables[key]; ok {
+
+	if value, found := service.Context[key]; found {
 		switch value.(type) {
-			case string:
-				if vstr, ok := value.(string); ok {
-					fmt.Printf("%v\n", vstr)
-				}
-			case int64:
-				if vstr, ok := value.(string); ok {
-					fmt.Printf("%v\n", vstr)
-				}
-			case uint64:
-				if vstr, ok := value.(string); ok {
-					fmt.Printf("%v\n", vstr)
-				}
+		case string:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		case int64:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		case uint64:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
 		}
 	} else {
 		message := fmt.Sprintf("Variable %v not found.", key)
@@ -1552,7 +1554,7 @@ func (c *ServicedCli) cmdServiceVariableSet(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1588,7 +1590,7 @@ func (c *ServicedCli) cmdServiceVariableUnset(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1601,6 +1603,12 @@ func (c *ServicedCli) cmdServiceVariableUnset(ctx *cli.Context) {
 	}
 
 	key := args[1]
+	if service.Context == nil {
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+
 	if _, ok := service.Context[key]; ok {
 		delete(service.Context, key)
 	} else {
