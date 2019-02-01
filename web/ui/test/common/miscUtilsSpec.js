@@ -276,7 +276,7 @@ describe('miscUtils', function() {
             expect(miscUtils.validateRAMLimit("972G")).toBe(null);
         });
         it("Invalidates percentages greater than 100", function(){
-            expect(miscUtils.validateRAMLimit("101%")).toEqual("RAM Limit cannot exceed 100%");
+            expect(miscUtils.validateRAMLimit("101%")).toBe(null);
         });
         it("Invalidates 0%", function(){
             expect(miscUtils.validateRAMLimit("0%")).toEqual("RAM Limit must be at least 1%");
@@ -301,8 +301,8 @@ describe('miscUtils', function() {
         it("Validate value", function(){
             expect(miscUtils.validateRAMThresholdLimit("50")).toBe(null);
         });
-        it("Invalidates percentages greater than 100", function(){
-            expect(miscUtils.validateRAMThresholdLimit("101")).toEqual("RAM threshold Limit cannot exceed 100%");
+        it("Validates percentages greater than 100", function(){
+            expect(miscUtils.validateRAMThresholdLimit("101")).toBe(null);
         });
         it("Invalidates -1", function(){
             expect(miscUtils.validateRAMThresholdLimit("-1")).toEqual("RAM threshold Limit cannot be less than 0%");
