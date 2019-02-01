@@ -655,7 +655,7 @@ func (c *ServicedCli) initService() {
 			},
 			{
 				Name:        "tune",
-				Usage:       "Adjust instance count, RAM commitment, or RAM threshold for a service.",
+				Usage:       "Adjust instance count, RAM commitment, or RAM threshold for a service",
 				Description: "serviced service tune SERVICEID",
 				Action:      c.cmdServiceTune,
 				Flags: []cli.Flag{
@@ -684,7 +684,7 @@ func (c *ServicedCli) initService() {
 				Subcommands: []cli.Command{
 					{
 						Name:        "list",
-						Usage:       "List all config files for a given service, or the contents of one named file.",
+						Usage:       "List all config files for a given service, or the contents of one named file",
 						Description: "serviced service config list SERVICEID [FILENAME]",
 						Action:      c.cmdServiceConfigList,
 						Flags: []cli.Flag{
@@ -710,6 +710,37 @@ func (c *ServicedCli) initService() {
 								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 							},
 						},
+					},
+				},
+			},
+			{
+				Name:        "variable",
+				Usage:       "Manage service config variables",
+				Description: "serviced service variable",
+				Subcommands: []cli.Command{
+					{
+						Name:        "list",
+						Usage:       "List one or all config variables and their values for a given service",
+						Description: "serviced service variable list SERVICEID",
+						Action:      c.cmdServiceVariableList,
+					},
+					{
+						Name:        "get",
+						Usage:       "Find the value of a config variable for a service",
+						Description: "serviced service variable get SERVICEID VARIABLE",
+						Action:      c.cmdServiceVariableGet,
+					},
+					{
+						Name:        "set",
+						Usage:       "Add or update one variable's value for a given service",
+						Description: "serviced service variable set SERVICEID VARIABLE VALUE",
+						Action:      c.cmdServiceVariableSet,
+					},
+					{
+						Name:        "unset",
+						Usage:       "Remove a variable from a given service",
+						Description: "serviced service variable unset SERVICEID VARIABLE",
+						Action:      c.cmdServiceVariableUnset,
 					},
 				},
 			},
@@ -1429,6 +1460,170 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 		fmt.Println(service.ID)
 	}
 	return
+}
+
+// serviced service variables list SERVICEID
+func (c *ServicedCli) cmdServiceVariableList(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "list")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	variables := service.Context
+	keys := make([]string, 0)
+	for k, _ := range variables {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		fmt.Printf("%s %v\n", key, variables[key])
+	}
+}
+
+// serviced service variables get SERVICEID VARIABLE
+func (c *ServicedCli) cmdServiceVariableGet(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "get")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	key := args[1]
+	if service.Context == nil {
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+
+	if value, found := service.Context[key]; found {
+		switch value.(type) {
+		case string:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		case int64:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		case uint64:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		}
+	} else {
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+}
+
+// serviced service variables set SERVICEID VARIABLE VALUE
+func (c *ServicedCli) cmdServiceVariableSet(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 3 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "set")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	key := args[1]
+	value := args[2]
+	if service.Context == nil {
+		service.Context = make(map[string]interface{})
+	}
+	service.Context[key] = value
+	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service")
+	} else {
+		fmt.Println(service.ID)
+	}
+}
+
+// serviced service variables unset SERVICEID VARIABLE
+func (c *ServicedCli) cmdServiceVariableUnset(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "unset")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	key := args[1]
+	if service.Context == nil {
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+
+	if _, ok := service.Context[key]; ok {
+		delete(service.Context, key)
+	} else {
+		message := fmt.Sprintf("Variable %s not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+
+	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service")
+	} else {
+		fmt.Println(service.ID)
+	}
 }
 
 // serviced service assign-ip SERVICEID [IPADDRESS]
