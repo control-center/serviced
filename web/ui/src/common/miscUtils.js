@@ -431,12 +431,9 @@
                     return "Invalid RAM Limit value, must specify % or unit of K, M, G, or T";
                 }
 
-                // if this is a percent, ensure its between 1 and 100
+                // if this is a percent, ensure its greater yhan zero
                 if(isPercent){
                     let val = +limitStr.slice(0, -1);
-                    if(val > 100){
-                        return "RAM Limit cannot exceed 100%";
-                    }
                     if(val <= 0){
                         return "RAM Limit must be at least 1%";
                     }

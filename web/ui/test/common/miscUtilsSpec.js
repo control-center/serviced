@@ -275,7 +275,7 @@ describe('miscUtils', function() {
             expect(miscUtils.validateRAMLimit("972g")).toBe(null);
             expect(miscUtils.validateRAMLimit("972G")).toBe(null);
         });
-        it("Invalidates percentages greater than 100", function(){
+        it("Validates percentages greater than 100", function(){
             expect(miscUtils.validateRAMLimit("101%")).toBe(null);
         });
         it("Invalidates 0%", function(){
