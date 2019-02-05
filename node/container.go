@@ -261,7 +261,6 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 
 // ResumeContainer resumes a paused container
 func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
-	commandTimeout := time.Duration(config.GetOptions().MaxDFSTimeout - 10) * time.Second
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -294,7 +293,7 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 
 	// resume the paused container
 	a.setInstanceState(serviceID, instanceID, service.StateResuming)
-	if err := attachAndRun(ctrName, svc.Snapshot.Resume, commandTimeout); err != nil {
+	if _, err := attachAndRun(ctrName, svc.Snapshot.Resume); err != nil {
 		logger.WithError(err).Warn("Could not resume paused container")
 		return err
 	}
@@ -306,7 +305,19 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 
 // PauseContainer pauses a running container
 func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
-	commandTimeout := time.Duration(config.GetOptions().MaxDFSTimeout - 10) * time.Second
+	pidFile := "/pause.pid"
+	kill := fmt.Sprintf(
+		"if [ -f %[1]s ]; then pid=$(cat %[1]s); if [ \"$pid\" ];" +
+		"then kill $pid; fi; rm -f %[1]s; fi", pidFile)
+	commandTimeout := time.Duration(
+		config.GetOptions().MaxDFSTimeout - 10) * time.Second
+
+	type out struct {
+		response string
+		err      error
+	}
+	done := make(chan out)
+
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -339,15 +350,39 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 
 	// pause the running container
 	a.setInstanceState(serviceID, instanceID, service.StatePausing)
-	if err := attachAndRun(ctrName, svc.Snapshot.Pause, commandTimeout); err != nil {
-		logger.WithError(err).Warn("Could not pause running container")
-		// try running 'quiesce-*.sh resume' script
-		if err := attachAndRun(ctrName, svc.Snapshot.Resume, commandTimeout); err != nil {
-			logger.WithError(err).Warn("Could not resume container")
+
+	go func() {
+		cmd := ""
+		if svc.Snapshot.Pause != "" {
+			cmd = svc.Snapshot.Pause + fmt.Sprintf(" & echo $! > %s", pidFile)
 		}
-		a.setInstanceState(serviceID, instanceID, service.StateRunning)
-		// block here to trigger timeout in facade/service.go
-		select{}
+		output, err := attachAndRun(ctrName, cmd)
+		done <- out{string(output), err}
+	}()
+
+	select {
+		case result := <- done: {
+			if result.err != nil {
+				logger.WithError(result.err).Warn("Could not run command: %s; %s", svc.Snapshot.Pause, ctrName)
+				// block to trigger timeout in facade/service.go
+				select{}
+			}
+		}
+		case <- time.After(commandTimeout): {
+			logger.Warn("Could not pause running container. Command timeout: %s", svc.Snapshot.Pause)
+			// kill pausing process
+			if _, err := attachAndRun(ctrName, kill); err != nil {
+				logger.WithError(err).Warn("Error while killing pausing process.")
+				a.setInstanceState(serviceID, instanceID, service.StateRunning)
+				select{}
+			}
+			// try running resume script
+			if _, err := attachAndRun(ctrName, svc.Snapshot.Resume); err != nil {
+				logger.WithError(err).Warn("Could not resume container")
+			}
+			a.setInstanceState(serviceID, instanceID, service.StateRunning)
+			select{}
+		}
 	}
 	logger.Debug("Paused running container")
 	a.setInstanceState(serviceID, instanceID, service.StatePaused)
