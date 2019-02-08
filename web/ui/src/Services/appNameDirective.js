@@ -22,7 +22,7 @@
             <div class="emergencyTooltip">
               <h3>Emergency Shutdown</h3>
               <div>due to low disk space.</div>
-              <a href="/static/doc/feature/state/emergency-shutdown.html" type="button" class="btn btn-danger">
+              <a href="https://help.zenoss.com/zsd/cc/administering-control-center/emergency-shutdown-of-services/resetting-emergency-shutdown-flags" type="button" class="btn btn-danger">
                 <span ng-show="icon" class="glyphicon glyphicon-book"></span>
                 More Info
               </a>
