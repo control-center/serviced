@@ -1277,7 +1277,8 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		c.exit(1)
+		// Don't return an error if the service doesn't exist. Philosophically not a error
+		c.exit(0)
 		return
 	}
 	serviceID := svc.ID
