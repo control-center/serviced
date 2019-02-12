@@ -86,7 +86,7 @@ module CCApi
 
         def check_service_exists(serviceName)
             serviceName = getTableValue(serviceName)
-            result = CC.CLI.execute("%{serviced} service list --show-fields Name")
+            result = CC.CLI.execute("%{serviced} service list --show-fields Name", stderr = true, verify = false)
             matchData = result.match /^#{serviceName}$/
             return matchData != nil
         end
