@@ -2056,19 +2056,16 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 				return result.Err
 			}
 		case <-timeoutC:
-			if dstate == service.SVCPause {
-				errMessage := "Error while pausing services"
-				for svcID := range processing {
-					s, err := f.GetService(ctx, svcID)
-					if err != nil {
-						glog.Errorf("Error while getting service %s: %s", svcID, err)
-						return err
-					}
-					errMessage += fmt.Sprintf("\n%v id:%v", s.Name, svcID)
+			errMessage := "Error waiting for services"
+			for svcID := range processing {
+				s, err := f.GetService(ctx, svcID)
+				if err != nil {
+					glog.Errorf("Error while getting service %s: %s", svcID, err)
+					return err
 				}
-				return errors.New(errMessage)
+				errMessage += fmt.Sprintf("\n%v id:%v", s.Name, svcID)
 			}
-			return fmt.Errorf("timeout")
+			return fmt.Errorf(errMessage)
 		}
 	}
 

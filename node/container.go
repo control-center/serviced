@@ -307,8 +307,8 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	pidFile := "/pause.pid"
 	kill := fmt.Sprintf(
-		"if [ -f %[1]s ]; then pid=$(cat %[1]s); if [ \"$pid\" ];" +
-		"then kill $pid; fi; rm -f %[1]s; fi", pidFile)
+		"if [ -f %[1]s ]; then pid=$(cat %[1]s);" +
+		"kill $pid; rm -f %[1]s; fi", pidFile)
 	commandTimeout := time.Duration(
 		config.GetOptions().MaxDFSTimeout - 10) * time.Second
 
@@ -354,7 +354,7 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	go func() {
 		cmd := ""
 		if svc.Snapshot.Pause != "" {
-			cmd = svc.Snapshot.Pause + fmt.Sprintf(" & echo $! > %s", pidFile)
+			cmd = svc.Snapshot.Pause + fmt.Sprintf(" & echo $! > %s; wait $!", pidFile)
 		}
 		output, err := attachAndRun(ctrName, cmd)
 		done <- out{string(output), err}
@@ -364,8 +364,7 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 		case result := <- done: {
 			if result.err != nil {
 				logger.WithError(result.err).Warn("Could not run command: %s; %s", svc.Snapshot.Pause, ctrName)
-				// block to trigger timeout in facade/service.go
-				select{}
+				return result.err
 			}
 		}
 		case <- time.After(commandTimeout): {
@@ -373,15 +372,11 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 			// kill pausing process
 			if _, err := attachAndRun(ctrName, kill); err != nil {
 				logger.WithError(err).Warn("Error while killing pausing process.")
-				a.setInstanceState(serviceID, instanceID, service.StateRunning)
-				select{}
+				return err
 			}
-			// try running resume script
-			if _, err := attachAndRun(ctrName, svc.Snapshot.Resume); err != nil {
-				logger.WithError(err).Warn("Could not resume container")
-			}
-			a.setInstanceState(serviceID, instanceID, service.StateRunning)
-			select{}
+			// intercepting errors from this select in hoststate.go also resume script and
+			// setting to Started state will be done by (*HostAgent) ResumeContainer in hostate.go
+			return fmt.Errorf("Timeout error")
 		}
 	}
 	logger.Debug("Paused running container")
