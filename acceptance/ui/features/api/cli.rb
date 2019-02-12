@@ -79,7 +79,7 @@ module CCApi
         def get_json(command)
             begin
                 #puts "get_json: executing serviced #{command}"
-                result = execute(command, false)
+                result = execute(command, false, false)
                 result = "{}" if result.strip.length == 0
                 return JSON.parse(result)
             rescue StandardError => err
