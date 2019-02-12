@@ -431,18 +431,18 @@ func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 2)
 
-	// Get substring vs prefix
-	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_2", false)
+	// Get substring vs strict ends with
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_d", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 2)
+
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_d", true)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 1)
 
-	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_2", true)
-	c.Assert(err, IsNil)
-	c.Assert(details, HasLen, 0)
-
 	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_d", true)
 	c.Assert(err, IsNil)
-	c.Assert(details, HasLen, 2)
+	c.Assert(details, HasLen, 1)
 }
 
 func (s *S) Test_GetAllExportedEndpoints(c *C) {

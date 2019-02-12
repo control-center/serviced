@@ -7,7 +7,7 @@ class NavBarSection < SitePrism::Section
     element :logs, "a[href='#/logs']"
     element :backup, "a[href='#/backuprestore']"
     element :userDetails, "button[ng-click='modalUserDetails()']"
-    element :help, "a[href='/static/doc/']"
+    element :help, "a[href='https://help.zenoss.com/zsd/cc']"
     element :logout, "button[ng-click='logout()']"
     element :about, "button[ng-click='modalAbout()']"
 end

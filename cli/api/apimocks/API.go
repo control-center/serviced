@@ -1281,8 +1281,8 @@ func (_m *API) ResetRegistry() error {
 	return r0
 }
 
-// ResolveServicePath provides a mock function with given fields: path
-func (_m *API) ResolveServicePath(path string) ([]service.ServiceDetails, error) {
+// ResolveServicePath provides a mock function with given fields: path, noprefix
+func (_m *API) ResolveServicePath(path string, noprefix bool) ([]service.ServiceDetails, error) {
 	ret := _m.Called(path)
 
 	var r0 []service.ServiceDetails

@@ -72,6 +72,10 @@ func (c *ServicedCli) initService() {
 						Value: "Name,ServiceID,Inst,ImageID,Pool,DState,Launch,DepID",
 						Usage: "Comma-delimited list describing which fields to display",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:        "status",
@@ -87,6 +91,10 @@ func (c *ServicedCli) initService() {
 						Name:  "show-fields",
 						Value: "Name,ServiceID,Status,HC Fail,Healthcheck,Healthcheck Status,Uptime,RAM,Cur/Max/Avg,Hostname,InSync,DockerID",
 						Usage: "Comma-delimited list describing which fields to display",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -122,6 +130,10 @@ func (c *ServicedCli) initService() {
 						Value: "",
 						Usage: "name to append to service name, volumes, endpoints",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "remove",
@@ -130,6 +142,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove SERVICEID",
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceRemove,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "edit",
 				Usage:        "Edits an existing service in a text editor",
@@ -142,6 +160,10 @@ func (c *ServicedCli) initService() {
 						Value: os.Getenv("EDITOR"),
 						Usage: "Editor used to update the service definition",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "assign-ip",
@@ -149,6 +171,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service assign-ip SERVICEID [IPADDRESS]",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceAssignIP,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "start",
 				Usage:        "Starts one or more services",
@@ -163,6 +191,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -184,6 +216,10 @@ func (c *ServicedCli) initService() {
 						Name:  "rebalance",
 						Usage: "Stops all instances before restarting them, instead of performing a rolling restart",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "stop",
@@ -200,6 +236,10 @@ func (c *ServicedCli) initService() {
 						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "pause",
@@ -215,6 +255,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -237,6 +281,10 @@ func (c *ServicedCli) initService() {
 						Name:  "mount",
 						Value: &cli.StringSlice{},
 						Usage: "bind mount: HOST_PATH[,CONTAINER_PATH]",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -273,6 +321,10 @@ func (c *ServicedCli) initService() {
 						Value: "",
 						Usage: "container username used to run command",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			}, {
 				Name:         "attach",
@@ -280,18 +332,36 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service attach { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
 				Description:  "serviced service action { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "logs",
 				Usage:        "Output the logs of a running service container - calls docker logs",
 				Description:  "serviced service logs { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE }",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -302,6 +372,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "show-tags, t",
 						Usage: "shows the tags associated with each snapshot",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -320,6 +394,10 @@ func (c *ServicedCli) initService() {
 						Name:  "tag, t",
 						Value: "",
 						Usage: "a unique tag for the snapshot",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -340,6 +418,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "verify, v",
 						Usage: "verify endpoints",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			}, {
@@ -374,6 +456,10 @@ func (c *ServicedCli) initService() {
 								Name:  "verbose, v",
 								Usage: "Show JSON format",
 							},
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
 						},
 					},
 					{
@@ -400,6 +486,10 @@ func (c *ServicedCli) initService() {
 										Name:  "verbose, v",
 										Usage: "Show JSON format",
 									},
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
 								},
 							},
 							{
@@ -412,6 +502,10 @@ func (c *ServicedCli) initService() {
 										Name:  "restart, r",
 										Usage: "Restart the service after adding the port if the service is currently running",
 									},
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
 								},
 							},
 							{
@@ -420,12 +514,24 @@ func (c *ServicedCli) initService() {
 								Usage:       "Remove a port public endpoint from a service",
 								Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
 								Action:      c.cmdPublicEndpointsPortRemove,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 							{
 								Name:        "enable",
 								Usage:       "Enable/Disable a port public endpoint for a service",
 								Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> true|false",
 								Action:      c.cmdPublicEndpointsPortEnable,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 						},
 					},
@@ -453,6 +559,10 @@ func (c *ServicedCli) initService() {
 										Name:  "verbose, v",
 										Usage: "Show JSON format",
 									},
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
 								},
 							},
 							{
@@ -460,6 +570,12 @@ func (c *ServicedCli) initService() {
 								Usage:       "Add a vhost public endpoint to a service",
 								Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
 								Action:      c.cmdPublicEndpointsVHostAdd,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 							{
 								Name:        "remove",
@@ -467,12 +583,24 @@ func (c *ServicedCli) initService() {
 								Usage:       "Remove a vhost public endpoint from a service",
 								Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
 								Action:      c.cmdPublicEndpointsVHostRemove,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 							{
 								Name:        "enable",
 								Usage:       "Enable/Disable a vhost public endpoint for a service",
 								Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false",
 								Action:      c.cmdPublicEndpointsVHostEnable,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "no-prefix-match, np",
+										Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+									},
+								},
 							},
 						},
 					},
@@ -484,6 +612,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceClearEmergency,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			},
 			{
 				Name:         "remove-ip",
@@ -491,6 +625,12 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove-ip <SERVICEID> <ENDPOINTNAME>",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRemoveIP,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
+				},
 			},
 			{
 				Name:         "set-ip",
@@ -507,25 +647,33 @@ func (c *ServicedCli) initService() {
 						Name:  "proto",
 						Usage: "determine the port protocol your service will use",
 					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+					},
 				},
 			},
 			{
-				Name: "tune",
-				Usage: "Adjust instance count, RAM commitment, or RAM threshold for a service.",
+				Name:        "tune",
+				Usage:       "Adjust instance count, RAM commitment, or RAM threshold for a service",
 				Description: "serviced service tune SERVICEID",
-				Action: c.cmdServiceTune,
+				Action:      c.cmdServiceTune,
 				Flags: []cli.Flag{
 					cli.IntFlag{
-						Name: "instances",
+						Name:  "instances",
 						Usage: "Instance count for this service",
 					},
 					cli.StringFlag{
-						Name: "ramCommitment",
+						Name:  "ramCommitment",
 						Usage: "RAM Commitment for this service",
 					},
 					cli.StringFlag{
-						Name: "ramThreshold",
+						Name:  "ramThreshold",
 						Usage: "RAM Threshold for this service",
+					},
+					cli.BoolFlag{
+						Name:  "no-prefix-match, np",
+						Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 					},
 				},
 			},
@@ -536,9 +684,15 @@ func (c *ServicedCli) initService() {
 				Subcommands: []cli.Command{
 					{
 						Name:        "list",
-						Usage:       "List all config files for a given service, or the contents of one named file.",
+						Usage:       "List all config files for a given service, or the contents of one named file",
 						Description: "serviced service config list SERVICEID [FILENAME]",
 						Action:      c.cmdServiceConfigList,
+						Flags: []cli.Flag{
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
+						},
 					},
 					{
 						Name:        "edit",
@@ -549,9 +703,44 @@ func (c *ServicedCli) initService() {
 							cli.StringFlag{
 								Name:  "editor, e",
 								Value: os.Getenv("EDITOR"),
-								Usage: "Editor used to update the config file ",
+								Usage: "Editor used to update the config file",
+							},
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
 							},
 						},
+					},
+				},
+			},
+			{
+				Name:        "variable",
+				Usage:       "Manage service config variables",
+				Description: "serviced service variable",
+				Subcommands: []cli.Command{
+					{
+						Name:        "list",
+						Usage:       "List one or all config variables and their values for a given service",
+						Description: "serviced service variable list SERVICEID",
+						Action:      c.cmdServiceVariableList,
+					},
+					{
+						Name:        "get",
+						Usage:       "Find the value of a config variable for a service",
+						Description: "serviced service variable get SERVICEID VARIABLE",
+						Action:      c.cmdServiceVariableGet,
+					},
+					{
+						Name:        "set",
+						Usage:       "Add or update one variable's value for a given service",
+						Description: "serviced service variable set SERVICEID VARIABLE VALUE",
+						Action:      c.cmdServiceVariableSet,
+					},
+					{
+						Name:        "unset",
+						Usage:       "Remove a variable from a given service",
+						Description: "serviced service variable unset SERVICEID VARIABLE",
+						Action:      c.cmdServiceVariableUnset,
 					},
 				},
 			},
@@ -563,6 +752,7 @@ func (c *ServicedCli) initService() {
 func (c *ServicedCli) services() (data []string) {
 	svcs, err := c.driver.GetAllServiceDetails()
 	if err != nil || svcs == nil || len(svcs) == 0 {
+		c.exit(1)
 		return
 	}
 
@@ -578,6 +768,7 @@ func (c *ServicedCli) services() (data []string) {
 func (c *ServicedCli) serviceCommands(id string) (data []string) {
 	svc, err := c.driver.GetService(id)
 	if err != nil || svc == nil {
+		c.exit(1)
 		return
 	}
 
@@ -595,6 +786,7 @@ func (c *ServicedCli) serviceCommands(id string) (data []string) {
 func (c *ServicedCli) serviceActions(id string) (data []string) {
 	svc, err := c.driver.GetService(id)
 	if err != nil || svc == nil {
+		c.exit(1)
 		return
 	}
 
@@ -633,6 +825,7 @@ func (c *ServicedCli) printServicesAll(ctx *cli.Context) {
 		fmt.Println(s)
 	next:
 	}
+	return
 }
 
 func (c *ServicedCli) printHelpForRun(svc *service.Service, command string) (returncode int) {
@@ -667,6 +860,7 @@ func (c *ServicedCli) printHelpForRun(svc *service.Service, command string) (ret
 		if len(availablecommands) == 0 {
 			fmt.Println("    No commands available.")
 		}
+		c.exit(1)
 		return 1
 
 	}
@@ -744,7 +938,7 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 // searchForService gets the service and instance id from a provided service
 // string, being either a deploymentPath/servicepath/instanceid or
 // serviceid/instanceid
-func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails, int, error) {
+func (c *ServicedCli) searchForService(keyword string, prefix bool) (*service.ServiceDetails, int, error) {
 
 	// If the last segment is an integer, it is an instance ID
 	servicepath, instanceIDString := path.Split(keyword)
@@ -756,7 +950,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails,
 		instanceID = num
 	}
 
-	matches, err := c.driver.ResolveServicePath(servicepath)
+	matches, err := c.driver.ResolveServicePath(servicepath, prefix)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -822,18 +1016,21 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	showIndividualHealthChecks = strings.Contains(fieldsToShow, "Healthcheck") || strings.Contains(fieldsToShow, "Healthcheck Status")
 
 	if len(ctx.Args()) > 0 {
-		svc, _, err := c.searchForService(ctx.Args().First())
+		svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 		if states, err = c.driver.GetServiceStatus(svc.ID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 	} else {
 		if states, err = c.driver.GetServiceStatus(""); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 	}
@@ -874,21 +1071,25 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 // serviced service list [--verbose, -v] [SERVICEID]
 func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
-		svc, _, err := c.searchForService(ctx.Args().First())
+		svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 
 		if service, err := c.driver.GetService(svc.ID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "service not found")
+			c.exit(1)
 			return
 		} else {
 			if ctx.String("format") == "" {
 				if jsonService, err := json.MarshalIndent(service, " ", "  "); err != nil {
 					fmt.Fprintf(os.Stderr, "failed to marshal service definition: %s\n", err)
+					c.exit(1)
 				} else {
 					fmt.Println(string(jsonService))
 				}
@@ -899,8 +1100,10 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 				})
 				if tmpl, err := template.New("template").Parse(tpl); err != nil {
 					log.WithError(err).Error("Unable to parse format template")
+					c.exit(1)
 				} else if err := tmpl.Execute(os.Stdout, service); err != nil {
 					log.WithError(err).Error("Unable to execute template")
+					c.exit(1)
 				}
 			}
 		}
@@ -910,15 +1113,18 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	services, err := c.driver.GetAllServiceDetails()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if services == nil || len(services) == 0 {
 		fmt.Fprintln(os.Stderr, "no services found")
+		c.exit(1)
 		return
 	}
 
 	if ctx.Bool("verbose") {
 		if jsonService, err := json.MarshalIndent(services, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal service definitions: %s\n", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonService))
 		}
@@ -971,13 +1177,16 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		tmpl, err := template.New("template").Parse(tpl)
 		if err != nil {
 			log.WithError(err).Error("Unable to parse template")
+			c.exit(1)
 		}
 		for _, service := range services {
 			if err := tmpl.Execute(os.Stdout, service); err != nil {
 				log.WithError(err).Error("Unable to execute template")
+				c.exit(1)
 			}
 		}
 	}
+	return
 }
 
 // serviced service add [[-p PORT]...] [[-q REMOTE]...] [--parent-id SERVICEID] NAME IMAGEID COMMAND
@@ -986,6 +1195,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	if len(args) < 3 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add")
+		c.exit(1)
 		return
 	}
 
@@ -995,9 +1205,11 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	)
 	if parentServiceID := ctx.String("parent-id"); parentServiceID == "" {
 		fmt.Fprintln(os.Stderr, "Must specify a parent service ID")
+		c.exit(1)
 		return
-	} else if parentService, _, err = c.searchForService(parentServiceID); err != nil {
+	} else if parentService, _, err = c.searchForService(parentServiceID, ctx.Bool("no-prefix-match")); err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching for parent service: %s", err)
+		c.exit(1)
 		return
 	}
 
@@ -1012,11 +1224,14 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 
 	if service, err := c.driver.AddService(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
+		c.exit(1)
 	} else {
 		fmt.Println(service.ID)
 	}
+	return
 }
 
 // serviced service clone --config config { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }
@@ -1025,23 +1240,28 @@ func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "clone")
+		c.exit(1)
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching for service: %s", err)
+		c.exit(1)
 		return
 	}
 	serviceID := svc.ID
 
 	if copiedSvc, err := c.driver.CloneService(serviceID, ctx.String("suffix")); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", serviceID, err)
+		c.exit(1)
 	} else if copiedSvc == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
+		c.exit(1)
 	} else {
 		fmt.Println(copiedSvc.ID)
 	}
+	return
 }
 
 // serviced service remove SERVICEID ...
@@ -1050,21 +1270,26 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "remove")
+		c.exit(1)
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		// Don't return an error if the service doesn't exist. Philosophically not a error
+		c.exit(0)
 		return
 	}
 	serviceID := svc.ID
 
 	if err := c.driver.RemoveService(serviceID); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", serviceID, err)
+		c.exit(1)
 	} else {
 		fmt.Println(serviceID)
 	}
+	return
 }
 
 // serviced service edit SERVICEID
@@ -1073,24 +1298,28 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "edit")
+		c.exit(1)
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	service, err := c.driver.GetService(svcDetails.ID)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	jsonService, err := json.MarshalIndent(service, " ", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error marshalling service: %s\n", err)
+		c.exit(1)
 		return
 	}
 
@@ -1098,16 +1327,20 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 	reader, err := openEditor(jsonService, name, ctx.String("editor"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	if service, err := c.driver.UpdateService(reader); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if service == nil {
 		fmt.Fprintln(os.Stderr, "received nil service")
+		c.exit(1)
 	} else {
 		fmt.Println(service.ID)
 	}
+	return
 }
 
 // serviced service config list SERVICEID [CONFIGFILE]
@@ -1116,18 +1349,21 @@ func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "list")
+		c.exit(1)
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	service, err := c.driver.GetService(svcDetails.ID)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
@@ -1144,6 +1380,7 @@ func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
 		}
 		if configJsonOut, err := json.MarshalIndent(configJson, " ", "  "); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		} else {
 			fmt.Printf("%s\n\n", configJsonOut)
@@ -1155,9 +1392,11 @@ func (c *ServicedCli) cmdServiceConfigList(ctx *cli.Context) {
 			fmt.Printf("%s", configs[filename].Content)
 		} else {
 			fmt.Printf("Config file %s not found.\n", filename)
+			c.exit(1)
 			return
 		}
 	}
+	return
 }
 
 // serviced service config edit SERVICEID CONFIGFILE [--editor]
@@ -1166,18 +1405,21 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "edit")
+		c.exit(1)
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	service, err := c.driver.GetService(svcDetails.ID)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
@@ -1185,6 +1427,7 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 	filename := args[1]
 	if _, found := configs[filename]; !found {
 		fmt.Printf("Config file %s not found.\n", filename)
+		c.exit(1)
 		return
 	}
 	configfile := configs[filename]
@@ -1195,6 +1438,7 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 	reader, err := openEditor(contents, name, ctx.String("editor"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
@@ -1207,6 +1451,173 @@ func (c *ServicedCli) cmdServiceConfigEdit(ctx *cli.Context) {
 		Content:     string(newcontents.Bytes()),
 	}
 	service.ConfigFiles[filename] = newfile
+	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service")
+		c.exit(1)
+	} else {
+		fmt.Println(service.ID)
+	}
+	return
+}
+
+// serviced service variables list SERVICEID
+func (c *ServicedCli) cmdServiceVariableList(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "list")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	variables := service.Context
+	keys := make([]string, 0)
+	for k, _ := range variables {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		fmt.Printf("%s %v\n", key, variables[key])
+	}
+}
+
+// serviced service variables get SERVICEID VARIABLE
+func (c *ServicedCli) cmdServiceVariableGet(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "get")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	key := args[1]
+	if service.Context == nil {
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+
+	if value, found := service.Context[key]; found {
+		switch value.(type) {
+		case string:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		case int64:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		case uint64:
+			if vstr, ok := value.(string); ok {
+				fmt.Printf("%v\n", vstr)
+			}
+		}
+	} else {
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+}
+
+// serviced service variables set SERVICEID VARIABLE VALUE
+func (c *ServicedCli) cmdServiceVariableSet(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 3 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "set")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	key := args[1]
+	value := args[2]
+	if service.Context == nil {
+		service.Context = make(map[string]interface{})
+	}
+	service.Context[key] = value
+	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if service == nil {
+		fmt.Fprintln(os.Stderr, "received nil service")
+	} else {
+		fmt.Println(service.ID)
+	}
+}
+
+// serviced service variables unset SERVICEID VARIABLE
+func (c *ServicedCli) cmdServiceVariableUnset(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "unset")
+		return
+	}
+
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	key := args[1]
+	if service.Context == nil {
+		message := fmt.Sprintf("Variable %v not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+
+	if _, ok := service.Context[key]; ok {
+		delete(service.Context, key)
+	} else {
+		message := fmt.Sprintf("Variable %s not found.", key)
+		fmt.Fprintln(os.Stderr, message)
+		return
+	}
+
 	if service, err := c.driver.UpdateServiceObj(*service); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if service == nil {
@@ -1222,12 +1633,14 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "assign-ip")
+		c.exit(1)
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
@@ -1243,7 +1656,9 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 
 	if err := c.driver.AssignIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
+	return
 }
 
 // serviced service remove-ip <SERVICEID> <ENDPOINTNAME>
@@ -1252,12 +1667,14 @@ func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
 	if len(args) != 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "remove-ip")
+		c.exit(1)
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 	serviceID := svc.ID
@@ -1267,7 +1684,9 @@ func (c *ServicedCli) cmdServiceRemoveIP(ctx *cli.Context) {
 
 	if err := c.driver.RemoveIP(arguments); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
+	return
 }
 
 // serviced service set-ip <SERVICEID> <ENDPOINTNAME> [IPADDRESS] [--port=PORT] [--proto=PROTOCOL]
@@ -1276,6 +1695,7 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 	if len(args) < 3 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "set-ip")
+		c.exit(1)
 		return
 	}
 
@@ -1285,9 +1705,10 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
@@ -1304,12 +1725,14 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 	if ctx.Int("port") < 1 {
 		fmt.Printf("Please specify the valid port number.\n\n")
 		cli.ShowCommandHelp(ctx, "set-ip")
+		c.exit(1)
 		return
 	}
 
 	if ctx.String("proto") == "" {
 		fmt.Printf("Please specify port protocol.\n\n")
 		cli.ShowCommandHelp(ctx, "set-ip")
+		c.exit(1)
 		return
 	}
 
@@ -1323,7 +1746,9 @@ func (c *ServicedCli) cmdServiceSetIP(ctx *cli.Context) {
 
 	if err := c.driver.SetIP(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
+	return
 }
 
 // serviced service start SERVICEID...
@@ -1332,14 +1757,16 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "start")
+		c.exit(1)
 		return
 	}
 
 	serviceIDs := make([]string, len(args))
 	for i, svcID := range args {
-		svc, _, err := c.searchForService(svcID)
+		svc, _, err := c.searchForService(svcID, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 
@@ -1348,11 +1775,13 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 
 	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if affected == 0 {
 		fmt.Println("Service(s) already started")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to start\n", affected)
 	}
+	return
 }
 
 // serviced service restart SERVICEID
@@ -1361,6 +1790,7 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "restart")
+		c.exit(1)
 		return
 	}
 
@@ -1371,9 +1801,10 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 	}
 
 	for _, arg := range args {
-		svc, instanceID, err := c.searchForService(arg)
+		svc, instanceID, err := c.searchForService(arg, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 
@@ -1395,12 +1826,14 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		if ctx.Bool("rebalance") {
 			if affected, err := c.driver.RebalanceService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 				fmt.Fprintln(os.Stderr, err)
+				c.exit(1)
 			} else {
 				fmt.Printf("Restarting %d service(s)\n", affected)
 			}
 		} else {
 			if affected, err := c.driver.RestartService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 				fmt.Fprintln(os.Stderr, err)
+				c.exit(1)
 			} else {
 				fmt.Printf("Restarting %d service(s)\n", affected)
 			}
@@ -1411,10 +1844,12 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 	for _, instance := range instances {
 		if err := c.driver.StopServiceInstance(instance.Service, instance.Instance); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 		} else {
 			fmt.Printf("Restarting instance %s/%d\n", instance.Service, instance.Instance)
 		}
 	}
+	return
 }
 
 // serviced service stop SERVICEID
@@ -1423,14 +1858,16 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "stop")
+		c.exit(1)
 		return
 	}
 
 	serviceIDs := make([]string, len(args))
 	for i, svcID := range args {
-		svc, _, err := c.searchForService(svcID)
+		svc, _, err := c.searchForService(svcID, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 
@@ -1439,11 +1876,13 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 
 	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if affected == 0 {
 		fmt.Println("Service(s) already stopped")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to stop\n", affected)
 	}
+	return
 }
 
 // serviced service pause SERVICEID
@@ -1452,14 +1891,16 @@ func (c *ServicedCli) cmdServicePause(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "pause")
+		c.exit(1)
 		return
 	}
 
 	serviceIDs := make([]string, len(args))
 	for i, svcID := range args {
-		svc, _, err := c.searchForService(svcID)
+		svc, _, err := c.searchForService(svcID, ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 
@@ -1468,11 +1909,13 @@ func (c *ServicedCli) cmdServicePause(ctx *cli.Context) {
 
 	if affected, err := c.driver.PauseService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if affected == 0 {
 		fmt.Println("Service(s) already paused")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to pause\n", affected)
 	}
+	return
 }
 
 // serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID [COMMAND]
@@ -1499,7 +1942,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		isTTY   bool
 	)
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
@@ -1576,7 +2019,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if args[len(args)-1] == "--generate-bash-completion" {
 		// if "serviced service run SERVICE_ID --generate-bash-completion" is executed
 		if len(args) == 2 {
-			svcDetails, _, err := c.searchForService(args[0])
+			svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 			if err == nil {
 				for _, cmd := range c.serviceCommands(svcDetails.ID) {
 					fmt.Println(cmd)
@@ -1593,7 +2036,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv    []string
 	)
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
@@ -1648,6 +2091,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		}
 		cli.ShowSubcommandHelp(ctx)
+		c.exit(1)
 		return nil
 	}
 
@@ -1658,9 +2102,10 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		return c.exit(1)
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return err
 	}
 
@@ -1676,6 +2121,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 
 	if err := c.driver.AttachServiceInstance(svc.ID, instanceID, command, argv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return err
 	}
 	return nil
@@ -1690,6 +2136,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		}
 		cli.ShowSubcommandHelp(ctx)
+		c.exit(1)
 		return nil
 	}
 
@@ -1699,7 +2146,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		// if a tab is pressed after serviced service SERVICE_ID and the
 		// service is found
 		if len(args) == 2 {
-			svc, _, err := c.searchForService(ctx.Args().First())
+			svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 			if err == nil {
 				actions := c.serviceActions(svc.ID)
 				fmt.Println(strings.Join(actions, "\n"))
@@ -1710,9 +2157,10 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		return c.exit(0)
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return err
 	}
 
@@ -1723,6 +2171,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 			fmt.Println(strings.Join(actions, "\n"))
 		} else {
 			fmt.Fprintln(os.Stderr, "no actions found")
+			c.exit(1)
 		}
 	default:
 		if instanceID < 0 {
@@ -1737,6 +2186,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 
 		if err := c.driver.SendDockerAction(svc.ID, instanceID, action, argv); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 		}
 	}
 
@@ -1752,6 +2202,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		}
 		cli.ShowSubcommandHelp(ctx)
+		c.exit(1)
 		return nil
 	}
 
@@ -1762,9 +2213,10 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 		return c.exit(1)
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return err
 	}
 
@@ -1779,6 +2231,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	}
 
 	if err := c.driver.LogsForServiceInstance(svc.ID, instanceID, command, argv); err != nil {
+		c.exit(1)
 		fmt.Fprintln(os.Stderr, err)
 	}
 
@@ -1791,17 +2244,20 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 	if len(ctx.Args()) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "list-snapshots")
+		c.exit(1)
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	if snapshots, err := c.driver.GetSnapshotsByServiceID(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
 	} else {
@@ -1831,6 +2287,7 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 			}
 		}
 	}
+	return
 }
 
 // serviced service snapshot SERVICEID [--tags=<tag1>,<tag2>...]
@@ -1839,6 +2296,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	if nArgs < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "snapshot")
+		c.exit(1)
 		return
 	}
 
@@ -1847,7 +2305,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		description = ctx.String("description")
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
@@ -1871,6 +2329,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	} else {
 		fmt.Println(snapshot)
 	}
+	return
 }
 
 // serviced service endpoints SERVICEID
@@ -1879,12 +2338,14 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 	if nArgs < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "endpoints")
+		c.exit(1)
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
@@ -1902,6 +2363,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 
 	if endpoints, err := c.driver.GetEndpoints(svc.ID, reportImports, reportExports, ctx.Bool("verify")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if len(endpoints) == 0 {
 		fmt.Fprintf(os.Stderr, "%s - no endpoints defined\n", svc.Name)
@@ -1910,6 +2372,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		hostmap, err := c.driver.GetHostMap()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to get host info, printing host IDs instead of names: %s", err)
+			c.exit(1)
 		}
 
 		t := NewTable("Name,ServiceID,Endpoint,Purpose,Host,HostIP,HostPort,ContainerID,ContainerIP,ContainerPort")
@@ -1946,6 +2409,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		}
 		t.Print()
 	}
+	return
 }
 
 // serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }
@@ -1955,22 +2419,26 @@ func (c *ServicedCli) cmdServiceClearEmergency(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "clear-emergency")
+		c.exit(1)
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First(), ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	count, err := c.driver.ClearEmergency(svc.ID)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	fmt.Printf("Cleared emergency status for %d services\n", count)
+	return
 }
 
 // serviced service tune SERVICEID
@@ -1979,22 +2447,31 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "tune")
+		c.exit(1)
 		return
 	}
 
-	svcDetails, _, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0], ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	service, err := c.driver.GetService(svcDetails.ID)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	// Check the arguments
+	if !(ctx.IsSet("instances") || ctx.IsSet("ramCommitment") || ctx.IsSet("ramThreshold")) {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "tune")
+		return
+	}
+
 	modified := false
 	if ctx.IsSet("instances") {
 		oldInstanceCount := service.Instances
@@ -2007,12 +2484,11 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 
 	if ctx.IsSet("ramCommitment") {
 		oldCommitment := service.RAMCommitment
-		ramCommitment, err := utils.ParseEngineeringNotation(ctx.String("ramCommitment"))
+		newCommitment, err := utils.NewEngNotationFromString(ctx.String("ramCommitment"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		newCommitment := utils.NewEngNotation(int64(ramCommitment))
 
 		if oldCommitment.Value != newCommitment.Value {
 			service.RAMCommitment = newCommitment
@@ -2039,12 +2515,13 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "received nil service")
+			c.exit(1)
+			return
 		} else {
 			fmt.Println(service.ID)
 		}
 	} else {
-		fmt.Printf("No changes submitted.\n\n")
-		cli.ShowCommandHelp(ctx, "tune")
+		fmt.Printf("Service already reflects desired configured - no changes made\n\n")
 		return
 	}
 

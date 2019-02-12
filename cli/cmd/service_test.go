@@ -112,6 +112,12 @@ var DefaultTestServices = []service.Service{
 		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-core",
+		Context: map[string]interface{}{
+			"home.name":  "Alphas",
+			"away.name":  "Bravos",
+			"home.score": 19,
+			"away.score": 12,
+		},
 	}, {
 		ID:             "test-service-3",
 		Name:           "zencommand",
@@ -188,7 +194,7 @@ func (t ServiceAPITest) GetAllServiceDetails() ([]service.ServiceDetails, error)
 	return servicesToServiceDetails(t.services), nil
 }
 
-func (t ServiceAPITest) ResolveServicePath(name string) ([]service.ServiceDetails, error) {
+func (t ServiceAPITest) ResolveServicePath(name string, noprefix bool) ([]service.ServiceDetails, error) {
 	if t.errs["ResolveServicePath"] != nil {
 		return nil, t.errs["ResolveServicePath"]
 	}
@@ -640,6 +646,7 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 	//    serviced service remove SERVICEID
 	//
 	// OPTIONS:
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 
 }
 
@@ -699,7 +706,8 @@ func ExampleServicedCLI_CmdServiceEdit_usage() {
 	//    serviced service edit SERVICEID
 	//
 	// OPTIONS:
-	//    --editor, -e 	Editor used to update the service definition
+	//    --editor, -e 		Editor used to update the service definition
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceEdit_fail() {
@@ -730,7 +738,7 @@ func ExampleServicedCLI_CmdServiceConfigList_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    list - List all config files for a given service, or the contents of one named file.
+	//    list - List all config files for a given service, or the contents of one named file
 	//
 	// USAGE:
 	//    command list [command options] [arguments...]
@@ -739,6 +747,7 @@ func ExampleServicedCLI_CmdServiceConfigList_usage() {
 	//    serviced service config list SERVICEID [FILENAME]
 	//
 	// OPTIONS:
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceConfigList() {
@@ -761,9 +770,7 @@ func ExampleServicedCLI_CmdServiceConfigListSingle() {
 }
 
 func ExampleServicedCLI_CmdServiceConfigList_noservice() {
-	pipeStderr(func() {
-		InitServiceAPITest("serviced", "service", "config", "list", "test-service-0")
-	})
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "config", "list", "test-service-0") })
 	// Output:
 	// service not found
 }
@@ -791,7 +798,8 @@ func ExampleServicedCLI_CmdServiceConfigEdit_usage() {
 	//    serviced service config edit SERVICEID FILENAME
 	//
 	// OPTIONS:
-	//    --editor, -e 	Editor used to update the config file
+	//    --editor, -e 		Editor used to update the config file
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceConfigEdit_noservice() {
@@ -843,6 +851,7 @@ func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
 	//    serviced service assign-ip SERVICEID [IPADDRESS]
 	//
 	// OPTIONS:
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceAssignIPs_fail() {
@@ -987,8 +996,9 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	//    serviced service start SERVICEID ...
 	//
 	// OPTIONS:
-	//    --auto-launch	Recursively schedules child services
-	//    --sync, -s		Schedules services synchronously
+	//    --auto-launch		Recursively schedules child services
+	//    --sync, -s			Schedules services synchronously
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
@@ -1032,9 +1042,10 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	//    serviced service restart { SERVICEID | INSTANCEID } ...
 	//
 	// OPTIONS:
-	//    --auto-launch	Recursively schedules child services
-	//    --sync, -s		Schedules services synchronously
-	//    --rebalance		Stops all instances before restarting them, instead of performing a rolling restart
+	//    --auto-launch		Recursively schedules child services
+	//    --sync, -s			Schedules services synchronously
+	//    --rebalance			Stops all instances before restarting them, instead of performing a rolling restart
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {
@@ -1093,8 +1104,9 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 	//    serviced service stop SERVICEID ...
 	//
 	// OPTIONS:
-	//    --auto-launch	Recursively schedules child services
-	//    --sync, -s		Schedules services synchronously
+	//    --auto-launch		Recursively schedules child services
+	//    --sync, -s			Schedules services synchronously
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceStop_err() {
@@ -1331,7 +1343,8 @@ func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
 	//    serviced service list-snapshots SERVICEID
 	//
 	// OPTIONS:
-	//    --show-tags, -t	shows the tags associated with each snapshot
+	//    --show-tags, -t		shows the tags associated with each snapshot
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_fail() {
@@ -1387,8 +1400,9 @@ func ExampleServicedCLI_CmdServiceSnapshot_usage() {
 	//    serviced service snapshot SERVICEID
 	//
 	// OPTIONS:
-	//    --description, -d 	a description of the snapshot
-	//    --tag, -t 		a unique tag for the snapshot
+	//    --description, -d 		a description of the snapshot
+	//    --tag, -t 			a unique tag for the snapshot
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 
 }
 
@@ -1424,9 +1438,10 @@ func ExampleServicedCLI_CmdServiceEndpoints_usage() {
 	//    serviced service endpoints SERVICEID
 	//
 	// OPTIONS:
-	//    --imports, -i	include only imported endpoints
-	//    --all, -a		include all endpoints (imports and exports)
-	//    --verify, -v		verify endpoints
+	//    --imports, -i		include only imported endpoints
+	//    --all, -a			include all endpoints (imports and exports)
+	//    --verify, -v			verify endpoints
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 
 }
 
@@ -1492,16 +1507,16 @@ func ExampleServicedCLI_CmdServiceClearEmergency_usage() {
 	//    serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }
 	//
 	// OPTIONS:
-	//
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceTune_usage() {
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune") })
 	// Output:
-	//Incorrect Usage.
+	// Incorrect Usage.
 	//
 	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
+	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service
 	//
 	// USAGE:
 	//    command tune [command options] [arguments...]
@@ -1510,9 +1525,10 @@ func ExampleServiceCLI_CmdServiceTune_usage() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --instances '0'	Instance count for this service
-	//    --ramCommitment 	RAM Commitment for this service
-	//    --ramThreshold 	RAM Threshold for this service
+	//    --instances '0'		Instance count for this service
+	//    --ramCommitment 		RAM Commitment for this service
+	//    --ramThreshold 		RAM Threshold for this service
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceTune_noservice() {
@@ -1524,10 +1540,10 @@ func ExampleServiceCLI_CmdServiceTune_noservice() {
 func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-1") })
 	// Output:
-	// No changes submitted.
+	// Incorrect Usage.
 	//
 	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
+	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service
 	//
 	// USAGE:
 	//    command tune [command options] [arguments...]
@@ -1536,29 +1552,16 @@ func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --instances '0'	Instance count for this service
-	//    --ramCommitment 	RAM Commitment for this service
-	//    --ramThreshold 	RAM Threshold for this service
+	//    --instances '0'		Instance count for this service
+	//    --ramCommitment 		RAM Commitment for this service
+	//    --ramThreshold 		RAM Threshold for this service
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceTune_nochanges() {
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-3", "--instances=2") })
 	// Output:
-	// No changes submitted.
-	//
-	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service.
-	//
-	// USAGE:
-	//    command tune [command options] [arguments...]
-	//
-	// DESCRIPTION:
-	//    serviced service tune SERVICEID
-	//
-	// OPTIONS:
-	//    --instances '0'	Instance count for this service
-	//    --ramCommitment 	RAM Commitment for this service
-	//    --ramThreshold 	RAM Threshold for this service
+	// Service already reflects desired configured - no changes made
 }
 
 func ExampleServiceCLI_CmdServiceTune_toomany() {
@@ -1573,4 +1576,188 @@ func ExampleServiceCLI_CmdServiceTune_commitment() {
 
 func ExampleServiceCLI_CmdServiceTune_threshold() {
 	InitServiceAPITest("serviced", "service", "tune", "test-service-1", "--ramThreshold='80%'")
+}
+
+func ExampleServiceCLI_CmdServiceVariableList_usage() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "list") })
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    list - List one or all config variables and their values for a given service
+	//
+	// USAGE:
+	//    command list [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable list SERVICEID
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableList_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "list", "test-service-0") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableList() {
+	InitServiceAPITest("serviced", "service", "variable", "list", "test-service-2")
+	// Output:
+	// away.name Bravos
+	// away.score 12
+	// home.name Alphas
+	// home.score 19
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet_usage() {
+	InitServiceAPITest("serviced", "service", "variable", "get")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    get - Find the value of a config variable for a service
+	//
+	// USAGE:
+	//    command get [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable get SERVICEID VARIABLE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "get", "test-service-0", "wickets") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet_badvariable() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "get", "test-service-2", "mallets") })
+	// Output:
+	// Variable mallets not found.
+}
+
+func ExampleServiceCLI_CmdServiceVariableGet() {
+	InitServiceAPITest("serviced", "service", "variable", "get", "test-service-2", "home.name")
+	// Output:
+	// Alphas
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_usage() {
+	InitServiceAPITest("serviced", "service", "variable", "set")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    set - Add or update one variable's value for a given service
+	//
+	// USAGE:
+	//    command set [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable set SERVICEID VARIABLE VALUE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_noservice() {
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "variable", "set", "test-service-0", "wickets", "12")
+	})
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_novariable() {
+	InitServiceAPITest("serviced", "service", "variable", "set", "test-service-2")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    set - Add or update one variable's value for a given service
+	//
+	// USAGE:
+	//    command set [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable set SERVICEID VARIABLE VALUE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet_novalue() {
+	InitServiceAPITest("serviced", "service", "variable", "set", "test-service-2", "wickets")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    set - Add or update one variable's value for a given service
+	//
+	// USAGE:
+	//    command set [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable set SERVICEID VARIABLE VALUE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableSet() {
+	InitServiceAPITest("serviced", "service", "variable", "set", "test-service-2", "wickets", "9")
+	// Output:
+	// test-service-2
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_usage() {
+	InitServiceAPITest("serviced", "service", "variable", "unset")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    unset - Remove a variable from a given service
+	//
+	// USAGE:
+	//    command unset [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable unset SERVICEID VARIABLE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_noservice() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-0", "wickets") })
+	// Output:
+	// service not found
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_novariable() {
+	InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-2")
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    unset - Remove a variable from a given service
+	//
+	// USAGE:
+	//    command unset [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service variable unset SERVICEID VARIABLE
+	//
+	// OPTIONS:
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset_badvariable() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-2", "mallets") })
+	// Output:
+	// Variable mallets not found.
+}
+
+func ExampleServiceCLI_CmdServiceVariableUnset() {
+	InitServiceAPITest("serviced", "service", "variable", "unset", "test-service-2", "home.name")
+	// Output:
+	// test-service-2
 }

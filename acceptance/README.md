@@ -112,6 +112,7 @@ Note: on a local developer setup, please set the following in your env or at cmd
 ```
 SERVICED_ETC_PATH=$(zendev root)/opt_serviced/etc
 SERVICED_ISVCS_PATH=$(zendev root)/opt_serviced/var/isvcs 
+SERVICED_BINARY=$(which serviced)
 ```
 
 #### UI acceptance

@@ -2992,7 +2992,7 @@ func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) 
 
 // ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb")
 // to zero or more service details with their ancestry populated.
-func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]service.ServiceDetails, error) {
+func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string, noprefix bool) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResolveServicePath"))
 	var (
 		parent  string
@@ -3013,19 +3013,19 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 	svcPath = strings.TrimRight(svcPath, "/")
 	svcPath = strings.ToLower(svcPath)
 
-	// First pass: get all services that match either ID exactly or name by substring.
-	// If it's a single-segment query with a leading slash, it indicates that
-	// prefix matching should be used instead of substring matching.
+	// First pass: get all services that match either ID exactly or name by regex.
+	// The default matching is to use a "contains" regex. This is overridable
+	// via the noprefix boolean which changes the regex to an "ends with" match
 	parent, current = path.Split(svcPath)
-	prefix := parent == "/"
-	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current, prefix)
+
+	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current, noprefix)
 	if err != nil {
 		return nil, err
 	}
 	plog.WithFields(log.Fields{
 		"svcPath": svcPath,
 		"current": current,
-		"prefix":  prefix,
+		"noprefix":  noprefix,
 		"matches": len(details),
 	}).Debug("Found possible service matches")
 
