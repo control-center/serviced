@@ -1593,6 +1593,7 @@ func ExampleServiceCLI_CmdServiceVariableList_usage() {
 	//    serviced service variable list SERVICEID
 	//
 	// OPTIONS:
+        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableList_noservice() {
@@ -1625,6 +1626,7 @@ func ExampleServiceCLI_CmdServiceVariableGet_usage() {
 	//    serviced service variable get SERVICEID VARIABLE
 	//
 	// OPTIONS:
+        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableGet_noservice() {
@@ -1660,6 +1662,7 @@ func ExampleServiceCLI_CmdServiceVariableSet_usage() {
 	//    serviced service variable set SERVICEID VARIABLE VALUE
 	//
 	// OPTIONS:
+        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableSet_noservice() {
@@ -1685,6 +1688,7 @@ func ExampleServiceCLI_CmdServiceVariableSet_novariable() {
 	//    serviced service variable set SERVICEID VARIABLE VALUE
 	//
 	// OPTIONS:
+        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableSet_novalue() {
@@ -1702,6 +1706,7 @@ func ExampleServiceCLI_CmdServiceVariableSet_novalue() {
 	//    serviced service variable set SERVICEID VARIABLE VALUE
 	//
 	// OPTIONS:
+        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableSet() {
@@ -1725,6 +1730,7 @@ func ExampleServiceCLI_CmdServiceVariableUnset_usage() {
 	//    serviced service variable unset SERVICEID VARIABLE
 	//
 	// OPTIONS:
+        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableUnset_noservice() {
@@ -1748,6 +1754,7 @@ func ExampleServiceCLI_CmdServiceVariableUnset_novariable() {
 	//    serviced service variable unset SERVICEID VARIABLE
 	//
 	// OPTIONS:
+        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableUnset_badvariable() {

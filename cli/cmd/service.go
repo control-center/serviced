@@ -723,24 +723,48 @@ func (c *ServicedCli) initService() {
 						Usage:       "List one or all config variables and their values for a given service",
 						Description: "serviced service variable list SERVICEID",
 						Action:      c.cmdServiceVariableList,
+                                                Flags: []cli.Flag{
+                                                        cli.BoolFlag{
+                                                                Name:  "no-prefix-match, np",
+                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+                                                        },
+                                                },
 					},
 					{
 						Name:        "get",
 						Usage:       "Find the value of a config variable for a service",
 						Description: "serviced service variable get SERVICEID VARIABLE",
 						Action:      c.cmdServiceVariableGet,
+                                                Flags: []cli.Flag{
+                                                        cli.BoolFlag{
+                                                                Name:  "no-prefix-match, np",
+                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+                                                        },
+                                                },
 					},
 					{
 						Name:        "set",
 						Usage:       "Add or update one variable's value for a given service",
 						Description: "serviced service variable set SERVICEID VARIABLE VALUE",
 						Action:      c.cmdServiceVariableSet,
+                                                Flags: []cli.Flag{
+                                                        cli.BoolFlag{
+                                                                Name:  "no-prefix-match, np",
+                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+                                                        },
+                                                },
 					},
 					{
 						Name:        "unset",
 						Usage:       "Remove a variable from a given service",
 						Description: "serviced service variable unset SERVICEID VARIABLE",
 						Action:      c.cmdServiceVariableUnset,
+                                                Flags: []cli.Flag{
+                                                        cli.BoolFlag{
+                                                                Name:  "no-prefix-match, np",
+                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+                                                        },
+                                                },
 					},
 				},
 			},
