@@ -75,3 +75,25 @@ func TestStruct(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestNewEngNotationFromString(t *testing.T) {
+	value := "24G"
+	en, err := NewEngNotationFromString(value)
+	if err != nil {
+		t.Fail()
+	}
+	if en.Value != (24 * 1024 * 1024 * 1024) {
+		t.Fail()
+	}
+	if en.source != value {
+		t.Fail()
+	}
+}
+
+func TestNewEngNotationFromString_fail(t *testing.T) {
+	value := "-2sdf4G"
+	_, err := NewEngNotationFromString(value)
+	if err == nil {
+		t.Fail()
+	}
+}

@@ -1281,8 +1281,8 @@ func (_m *API) ResetRegistry() error {
 	return r0
 }
 
-// ResolveServicePath provides a mock function with given fields: path
-func (_m *API) ResolveServicePath(path string) ([]service.ServiceDetails, error) {
+// ResolveServicePath provides a mock function with given fields: path, noprefix
+func (_m *API) ResolveServicePath(path string, noprefix bool) ([]service.ServiceDetails, error) {
 	ret := _m.Called(path)
 
 	var r0 []service.ServiceDetails
@@ -1628,6 +1628,30 @@ func (_m *API) UpdateService(_a0 io.Reader) (*service.ServiceDetails, error) {
 	}
 
 	return r0, r1
+}
+
+// UpdateServiceObj provides a mock function with given fields: _a0
+func (_m *API) UpdateServiceObj(_a0 service.Service) (*service.ServiceDetails, error) {
+	ret := _m.Called(_a0)
+
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(service.Service) *service.ServiceDetails); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(service.Service) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+
 }
 
 // UpgradeRegistry provides a mock function with given fields: endpoint, override

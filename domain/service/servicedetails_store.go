@@ -214,7 +214,7 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 // GetServiceDetailsByIDOrName returns the service details for any services
 // whose serviceID matches the query exactly or whose names contain the query
 // as a substring
-func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]ServiceDetails, error) {
+func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, noprefix bool) ([]ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceDetailsByIDOrName"))
 
 	// Because we don't analyze any of our fields, we have to do this extremely
@@ -239,10 +239,17 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 			idx += 1
 		}
 	}
-	newquery := fmt.Sprintf("%s.*", string(regex[:idx]))
-	if !prefix {
+
+	newquery := fmt.Sprintf("%s", string(regex[:idx]))
+
+	if noprefix {
+	// Set query to "ends with" style
 		newquery = fmt.Sprintf(".*%s", newquery)
+	} else {
+	// Set query to "contains" style
+		newquery = fmt.Sprintf(".*%s.*", newquery)
 	}
+
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{

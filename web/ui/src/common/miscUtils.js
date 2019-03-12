@@ -411,9 +411,6 @@
                 if(isNaN(limitStr) || limitStr === undefined){
                     return "Invalid RAM threshold Limit value";
                 }
-                if(limitStr > 100){
-                    return "RAM threshold Limit cannot exceed 100%";
-                }
                 if(limitStr < 0){
                     return "RAM threshold Limit cannot be less than 0%";
                 }

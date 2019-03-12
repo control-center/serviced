@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Shell package.
+// Package shell - Run serviced shells
 package shell
 
 import (
@@ -20,12 +20,14 @@ import (
 	"time"
 )
 
-// Describes whether a process terminated normally or abnormally
+// Termination - Describes whether a process terminated normally or abnormally
 type Termination int
 
 const (
-	NORMAL   Termination = iota // Process terminated normally
-	ABNORMAL                    // Process terminated abnormally
+	// NORMAL - Process terminated normally
+	NORMAL Termination = iota
+	// ABNORMAL - Process terminated abnormally
+	ABNORMAL
 )
 
 type ProcessServer struct {
@@ -33,6 +35,7 @@ type ProcessServer struct {
 	actor ProcessActor
 }
 
+// ProcessConfig - Configuration of process running the shell
 type ProcessConfig struct {
 	ServiceID   string
 	IsTTY       bool

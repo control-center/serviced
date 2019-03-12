@@ -31,6 +31,17 @@ func NewEngNotation(value int64) EngNotation {
 	return EngNotation{source: fmt.Sprintf("%d", value), Value: uint64(value)}
 }
 
+func NewEngNotationFromString(in string) (EngNotation, error) {
+	if value, err := ParseEngineeringNotation(in); err != nil {
+		return EngNotation{},err
+        } else {
+		return EngNotation{
+			source: in,
+			Value: uint64(value),
+		},nil
+	}
+}
+
 func (e *EngNotation) UnmarshalJSON(b []byte) (err error) {
 	json.Unmarshal(b, &e.source)
 	e.Value, err = ParseEngineeringNotation(e.source)

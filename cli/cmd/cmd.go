@@ -164,6 +164,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.StringFlag{"auth0-scope", defaultOps.Auth0Scope, "Scope to request in Auth0"},
 		cli.StringFlag{"keyproxy-json-server", defaultOps.KeyProxyJsonServer, "URL for API key server (cc auth token endpoint)"},
 		cli.StringFlag{"keyproxy-listen-port", defaultOps.KeyProxyListenPort, "Port for API key proxy to listen on"},
+		cli.BoolFlag{"no-prefix-match", "Make matches on SERVICEID by name strictly 'ends-with' rather than 'contains'"},
 	}
 
 	c.initVersion()

@@ -175,7 +175,7 @@ func (m *Manager) GetHealthStatus(name string, instIndex int) (IServiceHealthRes
 			"isvc": 		name,
 			"instIndex":	instIndex,
 		}).Error("Instance index out of range")
-		return IServiceHealthResult{}, fmt.Errorf("Instance index out of range %i", instIndex)
+		return IServiceHealthResult{}, fmt.Errorf("Instance index out of range %d", instIndex)
 	}
 
 	return result, nil
