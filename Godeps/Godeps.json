@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/control-center/serviced",
 	"GoVersion": "go1.7.4",
+	"GodepVersion": "v80",
 	"Deps": [
 		{
 			"ImportPath": "github.com/hashicorp/golang-lru",
@@ -239,7 +240,7 @@
 			"Rev": "6b9493b3cb60367edd942144879646604089e3f7"
 		},
 		{
-			"ImportPath": "github.com/klauspost/compress",
+			"ImportPath": "github.com/klauspost/compress/flate",
 			"Comment": "v1.3.0",
 			"Rev": "5fb1f31b0a61e9858f12f39266e059848a5f1cea"
 		},
