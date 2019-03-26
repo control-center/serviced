@@ -397,7 +397,7 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			// container is attached and not paused, so pause the container
 			if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
 				logger.WithError(err).Error("Could not pause container")
-				l.cleanUpContainers([]string{stateID}, true)
+				l.handler.ResumeContainer(serviceID, instanceID)
 				return nil, nil, false
 			}
 
