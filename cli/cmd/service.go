@@ -2511,6 +2511,7 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 		newCommitment, err := utils.NewEngNotationFromString(ctx.String("ramCommitment"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 
@@ -2525,19 +2526,19 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 		newThreshold := ctx.String("ramThreshold")
 
 		suffix := newThreshold[len(newThreshold)-1:]
-                if suffix != "%" {
+		if suffix != "%" {
 			fmt.Fprintln(os.Stderr, fmt.Errorf("ramThreshold '%s' does not end with %%", newThreshold))
 			c.exit(1)
 			return
-                }
+		}
 
 		percent := newThreshold[:len(newThreshold)-1]
-                val, err := strconv.ParseUint(percent, 10, 64)
-                if err != nil {
+		val, err := strconv.ParseUint(percent, 10, 64)
+		if err != nil {
 			fmt.Fprintln(os.Stderr, fmt.Errorf("ramThreshold '%s' must be an integer", newThreshold))
 			c.exit(1)
 			return
-                }
+		}
 
 		if oldThreshold != val {
 			service.RAMThreshold = uint(val)
