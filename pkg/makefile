@@ -203,7 +203,7 @@ rpm: stage_rpm
 		-d device-mapper-event \
 		-d device-mapper-event-libs \
 		-d device-mapper-libs \
-		-d 'docker-ce = 18.09.2.ce' \
+		-d 'docker-ce = 18.09.2' \
 		-d logrotate \
 		-d rsync \
 		-d sysstat \
