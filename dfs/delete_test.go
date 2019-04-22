@@ -56,6 +56,7 @@ func (s *DFSTestSuite) TestDelete_NoRemove(c *C) {
 	}
 	s.index.On("SearchLibraryByTag", "Base", "Snapshot").Return(rImages, nil)
 	s.index.On("RemoveImage", "Base/repo:Snapshot").Return(ErrTestImageNotRemoved)
+	s.docker.On("RemoveImage", "localhost:5000/Base/repo:Snapshot").Return(nil)
 	err := s.dfs.Delete("Base_Snapshot")
 	c.Assert(err, Equals, ErrTestImageNotRemoved)
 	// volume won't delete
@@ -76,6 +77,7 @@ func (s *DFSTestSuite) TestDelete_NoRemove(c *C) {
 	}
 	s.index.On("SearchLibraryByTag", "Base2", "Snapshot2").Return(rImages, nil)
 	s.index.On("RemoveImage", "Base2/repo:Snapshot2").Return(nil)
+	s.docker.On("RemoveImage", "localhost:5000/Base2/repo:Snapshot2").Return(nil)
 	vol.On("RemoveSnapshot", "Base2_Snapshot2").Return(ErrTestVolumeNotRemoved)
 	err = s.dfs.Delete("Base2_Snapshot2")
 	c.Assert(err, Equals, ErrTestVolumeNotRemoved)
@@ -99,6 +101,7 @@ func (s *DFSTestSuite) TestDelete_Success(c *C) {
 	}
 	s.index.On("SearchLibraryByTag", "Base", "Snapshot").Return(rImages, nil)
 	s.index.On("RemoveImage", "Base/repo:Snapshot").Return(nil)
+	s.docker.On("RemoveImage", "localhost:5000/Base/repo:Snapshot").Return(nil)
 	vol.On("RemoveSnapshot", "Base_Snapshot").Return(nil)
 	err := s.dfs.Delete("Base_Snapshot")
 	c.Assert(err, IsNil)
