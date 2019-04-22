@@ -47,7 +47,7 @@ func (dfs *DistributedFilesystem) deleteImages(tenantID, label string) error {
 		return err
 	}
 	for _, image := range rImages {
-        if err := dfs.index.RemoveImage(image.String()); err != nil {
+	if err := dfs.index.RemoveImage(image.String()); err != nil {
 			glog.Errorf("Could not remove image %s for %s under label %s: %s", image.String(), tenantID, label, err)
 			return err
 		}
