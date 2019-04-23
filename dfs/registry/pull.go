@@ -36,6 +36,12 @@ type Registry interface {
 	PullImage(cancel <-chan time.Time, image string) error
 	ImagePath(image string) (string, error)
 	FindImage(rImg *registry.Image) (*dockerclient.Image, error)
+	GetAddress() (addr string)
+}
+
+// Returns docker registry Address (e.g. localhost:5000)
+func (l *RegistryListener) GetAddress() (string) {
+	return l.address
 }
 
 // ImagePath returns the proper path to the registry image

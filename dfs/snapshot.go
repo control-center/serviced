@@ -109,7 +109,7 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo, spaceFactor int) (
 
 // generateSnapshotLabel creates a label for a snapshot
 func generateSnapshotLabel() string {
-	return time.Now().UTC().Format("20060102-150405.000")
+	return time.Now().UTC().Format("20060102_150405.000")
 }
 
 // checks to see if there is enough free space on volume to perform a snapshot
