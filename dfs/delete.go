@@ -15,6 +15,7 @@ package dfs
 
 import "github.com/control-center/serviced/volume"
 import "github.com/zenoss/glog"
+import "path"
 
 // Delete removes application data of a particular snapshot from the dfs and
 // registry.
@@ -51,7 +52,7 @@ func (dfs *DistributedFilesystem) deleteImages(tenantID, label string) error {
 			glog.Errorf("Could not remove image %s for %s under label %s: %s", image.String(), tenantID, label, err)
 			return err
 		}
-		if err := dfs.docker.RemoveImage("localhost:5000/"+image.String()); err != nil {
+		if err := dfs.docker.RemoveImage(path.Join(dfs.reg.GetAddress(), image.String())); err != nil {
 			glog.Errorf("Could not remove docker image %s for %s under label %s: %s", image.String(), tenantID, label, err)
 			return err
 		}
