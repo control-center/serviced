@@ -195,6 +195,7 @@
     "label_service_health": "Health",
     "label_service_image": "Image Name",
     "label_service_instances": "Instances",
+    "label_service_launch_mode": "Launch",
     "label_service_name": "Name",
     "label_service_parent": "Parent Service",
     "label_service_pool": "Resource Pool ID",
