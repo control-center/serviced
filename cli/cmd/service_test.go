@@ -1516,7 +1516,7 @@ func ExampleServiceCLI_CmdServiceTune_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service
+	//    tune - Adjust launch mode, instance count, RAM commitment, or RAM threshold for a service
 	//
 	// USAGE:
 	//    command tune [command options] [arguments...]
@@ -1525,6 +1525,7 @@ func ExampleServiceCLI_CmdServiceTune_usage() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
+	//    --launchMode          Launch mode for this service (auto, manual)
 	//    --instances '0'		Instance count for this service
 	//    --ramCommitment 		RAM Commitment for this service
 	//    --ramThreshold 		RAM Threshold for this service
@@ -1543,7 +1544,7 @@ func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    tune - Adjust instance count, RAM commitment, or RAM threshold for a service
+	//    tune - Adjust launch mode, instance count, RAM commitment, or RAM threshold for a service
 	//
 	// USAGE:
 	//    command tune [command options] [arguments...]
@@ -1552,6 +1553,7 @@ func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
+	//    --launchMode          Launch mode for this service (auto, manual)
 	//    --instances '0'		Instance count for this service
 	//    --ramCommitment 		RAM Commitment for this service
 	//    --ramThreshold 		RAM Threshold for this service
@@ -1568,6 +1570,33 @@ func ExampleServiceCLI_CmdServiceTune_toomany() {
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-2", "--instances=5") })
 	// Output:
 	// test-service-2
+}
+
+func ExampleServiceCLI_CmdServiceTune_invalidlaunchmode() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "tune", "test-service-1", "--launchMode=incorrect") })
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    tune - Adjust launch mode, instance count, RAM commitment, or RAM threshold for a service
+	//
+	// USAGE:
+	//    command tune [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service tune SERVICEID
+	//
+	// OPTIONS:
+	//    --launchMode          Launch mode for this service (auto, manual)
+	//    --instances '0'		Instance count for this service
+	//    --ramCommitment 		RAM Commitment for this service
+	//    --ramThreshold 		RAM Threshold for this service
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+}
+
+func ExampleServiceCLI_CmdServiceTune_launch() {
+	InitServiceAPITest("serviced", "service", "tune", "test-service-1", "--launchMode=manual")
+	InitServiceAPITest("serviced", "service", "tune", "test-service-3", "--launchMode=auto")
 }
 
 func ExampleServiceCLI_CmdServiceTune_commitment() {
@@ -1593,7 +1622,7 @@ func ExampleServiceCLI_CmdServiceVariableList_usage() {
 	//    serviced service variable list SERVICEID
 	//
 	// OPTIONS:
-        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableList_noservice() {
@@ -1626,7 +1655,7 @@ func ExampleServiceCLI_CmdServiceVariableGet_usage() {
 	//    serviced service variable get SERVICEID VARIABLE
 	//
 	// OPTIONS:
-        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableGet_noservice() {
@@ -1662,7 +1691,7 @@ func ExampleServiceCLI_CmdServiceVariableSet_usage() {
 	//    serviced service variable set SERVICEID VARIABLE VALUE
 	//
 	// OPTIONS:
-        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableSet_noservice() {
@@ -1688,7 +1717,7 @@ func ExampleServiceCLI_CmdServiceVariableSet_novariable() {
 	//    serviced service variable set SERVICEID VARIABLE VALUE
 	//
 	// OPTIONS:
-        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableSet_novalue() {
@@ -1706,7 +1735,7 @@ func ExampleServiceCLI_CmdServiceVariableSet_novalue() {
 	//    serviced service variable set SERVICEID VARIABLE VALUE
 	//
 	// OPTIONS:
-        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableSet() {
@@ -1730,7 +1759,7 @@ func ExampleServiceCLI_CmdServiceVariableUnset_usage() {
 	//    serviced service variable unset SERVICEID VARIABLE
 	//
 	// OPTIONS:
-        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableUnset_noservice() {
@@ -1754,7 +1783,7 @@ func ExampleServiceCLI_CmdServiceVariableUnset_novariable() {
 	//    serviced service variable unset SERVICEID VARIABLE
 	//
 	// OPTIONS:
-        //    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
+	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
 func ExampleServiceCLI_CmdServiceVariableUnset_badvariable() {
