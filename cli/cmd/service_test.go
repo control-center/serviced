@@ -1525,7 +1525,7 @@ func ExampleServiceCLI_CmdServiceTune_usage() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --launchMode          Launch mode for this service (auto, manual)
+	//    --launchMode		Launch mode for this service (auto, manual)
 	//    --instances '0'		Instance count for this service
 	//    --ramCommitment 		RAM Commitment for this service
 	//    --ramThreshold 		RAM Threshold for this service
@@ -1553,7 +1553,7 @@ func ExampleServiceCLI_CmdServiceTune_nokwargs() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --launchMode          Launch mode for this service (auto, manual)
+	//    --launchMode		Launch mode for this service (auto, manual)
 	//    --instances '0'		Instance count for this service
 	//    --ramCommitment 		RAM Commitment for this service
 	//    --ramThreshold 		RAM Threshold for this service
@@ -1587,7 +1587,7 @@ func ExampleServiceCLI_CmdServiceTune_invalidlaunchmode() {
 	//    serviced service tune SERVICEID
 	//
 	// OPTIONS:
-	//    --launchMode          Launch mode for this service (auto, manual)
+	//    --launchMode		Launch mode for this service (auto, manual)
 	//    --instances '0'		Instance count for this service
 	//    --ramCommitment 		RAM Commitment for this service
 	//    --ramThreshold 		RAM Threshold for this service
