@@ -916,6 +916,10 @@
                                 this.createNotification("Error", err).error();
                                 return false;
                             }
+                            if(modalModel.model.Launch !== "auto" && modalModel.model.Launch !== "manual") {
+                                this.createNotification("Error", "Invalid launch mode selected").error();
+                                return false;
+                            }
 
                             return true;
                         }

@@ -195,6 +195,7 @@
     "label_service_health": "Condición",
     "label_service_image": "Nombre de la imagen",
     "label_service_instances": "Instancias",
+    "label_service_launch_mode": "Lanzamiento",
     "label_service_name": "Nombre",
     "label_service_parent": "Servicio Padre",
     "label_service_pool": "ID de Grupo de Recursos",
