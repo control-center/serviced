@@ -7,10 +7,10 @@ package script
 import (
 	"errors"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"strconv"
 	"strings"
 	"time"
-	log "github.com/Sirupsen/logrus"
 )
 
 func evalEmpty(r *runner, n node) error {
@@ -60,16 +60,39 @@ func evalSnapshot(r *runner, n node) error {
 func evalUSE(r *runner, n node) error {
 
 	imageName := n.args[0]
-	replaceImgs := make([]string, len(n.args)-1)
-	//if len(n.args) > 1 && n.args[1] != "" {
-	if len(n.args) > 1 {
-		replaceImgs = n.args[1:]
-	}
-	logger := plog.WithField("imagename", imageName)
-	logger.Debug("Preparing to use image")
+	replaceImgs := make([]string, 0)
+	svcPath := ""
 	svcID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", USE)
+	}
+
+	if len(n.args) > 1 {
+		for i, arg := range n.args[1:] {
+			if arg == "service" {
+				if i == 0 {
+					svcPath = n.args[i+2]
+					break
+				} else {
+					svcPath = n.args[i+2]
+					replaceImgs = make([]string, len(n.args[1:i+1]))
+					replaceImgs = n.args[1 : i+1]
+					break
+				}
+			} else {
+				replaceImgs = make([]string, len(n.args[1:]))
+				replaceImgs = n.args[1:len(n.args)]
+			}
+		}
+	}
+	logger := plog.WithField("imagename", imageName)
+	logger.Debug("Preparing to use image")
+	if svcPath != "" {
+		tenantID, err := r.svcFromPath(svcID, svcPath)
+		if err != nil {
+			return err
+		}
+		svcID = tenantID
 	}
 	_, err := r.svcUse(svcID, imageName, r.config.DockerRegistry, replaceImgs, r.config.NoOp)
 	if err != nil {
@@ -138,8 +161,8 @@ func evalSvcWait(r *runner, n node) error {
 	}
 
 	plog.WithFields(log.Fields{
-		"timeout": timeout,
-		"services": strings.Join(n.args[:stateIdx], ", "),
+		"timeout":     timeout,
+		"services":    strings.Join(n.args[:stateIdx], ", "),
 		"targetstate": state,
 	}).Info("Waiting for service(s) to reach target state")
 	if err := r.svcWait(svcIDs, state, timeout, recursive); err != nil {
@@ -179,7 +202,7 @@ func evalSvcStart(r *runner, n node) error {
 
 	plog.WithFields(log.Fields{
 		"servicepath": svcPath,
-		"serviceid": svcID,
+		"serviceid":   svcID,
 	}).Info("Starting service")
 	if err := r.svcStart(svcID, recursive); err != nil {
 		return err
@@ -218,7 +241,7 @@ func evalSvcStop(r *runner, n node) error {
 
 	plog.WithFields(log.Fields{
 		"servicepath": svcPath,
-		"serviceid": svcID,
+		"serviceid":   svcID,
 	}).Info("Stopping service")
 	if err := r.svcStop(svcID, recursive); err != nil {
 		return err
@@ -257,7 +280,7 @@ func evalSvcRestart(r *runner, n node) error {
 
 	plog.WithFields(log.Fields{
 		"servicepath": svcPath,
-		"serviceid": svcID,
+		"serviceid":   svcID,
 	}).Info("Restarting service")
 	if err := r.svcRestart(svcID, recursive); err != nil {
 		return err
@@ -318,7 +341,7 @@ func evalSvcExec(r *runner, n node) error {
 	// "HMS-YMD_svcID" will be the name of the container
 	containerName := time.Now().Format("150405-20060102") + "_" + svcID
 	logger := plog.WithFields(log.Fields{
-		"serviceid": svcID,
+		"serviceid":     svcID,
 		"containername": containerName,
 	})
 	logger.Debugf("Running: serviced service shell %s", strings.Join(n.args[1:], " "))
@@ -340,8 +363,8 @@ func evalSvcExec(r *runner, n node) error {
 			if !failed {
 				if err := r.execCommand("serviced", "snapshot", "remove", snapshotID); err != nil {
 					logger.WithError(err).
-					  WithField("snapshotid", snapshotID).
-					  Warning("Unable to delete snapshot")
+						WithField("snapshotid", snapshotID).
+						Warning("Unable to delete snapshot")
 				}
 			}
 		}
@@ -368,7 +391,7 @@ func evalRequireSvc(r *runner, n node) error {
 		return err
 	}
 	plog.WithFields(log.Fields{
-		"tenantid": tID,
+		"tenantid":  tID,
 		"serviceid": r.config.ServiceID,
 	}).Debug("found tenant for service")
 	r.env["TENANT_ID"] = tID
