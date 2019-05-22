@@ -64,6 +64,8 @@ type ServiceDefinition struct {
 	MonitoringProfile      domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
 	MemoryLimit            float64
 	CPUShares              int64
+	OomKillDisable         bool                   // Whether to disable OOM Killer for the container or not
+	OomScoreAdj            int64                  // Tune containers OOM preferences (-1000 to 1000)
 	PIDFile                string // An optional path or command to generate a path for a PID file to which signals are relayed.
 	StartLevel             uint   // Services start in the order implied by this field (low to high) and stopped in reverse order
 	EmergencyShutdownLevel uint   // In case of low storage, Services stopped in the order implied by this field (low to high)
