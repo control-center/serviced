@@ -213,8 +213,12 @@ func (c *ServicedCli) initService() {
 						Usage: "Schedules services synchronously",
 					},
 					cli.BoolFlag{
-						Name:  "rebalance",
-						Usage: "Stops all instances before restarting them, instead of performing a rolling restart",
+						Name:  "no-rebalance",
+						Usage: "Don't stops all instances before restarting them, perform a rolling restart",
+					},
+					cli.BoolFlag{
+						Name:  "skip-children",
+						Usage: "Restart only the root service. Skip child services",
 					},
 					cli.BoolFlag{
 						Name:  "no-prefix-match, np",
@@ -1801,7 +1805,7 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		serviceIDs[i] = svc.ID
 	}
 
-	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync"), ctx.Bool("skip-children")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
 	} else if affected == 0 {
@@ -1851,15 +1855,17 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 
 	// Batch start services
 	if len(sIds) > 0 {
-		if ctx.Bool("rebalance") {
-			if affected, err := c.driver.RebalanceService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+		if ctx.Bool("no-rebalance") {
+			if affected, err := c.driver.RestartService(
+				api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync"), ctx.Bool("skip-children")}); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				c.exit(1)
 			} else {
 				fmt.Printf("Restarting %d service(s)\n", affected)
 			}
 		} else {
-			if affected, err := c.driver.RestartService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+			if affected, err := c.driver.RebalanceService(
+				api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync"), ctx.Bool("skip-children")}); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				c.exit(1)
 			} else {
@@ -1902,7 +1908,7 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		serviceIDs[i] = svc.ID
 	}
 
-	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync"), ctx.Bool("skip-children")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
 	} else if affected == 0 {
@@ -1935,7 +1941,7 @@ func (c *ServicedCli) cmdServicePause(ctx *cli.Context) {
 		serviceIDs[i] = svc.ID
 	}
 
-	if affected, err := c.driver.PauseService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.PauseService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync"), ctx.Bool("skip-children")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
 	} else if affected == 0 {

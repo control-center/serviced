@@ -52,7 +52,7 @@ type FacadeInterface interface {
 
 	RemoveService(ctx datastore.Context, id string) error
 
-	ScheduleServices(ctx datastore.Context, serviceIDs []string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, emergency bool) (int, error)
+	ScheduleServices(ctx datastore.Context, serviceIDs []string, autoLaunch bool, synchronous bool, skipChildren bool, desiredState service.DesiredState, emergency bool) (int, error)
 
 	UpdateService(ctx datastore.Context, svc service.Service) error
 

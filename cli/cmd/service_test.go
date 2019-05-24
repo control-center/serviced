@@ -1044,7 +1044,8 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	// OPTIONS:
 	//    --auto-launch		Recursively schedules child services
 	//    --sync, -s			Schedules services synchronously
-	//    --rebalance			Stops all instances before restarting them, instead of performing a rolling restart
+	//    --no-rebalance		Don't stops all instances before restarting them, perform a rolling restart
+	//    --skip-children		Restart only the root service. Skip child services
 	//    --no-prefix-match, --np	Make SERVICEID matches on name strict 'ends with' matches
 }
 
@@ -1071,11 +1072,11 @@ func ExampleServicedCLI_CmdServiceRestart_err() {
 }
 
 func ExampleServicedCLI_CmdServiceRestart() {
-	InitServiceAPITest("serviced", "service", "restart", "test-service-2")
-	InitServiceAPITest("serviced", "service", "restart", "test-service-3/1")                     // Specific instance
-	InitServiceAPITest("serviced", "service", "restart", "test-service-2", "test-service-3/1")   // Both
-	InitServiceAPITest("serviced", "service", "restart", "test-service-2", "test-service-3")     // 2 services
-	InitServiceAPITest("serviced", "service", "restart", "test-service-3/0", "test-service-3/1") // 2 instances
+	InitServiceAPITest("serviced", "service", "restart", "test-service-2", "--no-rebalance")
+	InitServiceAPITest("serviced", "service", "restart", "test-service-3/1", "--no-rebalance")                     // Specific instance
+	InitServiceAPITest("serviced", "service", "restart", "test-service-2", "test-service-3/1", "--no-rebalance")   // Both
+	InitServiceAPITest("serviced", "service", "restart", "test-service-2", "test-service-3", "--no-rebalance")     // 2 services
+	InitServiceAPITest("serviced", "service", "restart", "test-service-3/0", "test-service-3/1", "--no-rebalance") // 2 instances
 
 	// Output:
 	// Restarting 1 service(s)

@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/domain/logfilter"
 )
 
 // A generic ControlPlane error
@@ -59,11 +59,11 @@ type ServiceCloneRequest struct {
 }
 
 type ServiceMigrationRequest struct {
-	ServiceID string				// The tenant service ID
-	Modified  []*service.Service			// Services modified by the migration
-	Added     []*service.Service			// Services added by the migration
-	Deploy    []*ServiceDeploymentRequest		// A services to be deployed by the migration
-	LogFilters map[string]logfilter.LogFilter	// LogFilters to add/replace
+	ServiceID  string                         // The tenant service ID
+	Modified   []*service.Service             // Services modified by the migration
+	Added      []*service.Service             // Services added by the migration
+	Deploy     []*ServiceDeploymentRequest    // A services to be deployed by the migration
+	LogFilters map[string]logfilter.LogFilter // LogFilters to add/replace
 }
 
 type ServiceStateRequest struct {
@@ -72,9 +72,10 @@ type ServiceStateRequest struct {
 }
 
 type ScheduleServiceRequest struct {
-	ServiceIDs  []string
-	AutoLaunch  bool
-	Synchronous bool
+	ServiceIDs   []string
+	AutoLaunch   bool
+	Synchronous  bool
+	SkipChildren bool
 }
 
 type WaitServiceRequest struct {

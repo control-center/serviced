@@ -48,18 +48,19 @@ type ServiceConfig struct {
 }
 
 type SchedulerConfig struct {
-	ServiceIDs  []string
-	AutoLaunch  bool
-	Synchronous bool
+	ServiceIDs   []string
+	AutoLaunch   bool
+	Synchronous  bool
+	SkipChildren bool
 }
 
 // IPConfig is the deserialized object from the command-line
 type IPConfig struct {
-	ServiceID	string
-	IPAddress	string
-	Port		uint16
-	Proto		string
-	EndpointName	string
+	ServiceID    string
+	IPAddress    string
+	Port         uint16
+	Proto        string
+	EndpointName string
 }
 
 // Type of method that controls the state of a service
@@ -347,7 +348,7 @@ func (a *api) StartService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.StartService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.StartService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous, config.SkipChildren}, &affected)
 	return affected, err
 }
 
@@ -359,7 +360,7 @@ func (a *api) RestartService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.RestartService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.RestartService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous, config.SkipChildren}, &affected)
 	return affected, err
 }
 
@@ -371,7 +372,7 @@ func (a *api) RebalanceService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.RebalanceService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.RebalanceService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous, config.SkipChildren}, &affected)
 	return affected, err
 }
 
@@ -383,7 +384,7 @@ func (a *api) StopService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.StopService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.StopService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous, config.SkipChildren}, &affected)
 	return affected, err
 }
 
@@ -395,7 +396,7 @@ func (a *api) PauseService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.PauseService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.PauseService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous, config.SkipChildren}, &affected)
 	return affected, err
 }
 
@@ -444,9 +445,9 @@ func (a *api) SetIP(config IPConfig) error {
 		ServiceID:      config.ServiceID,
 		IPAddress:      config.IPAddress,
 		AutoAssignment: config.IPAddress == "",
-		Port:		config.Port,
-		Proto:		config.Proto,
-		EndpointName:	config.EndpointName,
+		Port:           config.Port,
+		Proto:          config.Proto,
+		EndpointName:   config.EndpointName,
 	}
 
 	if err := client.SetIPs(req); err != nil {
@@ -473,7 +474,7 @@ func (a *api) ResolveServicePath(path string, noprefix bool) ([]service.ServiceD
 	if err != nil {
 		return nil, err
 	}
-	return client.ResolveServicePath(path,noprefix)
+	return client.ResolveServicePath(path, noprefix)
 }
 
 func (a *api) ClearEmergency(serviceID string) (int, error) {

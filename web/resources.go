@@ -24,6 +24,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/zenoss/go-json-rest"
 
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/domain"
@@ -34,7 +35,6 @@ import (
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	"github.com/control-center/serviced/config"
 )
 
 var empty interface{}
@@ -721,7 +721,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, ctx *requestContex
 
 	serviceFacade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	_, err = serviceFacade.StopService(dataCtx, dao.ScheduleServiceRequest{[]string{serviceID}, autoLaunch, false})
+	_, err = serviceFacade.StopService(dataCtx, dao.ScheduleServiceRequest{[]string{serviceID}, autoLaunch, false, false})
 	if err != nil {
 		logger.WithError(err).Error("Unexpected error stopping service")
 		restServerError(w, err)

@@ -487,7 +487,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	dt.Dfs().On("VerifyTenantMounts", "0").Return(nil)
 
 	var affected int
-	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{[]string{"0"}, true, true}, &affected); err != nil {
+	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{[]string{"0"}, true, true, false}, &affected); err != nil {
 		t.Fatalf("could not start services: %v", err)
 	}
 

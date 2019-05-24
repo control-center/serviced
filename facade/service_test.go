@@ -36,9 +36,9 @@ import (
 	ssmmocks "github.com/control-center/serviced/scheduler/servicestatemanager/mocks"
 	zks "github.com/control-center/serviced/zzk/service"
 
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
-	"github.com/control-center/serviced/domain/logfilter"
 )
 
 var (
@@ -379,7 +379,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 		PoolID:       "pool_id",
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
-		HostPolicy: servicedefinition.RequireSeparate,
+		HostPolicy:   servicedefinition.RequireSeparate,
 		ChangeOptions: []servicedefinition.ChangeOption{
 			servicedefinition.RestartAllOnInstanceChanged,
 		},
@@ -399,7 +399,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 		PoolID:       "pool_id",
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
-		HostPolicy: "REQUIRE_SEPARATE",
+		HostPolicy:   "REQUIRE_SEPARATE",
 		ChangeOptions: []servicedefinition.ChangeOption{
 			"RESTARTALLONINSTANCECHANGED",
 		},
@@ -1276,8 +1276,8 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilter(t *C) {
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
 	err := ft.setupMigrationTestWithoutEndpoints(t)
@@ -1307,8 +1307,8 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilterVersion
 	t.Assert(err, IsNil)
 
 	filter1 := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
 	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter1)
@@ -1343,8 +1343,8 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *
 	t.Assert(err, IsNil)
 
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
 	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter)
@@ -1371,7 +1371,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailsLogFilter(t *C) {
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
+		Name:   "filter1",
 		Filter: "some filter",
 	}
 	err := ft.setupMigrationTestWithoutEndpoints(t)
@@ -1453,22 +1453,21 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 		DeploymentID:    "deployment_id_2",
 	}
 	svcnoprefix1 := service.Service{
-                ID:              "svcnoprefix1id",
-                PoolID:          "testPool",
-                Name:            "svc_noprefix",
-                Launch:          "auto",
-                ParentServiceID: "svcbid",
-                DeploymentID:    "deployment_id",
-        }
-        svcnoprefix2 := service.Service{
-                ID:              "svcnoprefix2id",
-                PoolID:          "testPool",
-                Name:            "svc_noprefix2",
-                Launch:          "auto",
-                ParentServiceID: "svcbid",
-                DeploymentID:    "deployment_id",
-        }
-
+		ID:              "svcnoprefix1id",
+		PoolID:          "testPool",
+		Name:            "svc_noprefix",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcnoprefix2 := service.Service{
+		ID:              "svcnoprefix2id",
+		PoolID:          "testPool",
+		Name:            "svc_noprefix2",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
 
 	c.Assert(ft.Facade.AddService(ft.CTX, svca), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcb), IsNil)
@@ -1580,11 +1579,11 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true, false}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// stop the parent
-	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true, false}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
@@ -1737,7 +1736,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true, false}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 
@@ -1980,7 +1979,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true, false}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 
@@ -2296,7 +2295,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	}()
 
 	// start the parent synchronously
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true, false}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2403,7 +2402,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	}()
 
 	// stop the parent synchronously
-	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true, false}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2500,14 +2499,14 @@ func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) 
 	}
 
 	// start the services and consume the value off the channels
-	count, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false})
+	count, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false, false})
 	c.Assert(err, IsNil)
 	c.Assert(count, Equals, 2)
 	<-scheduledChannels["ParentServiceID"]
 	<-scheduledChannels["childService1"]
 
 	// rebalance the parent asynchronously
-	count, err = ft.Facade.RebalanceService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false})
+	count, err = ft.Facade.RebalanceService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false, false})
 	c.Assert(err, IsNil)
 	c.Assert(count, Equals, 2)
 
@@ -2623,7 +2622,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	}
 
 	// Start the services asynchronously.  After starting level 1, it will block until we close releaseWait
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false, false}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2878,9 +2877,9 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 // If the dfs mounts are invalid. Do not start services.
 func (ft *FacadeIntegrationTest) TestFacade_StartService_InvalidMounts(c *C) {
 	svc := service.Service{
-		ID: "TestFacade_StartService_PoolWithDFS",
-		Name: "TestFacade_StartService_PoolWithDFS",
-		PoolID: "default",
+		ID:             "TestFacade_StartService_PoolWithDFS",
+		Name:           "TestFacade_StartService_PoolWithDFS",
+		PoolID:         "default",
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
@@ -3797,14 +3796,14 @@ func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string,
 
 func (ft *FacadeIntegrationTest) TestFacade_getChanges(c *C) {
 	cursvc := service.Service{
-		ID:			"get-changes-service",
-		Name:			"TestFacade_getChanges_Current",
-		DeploymentID:		"deployment-id",
-		PoolID:			"pool-id",
-		Launch:			"auto",
+		ID:           "get-changes-service",
+		Name:         "TestFacade_getChanges_Current",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
 	}
 	c.Assert(ft.Facade.AddService(ft.CTX, cursvc), IsNil)
-	svc , _ := ft.Facade.getService(ft.CTX, cursvc.ID)
+	svc, _ := ft.Facade.getService(ft.CTX, cursvc.ID)
 	svc.Name = "TestFacade_getChanges_Updated"
 	updates := ft.Facade.getChanges(ft.CTX, svc)
 	expected := "Name:TestFacade_getChanges_Updated;"

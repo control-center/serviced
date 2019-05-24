@@ -1495,19 +1495,19 @@ func (_m *FacadeInterface) ResetHostKey(ctx datastore.Context, hostID string) ([
 }
 
 // ScheduleService provides a mock function with given fields: ctx, serviceID, autoLaunch, synchronous, desiredState
-func (_m *FacadeInterface) ScheduleServices(ctx datastore.Context, serviceIDs []string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, emergency bool) (int, error) {
+func (_m *FacadeInterface) ScheduleServices(ctx datastore.Context, serviceIDs []string, autoLaunch bool, synchronous bool, skipChildren bool, desiredState service.DesiredState, emergency bool) (int, error) {
 	ret := _m.Called(ctx, serviceIDs, autoLaunch, synchronous, desiredState, emergency)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(datastore.Context, []string, bool, bool, service.DesiredState, bool) int); ok {
-		r0 = rf(ctx, serviceIDs, autoLaunch, synchronous, desiredState, emergency)
+	if rf, ok := ret.Get(0).(func(datastore.Context, []string, bool, bool, bool, service.DesiredState, bool) int); ok {
+		r0 = rf(ctx, serviceIDs, autoLaunch, synchronous, skipChildren, desiredState, emergency)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, []string, bool, bool, service.DesiredState, bool) error); ok {
-		r1 = rf(ctx, serviceIDs, autoLaunch, synchronous, desiredState, emergency)
+	if rf, ok := ret.Get(1).(func(datastore.Context, []string, bool, bool, bool, service.DesiredState, bool) error); ok {
+		r1 = rf(ctx, serviceIDs, autoLaunch, synchronous, skipChildren, desiredState, emergency)
 	} else {
 		r1 = ret.Error(1)
 	}
