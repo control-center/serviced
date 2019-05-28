@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -2365,14 +2364,12 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 // to latest, making sure to push changes to the registry
 func (f *Facade) ServiceUse(ctx datastore.Context, tenantID, serviceID, imageName, registryName string, replaceImgs []string, noOp bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ServiceUse"))
-	glog.Infof(">>>> Pushing image %s for tenant %s into elastic", imageName, serviceID)
 	// Push into elastic
 	if err := f.Download(imageName, tenantID); err != nil {
 		return err
 	}
 
 	if len(replaceImgs) > 0 {
-		glog.Infof(">>>> Replacing references to images %s with %s for tenant %s", strings.Join(replaceImgs, ", "), imageName, serviceID)
 		// Determine what services need to be updated
 		svcs, err := f.GetServiceList(ctx, tenantID)
 		if err != nil {
@@ -2387,7 +2384,6 @@ func (f *Facade) ServiceUse(ctx datastore.Context, tenantID, serviceID, imageNam
 			srchImgs[img.Repo] = struct{}{}
 		}
 		newImg, err := commons.ParseImageID(imageName)
-		glog.Infof(">>>> newImg => %s", newImg)
 		if err != nil {
 			return fmt.Errorf("error parsing image ID %s: %s", imageName, err)
 		}
@@ -2401,7 +2397,6 @@ func (f *Facade) ServiceUse(ctx datastore.Context, tenantID, serviceID, imageNam
 				continue
 			}
 			origImg, err := commons.ParseImageID(svc.ImageID)
-			glog.Infof(">>>> origImg.User => %s, origImg.Repo => %s, svc.ImageID => %s", origImg.User, origImg.Repo, svc.ImageID)
 			if err != nil {
 				return fmt.Errorf("error parsing image ID %s: %s", svc.ImageID, err)
 			}
@@ -2419,7 +2414,6 @@ func (f *Facade) ServiceUse(ctx datastore.Context, tenantID, serviceID, imageNam
 
 		// Update all the services
 		for _, svc := range svcsToUpdate {
-			glog.Infof(">>>> svcToUpdate => %s", svc)
 			if err = f.UpdateService(ctx, *svc); err != nil {
 				return fmt.Errorf("error updating service %s: %s", svc.Name, err)
 			}
