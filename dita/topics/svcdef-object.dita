@@ -121,6 +121,16 @@
                 extended privileges. </entry>
           </row>
           <row>
+            <entry><codeph>OomKillDisable</codeph></entry>
+            <entry><codeph>true</codeph> or <codeph>false</codeph></entry>
+            <entry>Whether to disable OOM Killer for the container or not.</entry>
+          </row>
+          <row>
+            <entry><codeph>OomScoreAdj</codeph></entry>
+            <entry>int64</entry>
+            <entry>Tune containers OOM preferences (-1000 to 1000)</entry>
+          </row>
+          <row>
             <entry><codeph>ConfigFiles</codeph></entry>
             <entry>Objects</entry>
             <entry>The configuration file templates to install in containers (in which instances of

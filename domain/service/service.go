@@ -251,6 +251,8 @@ type Service struct {
 	MonitoringProfile domain.MonitorProfile
 	MemoryLimit       float64
 	CPUShares         int64
+	OomKillDisable    bool
+	OomScoreAdj       int64
 	PIDFile           string
 	// StartLevel represents the order in which services are started and stopped
 	// in normal operations.  All services of a given level start before any services
@@ -393,6 +395,8 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.PIDFile = sd.PIDFile
 	svc.StartLevel = sd.StartLevel
 	svc.EmergencyShutdownLevel = sd.EmergencyShutdownLevel
+	svc.OomKillDisable = sd.OomKillDisable
+	svc.OomScoreAdj = sd.OomScoreAdj
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {

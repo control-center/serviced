@@ -829,6 +829,12 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		hcfg.Privileged = true
 	}
 
+	if svc.OomKillDisable {
+		hcfg.OOMKillDisable = true
+	}
+
+	hcfg.OomScoreAdj = int(svc.OomScoreAdj)
+
 	// Memory and CpuShares should never be negative
 	if svc.MemoryLimit < 0 {
 		cfg.Memory = 0
