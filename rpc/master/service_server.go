@@ -16,11 +16,12 @@ package master
 import (
 	"time"
 
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/service"
 )
 
 type ServiceUseRequest struct {
+	TenantID    string
 	ServiceID   string
 	ImageID     string
 	ReplaceImgs []string
@@ -41,14 +42,14 @@ type EvaluateServiceRequest struct {
 }
 
 type ResolveServiceRequest struct {
-	Path  string
+	Path     string
 	NoPrefix bool
 }
 
 type EvaluateServiceResponse struct {
-	Service          service.Service
-	TenantID         string
-	ServiceNamePath  string
+	Service         service.Service
+	TenantID        string
+	ServiceNamePath string
 }
 
 type ServiceDetailsByTenantIDRequest struct {
@@ -58,7 +59,7 @@ type ServiceDetailsByTenantIDRequest struct {
 
 // Use a new image for a given service - this will pull the image and tag it
 func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error {
-	if err := s.f.ServiceUse(s.context(), request.ServiceID, request.ImageID, request.Registry, request.ReplaceImgs, request.NoOp); err != nil {
+	if err := s.f.ServiceUse(s.context(), request.TenantID, request.ServiceID, request.ImageID, request.Registry, request.ReplaceImgs, request.NoOp); err != nil {
 		return err
 	}
 	*response = ""

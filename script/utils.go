@@ -32,7 +32,7 @@ type ServiceIDFromPath func(tenantID string, path string) (string, error)
 type ServiceControl func(serviceID string, recursive bool) error
 
 // ServiceUse is a func used to control the state of a service
-type ServiceUse func(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
+type ServiceUse func(tenantID string, serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
 
 type ServiceState string
 
@@ -82,7 +82,7 @@ func noOpServiceRestart(serviceID string, recursive bool) error {
 	return nil
 }
 
-func noOpServiceUse(serviceID string, imageID string, replaceImg string, replaceImgs []string, noOp bool) (string, error) {
+func noOpServiceUse(tenantID string, serviceID string, imageID string, replaceImg string, replaceImgs []string, noOp bool) (string, error) {
 	return "no_op_image", nil
 }
 

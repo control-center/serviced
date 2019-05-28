@@ -61,8 +61,9 @@ func evalUSE(r *runner, n node) error {
 
 	imageName := n.args[0]
 	replaceImgs := make([]string, 0)
-	svcPath := ""
-	svcID, found := r.env["TENANT_ID"]
+	var svcPath, serviceID string
+
+	tenantID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", USE)
 	}
@@ -87,14 +88,17 @@ func evalUSE(r *runner, n node) error {
 	}
 	logger := plog.WithField("imagename", imageName)
 	logger.Debug("Preparing to use image")
+
 	if svcPath != "" {
-		tenantID, err := r.svcFromPath(svcID, svcPath)
+		var err error
+		serviceID, err = r.svcFromPath(tenantID, svcPath)
 		if err != nil {
 			return err
 		}
-		svcID = tenantID
+
 	}
-	_, err := r.svcUse(svcID, imageName, r.config.DockerRegistry, replaceImgs, r.config.NoOp)
+
+	_, err := r.svcUse(tenantID, serviceID, imageName, r.config.DockerRegistry, replaceImgs, r.config.NoOp)
 	if err != nil {
 		return err
 	}
