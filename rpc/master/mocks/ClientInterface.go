@@ -1021,7 +1021,7 @@ func (_m *ClientInterface) ResetRegistry() error {
 
 // ResolveServicePath provides a mock function with given fields: path, noprefix
 func (_m *ClientInterface) ResolveServicePath(path string, noprefix bool) ([]service.ServiceDetails, error) {
-	ret := _m.Called(path,noprefix)
+	ret := _m.Called(path, noprefix)
 
 	var r0 []service.ServiceDetails
 	if rf, ok := ret.Get(0).(func(string) []service.ServiceDetails); ok {
@@ -1056,20 +1056,20 @@ func (_m *ClientInterface) SendDockerAction(serviceID string, instanceID int, ac
 	return r0
 }
 
-// ServiceUse provides a mock function with given fields: serviceID, imageID, registry, replaceImgs, noOp
-func (_m *ClientInterface) ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
-	ret := _m.Called(serviceID, imageID, registry, replaceImgs, noOp)
+// ServiceUse provides a mock function with given fields: tenantID, serviceID, imageID, registry, replaceImgs, noOp
+func (_m *ClientInterface) ServiceUse(tenantID string, serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
+	ret := _m.Called(tenantID, serviceID, imageID, registry, replaceImgs, noOp)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string, string, []string, bool) string); ok {
-		r0 = rf(serviceID, imageID, registry, replaceImgs, noOp)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, []string, bool) string); ok {
+		r0 = rf(tenantID, serviceID, imageID, registry, replaceImgs, noOp)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, []string, bool) error); ok {
-		r1 = rf(serviceID, imageID, registry, replaceImgs, noOp)
+	if rf, ok := ret.Get(1).(func(string, string, string, string, []string, bool) error); ok {
+		r1 = rf(tenantID, serviceID, imageID, registry, replaceImgs, noOp)
 	} else {
 		r1 = ret.Error(1)
 	}

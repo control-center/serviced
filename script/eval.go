@@ -57,6 +57,7 @@ func evalSnapshot(r *runner, n node) error {
 	return nil
 }
 
+// override images with new one for services under a tenant or only for a particular service if it is specified
 func evalUSE(r *runner, n node) error {
 
 	imageName := n.args[0]
