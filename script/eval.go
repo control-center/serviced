@@ -58,6 +58,13 @@ func evalSnapshot(r *runner, n node) error {
 }
 
 // override images with new one for services under a tenant or only for a particular service if it is specified
+// possible usages:
+// set image for all services under top level tenant
+//SVC_USE <new image>
+//override old images with new for all services under top level tenant
+//SVC_USE <new image> <image to replace> replace image with new for all services under top level tenant
+// override old images with new for a specific service
+// SVC_USE <new image> <image to replace> service Zenoss.resmgr/Infrastructure/mariadb-model
 func evalUSE(r *runner, n node) error {
 
 	imageName := n.args[0]
