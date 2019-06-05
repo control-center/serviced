@@ -135,6 +135,25 @@ func (vs *ScriptSuite) Test_use(t *C) {
 	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr_5.1", "zenoss/newRepo", "secondRepo:tag"})
 	t.Assert(err, NotNil)
 	t.Assert(err, ErrorMatches, "image string secondRepo\\:tag should only specify a repo")
+
+	ctx.line = "USE zenoss/resmgr-stable:5.0.1 zenoss/newRepo service Zenoss.resmgr/Infrastracture/mariadb"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1", "zenoss/newRepo", "service", "Zenoss.resmgr/Infrastracture/mariadb"})
+	t.Assert(err, IsNil)
+
+	ctx.line = "USE zenoss/resmgr-stable:5.0.1 service Zenoss.resmgr/Infrastracture/mariadb"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1", "service", "Zenoss.resmgr/Infrastracture/mariadb"})
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "image to replace is not specified")
+
+	ctx.line = "USE zenoss/resmgr-stable:5.0.1 zenoss/newRepo service"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1", "zenoss/newRepo", "service"})
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "path to service is not specified")
+
+	ctx.line = "USE service Zenoss.resmgr/Infrastracture/mariadb"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"service Zenoss.resmgr/Infrastracture/mariadb"})
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "invalid ImageID .*")
 }
 
 func (vs *ScriptSuite) Test_svcrun(t *C) {

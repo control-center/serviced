@@ -79,19 +79,15 @@ func evalUSE(r *runner, n node) error {
 	if len(n.args) > 1 {
 		for i, arg := range n.args[1:] {
 			if arg == "service" {
-				if i == 0 {
-					svcPath = n.args[i+2]
-					break
-				} else {
-					svcPath = n.args[i+2]
-					replaceImgs = make([]string, len(n.args[1:i+1]))
-					replaceImgs = n.args[1 : i+1]
-					break
-				}
-			} else {
-				replaceImgs = make([]string, len(n.args[1:]))
-				replaceImgs = n.args[1:len(n.args)]
+				replaceImgs = make([]string, i)
+				replaceImgs = n.args[1 : i+1]
+				svcPath = n.args[i+2]
+				break
 			}
+		}
+		if svcPath == "" {
+			replaceImgs = make([]string, len(n.args)-1)
+			replaceImgs = n.args[1:]
 		}
 	}
 	logger := plog.WithField("imagename", imageName)

@@ -216,8 +216,14 @@ func parseUseCmd(parser lineParser) lineParser {
 				return node{}, err
 			}
 			if len(args) > 1 {
-				for _, arg := range args[1:] {
+				for i, arg := range args[1:] {
 					if arg == "service" {
+						if i == 0 {
+							return node{}, fmt.Errorf("image to replace is not specified")
+						}
+						if len(args[1:])-1 == i {
+							return node{}, fmt.Errorf("path to service is not specified")
+						}
 						break
 					}
 					image, err := commons.ParseImageID(arg)
