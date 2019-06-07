@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"reflect"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
@@ -74,8 +74,8 @@ func (err ErrInvalidServiceOption) Error() string {
 }
 
 type IpArgs struct {
-	AuditName	string
-	Portmap		Ports
+	AuditName string
+	Portmap   Ports
 }
 
 // AddService adds a service; return error if service already exists
@@ -138,8 +138,8 @@ func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.
 
 func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service) error {
 	logger := plog.WithFields(log.Fields{
-		"name": svc.Name,
-		"id": svc.ID,
+		"name":            svc.Name,
+		"id":              svc.ID,
 		"parentserviceid": svc.ParentServiceID,
 	})
 
@@ -171,8 +171,8 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 				}
 				if serviceID != "" || application != "" {
 					logger.WithFields(log.Fields{
-						"vhost": vhost.Name,
-						"otherservice": serviceID,
+						"vhost":            vhost.Name,
+						"otherservice":     serviceID,
 						"otherapplication": application,
 					}).Warning("VHost already in use by another application")
 					svc.Endpoints[i].VHostList[j].Enabled = false
@@ -189,8 +189,8 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 				}
 				if serviceID != "" || application != "" {
 					logger.WithFields(log.Fields{
-						"portaddr": port.PortAddr,
-						"otherservice": serviceID,
+						"portaddr":         port.PortAddr,
+						"otherservice":     serviceID,
 						"otherapplication": application,
 					}).Warning("Public port already in use by another application")
 					svc.Endpoints[i].PortList[j].Enabled = false
@@ -259,7 +259,7 @@ func validateServiceOptions(svc *service.Service) error {
 }
 
 //Get changes made by "serviced service edit" call
-func (f * Facade) getChanges(ctx datastore.Context, svc service.Service) string {
+func (f *Facade) getChanges(ctx datastore.Context, svc service.Service) string {
 	var updates string
 	store := f.serviceStore
 	cursvc, err := store.Get(ctx, svc.ID)
@@ -267,13 +267,13 @@ func (f * Facade) getChanges(ctx datastore.Context, svc service.Service) string 
 		glog.Errorf("Could not load service %s (%s) from database: %s", svc.Name, svc.ID, err)
 		return updates
 	}
-        if !reflect.DeepEqual(svc, cursvc) {
+	if !reflect.DeepEqual(svc, cursvc) {
 		sUpdated := reflect.ValueOf(&svc).Elem()
 		typeOfS := sUpdated.Type()
 		sCur := reflect.ValueOf(cursvc).Elem()
 		for i := 0; i < sUpdated.NumField(); i++ {
 			fUpdated := sUpdated.Field(i)
-			fCur:= sCur.Field(i)
+			fCur := sCur.Field(i)
 			fValue := fUpdated.Interface()
 			rt := reflect.TypeOf(fValue)
 			if rt.Kind() == reflect.Slice || rt.Kind() == reflect.Map || rt.Kind() == reflect.Struct {
@@ -390,8 +390,8 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceUpdate"))
 
 	logger := plog.WithFields(log.Fields{
-		"name": svc.Name,
-		"id": svc.ID,
+		"name":            svc.Name,
+		"id":              svc.ID,
 		"parentserviceid": svc.ParentServiceID,
 	})
 
@@ -433,7 +433,7 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 				}
 				if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
 					logger.WithFields(log.Fields{
-						"vhost": vhost.Name,
+						"vhost":       vhost.Name,
 						"application": application,
 					}).Error("VHost already in use by another application")
 					return nil, fmt.Errorf("vhost %s is already in use", vhost.Name)
@@ -450,7 +450,7 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 				}
 				if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
 					logger.WithFields(log.Fields{
-						"portaddr": port.PortAddr,
+						"portaddr":    port.PortAddr,
 						"application": application,
 					}).WithError(err).Error("Public port already in use by another application")
 					return nil, fmt.Errorf("port %s is already in use", port.PortAddr)
@@ -555,8 +555,8 @@ func (f *Facade) validateServiceTenant(ctx datastore.Context, serviceA, serviceB
 func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceStart"))
 	logger := plog.WithFields(log.Fields{
-		"service": svc.Name,
-		"id":      svc.ID,
+		"service":         svc.Name,
+		"id":              svc.ID,
 		"parentserviceid": svc.ParentServiceID,
 	})
 
@@ -712,7 +712,7 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigrationRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.MigrateServices"))
 	logger := plog.WithFields(log.Fields{
-		"tenantid":  req.ServiceID,
+		"tenantid": req.ServiceID,
 	})
 	logger.Debug("Started Facade.MigrateServices")
 	defer logger.Debug("Finished Facade.MigrateServices")
@@ -723,7 +723,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		if _, err := f.validateServiceUpdate(ctx, svc); err != nil {
 			logger.WithError(err).WithFields(log.Fields{
 				"servicename": svc.Name,
-				"serviceid": svc.ID,
+				"serviceid":   svc.ID,
 			}).Error("Could not validate service for update")
 			return err
 		}
@@ -734,7 +734,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		if err := f.validateServiceAdd(ctx, svc); err != nil {
 			logger.WithError(err).WithFields(log.Fields{
 				"servicename": svc.Name,
-				"serviceid": svc.ID,
+				"serviceid":   svc.ID,
 			}).Error("Could not validate service for add")
 			return err
 		} else if svc.ID, err = utils.NewUUID36(); err != nil {
@@ -750,7 +750,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		svcs, err := f.validateServiceDeployment(ctx, sdreq.ParentID, &sdreq.Service)
 		if err != nil {
 			logger.WithError(err).WithFields(log.Fields{
-				"servicename":  sdreq.Service.Name,
+				"servicename": sdreq.Service.Name,
 			}).Error("Could not validate service for deployment")
 			return err
 		}
@@ -777,14 +777,14 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		}
 		if err != nil {
 			logger.WithError(err).WithFields(log.Fields{
-				"action": action,
+				"action":     action,
 				"filtername": filter.Name,
 			}).Error("Failed to save log filter")
 			return err
 		}
 		logger.WithFields(log.Fields{
-			"action": action,
-			"filtername": filter.Name,
+			"action":        action,
+			"filtername":    filter.Name,
 			"filterversion": filter.Version,
 		}).Debug("Service migration saved LogFilter")
 	}
@@ -801,7 +801,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	for _, sdreq := range req.Deploy {
 		if _, err := f.DeployService(ctx, "", sdreq.ParentID, false, sdreq.Service); err != nil {
 			logger.WithError(err).WithFields(log.Fields{
-				"servicename":  sdreq.Service.Name,
+				"servicename": sdreq.Service.Name,
 			}).Error("Could not deploy service definition")
 			return err
 		}
@@ -1007,7 +1007,7 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 		imageID := svc.ImageID
 		logger = logger.WithFields(log.Fields{
 			"service": svc.Name,
-			"pool": svc.PoolID,
+			"pool":    svc.PoolID,
 			"imageid": imageID,
 		})
 
@@ -2056,16 +2056,16 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 				return result.Err
 			}
 		case <-timeoutC:
-				errMessage := "Timeout waiting for services"
-				for svcID := range processing {
-					s, err := f.GetService(ctx, svcID)
-					errMessage += fmt.Sprintf("\n%v id:%v", s.Name, svcID)
-					if err != nil {
-						glog.Errorf(errMessage + "\nError while getting service %s: %s", svcID, err)
-						return err
-					}
+			errMessage := "Timeout waiting for services"
+			for svcID := range processing {
+				s, err := f.GetService(ctx, svcID)
+				errMessage += fmt.Sprintf("\n%v id:%v", s.Name, svcID)
+				if err != nil {
+					glog.Errorf(errMessage+"\nError while getting service %s: %s", svcID, err)
+					return err
 				}
-				return fmt.Errorf(errMessage)
+			}
+			return fmt.Errorf(errMessage)
 		}
 	}
 
@@ -2363,18 +2363,16 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 // ServiceUse will tag a new image (imageName) in a given registry for a given tenant
 // to latest, making sure to push changes to the registry
-func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, registryName string, replaceImgs []string, noOp bool) error {
+func (f *Facade) ServiceUse(ctx datastore.Context, tenantID, serviceID, imageName, registryName string, replaceImgs []string, noOp bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ServiceUse"))
-	glog.Infof("Pushing image %s for tenant %s into elastic", imageName, serviceID)
 	// Push into elastic
-	if err := f.Download(imageName, serviceID); err != nil {
+	if err := f.Download(imageName, tenantID); err != nil {
 		return err
 	}
 
 	if len(replaceImgs) > 0 {
-		glog.Infof("Replacing references to images %s with %s for tenant %s", strings.Join(replaceImgs, ", "), imageName, serviceID)
 		// Determine what services need to be updated
-		svcs, err := f.GetServiceList(ctx, serviceID)
+		svcs, err := f.GetServiceList(ctx, tenantID)
 		if err != nil {
 			return err
 		}
@@ -2393,6 +2391,10 @@ func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, registr
 		var svcsToUpdate []*service.Service
 		for _, svc := range svcs {
 			if svc.ImageID == "" {
+				continue
+			}
+			// update only particular service if it is specified
+			if serviceID != "" && svc.ID != serviceID {
 				continue
 			}
 			origImg, err := commons.ParseImageID(svc.ImageID)
@@ -3020,10 +3022,10 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string, nopre
 		return nil, err
 	}
 	plog.WithFields(log.Fields{
-		"svcPath": svcPath,
-		"current": current,
-		"noprefix":  noprefix,
-		"matches": len(details),
+		"svcPath":  svcPath,
+		"current":  current,
+		"noprefix": noprefix,
+		"matches":  len(details),
 	}).Debug("Found possible service matches")
 
 	// Populate the ancestry for all of the found services, so we can check

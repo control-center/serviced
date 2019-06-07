@@ -106,7 +106,7 @@ type ClientInterface interface {
 	// Service Management Functions
 
 	// ServiceUse will use a new image for a given service - this will pull the image and tag it
-	ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
+	ServiceUse(tenantID string, serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
 
 	// WaitService will wait for the specified services to reach the specified state, within the given timeout
 	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
