@@ -102,6 +102,7 @@ func initElasticSearch() {
 			Configuration:  make(map[string]interface{}),
 			HealthChecks:   healthChecks,
 			StartupTimeout: time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS) * time.Second,
+			CustomStats:    GetElasticSearchCustomStats,
 		},
 	)
 	if err != nil {
