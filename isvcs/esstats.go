@@ -16,14 +16,14 @@ package isvcs
 import (
 	"github.com/Sirupsen/logrus"
 
-	"fmt"
-	"time"
-	"sync"
 	"errors"
-	"strconv"
-	"net/http"
-	"io/ioutil"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"sync"
+	"strconv"
+	"time"
 )
 
 var esStore = NewElasticSearchStatsStore()
@@ -117,8 +117,7 @@ func (ss *elasticSearchStatsStore) WriteAll(stats []ElasticSearchStats) {
 
 func newElasticSearchMetric(name string, value string, timestamp int64, address string) metric {
 	tags := map[string]string{
-		"isvc":                    "true",
-		"controlplane_service_id": zookeeper.ID,
+		"isvc":    "true",
 	}
 	if address == "http://127.0.0.1:9200" {
 		tags["controlplane_service_id"] = elasticsearch_serviced.ID

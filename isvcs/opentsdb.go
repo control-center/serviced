@@ -78,6 +78,7 @@ func initOTSDB(bigtable bool) {
 			Command: func() string { return command },
 			PortBindings: portBindings,
 			Volumes: volumes,
+			CustomStats:  GetOpenTSDBCustomStats,
 		})
 	if err != nil {
 		log.WithError(err).Fatal("Unable to initialize opentsdb internal service container")
