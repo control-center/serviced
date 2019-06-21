@@ -52,6 +52,7 @@ func IsImageNotFound(err error) bool {
 			regexp.MustCompile("(?i)could not find image"),
 			regexp.MustCompile("(?i)no such id"),
 			regexp.MustCompile("(?i)no such image"),
+                        regexp.MustCompile("(?i)manifest for .* not found"),
 		}
 		for _, check := range checks {
 			if ok := check.MatchString(err.Error()); ok {

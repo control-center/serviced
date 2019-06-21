@@ -14,12 +14,15 @@
 package isvcs
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/Sirupsen/logrus"
+
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
+	"regexp"	
 )
 
 var randomSource string
@@ -74,4 +77,33 @@ func getDockerIP() string {
 	}
 	log.WithFields(logrus.Fields{"match": addr, "output": outstr}).Info("Output was not as expected")
 	return ""
+}
+
+type metric struct {
+	Metric    string            `json:"metric"`
+	Value     string            `json:"value"`
+	Timestamp int64             `json:"timestamp"`
+	Tags      map[string]string `json:"tags"`
+}
+
+func postDataToOpenTSDB(metrics []metric) error {
+	data, err := json.Marshal(metrics)
+	if err != nil {
+		return err
+	}
+
+	url := "http://127.0.0.1:4242/api/put"
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
 }
