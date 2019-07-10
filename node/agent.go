@@ -205,19 +205,20 @@ func (a *HostAgent) SetVIP(v VIP) {
 	a.vip = v
 }
 
-func attachAndRun(dockerID, command string) error {
+func attachAndRun(dockerID, command string) ([]byte, error) {
 	if dockerID == "" {
-		return errors.New("missing docker ID")
+		return nil, errors.New("missing docker ID")
 	} else if command == "" {
-		return nil
+		return nil, nil
 	}
 
 	output, err := utils.AttachAndRun(dockerID, []string{command})
 	if err != nil {
 		err = fmt.Errorf("%s (%s)", string(output), err)
 		glog.Errorf("Could not pause container %s: %s", dockerID, err)
+		return nil, err
 	}
-	return err
+	return output, nil
 }
 
 /*

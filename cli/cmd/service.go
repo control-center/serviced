@@ -655,10 +655,14 @@ func (c *ServicedCli) initService() {
 			},
 			{
 				Name:        "tune",
-				Usage:       "Adjust instance count, RAM commitment, or RAM threshold for a service",
+				Usage:       "Adjust launch mode, instance count, RAM commitment, or RAM threshold for a service",
 				Description: "serviced service tune SERVICEID",
 				Action:      c.cmdServiceTune,
 				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "launchMode",
+						Usage: "Launch mode for this service (auto, manual)",
+					},
 					cli.IntFlag{
 						Name:  "instances",
 						Usage: "Instance count for this service",
@@ -723,48 +727,48 @@ func (c *ServicedCli) initService() {
 						Usage:       "List one or all config variables and their values for a given service",
 						Description: "serviced service variable list SERVICEID",
 						Action:      c.cmdServiceVariableList,
-                                                Flags: []cli.Flag{
-                                                        cli.BoolFlag{
-                                                                Name:  "no-prefix-match, np",
-                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
-                                                        },
-                                                },
+						Flags: []cli.Flag{
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
+						},
 					},
 					{
 						Name:        "get",
 						Usage:       "Find the value of a config variable for a service",
 						Description: "serviced service variable get SERVICEID VARIABLE",
 						Action:      c.cmdServiceVariableGet,
-                                                Flags: []cli.Flag{
-                                                        cli.BoolFlag{
-                                                                Name:  "no-prefix-match, np",
-                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
-                                                        },
-                                                },
+						Flags: []cli.Flag{
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
+						},
 					},
 					{
 						Name:        "set",
 						Usage:       "Add or update one variable's value for a given service",
 						Description: "serviced service variable set SERVICEID VARIABLE VALUE",
 						Action:      c.cmdServiceVariableSet,
-                                                Flags: []cli.Flag{
-                                                        cli.BoolFlag{
-                                                                Name:  "no-prefix-match, np",
-                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
-                                                        },
-                                                },
+						Flags: []cli.Flag{
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
+						},
 					},
 					{
 						Name:        "unset",
 						Usage:       "Remove a variable from a given service",
 						Description: "serviced service variable unset SERVICEID VARIABLE",
 						Action:      c.cmdServiceVariableUnset,
-                                                Flags: []cli.Flag{
-                                                        cli.BoolFlag{
-                                                                Name:  "no-prefix-match, np",
-                                                                Usage: "Make SERVICEID matches on name strict 'ends with' matches",
-                                                        },
-                                                },
+						Flags: []cli.Flag{
+							cli.BoolFlag{
+								Name:  "no-prefix-match, np",
+								Usage: "Make SERVICEID matches on name strict 'ends with' matches",
+							},
+						},
 					},
 				},
 			},
@@ -2490,13 +2494,27 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	// Check the arguments
-	if !(ctx.IsSet("instances") || ctx.IsSet("ramCommitment") || ctx.IsSet("ramThreshold")) {
+	if !(ctx.IsSet("instances") || ctx.IsSet("ramCommitment") || ctx.IsSet("ramThreshold") || ctx.IsSet("launchMode")) {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "tune")
 		return
 	}
 
 	modified := false
+	if ctx.IsSet("launchMode") {
+		oldLaunchMode := service.Launch
+		newLaunchMode := ctx.String("launchMode")
+		if newLaunchMode != "auto" && newLaunchMode != "manual" {
+			fmt.Printf("Incorrect Usage.\n\n")
+			cli.ShowCommandHelp(ctx, "tune")
+			return
+		}
+		if oldLaunchMode != newLaunchMode {
+			service.Launch = newLaunchMode
+			modified = true
+		}
+	}
+
 	if ctx.IsSet("instances") {
 		oldInstanceCount := service.Instances
 		newInstanceCount := ctx.Int("instances")
@@ -2511,6 +2529,7 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 		newCommitment, err := utils.NewEngNotationFromString(ctx.String("ramCommitment"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 
@@ -2521,15 +2540,26 @@ func (c *ServicedCli) cmdServiceTune(ctx *cli.Context) {
 	}
 
 	if ctx.IsSet("ramThreshold") {
-		oldThreshold := service.RAMThreshold
-		ramThreshold := ctx.String("ramThreshold")
-		newThreshold, err := utils.ParsePercentage(ramThreshold, service.RAMCommitment.Value)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		oldThreshold := uint64(service.RAMThreshold)
+		newThreshold := ctx.String("ramThreshold")
+
+		suffix := newThreshold[len(newThreshold)-1:]
+		if suffix != "%" {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("ramThreshold '%s' does not end with %%", newThreshold))
+			c.exit(1)
 			return
 		}
-		if uint64(oldThreshold) != newThreshold {
-			service.RAMThreshold = uint(newThreshold)
+
+		percent := newThreshold[:len(newThreshold)-1]
+		val, err := strconv.ParseUint(percent, 10, 64)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("ramThreshold '%s' must be an integer", newThreshold))
+			c.exit(1)
+			return
+		}
+
+		if oldThreshold != val {
+			service.RAMThreshold = uint(val)
 			modified = true
 		}
 	}

@@ -64,6 +64,8 @@ type ContainerState struct {
 		Entrypoint      []string
 		NetworkDisabled bool
 		Privileged      bool
+		OomKillDisable  bool
+		OomScoreAdj     int
 	}
 	State struct {
 		Running   bool

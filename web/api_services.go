@@ -155,6 +155,7 @@ func putServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 	svc.Name = payload.Name
 	svc.Description = payload.Description
 	svc.PoolID = payload.PoolID
+	svc.Launch = payload.Launch
 	svc.Instances = payload.Instances
 	svc.Startup = payload.Startup
 	svc.RAMCommitment = payload.RAMCommitment

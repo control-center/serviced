@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/control-center/serviced",
 	"GoVersion": "go1.7.4",
+	"GodepVersion": "v80",
 	"Deps": [
 		{
 			"ImportPath": "github.com/hashicorp/golang-lru",
@@ -240,8 +241,8 @@
 		},
 		{
 			"ImportPath": "github.com/klauspost/compress/flate",
-			"Comment": "v1.0-5-g9d711f4",
-			"Rev": "9d711f4445beb7f6488148ce04e3b4dc6e72242d"
+			"Comment": "v1.3.0",
+			"Rev": "5fb1f31b0a61e9858f12f39266e059848a5f1cea"
 		},
 		{
 			"ImportPath": "github.com/klauspost/cpuid",
@@ -255,8 +256,8 @@
 		},
 		{
 			"ImportPath": "github.com/klauspost/pgzip",
-			"Comment": "v1.0",
-			"Rev": "95e8170c5d4da28db9c64dfc9ec3138ea4466fd4"
+			"Comment": "v1.2.1",
+			"Rev": "083b1c3f84dd6486588802e5ce295de3a7f41a8b"
 		},
 		{
 			"ImportPath": "github.com/kr/pretty",

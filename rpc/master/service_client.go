@@ -16,17 +16,17 @@ package master
 import (
 	"time"
 
-	"github.com/control-center/serviced/domain/service"
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/service"
 )
 
 // ServiceUse will use a new image for a given service - this will pull the image and tag it
-func (c *Client) ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
-	svcUseRequest := &ServiceUseRequest{ServiceID: serviceID, ImageID: imageID, ReplaceImgs: replaceImgs, Registry: registry, NoOp: noOp}
+func (c *Client) ServiceUse(tenantID string, serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
+	svcUseRequest := &ServiceUseRequest{TenantID: tenantID, ServiceID: serviceID, ImageID: imageID, ReplaceImgs: replaceImgs, Registry: registry, NoOp: noOp}
 	result := ""
 	plog.WithFields(logrus.Fields{
-		"imageid": imageID,
+		"imageid":  imageID,
 		"registry": registry,
 	}).Info("Pulling image, tagging to latest, and pushing to registry - this may take a while")
 	err := c.call("ServiceUse", svcUseRequest, &result)
@@ -102,18 +102,18 @@ func (c *Client) GetTenantID(serviceID string) (string, error) {
 // ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb") to zero or more ServiceDetails.
 func (c *Client) ResolveServicePath(path string, noprefix bool) ([]service.ServiceDetails, error) {
 	resolveServiceRequest := ResolveServiceRequest{
-		Path: path,
+		Path:     path,
 		NoPrefix: noprefix,
 	}
 	svcs := []service.ServiceDetails{}
 
 	plog.WithFields(logrus.Fields{
-                "path": path,
-                "noprefix": noprefix,
-        }).Info("Trying to find service")
+		"path":     path,
+		"noprefix": noprefix,
+	}).Info("Trying to find service")
 
 	err := c.call("ResolveServicePath", resolveServiceRequest, &svcs)
-        return svcs, err
+	return svcs, err
 }
 
 // ClearEmergency clears the EmergencyShutdown flag on a service and all child services

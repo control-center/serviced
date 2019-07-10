@@ -43,8 +43,14 @@ func init() {
 		VERSION:     atMost(1, parseArgCount(equals(1), buildNode)),
 		REQUIRE_SVC: atMost(1, parseArgCount(equals(0), buildNode)),
 		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseArgCount(max(1), buildNode)),
-		USE:         require([]string{REQUIRE_SVC}, parseImageID(parseArgCount(min(1), buildNode))),
-		SVC_RUN:     require([]string{REQUIRE_SVC}, parseArgCount(min(2), buildNode)),
+		// set image for all services under top level tenant
+		// SVC_USE <new image>
+		// override old images with new for all services under top level tenant
+		// SVC_USE <new image> <image to replace> replace image with new for all services under top level tenant
+		// override old images with new for a specific service
+		// SVC_USE <new image> <image to replace> service Zenoss.resmgr/Infrastructure/mariadb-model
+		USE:     require([]string{REQUIRE_SVC}, parseUseCmd(parseArgCount(min(1), buildNode))),
+		SVC_RUN: require([]string{REQUIRE_SVC}, parseArgCount(min(2), buildNode)),
 		// eg., SVC_EXEC NO_COMMIT Zenoss.core/Zope /run/my/script.sh --arg1 arg2
 		SVC_EXEC:    require([]string{REQUIRE_SVC}, parseArgMatch(0, "^(NO_)?COMMIT$", false, parseArgCount(min(3), buildNode))),
 		SVC_START:   require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
@@ -201,7 +207,7 @@ func parseArgCount(matcher match, parser lineParser) lineParser {
 	return f
 }
 
-func parseImageID(parser lineParser) lineParser {
+func parseUseCmd(parser lineParser) lineParser {
 	return func(ctx *parseContext, cmd string, args []string) (node, error) {
 		n, err := parser(ctx, cmd, args)
 		if err == nil {
@@ -209,17 +215,26 @@ func parseImageID(parser lineParser) lineParser {
 			if err != nil {
 				return node{}, err
 			}
-			if len(args) >= 2 {
-				for _, tgtImg := range args[1:] {
-					image, err := commons.ParseImageID(tgtImg)
+			if len(args) > 1 {
+				for i, arg := range args[1:] {
+					if arg == "service" {
+						if i == 0 {
+							return node{}, fmt.Errorf("image to replace is not specified")
+						}
+						if len(args[1:])-1 == i {
+							return node{}, fmt.Errorf("path to service is not specified")
+						}
+						break
+					}
+					image, err := commons.ParseImageID(arg)
 					if err != nil {
 						return node{}, err
 					}
 					if image.Repo == "" {
-						return node{}, fmt.Errorf("image string %s does not specify a repo", tgtImg)
+						return node{}, fmt.Errorf("image string %s does not specify a repo", arg)
 					}
 					if image.Host != "" || image.Port != 0 || image.Tag != "" {
-						return node{}, fmt.Errorf("image string %s should only specify a repo", tgtImg)
+						return node{}, fmt.Errorf("image string %s should only specify a repo", arg)
 					}
 				}
 			}

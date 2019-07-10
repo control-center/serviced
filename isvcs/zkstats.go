@@ -16,11 +16,8 @@ package isvcs
 import (
 	"github.com/Sirupsen/logrus"
 
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -85,40 +82,33 @@ type ZooKeeperStatsStore interface {
 	WriteAll(stats []ZooKeeperStats)
 }
 
-type statsStore struct {
+type ZKstatsStore struct {
 	cache *ZooKeeperStatsCache
 }
 
 func NewZooKeeperStatsStore() ZooKeeperStatsStore {
-	return &statsStore{NewZooKeeperStatsCache()}
+	return &ZKstatsStore{NewZooKeeperStatsCache()}
 }
 
-func (ss *statsStore) ReadAll() []ZooKeeperStats {
+func (ss *ZKstatsStore) ReadAll() []ZooKeeperStats {
 	return ss.cache.ReadAll()
 }
 
-func (ss *statsStore) Read(key ZooKeeperKey) (ZooKeeperStats, error) {
+func (ss *ZKstatsStore) Read(key ZooKeeperKey) (ZooKeeperStats, error) {
 	return ss.cache.Read(key.Connection)
 }
 
-func (ss *statsStore) Write(stats ZooKeeperStats) {
+func (ss *ZKstatsStore) Write(stats ZooKeeperStats) {
 	ss.cache.Write(stats)
 	writeToOpenTSDB([]ZooKeeperStats{stats})
 }
 
-func (ss *statsStore) WriteAll(stats []ZooKeeperStats) {
+func (ss *ZKstatsStore) WriteAll(stats []ZooKeeperStats) {
 	for _, s := range stats {
 		ss.cache.Write(s)
 	}
 
 	writeToOpenTSDB(stats)
-}
-
-type metric struct {
-	Metric    string            `json:"metric"`
-	Value     string            `json:"value"`
-	Timestamp int64             `json:"timestamp"`
-	Tags      map[string]string `json:"tags"`
 }
 
 func newZooKeeperMetric(name string, value string, timestamp int64, instance int) metric {
@@ -169,28 +159,6 @@ func writeToOpenTSDB(stats []ZooKeeperStats) {
 			"numberOfMetrics": len(metrics),
 		}).WithError(err).Warn("Unable to write ZooKeeper metrics to OpenTSDB")
 	}
-}
-
-func postDataToOpenTSDB(metrics []metric) error {
-	data, err := json.Marshal(metrics)
-	if err != nil {
-		return err
-	}
-
-	url := "http://127.0.0.1:4242/api/put"
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	return nil
 }
 
 func queryZooKeeperStats(key ZooKeeperKey) ZooKeeperStats {

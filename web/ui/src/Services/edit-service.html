@@ -13,6 +13,16 @@
 </div>
 
 <div class="form-group">
+    <label for="edit_launch_mode">
+        <span translate>label_service_launch_mode</span>:
+    </label>
+    <select class="form-control" name="edit_launch_mode" id="edit_launch_mode" ng-model="model.Launch">
+        <option value="auto">auto</option>
+        <option value="manual">manual</option>
+    </select>
+</div>
+
+<div class="form-group">
     <label for="edit_instances">
         <span translate>label_service_instances</span>:
     </label>

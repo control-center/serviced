@@ -26,6 +26,10 @@ type Registry struct {
 	mock.Mock
 }
 
+func (_m *Registry) GetAddress() (string) {
+	return "localhost:5000"
+}
+
 func (_m *Registry) SetConnection(conn client.Connection) {
 	ret := _m.Called(conn)
 
