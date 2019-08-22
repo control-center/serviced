@@ -541,7 +541,6 @@ func (a *HostAgent) getService(serviceID string) (*service.Service, error) {
 	return svc, nil
 }
 
-
 // dockerLogsToFile dumps container logs to file
 func dockerLogsToFile(containerid string, numlines int) {
 	// TODO: need to get logs from api
@@ -595,6 +594,31 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	state.ContainerID = ctr.ID
 
 	return ctr, state, nil
+}
+
+func (a *HostAgent) getMonitorName(svc *service.Service) string {
+	logger := plog.WithFields(log.Fields{
+		"servicename": svc.Name,
+		"serviceid":   svc.ID,
+	})
+	for {
+		parentID := svc.ParentServiceID
+		if parentID == "" {
+			break
+		}
+		parent, err := a.getService(parentID)
+		if err != nil {
+			logger.WithError(err).Debug("Unable to retrieve service")
+			return ""
+		}
+		for _, tag := range parent.Tags {
+			if tag == "collector" {
+				return parent.Name
+			}
+		}
+		svc = parent
+	}
+	return ""
 }
 
 func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service, instanceID int, imageUUID string) (*dockerclient.Config, *dockerclient.HostConfig, *zkservice.ServiceState, error) {
@@ -795,6 +819,14 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		fmt.Sprintf("DOCKER_14203_FIX='%s'", fix),
 		// End temp fix part 2. See immediately above for part 1.
 	)
+
+	monitor := a.getMonitorName(svc)
+	if monitor != "" {
+		cfg.Env = append(svc.Environment,
+			fmt.Sprintf("SERVICE=%s", svc.Name),
+			fmt.Sprintf("MONITOR=%s", monitor),
+		)
+	}
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
