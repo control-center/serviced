@@ -178,6 +178,7 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 	// Get the current host state
 	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
 	hsdat := &HostState{}
+	logger = logger.WithField("hspth", hspth)
 	if err := conn.Get(hspth, hsdat); err != nil {
 
 		logger.WithError(err).Debug("Could not look up host state")
@@ -188,11 +189,10 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 		}
 	}
 
-	logger.Debug("Found the host state")
-
 	// Get the current service state
 	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	ssdat := &ServiceState{}
+	logger = logger.WithField("sspth", sspth)
 	if err := conn.Get(sspth, ssdat); err != nil {
 
 		logger.WithError(err).Debug("Could not look up service state")
@@ -203,10 +203,9 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 		}
 	}
 
-	logger.Debug("Found the service state")
-
 	// Get the current state (status)
 	cspth := path.Join(sspth, "current")
+	logger = logger.WithField("cspth", cspth)
 	cstate := &CurrentStateContainer{}
 	if err := conn.Get(cspth, cstate); err != nil {
 		logger.WithError(err).Debug("Could not look up current state (status)")
@@ -302,7 +301,6 @@ func GetServiceStateIDs(conn client.Connection, poolID, serviceID string) ([]Sta
 		}
 	}
 
-	logger.WithField("statecount", len(states)).Debug("Loaded state ids")
 	return states, nil
 }
 
@@ -349,7 +347,6 @@ func GetServiceStates(conn client.Connection, poolID, serviceID string) ([]State
 		states[i] = *state
 	}
 
-	logger.WithField("statecount", len(states)).Debug("Loaded states")
 	return states, nil
 }
 
@@ -435,7 +432,6 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 		states[i] = *state
 	}
 
-	logger.WithField("statecount", len(states)).Debug("Loaded states")
 	return states, nil
 }
 
@@ -842,6 +838,7 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 	}
 
 	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
+	logger = logger.WithField("hspth", hspth)
 	if ok, err := conn.Exists(hspth); err != nil {
 
 		logger.WithError(err).Debug("Could not look up host state")
@@ -856,9 +853,8 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 		return false, nil
 	}
 
-	logger.Debug("Found the host state")
-
 	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
+	logger = logger.WithField("sspth", sspth)
 	if ok, err := conn.Exists(sspth); err != nil {
 		logger.WithError(err).Debug("Could not look up service state")
 		return false, &StateError{
@@ -872,6 +868,7 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 	}
 
 	cspth := path.Join(sspth, "current")
+	logger = logger.WithField("cspth", cspth)
 	if ok, err := conn.Exists(cspth); err != nil {
 		logger.WithError(err).Debug("Could not look up current state (status)")
 		return false, &StateError{
@@ -884,7 +881,6 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 		return false, nil
 	}
 
-	logger.Debug("Found the service state")
 	return true, nil
 }
 
