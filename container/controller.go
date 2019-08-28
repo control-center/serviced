@@ -109,6 +109,12 @@ type ControllerOptions struct {
 	ServiceNamePath      string // Path of the service
 }
 
+// ContainerProcess represents a process inside container
+type ContainerProcess struct {
+    user string
+    pid  int
+}
+
 // Controller is a object to manage the operations withing a container. For example,
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
@@ -124,6 +130,7 @@ type Controller struct {
 	zkInfo             node.ZkInfo
 	zkConn             coordclient.Connection
 	PIDFile            string
+	nonRootProcesses   []*ContainerProcess
 	exitStatus         int
 	endpoints          *ContainerEndpoints
 	healthChecks       map[string]health.HealthCheck
@@ -476,25 +483,38 @@ func writeEnvFile(env []string) (err error) {
 }
 
 func (c *Controller) forwardSignal(sig os.Signal) {
-	pidBuffer, err := ioutil.ReadFile(c.PIDFile)
-	if err != nil {
-		glog.Errorf("Error reading PID file while forwarding signal: %v", err)
-		return
+	pids := make([]int, 0)
+	message := "Sending signal %v to pid %d"
+
+	if c.PIDFile != "" {
+		pidBuffer, err := ioutil.ReadFile(c.PIDFile)
+		if err != nil {
+			glog.Errorf("Error reading PID file while forwarding signal: %v", err)
+			return
+		}
+		pid, err := strconv.Atoi(strings.Trim(string(pidBuffer), "\n "))
+		if err != nil {
+			glog.Errorf("Error reading PID file while forwarding signal: %v", err)
+			return
+		}
+		pids = append(pids, pid)
+		message += " provided by PIDFile"		
+	} else {
+		for _, p := range c.nonRootProcesses {
+			pids = append(pids, p.pid)
+		}
 	}
-	pid, err := strconv.Atoi(strings.Trim(string(pidBuffer), "\n "))
-	if err != nil {
-		glog.Errorf("Error reading PID file while forwarding signal: %v", err)
-		return
-	}
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		glog.Errorf("Error finding process while forwarding signal: %v", err)
-		return
-	}
-	glog.Infof("Sending signal %v to pid %d provided by PIDFile.", sig, pid)
-	err = process.Signal(sig)
-	if err != nil {
-		glog.Errorf("Encountered error sending signal %v to pid %d: %v", sig, pid, err)
+	for _, pid := range pids {
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			glog.Errorf("Error finding process while forwarding signal: %v", err)
+			return
+		}
+		glog.Infof(message, sig, pid)
+		err = process.Signal(sig)
+		if err != nil {
+			glog.Errorf("Encountered error sending signal %v to pid %d: %v", sig, pid, err)
+		}
 	}
 }
 
@@ -620,7 +640,7 @@ func (c *Controller) Run() (err error) {
 
 	sendSignal := func(service *subprocess.Instance, sig os.Signal) bool {
 		switch {
-		case c.PIDFile != "":
+		case c.PIDFile != "" || len(c.nonRootProcesses) != 0:
 			c.forwardSignal(sig)
 		case service != nil:
 			service.Notify(sig)
@@ -676,7 +696,28 @@ func (c *Controller) Run() (err error) {
 	exited := false
 
 	var shutdownService = func(service *subprocess.Instance, sig os.Signal) {
+		c.nonRootProcesses = []*ContainerProcess{}
 		c.options.Service.Autorestart = false
+
+        processes, err := proc.GetAllPids()
+        if err != nil {
+                glog.Errorf("Could not get processes: %s", err)
+        }
+
+        if len(processes) != 0 {
+            for _, p := range processes {
+                username, err := proc.GetUsername(p)
+                if err != nil {
+                    glog.Errorf("Could not get username: %s", err)
+                    username = ""
+                }
+                if username != "" && username != "root" {
+                    c.nonRootProcesses = append(c.nonRootProcesses,
+						&ContainerProcess{user: username, pid: p})
+                }
+            }
+        }
+
 		if sendSignal(service, sig) {
 			// nil out all other channels because we're shutting down
 			sigc = nil

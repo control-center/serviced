@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"strconv"
 	"strings"
 	"sync"
@@ -200,4 +201,33 @@ func GetProcStat(pid int) (*ProcStat, error) {
 		return nil, MalformedStatErr
 	}
 	return &stat, nil
+}
+
+func GetUsername(pid int) (string, error) {
+	var uid int
+	data, err := ioutil.ReadFile(fmt.Sprintf(procDir + "%d/status", pid))
+	if err != nil {
+		return "", err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		tabParts := strings.SplitN(line, "\t", 2)
+		if strings.TrimRight(tabParts[0], ":") == "Uid" {
+			value := tabParts[1]
+			for _, i := range strings.Split(value, "\t") {
+				v, err := strconv.ParseInt(i, 10, 32)
+				if err != nil {
+					return "", err
+				}
+				uid = int(v)
+				break
+			}
+		}
+	}
+	u, err := user.LookupId(strconv.Itoa(uid))
+	if err != nil {
+		return "", err
+	}
+	return u.Username, nil
 }
