@@ -215,6 +215,7 @@ type Service struct {
 	Context           map[string]interface{}
 	Environment       []string
 	Startup           string
+	RunAs             string
 	Description       string
 	Tags              []string
 	OriginalConfigs   map[string]servicedefinition.ConfigFile
@@ -357,6 +358,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Version = sd.Version
 	svc.Context = sd.Context
 	svc.Startup = sd.Command
+	svc.RunAs = sd.RunAs
 	svc.Description = sd.Description
 	svc.Environment = sd.Environment
 	svc.Tags = sd.Tags

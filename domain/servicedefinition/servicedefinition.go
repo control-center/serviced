@@ -34,6 +34,7 @@ type ServiceDefinition struct {
 	Title                  string                 // Title is a label used when describing this service in the context of a service tree
 	Version                string                 // Version of the defined service
 	Command                string                 // Command which runs the service
+	RunAs                  string                 // Run command as user
 	Description            string                 // Description of the service
 	Environment            []string               // Environment variables to be injected, of the form NAME="value"
 	Tags                   []string               // Searchable service tags

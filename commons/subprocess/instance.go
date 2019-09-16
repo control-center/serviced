@@ -19,6 +19,8 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	osuser "os/user"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -27,6 +29,7 @@ import (
 // Instance manages a subprocess instance.
 type Instance struct {
 	command        string
+	runAs          string
 	args           []string
 	env            []string
 	commandExit    chan error // used to send command exit values to the parent controller
@@ -37,9 +40,10 @@ type Instance struct {
 }
 
 // New creates a subprocess.Instance
-func New(sigtermTimeout time.Duration, env []string, command string, args ...string) (*Instance, chan error, error) {
+func New(sigtermTimeout time.Duration, env []string, command string, runas string, args ...string) (*Instance, chan error, error) {
 	s := &Instance{
 		command:        command,
+		runAs:          runas,
 		args:           args,
 		env:            env,
 		commandExit:    make(chan error, 1),
@@ -81,7 +85,37 @@ func (s *Instance) Close() error {
 	return err
 }
 
+// UserInfo has user info
+type UserInfo struct {
+       UID uint32
+       GID uint32
+}
+
+// GetUserInfo sets up user
+func GetUserInfo(u string) (*UserInfo, error) {
+       user, err := osuser.Lookup(u)
+       if err != nil {
+               return nil, err
+       }
+       groupids, err := user.GroupIds()
+       if err != nil {
+               return nil, err
+       }
+       uid, err := strconv.Atoi(user.Uid)
+       if err != nil {
+               return nil, err
+       }
+       gid, err := strconv.Atoi(groupids[0])
+       if err != nil {
+               return nil, err
+       }
+       return &UserInfo{UID: uint32(uid), GID: uint32(gid)}, nil
+}
+
 func (s *Instance) loop() {
+
+	var info *UserInfo
+	var err error
 
 	setUpCmd := func(exitChan chan error) *exec.Cmd {
 		glog.Infof("about to execute: %s , %v[%d]", s.command, s.args, len(s.args))
@@ -90,6 +124,20 @@ func (s *Instance) loop() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
+		if s.runAs != "" {
+			info, err = GetUserInfo(s.runAs)
+			if err != nil {
+				glog.Errorf(err.Error())
+			}
+		}
+		if info != nil {
+			glog.Infof("running command as %s user\n", s.runAs)
+			cmd.SysProcAttr = &syscall.SysProcAttr{}
+			cmd.SysProcAttr.Credential = &syscall.Credential{
+				Uid: info.UID, Gid: info.GID,
+			}
+		}
+
 		go func() {
 			exitChan <- cmd.Run()
 		}()
