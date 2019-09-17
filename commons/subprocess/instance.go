@@ -17,10 +17,12 @@ import (
 	"github.com/zenoss/glog"
 
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	osuser "os/user"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -91,25 +93,78 @@ type UserInfo struct {
        GID uint32
 }
 
-// GetUserInfo sets up user
-func GetUserInfo(u string) (*UserInfo, error) {
-       user, err := osuser.Lookup(u)
-       if err != nil {
-               return nil, err
-       }
-       groupids, err := user.GroupIds()
-       if err != nil {
-               return nil, err
-       }
-       uid, err := strconv.Atoi(user.Uid)
-       if err != nil {
-               return nil, err
-       }
-       gid, err := strconv.Atoi(groupids[0])
-       if err != nil {
-               return nil, err
-       }
-       return &UserInfo{UID: uint32(uid), GID: uint32(gid)}, nil
+func isMemeberOf(u *osuser.User, group *osuser.Group) (bool, error) {
+
+	groupids, err := u.GroupIds()
+	if err != nil {
+		return false, err
+	}
+	for _, gid := range groupids {
+		if gid == group.Gid {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// NewUserInfo sets up user
+func NewUserInfo(u string) (*UserInfo, error) {
+	var username, usergroup string
+	var gid int
+
+	input := strings.Split(u, ":")
+
+	switch len(input) {
+	case 1:
+		username = strings.Trim(input[0], " ")
+	case 2:
+		username = strings.Trim(input[0], " ")
+		usergroup = strings.Trim(input[1], " ")
+	default:
+		return nil, errors.New("Incorrect user or user:group data")
+	}
+
+	user, err := osuser.Lookup(username)
+	if err != nil {
+		return nil, err
+	}
+
+	uid, err := strconv.Atoi(user.Uid)
+	if err != nil {
+		return nil, err
+	}
+
+	if usergroup != "" {
+		group, err := osuser.LookupGroup(usergroup)
+		if err != nil {
+			return nil, err
+		}
+		isMember, err := isMemeberOf(user, group)
+		if err != nil {
+			return nil, err
+		}
+		if isMember {
+			gid, err = strconv.Atoi(group.Gid)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			errorMessage := fmt.Sprintf("user %s is not a member of %s group\n", username, usergroup)
+			return nil, errors.New(errorMessage)
+		}
+	} else {
+		groupids, err := user.GroupIds()
+		if err != nil {
+			return nil, err
+		}
+
+		gid, err = strconv.Atoi(groupids[0])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+	return &UserInfo{UID: uint32(uid), GID: uint32(gid)}, nil
 }
 
 func (s *Instance) loop() {
@@ -125,7 +180,7 @@ func (s *Instance) loop() {
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
 		if s.runAs != "" {
-			info, err = GetUserInfo(s.runAs)
+			info, err = NewUserInfo(s.runAs)
 			if err != nil {
 				glog.Errorf(err.Error())
 			}

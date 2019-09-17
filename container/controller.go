@@ -90,7 +90,7 @@ type ControllerOptions struct {
 		InstanceID  string   // The running instance ID
 		Autorestart bool     // Controller will restart the service if it exits
 		Command     []string // The command to launch
-		RunAs       string   // Run command as user
+		RunAs       string   // Run command as user or user:group
 	}
 	Mux struct { // TCPMUX configuration: RFC 1078
 		Enabled     bool   // True if muxing is used
