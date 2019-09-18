@@ -645,7 +645,7 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ba
 	newSvcs := make(map[string]*CancellableService)
 	for id, newSvc := range newBatch.Services {
 		logger := plog.WithFields(logrus.Fields{
-			"id": id,
+			"id":   id,
 			"name": newSvc.Name,
 		})
 
@@ -969,8 +969,6 @@ func (s *BatchServiceStateManager) WaitScheduled(tenantID string, serviceIDs ...
 }
 
 func (s *BatchServiceStateManager) findService(tenantID, serviceID string) (*CancellableService, bool) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	for _, queue := range s.TenantQueues[tenantID] {
 		svc, ok := func() (*CancellableService, bool) {
 			queue.lock.RLock()
