@@ -608,7 +608,7 @@ func (a *HostAgent) getParentName(svc *service.Service) string {
 	}
 	parent, err := a.getService(parentID)
 	if err != nil {
-		logger.WithError(err).Debug("Unable to retrieve service")
+		logger.WithError(err).Debug("Unable to read parent service %s", parentID)
 		return ""
 	}
 
