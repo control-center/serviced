@@ -130,6 +130,7 @@
             <entry>int64</entry>
             <entry>Tune containers OOM preferences (-1000 to 1000)</entry>
           </row>
+
           <row>
             <entry><codeph>ConfigFiles</codeph></entry>
             <entry>Objects</entry>
@@ -299,6 +300,11 @@
             <entry>String</entry>
             <entry>The path, or the command to generate the path, for the PID file to which signals
                 are copied.</entry>
+          </row>
+          <row>
+            <entry><codeph>RunAs</codeph></entry>
+            <entry>String</entry>
+            <entry>Option to run startup command as non-root user</entry>
           </row>
         </tbody>
       </tgroup>

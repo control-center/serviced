@@ -90,6 +90,7 @@ type ControllerOptions struct {
 		InstanceID  string   // The running instance ID
 		Autorestart bool     // Controller will restart the service if it exits
 		Command     []string // The command to launch
+		RunAs       string   // Run command as user or user:group
 	}
 	Mux struct { // TCPMUX configuration: RFC 1078
 		Enabled     bool   // True if muxing is used
@@ -331,6 +332,10 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		}
 	}
 
+	if service.RunAs != "" {
+		c.options.Service.RunAs = service.RunAs
+	}
+
 	// create config files
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
@@ -354,6 +359,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		logforwarder, exited, err := subprocess.New(time.Second,
 			nil,
 			options.Logforwarder.Path,
+			"",
 			"-e", // Log to stderr
 			"-c", options.Logforwarder.ConfigFile)
 		if err != nil {
@@ -614,7 +620,7 @@ func (c *Controller) Run() (err error) {
 	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
 
 	startService := func() (*subprocess.Instance, chan error) {
-		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)
+		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", c.options.Service.RunAs, args...)
 		return service, serviceExited
 	}
 
