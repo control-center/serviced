@@ -29,6 +29,7 @@ import (
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
 	"github.com/fsnotify/fsnotify"
+	"time"
 )
 
 const (
@@ -308,12 +309,15 @@ func ClearKeys() {
 func WaitForDelegateKeys(cancel <-chan interface{}) <-chan struct{} {
 	ch := make(chan struct{})
 	go func() {
-		for delegateKeys.localPrivate == nil || delegateKeys.masterPublic == nil {
-			select {
-			case <-dKeyCond.Wait():
-			case <-cancel: // Receive from nil channel never returns, so this is fine
+		for {
+			dKeyCond.RLock()
+			if delegateKeys.localPrivate != nil && delegateKeys.masterPublic != nil {
+				break
 			}
+			dKeyCond.RUnlock()
+			time.Sleep(time.Second)
 		}
+		dKeyCond.RUnlock()
 		close(ch)
 	}()
 	return ch
