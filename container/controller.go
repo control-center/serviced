@@ -332,7 +332,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		}
 	}
 
-	if service.RunAs != "" {
+	if service.RunAs != "" && c.options.Service.Command[0] == service.Startup {
 		c.options.Service.RunAs = service.RunAs
 	}
 
