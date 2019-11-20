@@ -299,7 +299,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 
 	// Load the delegate keys and auth tokens first so there's no race btwn starting the watcher routines
 	//    and making the first RPC call in getService()
-	<-auth.WaitForDelegateKeys(nil)
+	plog.Debug("Awaiting for the auth token")
 	<-auth.WaitForAuthToken(nil)
 
 	// get service
