@@ -332,8 +332,12 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		}
 	}
 
-	if service.RunAs != "" && c.options.Service.Command[0] == service.Startup {
-		c.options.Service.RunAs = service.RunAs
+	runAs := service.RunAs
+	if service.RunAs == "root" {
+		runAs = ""
+	}
+	if runAs != "" && c.options.Service.Command[0] == service.Startup {
+		c.options.Service.RunAs = runAs
 	}
 
 	// create config files
@@ -356,10 +360,11 @@ func NewController(options ControllerOptions) (*Controller, error) {
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
 
-		logforwarder, exited, err := subprocess.New(time.Second,
+		logforwarder, exited, err := subprocess.New(
+			time.Second,
 			nil,
-			options.Logforwarder.Path,
-			"",
+			"", // runas
+			options.Logforwarder.Path, // command
 			"-e", // Log to stderr
 			"-c", options.Logforwarder.ConfigFile)
 		if err != nil {
@@ -617,10 +622,21 @@ func (c *Controller) Run() (err error) {
 		return err
 	}
 
-	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
+	args := []string{}
+	var command string
+	if c.options.Service.RunAs == "" {
+		command = "/bin/sh"
+	} else {
+		args = append(args, "-l")
+		command = "/bin/bash"
+	}
+	args = append(args, "-c")
+	args = append(args, "exec "+strings.Join(c.options.Service.Command, " "))
 
 	startService := func() (*subprocess.Instance, chan error) {
-		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", c.options.Service.RunAs, args...)
+		service, serviceExited, _ := subprocess.New(
+			time.Second*10, env, c.options.Service.RunAs, command, args...,
+		)
 		return service, serviceExited
 	}
 

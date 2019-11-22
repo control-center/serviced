@@ -20,6 +20,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -39,7 +40,7 @@ type Instance struct {
 }
 
 // New creates a subprocess.Instance
-func New(sigtermTimeout time.Duration, env []string, command string, runas string, args ...string) (*Instance, chan error, error) {
+func New(sigtermTimeout time.Duration, env []string, runas string, command string, args ...string) (*Instance, chan error, error) {
 	s := &Instance{
 		command:        command,
 		runAs:          runas,
@@ -96,6 +97,7 @@ func (s *Instance) loop() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
+
 		if s.runAs != "" {
 			info, err = userinfo.New(s.runAs)
 			if err != nil {
@@ -103,11 +105,14 @@ func (s *Instance) loop() {
 			}
 		}
 		if info != nil {
-			glog.Infof("running command as %s user\n", s.runAs)
+			glog.Infof("Running command as user '%v'", s.runAs)
 			cmd.SysProcAttr = &syscall.SysProcAttr{}
 			cmd.SysProcAttr.Credential = &syscall.Credential{
 				Uid: info.UID, Gid: info.GID,
 			}
+			cmd.Env = append(cmd.Env, "USER="+info.Username)
+			cmd.Env = append(cmd.Env, "HOME="+info.HomeDir)
+			cmd.Env = append(cmd.Env, "UID="+strconv.Itoa(int(info.GID)))
 		}
 
 		go func() {
@@ -124,7 +129,6 @@ func (s *Instance) loop() {
 
 	closing := s.closing
 	for {
-
 		select {
 		case s := <-s.signalChan:
 			glog.V(1).Infof("loop: sending signal %v", s)
@@ -157,6 +161,5 @@ func (s *Instance) loop() {
 			returnChan <- errors.New("subprocess instance sigkilled")
 			return
 		}
-
 	}
 }
