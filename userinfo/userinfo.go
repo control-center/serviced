@@ -23,8 +23,10 @@ import (
 
 // Info has user info
 type Info struct {
-       UID uint32
-       GID uint32
+	UID      uint32
+	GID      uint32
+	HomeDir  string
+	Username string
 }
 
 func isMemeberOf(u *osuser.User, group *osuser.Group) (bool, error) {
@@ -93,10 +95,15 @@ func New(u string) (*Info, error) {
 		}
 
 		gid, err = strconv.Atoi(groupids[0])
-			if err != nil {
-				return nil, err
-			}
+		if err != nil {
+			return nil, err
 		}
+	}
 
-	return &Info{UID: uint32(uid), GID: uint32(gid)}, nil
+	return &Info{
+		UID:      uint32(uid),
+		GID:      uint32(gid),
+		HomeDir:  user.HomeDir,
+		Username: user.Username,
+	}, nil
 }
