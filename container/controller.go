@@ -90,6 +90,7 @@ type ControllerOptions struct {
 		InstanceID  string   // The running instance ID
 		Autorestart bool     // Controller will restart the service if it exits
 		Command     []string // The command to launch
+		RunAs       string   // Run command as user or user:group
 	}
 	Mux struct { // TCPMUX configuration: RFC 1078
 		Enabled     bool   // True if muxing is used
@@ -296,22 +297,22 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
 	go auth.WatchTokenFile(containerTokenFile, keyshutdown)
 
-	// Load the delegate keys and auth tokens first so there's no race btwn starting the watcher routines
-	//    and making the first RPC call in getService()
-	<-auth.WaitForDelegateKeys(nil)
+	// Load the delegate keys and auth tokens first so there's no race btwn starting the watcher
+	// routines and making the first RPC call in getService()
+	plog.Debug("Awaiting for the auth token")
 	<-auth.WaitForAuthToken(nil)
 
 	// get service
 	instanceID, err := strconv.Atoi(options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
-		return c, fmt.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
+		return nil, fmt.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
 	}
 	service, tenantID, svcPath, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
 	if err != nil {
 		glog.Errorf("%+v", err)
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
-		return c, ErrInvalidService
+		return nil, ErrInvalidService
 	}
 	c.healthChecks = service.HealthChecks
 	c.tenantID = tenantID
@@ -331,29 +332,39 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		}
 	}
 
+	runAs := service.RunAs
+	if service.RunAs == "root" {
+		runAs = ""
+	}
+	if runAs != "" && c.options.Service.Command[0] == service.Startup {
+		c.options.Service.RunAs = runAs
+	}
+
 	// create config files
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
-		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
+		return nil, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
 	}
 
 	// get host id
 	c.hostID, err = getAgentHostID(options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Invalid hostID")
-		return c, ErrInvalidHostID
+		return nil, ErrInvalidHostID
 	}
 
 	if options.Logforwarder.Enabled && len(service.LogConfigs) > 0 {
 		if err := setupLogstashFiles(c.hostID, options.HostIPs, options.ServiceNamePath, service,
 			options.Service.InstanceID, options.Logforwarder); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)
-			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
+			return nil, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
 
-		logforwarder, exited, err := subprocess.New(time.Second,
+		logforwarder, exited, err := subprocess.New(
+			time.Second,
 			nil,
-			options.Logforwarder.Path,
+			"", // runas
+			options.Logforwarder.Path, // command
 			"-e", // Log to stderr
 			"-c", options.Logforwarder.ConfigFile)
 		if err != nil {
@@ -388,7 +399,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		//build and serve the container metric forwarder
 		forwarder, err := NewMetricForwarder(options.Metric.Address, metricRedirect)
 		if err != nil {
-			return c, err
+			return nil, err
 		}
 		c.metricForwarder = forwarder
 
@@ -405,16 +416,16 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	c.zkInfo, err = getAgentZkInfo(options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Invalid zk info: %v", err)
-		return c, err
+		return nil, err
 	}
-	glog.Infof(" c.zkInfo: %+v", c.zkInfo)
+	glog.Infof("c.zkInfo: %+v", c.zkInfo)
 
 	// endpoints are created at the root level (not pool aware)
 	rootBasePath := ""
 	zClient, err := coordclient.New("zookeeper", c.zkInfo.ZkDSN, rootBasePath, nil)
 	if err != nil {
 		glog.Errorf("failed create a new coordclient: %v", err)
-		return c, err
+		return nil, err
 	}
 
 	zzk.InitializeLocalClient(zClient)
@@ -431,7 +442,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 	c.endpoints, err = NewContainerEndpoints(service, opts)
 	if err != nil {
-		return c, err
+		return nil, err
 	}
 
 	// CC Rest API proxy
@@ -440,8 +451,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	// check command
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
-		glog.Errorf("Invalid commandif ")
-		return c, ErrInvalidCommand
+		glog.Errorf("Invalid command")
+		return nil, ErrInvalidCommand
 	}
 
 	return c, nil
@@ -611,10 +622,21 @@ func (c *Controller) Run() (err error) {
 		return err
 	}
 
-	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
+	args := []string{}
+	var command string
+	if c.options.Service.RunAs == "" {
+		command = "/bin/sh"
+	} else {
+		args = append(args, "-l")
+		command = "/bin/bash"
+	}
+	args = append(args, "-c")
+	args = append(args, "exec "+strings.Join(c.options.Service.Command, " "))
 
 	startService := func() (*subprocess.Instance, chan error) {
-		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)
+		service, serviceExited, _ := subprocess.New(
+			time.Second*10, env, c.options.Service.RunAs, command, args...,
+		)
 		return service, serviceExited
 	}
 

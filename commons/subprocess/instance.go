@@ -14,11 +14,13 @@
 package subprocess
 
 import (
+	"github.com/control-center/serviced/userinfo"
 	"github.com/zenoss/glog"
 
 	"errors"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -27,6 +29,7 @@ import (
 // Instance manages a subprocess instance.
 type Instance struct {
 	command        string
+	runAs          string
 	args           []string
 	env            []string
 	commandExit    chan error // used to send command exit values to the parent controller
@@ -37,9 +40,10 @@ type Instance struct {
 }
 
 // New creates a subprocess.Instance
-func New(sigtermTimeout time.Duration, env []string, command string, args ...string) (*Instance, chan error, error) {
+func New(sigtermTimeout time.Duration, env []string, runas string, command string, args ...string) (*Instance, chan error, error) {
 	s := &Instance{
 		command:        command,
+		runAs:          runas,
 		args:           args,
 		env:            env,
 		commandExit:    make(chan error, 1),
@@ -83,6 +87,9 @@ func (s *Instance) Close() error {
 
 func (s *Instance) loop() {
 
+	var info *userinfo.Info
+	var err error
+
 	setUpCmd := func(exitChan chan error) *exec.Cmd {
 		glog.Infof("about to execute: %s , %v[%d]", s.command, s.args, len(s.args))
 		cmd := exec.Command(s.command, s.args...)
@@ -90,6 +97,24 @@ func (s *Instance) loop() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
+
+		if s.runAs != "" {
+			info, err = userinfo.New(s.runAs)
+			if err != nil {
+				glog.Errorf(err.Error())
+			}
+		}
+		if info != nil {
+			glog.Infof("Running command as user '%v'", s.runAs)
+			cmd.SysProcAttr = &syscall.SysProcAttr{}
+			cmd.SysProcAttr.Credential = &syscall.Credential{
+				Uid: info.UID, Gid: info.GID,
+			}
+			cmd.Env = append(cmd.Env, "USER="+info.Username)
+			cmd.Env = append(cmd.Env, "HOME="+info.HomeDir)
+			cmd.Env = append(cmd.Env, "UID="+strconv.Itoa(int(info.GID)))
+		}
+
 		go func() {
 			exitChan <- cmd.Run()
 		}()
@@ -104,7 +129,6 @@ func (s *Instance) loop() {
 
 	closing := s.closing
 	for {
-
 		select {
 		case s := <-s.signalChan:
 			glog.V(1).Infof("loop: sending signal %v", s)
@@ -137,6 +161,5 @@ func (s *Instance) loop() {
 			returnChan <- errors.New("subprocess instance sigkilled")
 			return
 		}
-
 	}
 }

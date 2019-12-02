@@ -101,12 +101,15 @@ func AuthTokenNonBlocking() (string, error) {
 func WaitForAuthToken(cancel <-chan interface{}) <-chan struct{} {
 	ch := make(chan struct{})
 	go func() {
-		for currentToken == "" {
-			select {
-			case <-cond.Wait():
-			case <-cancel: // Receive from nil channel never returns, so this is fine
+		for {
+			cond.RLock()
+			if currentToken != "" {
+				break
 			}
+			cond.RUnlock()
+			time.Sleep(time.Second)
 		}
+		cond.RUnlock()
 		close(ch)
 	}()
 	return ch
@@ -256,12 +259,7 @@ func expired() bool {
 }
 
 func updateToken(token string, expires time.Time, filename string) {
-	select {
-	case <-WaitForDelegateKeys(nil):
-	case <-time.After(1 * time.Second):
-		log.WithField("timeout", "1s").Error("No delegate keys were available to parse the token within the timeout")
-		return
-	}
+	<-WaitForDelegateKeys(nil)
 	cond.Lock()
 	currentToken = token
 	currentIdentity = getIdentityFromToken(token)
