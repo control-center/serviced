@@ -23,7 +23,7 @@ import (
 	"sync"
 	"strings"
 
-    "github.com/control-center/serviced/config"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/logfilter"
@@ -323,7 +323,7 @@ filter {
 }
 `
 
-    stdoutSection := `
+	stdoutSection := `
         stdout { codec => "json_lines" }
 `
 
@@ -332,7 +332,7 @@ filter {
 		newContents = strings.Replace(string(newContents),"${AUDITLOG_SECTION}", auditLogSection, 1)
 	}
 	if config.GetOptions().LogstashStdout {
-	    newContents = strings.Replace(string(newContents),"${STDOUT_SECTION}", stdoutSection, 1)
+		newContents = strings.Replace(string(newContents),"${STDOUT_SECTION}", stdoutSection, 1)
 	}
 	newBytes := []byte(newContents)
 	// generate the filters section
