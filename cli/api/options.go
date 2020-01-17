@@ -158,6 +158,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		LogstashMaxDays:            cfg.IntVal("LOGSTASH_MAX_DAYS", 14),
 		LogstashMaxSize:            cfg.IntVal("LOGSTASH_MAX_SIZE", 10),
 		LogstashCycleTime:          cfg.IntVal("LOGSTASH_CYCLE_TIME", 6),
+		LogstashStdout:             cfg.BoolVal("LOGSTASH_STDOUT", false),
 		DebugPort:                  cfg.IntVal("DEBUG_PORT", 6006),
 		AdminGroup:                 cfg.StringVal("ADMIN_GROUP", getDefaultAdminGroup()),
 		MaxRPCClients:              cfg.IntVal("MAX_RPC_CLIENTS", 3),
