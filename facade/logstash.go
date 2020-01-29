@@ -324,7 +324,7 @@ filter {
 `
 
 	stdoutSection := `
-        stdout { codec => "json_lines" }
+          stdout { codec => "json_lines" }
 `
 
 	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterDefinition, 1)
