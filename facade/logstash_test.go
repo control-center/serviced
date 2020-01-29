@@ -628,6 +628,7 @@ func (t *LogStashTest) Test_findNewestFilter_PickFromNewerVersions(c *C) {
 func  (t *LogStashTest) TestWritingConfigFile(c *C) {
 	filters := "This is my test filter"
 	auditLogSection := "Audit Log Section string"
+	stdoutSection := "Stdout Section string"
 	tmpfile, err := ioutil.TempFile("", "logstash_test.conf")
 	c.Logf("Created tempfile: %s", tmpfile.Name())
 	c.Assert(err, IsNil)
@@ -636,7 +637,9 @@ func  (t *LogStashTest) TestWritingConfigFile(c *C) {
 	defer os.Remove(tmpfile.Name())
 	_, err = tmpfile.Write([]byte("${FILTER_SECTION}"))
 	c.Assert(err, IsNil)
-	_, err = tmpfile.Write([]byte("${AUDIT_SECTION"))
+	_, err = tmpfile.Write([]byte("${AUDIT_SECTION}"))
+	c.Assert(err, IsNil)
+	_, err = tmpfile.Write([]byte("${STDOUT_SECTION}"))
 	c.Assert(err, IsNil)
 	err = tmpfile.Sync()
 	c.Assert(err, IsNil)
@@ -649,7 +652,8 @@ func  (t *LogStashTest) TestWritingConfigFile(c *C) {
 	c.Assert(err, IsNil)
 
 	// make sure our filter and auditLogSection string is in it
-	if !strings.Contains(string(contents), filters) && !strings.Contains(string(contents), auditLogSection) {
+	// and stdoutSection is not in it
+	if !strings.Contains(string(contents), filters) && !strings.Contains(string(contents), auditLogSection) && strings.Contains(string(contents), stdoutSection) {
 		c.Logf("Read in contents: %s", string(contents))
 		c.Log(filters)
 		c.Error("Was unable to write the logstash conf file")

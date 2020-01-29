@@ -86,6 +86,7 @@ type Options struct {
 	LogstashMaxSize            int    // Max size of logstash data
 	LogstashCycleTime          int    // Logstash purging cycle time in hours
 	LogstashURL                string
+	LogstashStdout             bool   // Write Logstash logs to stdout
 	DebugPort                  int      // Port to listen for profile clients
 	AdminGroup                 string   // user group that can log in to control center
 	MaxRPCClients              int      // the max number of rpc clients to an endpoint

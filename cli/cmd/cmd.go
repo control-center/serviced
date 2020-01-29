@@ -276,6 +276,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		LogstashMaxSize:            ctx.GlobalInt("logstash-max-size"),
 		LogstashCycleTime:          ctx.GlobalInt("logstash-cycle-time"),
 		LogstashURL:                ctx.GlobalString("logstashurl"),
+		LogstashStdout:             cfg.BoolVal("LOGSTASH_STDOUT", false),
 		DebugPort:                  ctx.GlobalInt("debug-port"),
 		AdminGroup:                 ctx.GlobalString("admin-group"),
 		MaxRPCClients:              ctx.GlobalInt("max-rpc-clients"),

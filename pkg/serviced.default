@@ -138,6 +138,9 @@
 # Set the address for the logstash elastic search
 # SERVICED_LOGSTASH_ES={{SERVICED_MASTER_IP}}:9100
 
+# Set the stdout output for logstash
+# SERVICED_LOGSTASH_STDOUT=false
+
 # Set the age (in days) of logstash data to keep
 # SERVICED_LOGSTASH_MAX_DAYS=14
 
