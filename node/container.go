@@ -903,6 +903,6 @@ func flushConntrack(protocol string) error {
 		"cmd":      fmt.Sprintf("conntrack %s", strings.Join(args, " ")),
 	}).Info("Flushing conntrack table")
 	output, err := iptables.RunConntrackCommand(args...)
-	plog.Info(output)
+	plog.Info(string(output))
 	return err
 }
