@@ -38,7 +38,6 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
-
 func (a *HostAgent) setInstanceState(serviceID string, instanceID int, state service.InstanceCurrentState) error {
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
@@ -306,12 +305,12 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 // PauseContainer pauses a running container
 func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	commandTimeout := time.Duration(
-		config.GetOptions().MaxDFSTimeout + 1) * time.Second
+		config.GetOptions().MaxDFSTimeout+1) * time.Second
 
 	pidFile := "/pause.pid"
 	kill := fmt.Sprintf(
-		"if [ -f %[1]s ]; then pid=$(cat %[1]s); if [ \"$pid\" ];" +
-		"then kill $pid; fi; rm -f %[1]s; fi", pidFile)
+		"if [ -f %[1]s ]; then pid=$(cat %[1]s); if [ \"$pid\" ];"+
+			"then kill $pid; fi; rm -f %[1]s; fi", pidFile)
 
 	type out struct {
 		response string
@@ -362,13 +361,15 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	}()
 
 	select {
-		case result := <- done: {
+	case result := <-done:
+		{
 			if result.err != nil {
 				logger.WithError(result.err).Warn("Could not run command: %s; %s", svc.Snapshot.Pause, ctrName)
 				return result.err
 			}
 		}
-		case <- time.After(commandTimeout): {
+	case <-time.After(commandTimeout):
+		{
 			if _, err := attachAndRun(ctrName, kill); err != nil {
 				logger.WithError(err).Warn("Error while killing pausing process.")
 				return err
@@ -499,6 +500,7 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 				explog.Debug("Starting proxy for endpoint")
 				public := iptables.NewAddress(ip, int(port))
 				private := iptables.NewAddress(state.PrivateIP, int(exp.PortNumber))
+				explog.WithField("conntrackFlush", a.conntrackFlush).Info("Checking flag")
 				if a.conntrackFlush {
 					if _, ok := protocols[exp.Protocol]; !ok {
 						if err := flushConntrack(exp.Protocol); err != nil {
@@ -540,7 +542,6 @@ func (a *HostAgent) getService(serviceID string) (*service.Service, error) {
 
 	return svc, nil
 }
-
 
 // dockerLogsToFile dumps container logs to file
 func dockerLogsToFile(containerid string, numlines int) {
@@ -900,7 +901,8 @@ func flushConntrack(protocol string) error {
 	plog.WithFields(log.Fields{
 		"protocol": protocol,
 		"cmd":      fmt.Sprintf("conntrack %s", strings.Join(args, " ")),
-	}).Debug("Flushing conntrack table")
-	_, err := iptables.RunConntrackCommand(args...)
+	}).Info("Flushing conntrack table")
+	output, err := iptables.RunConntrackCommand(args...)
+	plog.Info(string(output))
 	return err
 }
