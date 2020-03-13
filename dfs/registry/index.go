@@ -22,17 +22,18 @@ import (
 	"github.com/control-center/serviced/domain/registry"
 )
 
+// ErrImageNotFound indicates that a requested image was not found
 var ErrImageNotFound = errors.New("registry index: image not found")
 
-// RegistryIndex is the index for the docker registry on the server
-type RegistryIndex interface {
+// IndexClient is the index for the docker registry on the server
+type IndexClient interface {
 	FindImage(image string) (*registry.Image, error)
 	PushImage(image, uuid string, hash string) error
 	RemoveImage(image string) error
 	SearchLibraryByTag(library string, tag string) ([]registry.Image, error)
 }
 
-var _ = RegistryIndex(&RegistryIndexClient{})
+var _ = IndexClient(&indexClient{})
 
 // facade has the index for this docker registry
 type facade interface {
@@ -43,22 +44,22 @@ type facade interface {
 	SearchRegistryLibraryByTag(ctx datastore.Context, library, tag string) ([]registry.Image, error)
 }
 
-// RegistryIndexClient is the facade client that runs the docker registry server
-type RegistryIndexClient struct {
+// registryIndexClient is the facade client that runs the docker registry server
+type indexClient struct {
 	ctx    datastore.Context
 	facade facade
 }
 
-// NewRegistryIndexClient creates a new client for the registry index.
-func NewRegistryIndexClient(f facade) *RegistryIndexClient {
-	return &RegistryIndexClient{
-		ctx:    datastore.Get(),
+// NewIndexClient creates a new client for the registry index.
+func NewIndexClient(f facade) IndexClient {
+	return &indexClient{
+		ctx:    datastore.GetContext(),
 		facade: f,
 	}
 }
 
 // parseImage trims the registry host:port
-func (client *RegistryIndexClient) parseImage(image string) (string, error) {
+func (client *indexClient) parseImage(image string) (string, error) {
 	imageID, err := commons.ParseImageID(image)
 	if err != nil {
 		return "", err
@@ -74,8 +75,8 @@ func (client *RegistryIndexClient) parseImage(image string) (string, error) {
 	return image, nil
 }
 
-// FindImage implements RegistryIndex
-func (client *RegistryIndexClient) FindImage(image string) (*registry.Image, error) {
+// FindImage implements IndexClient
+func (client *indexClient) FindImage(image string) (*registry.Image, error) {
 	image, err := client.parseImage(image)
 	if err != nil {
 		return nil, err
@@ -87,8 +88,8 @@ func (client *RegistryIndexClient) FindImage(image string) (*registry.Image, err
 	return rImage, err
 }
 
-// PushImage implements RegistryIndex
-func (client *RegistryIndexClient) PushImage(image, uuid string, hash string) error {
+// PushImage implements IndexClient
+func (client *indexClient) PushImage(image, uuid string, hash string) error {
 	imageID, err := commons.ParseImageID(image)
 	if err != nil {
 		return err
@@ -107,8 +108,8 @@ func (client *RegistryIndexClient) PushImage(image, uuid string, hash string) er
 	return client.facade.SetRegistryImage(client.ctx, rImage)
 }
 
-// RemoveImage implements RegistryIndex
-func (client *RegistryIndexClient) RemoveImage(image string) error {
+// RemoveImage implements IndexClient
+func (client *indexClient) RemoveImage(image string) error {
 	var err error
 	if image, err = client.parseImage(image); err != nil {
 		return err
@@ -116,7 +117,7 @@ func (client *RegistryIndexClient) RemoveImage(image string) error {
 	return client.facade.DeleteRegistryImage(client.ctx, image)
 }
 
-// SearchLibraryByTag implements RegistryIndex
-func (client *RegistryIndexClient) SearchLibraryByTag(library, tag string) ([]registry.Image, error) {
+// SearchLibraryByTag implements IndexClient
+func (client *indexClient) SearchLibraryByTag(library, tag string) ([]registry.Image, error) {
 	return client.facade.SearchRegistryLibraryByTag(client.ctx, library, tag)
 }

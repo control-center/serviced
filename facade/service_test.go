@@ -36,16 +36,16 @@ import (
 	ssmmocks "github.com/control-center/serviced/scheduler/servicestatemanager/mocks"
 	zks "github.com/control-center/serviced/zzk/service"
 
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
-	"github.com/control-center/serviced/domain/logfilter"
 )
 
 var (
 	ErrTestEPValidationFail = errors.New("Endpoint failed validation")
 )
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceName(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceName(c *C) {
 	svcA := service.Service{
 		ID:           "validate-service-name-A",
 		Name:         "TestFacade_validateServiceNameA",
@@ -100,7 +100,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceName(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceTenant(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceTenant(c *C) {
 	svcA := service.Service{
 		ID:           "validate-service-tenant-A",
 		Name:         "TestFacade_validateServiceTenantA",
@@ -148,7 +148,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceTenant(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) setup_validateServiceStart(c *C, endpoints ...service.ServiceEndpoint) *service.Service {
+func (ft *IntegrationTest) setup_validateServiceStart(c *C, endpoints ...service.ServiceEndpoint) *service.Service {
 	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: "test-pool"})
 	c.Assert(err, IsNil)
 	svc := service.Service{
@@ -172,7 +172,7 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStart(c *C, endpoints ...s
 	return &svc
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_emergencyShutdownFlagged(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceStart_emergencyShutdownFlagged(c *C) {
 	// successfully add address assignment, vhost, and port
 	ep1 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
 		Name:        "ep1",
@@ -206,7 +206,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_emergencyShutdo
 	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_missingAddressAssignment(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceStart_missingAddressAssignment(c *C) {
 	// set up the endpoint with a missing address assignment
 	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
 		Name:        "ep1",
@@ -223,7 +223,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_missingAddressA
 
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceStart(c *C) {
 	// successfully add address assignment, vhost, and port
 	ep1 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
 		Name:        "ep1",
@@ -277,7 +277,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) setup_validateServiceStop(c *C) *service.Service {
+func (ft *IntegrationTest) setup_validateServiceStop(c *C) *service.Service {
 	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: "test-pool"})
 	c.Assert(err, IsNil)
 	svc := service.Service{
@@ -293,7 +293,7 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStop(c *C) *service.Servic
 	return &svc
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyShutdownFlagged(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceStop_emergencyShutdownFlagged(c *C) {
 	svc := ft.setup_validateServiceStop(c)
 	// Test stopping a service that has been emergency stopped
 	svc.EmergencyShutdown = true
@@ -301,26 +301,26 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyShutdow
 	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceStop(c *C) {
 	// Test stopping a service that has not been emergency stopped
 	svc := ft.setup_validateServiceStop(c)
 	err := ft.Facade.validateServiceStop(ft.CTX, svc, false)
 	c.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStop_emergencyTrue(c *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceStop_emergencyTrue(c *C) {
 	// Test emergency stopping a service that has been stopped
 	svc := ft.setup_validateServiceStop(c)
 	err := ft.Facade.validateServiceStop(ft.CTX, svc, true)
 	c.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateService_badServiceID(t *C) {
+func (ft *IntegrationTest) TestFacade_validateService_badServiceID(t *C) {
 	_, err := ft.Facade.validateServiceUpdate(ft.CTX, &service.Service{ID: "badID"})
 	t.Assert(err, ErrorMatches, "No such entity {kind:service, id:badID}")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePublicEndpoint(t *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePublicEndpoint(t *C) {
 	svc := service.Service{
 		ID:           "svc1",
 		Name:         "TestFacade_validateServiceEndpoints",
@@ -371,7 +371,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePu
 }
 
 // Add using the servicedefition defines.
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions(t *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions(t *C) {
 	svc := service.Service{
 		ID:           "svc1",
 		Name:         "TestFacade_InvalidServiceOptions",
@@ -379,7 +379,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 		PoolID:       "pool_id",
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
-		HostPolicy: servicedefinition.RequireSeparate,
+		HostPolicy:   servicedefinition.RequireSeparate,
 		ChangeOptions: []servicedefinition.ChangeOption{
 			servicedefinition.RestartAllOnInstanceChanged,
 		},
@@ -391,7 +391,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 }
 
 // Make these all uppercase; case should not matter for these options in the service def.
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions2(t *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions2(t *C) {
 	svc := service.Service{
 		ID:           "svc1",
 		Name:         "TestFacade_InvalidServiceOptions",
@@ -399,7 +399,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 		PoolID:       "pool_id",
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
-		HostPolicy: "REQUIRE_SEPARATE",
+		HostPolicy:   "REQUIRE_SEPARATE",
 		ChangeOptions: []servicedefinition.ChangeOption{
 			"RESTARTALLONINSTANCECHANGED",
 		},
@@ -411,7 +411,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 }
 
 // We should get an error if we add a service with an invalid ChangeOption.
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions3(t *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOptions3(t *C) {
 	svc := service.Service{
 		ID:           "svc1",
 		Name:         "TestFacade_InvalidServiceOptions",
@@ -430,7 +430,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 }
 
 // We should get an error if we try to update a service with an invalid set of options.
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceUpdate_InvalidServiceOptions(t *C) {
+func (ft *IntegrationTest) TestFacade_validateServiceUpdate_InvalidServiceOptions(t *C) {
 	svc := service.Service{
 		ID:           "svc1",
 		Name:         "TestFacade_InvalidServiceOptions",
@@ -451,7 +451,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceUpdate_InvalidService
 	t.Assert(err, NotNil) // This should have returned an ErrInvalidServiceOption error.
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
+func (ft *IntegrationTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
 	_, newSvc, err := ft.setupMigrationServices(t, nil)
 	t.Assert(err, IsNil)
 
@@ -459,7 +459,7 @@ func (ft *FacadeIntegrationTest) TestFacade_migrateServiceConfigs_noConfigs(t *C
 	t.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
+func (ft *IntegrationTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
 	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 
@@ -468,7 +468,7 @@ func (ft *FacadeIntegrationTest) TestFacade_migrateServiceConfigs_noChanges(t *C
 }
 
 // Verify migration of configuration data when the user has not changed any config files
-func (ft *FacadeIntegrationTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
+func (ft *IntegrationTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
 	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 	newSvc.ConfigFiles = nil
@@ -488,7 +488,7 @@ func (ft *FacadeIntegrationTest) TestFacade_migrateService_withoutUserConfigChan
 	t.Assert(len(confs), Equals, 0)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_UndefinedService(t *C) {
+func (ft *IntegrationTest) TestFacade_GetServiceEndpoints_UndefinedService(t *C) {
 	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, "undefined", true, true, true)
 
 	t.Assert(err, NotNil)
@@ -496,7 +496,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_UndefinedService
 	t.Assert(endpointMap, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t *C) {
+func (ft *IntegrationTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 	errorStub := fmt.Errorf("Stub for cannot-connect-to-zookeeper")
@@ -509,7 +509,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t 
 	t.Assert(endpointMap, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceNotRunning(t *C) {
+func (ft *IntegrationTest) TestFacade_GetServiceEndpoints_ServiceNotRunning(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -543,7 +543,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceNotRunnin
 	t.Assert(endpoints[1].Endpoint.Application, Equals, "test_ep_2")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
+func (ft *IntegrationTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -592,7 +592,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceRunning(t
 	t.Assert(endpoints[3].Endpoint.Application, Equals, "test_ep_2")
 }
 
-func (ft *FacadeIntegrationTest) setupServiceWithEndpoints(t *C) (*service.Service, error) {
+func (ft *IntegrationTest) setupServiceWithEndpoints(t *C) (*service.Service, error) {
 	svc := service.Service{
 		ID:           "svc1",
 		Name:         "TestFacade_GetServiceEndpoints",
@@ -622,7 +622,7 @@ func (ft *FacadeIntegrationTest) setupServiceWithEndpoints(t *C) (*service.Servi
 }
 
 // Test a trivial migration of a single property
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_Success(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Modify_Success(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -646,7 +646,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_Success(t *C)
 	t.Assert(out.Description, Equals, "migrated_service")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -703,7 +703,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 	t.Assert(actual, Equals, expected)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t *C) {
 	// add the resource pool (no permissions required)
 	rp := pool.ResourcePool{ID: "default"}
 	err := ft.Facade.AddResourcePool(ft.CTX, &rp)
@@ -737,7 +737,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Modify_FailDupNew(t 
 	t.Assert(err, Equals, ErrServiceCollision)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Added_Success(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Added_Success(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -753,7 +753,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Added_Success(t *C) 
 	ft.assertServiceAdded(t, newSvc)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Added_FailDup(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Added_FailDup(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -770,7 +770,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Added_FailDup(t *C) 
 	t.Assert(err, Equals, ErrServiceCollision)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Added_FailDupNew(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Added_FailDupNew(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -786,7 +786,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Added_FailDupNew(t *
 	t.Assert(err, Equals, ErrServiceCollision)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddedAndModified(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_AddedAndModified(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -814,7 +814,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddedAndModified(t *
 	t.Assert(out.Description, Equals, "migrated_service")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddedAndModified_FailDup(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_AddedAndModified_FailDup(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -838,7 +838,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddedAndModified_Fai
 	t.Assert(err, Equals, ErrServiceCollision)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddedAndDeployed_FailDup(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_AddedAndDeployed_FailDup(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -866,7 +866,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddedAndDeployed_Fai
 	t.Assert(err, ErrorMatches, "service exists")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_Success(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Deploy_Success(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -898,7 +898,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_Success(t *C)
 	t.Assert(foundAddedService, Equals, true)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDup(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Deploy_FailDup(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -923,7 +923,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDup(t *C)
 	t.Assert(err, ErrorMatches, "service exists")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupNew(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Deploy_FailDupNew(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -951,7 +951,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupNew(t 
 	t.Assert(err, ErrorMatches, "service exists")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidParentID(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidParentID(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -966,7 +966,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidPa
 	t.Assert(err, ErrorMatches, "No such entity.*")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidServiceDefinition(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidServiceDefinition(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -988,7 +988,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidSe
 	t.Check(strings.Contains(err.Error(), "string bogus-launch not in [auto manual]"), Equals, true)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsWithinANewService(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsWithinANewService(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1027,7 +1027,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsWit
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewServices(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewServices(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1064,7 +1064,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcr
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewAndModifiedServices(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewAndModifiedServices(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1099,7 +1099,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcr
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewAndDeployedServices(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewAndDeployedServices(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1146,7 +1146,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcr
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupeEndpointsWithTemplate(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Deploy_FailDupeEndpointsWithTemplate(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1187,7 +1187,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupeEndpo
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_EndpointsWithTemplate(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_Deploy_EndpointsWithTemplate(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1228,7 +1228,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_EndpointsWith
 	t.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndpoint(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndpoint(t *C) {
 	err := ft.setupMigrationTestWithEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1251,7 +1251,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndp
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint(t *C) {
 	err := ft.setupMigrationTestWithEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -1274,10 +1274,10 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint
 	t.Assert(err, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilter(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_AddsLogFilter(t *C) {
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
 	err := ft.setupMigrationTestWithoutEndpoints(t)
@@ -1297,21 +1297,21 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilter(t *C) 
 	t.Assert(err, IsNil)
 
 	var result *logfilter.LogFilter
-	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter.Name, filter.Version)
+	result, err = ft.Facade.logfilterStore.Get(ft.CTX, filter.Name, filter.Version)
 	t.Assert(err, IsNil)
 	t.Assert(result.Filter, Equals, filter.Filter)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilterVersion(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_AddsLogFilterVersion(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
 	filter1 := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
-	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter1)
+	err = ft.Facade.logfilterStore.Put(ft.CTX, &filter1)
 
 	svc, err := ft.Facade.GetService(ft.CTX, "original_service_id_tenant")
 	t.Assert(err, IsNil)
@@ -1330,24 +1330,24 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilterVersion
 	t.Assert(err, IsNil)
 
 	var result *logfilter.LogFilter
-	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter1.Name, filter1.Version)
+	result, err = ft.Facade.logfilterStore.Get(ft.CTX, filter1.Name, filter1.Version)
 	t.Assert(err, IsNil)
 
-	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter2.Name, filter2.Version)
+	result, err = ft.Facade.logfilterStore.Get(ft.CTX, filter2.Name, filter2.Version)
 	t.Assert(err, IsNil)
 	t.Assert(result.Filter, Equals, filter2.Filter)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
-	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter)
+	err = ft.Facade.logfilterStore.Put(ft.CTX, &filter)
 
 	svc, err := ft.Facade.GetService(ft.CTX, "original_service_id_tenant")
 	t.Assert(err, IsNil)
@@ -1364,14 +1364,14 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *
 	t.Assert(err, IsNil)
 
 	var result *logfilter.LogFilter
-	result, err = ft.Facade.logFilterStore.Get(ft.CTX, filter.Name, filter.Version)
+	result, err = ft.Facade.logfilterStore.Get(ft.CTX, filter.Name, filter.Version)
 	t.Assert(err, IsNil)
 	t.Assert(result.Filter, Equals, filter.Filter)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailsLogFilter(t *C) {
+func (ft *IntegrationTest) TestFacade_MigrateServices_FailsLogFilter(t *C) {
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
+		Name:   "filter1",
 		Filter: "some filter",
 	}
 	err := ft.setupMigrationTestWithoutEndpoints(t)
@@ -1391,11 +1391,11 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailsLogFilter(t *C)
 	t.Assert(err, Not(IsNil))
 	t.Assert(strings.Contains(err.Error(), "empty string for LogFilter.Version"), Equals, true)
 
-	_, err = ft.Facade.logFilterStore.Get(ft.CTX, filter.Name, filter.Version)
+	_, err = ft.Facade.logfilterStore.Get(ft.CTX, filter.Name, filter.Version)
 	t.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
+func (ft *IntegrationTest) TestFacade_ResolveServicePath(c *C) {
 	svca := service.Service{
 		ID:              "svcaid",
 		PoolID:          "testPool",
@@ -1453,22 +1453,21 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 		DeploymentID:    "deployment_id_2",
 	}
 	svcnoprefix1 := service.Service{
-                ID:              "svcnoprefix1id",
-                PoolID:          "testPool",
-                Name:            "svc_noprefix",
-                Launch:          "auto",
-                ParentServiceID: "svcbid",
-                DeploymentID:    "deployment_id",
-        }
-        svcnoprefix2 := service.Service{
-                ID:              "svcnoprefix2id",
-                PoolID:          "testPool",
-                Name:            "svc_noprefix2",
-                Launch:          "auto",
-                ParentServiceID: "svcbid",
-                DeploymentID:    "deployment_id",
-        }
-
+		ID:              "svcnoprefix1id",
+		PoolID:          "testPool",
+		Name:            "svc_noprefix",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcnoprefix2 := service.Service{
+		ID:              "svcnoprefix2id",
+		PoolID:          "testPool",
+		Name:            "svc_noprefix2",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
 
 	c.Assert(ft.Facade.AddService(ft.CTX, svca), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcb), IsNil)
@@ -1524,7 +1523,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
+func (ft *IntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	svc := service.Service{
 		ID:             "ParentServiceID",
 		Name:           "ParentService",
@@ -1598,7 +1597,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *C) {
+func (ft *IntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *C) {
 	// We have to reset the zzk mocks to replace what is in SetUpTest
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
@@ -1868,7 +1867,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c *C) {
+func (ft *IntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c *C) {
 	// We have to reset the zzk mocks to replace what is in SetUpTest
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
@@ -2065,7 +2064,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	waitServiceWG.Wait()
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C) {
+func (ft *IntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C) {
 	// Set up mocks to handle starting services and waiting
 	// We have to reset the zzk mocks to replace what is in SetUpTest
 	ft.zzk = &zzkmocks.ZZK{}
@@ -2423,7 +2422,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) {
+func (ft *IntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) {
 	// Set up mocks to handle starting services and waiting
 	// We have to reset the zzk mocks to replace what is in SetUpTest
 	ft.zzk = &zzkmocks.ZZK{}
@@ -2560,7 +2559,7 @@ func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) 
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
+func (ft *IntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	// If a service changes while pending, the change should not be reverted when it starts
 
 	// Set up mocks to handle starting services and waiting
@@ -2646,7 +2645,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	c.Assert(int(updatedSvc.DesiredState), Equals, int(service.SVCRun))
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
+func (ft *IntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	// Test to make sure services are always paused during a snapshot
 
 	// Set up mocks to handle starting services and waiting
@@ -2876,11 +2875,11 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 }
 
 // If the dfs mounts are invalid. Do not start services.
-func (ft *FacadeIntegrationTest) TestFacade_StartService_InvalidMounts(c *C) {
+func (ft *IntegrationTest) TestFacade_StartService_InvalidMounts(c *C) {
 	svc := service.Service{
-		ID: "TestFacade_StartService_PoolWithDFS",
-		Name: "TestFacade_StartService_PoolWithDFS",
-		PoolID: "default",
+		ID:             "TestFacade_StartService_PoolWithDFS",
+		Name:           "TestFacade_StartService_PoolWithDFS",
+		PoolID:         "default",
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
@@ -2908,13 +2907,13 @@ func (ft *FacadeIntegrationTest) TestFacade_StartService_InvalidMounts(c *C) {
 
 	ft.dfs.On("VerifyTenantMounts", "TestFacade_StartService_PoolWithDFS").Return(fmt.Errorf("some error"))
 
-	err = ft.Facade.validateServiceStart(datastore.Get(), &svc)
+	err = ft.Facade.validateServiceStart(datastore.GetContext(), &svc)
 	if err == nil {
 		c.Error("Service should have failed tenant mount validation for starting...")
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
+func (ft *IntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	// add a service with 2 subservices and set EmergencyShutdown to true for all 3
 	svc := service.Service{
 		ID:                "ParentServiceID",
@@ -3008,7 +3007,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_Pass(c *C) {
+func (ft *IntegrationTest) TestFacade_rollingRestart_Pass(c *C) {
 	svc := service.Service{
 		ID:                "serviceID",
 		Name:              "Service",
@@ -3158,7 +3157,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_Pass(c *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutWait(c *C) {
+func (ft *IntegrationTest) TestFacade_rollingRestart_TimeoutWait(c *C) {
 	svc := service.Service{
 		ID:                "serviceID",
 		Name:              "Service",
@@ -3226,7 +3225,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutWait(c *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutHealthcheck(c *C) {
+func (ft *IntegrationTest) TestFacade_rollingRestart_TimeoutHealthcheck(c *C) {
 	svc := service.Service{
 		ID:                "serviceID",
 		Name:              "Service",
@@ -3330,7 +3329,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutHealthcheck(c 
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailWait(c *C) {
+func (ft *IntegrationTest) TestFacade_rollingRestart_FailWait(c *C) {
 	svc := service.Service{
 		ID:                "serviceID",
 		Name:              "Service",
@@ -3366,7 +3365,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailWait(c *C) {
 	c.Assert(err, Equals, testerr)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailRestartInstance(c *C) {
+func (ft *IntegrationTest) TestFacade_rollingRestart_FailRestartInstance(c *C) {
 	svc := service.Service{
 		ID:                "serviceID",
 		Name:              "Service",
@@ -3400,7 +3399,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailRestartInstance(c
 	c.Assert(err, Equals, testerr)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailGetState(c *C) {
+func (ft *IntegrationTest) TestFacade_rollingRestart_FailGetState(c *C) {
 	svc := service.Service{
 		ID:                "serviceID",
 		Name:              "Service",
@@ -3427,7 +3426,7 @@ func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailGetState(c *C) {
 	c.Assert(err, Equals, testerr)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
+func (ft *IntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	// create a service tree that looks like this:
 	// ParentServiceID
 	// ->childService1
@@ -3616,15 +3615,15 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	mockedSSM.AssertExpectations(c)
 }
 
-func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
+func (ft *IntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
 	return ft.setupMigrationTest(t, false)
 }
 
-func (ft *FacadeIntegrationTest) setupMigrationTestWithEndpoints(t *C) error {
+func (ft *IntegrationTest) setupMigrationTestWithEndpoints(t *C) error {
 	return ft.setupMigrationTest(t, true)
 }
 
-func (ft *FacadeIntegrationTest) setupMigrationTest(t *C, addEndpoint bool) error {
+func (ft *IntegrationTest) setupMigrationTest(t *C, addEndpoint bool) error {
 	tenant := service.Service{
 		ID:           "original_service_id_tenant",
 		Name:         "original_service_name_tenant",
@@ -3680,7 +3679,7 @@ func (ft *FacadeIntegrationTest) setupMigrationTest(t *C, addEndpoint bool) erro
 	return nil
 }
 
-func (ft *FacadeIntegrationTest) setupMigrationServices(t *C, originalConfigs map[string]servicedefinition.ConfigFile) (*service.Service, *service.Service, error) {
+func (ft *IntegrationTest) setupMigrationServices(t *C, originalConfigs map[string]servicedefinition.ConfigFile) (*service.Service, *service.Service, error) {
 	svc := service.Service{
 		ID:              "svc1",
 		Name:            "TestFacade_migrateServiceConfigs_oldSvc",
@@ -3720,13 +3719,13 @@ func (ft *FacadeIntegrationTest) setupMigrationServices(t *C, originalConfigs ma
 	return oldSvc, &newSvc, nil
 }
 
-func (ft *FacadeIntegrationTest) getConfigFiles(svc *service.Service) ([]*serviceconfigfile.SvcConfigFile, error) {
+func (ft *IntegrationTest) getConfigFiles(svc *service.Service) ([]*serviceconfigfile.SvcConfigFile, error) {
 	tenantID, servicePath, err := ft.Facade.getServicePath(ft.CTX, svc.ID)
 	if err != nil {
 		return nil, err
 	}
-	configStore := serviceconfigfile.NewStore()
-	return configStore.GetConfigFiles(ft.CTX, tenantID, servicePath)
+	configfileStore := serviceconfigfile.NewStore()
+	return configfileStore.GetConfigFiles(ft.CTX, tenantID, servicePath)
 }
 
 func getOriginalConfigs() map[string]servicedefinition.ConfigFile {
@@ -3736,7 +3735,7 @@ func getOriginalConfigs() map[string]servicedefinition.ConfigFile {
 	return originalConfigs
 }
 
-func (ft *FacadeIntegrationTest) createNewChildService(t *C) *service.Service {
+func (ft *IntegrationTest) createNewChildService(t *C) *service.Service {
 	originalID := "original_service_id_child_0"
 	oldSvc, err := ft.Facade.GetService(ft.CTX, originalID)
 	t.Assert(err, IsNil)
@@ -3748,7 +3747,7 @@ func (ft *FacadeIntegrationTest) createNewChildService(t *C) *service.Service {
 	return &newSvc
 }
 
-func (ft *FacadeIntegrationTest) assertServiceAdded(t *C, newSvc *service.Service) {
+func (ft *IntegrationTest) assertServiceAdded(t *C, newSvc *service.Service) {
 	svcs, err := ft.Facade.GetServices(ft.CTX, dao.ServiceRequest{TenantID: newSvc.ParentServiceID})
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 4) // there should be 1 additional service
@@ -3763,7 +3762,7 @@ func (ft *FacadeIntegrationTest) assertServiceAdded(t *C, newSvc *service.Servic
 	t.Assert(foundAddedService, Equals, true)
 }
 
-func (ft *FacadeIntegrationTest) createServiceDeploymentRequest(t *C) *dao.ServiceDeploymentRequest {
+func (ft *IntegrationTest) createServiceDeploymentRequest(t *C) *dao.ServiceDeploymentRequest {
 	deployRequest := dao.ServiceDeploymentRequest{
 		ParentID: "original_service_id_child_0",
 
@@ -3778,7 +3777,7 @@ func (ft *FacadeIntegrationTest) createServiceDeploymentRequest(t *C) *dao.Servi
 	return &deployRequest
 }
 
-func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string, noprefix bool, services ...service.Service) {
+func (ft *IntegrationTest) assertPathResolvesToServices(c *C, path string, noprefix bool, services ...service.Service) {
 	details, err := ft.Facade.ResolveServicePath(ft.CTX, path, noprefix)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, len(services))
@@ -3795,16 +3794,16 @@ func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string,
 	c.Assert(foundids, DeepEquals, ids)
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_getChanges(c *C) {
+func (ft *IntegrationTest) TestFacade_getChanges(c *C) {
 	cursvc := service.Service{
-		ID:			"get-changes-service",
-		Name:			"TestFacade_getChanges_Current",
-		DeploymentID:		"deployment-id",
-		PoolID:			"pool-id",
-		Launch:			"auto",
+		ID:           "get-changes-service",
+		Name:         "TestFacade_getChanges_Current",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
 	}
 	c.Assert(ft.Facade.AddService(ft.CTX, cursvc), IsNil)
-	svc , _ := ft.Facade.getService(ft.CTX, cursvc.ID)
+	svc, _ := ft.Facade.getService(ft.CTX, cursvc.ID)
 	svc.Name = "TestFacade_getChanges_Updated"
 	updates := ft.Facade.getChanges(ft.CTX, svc)
 	expected := "Name:TestFacade_getChanges_Updated;"

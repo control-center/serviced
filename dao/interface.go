@@ -13,37 +13,37 @@
 
 package dao
 
-// --------------------------------------------------------------------------------------------------
-// --------------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------------
 //               **** USE OF THE METHODS IN THIS FILE IS DEPRECATED ****
 //
 // THAT MEANS DO NOT ADD MORE METHODS TO dao.ControlPlane
 //
 // Instead of adding new RPC calls via dao.ControlPlane, new RPCs should be added
 // rpc/master.ClientInterface
-// --------------------------------------------------------------------------------------------------
-// --------------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------------
 
 import (
 	"time"
 
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/domain/logfilter"
 )
 
-// A generic ControlPlane error
+// ControlPlaneError is a generic ControlPlane error
 type ControlPlaneError struct {
 	Msg string
 }
 
-// Implement the Error() interface for ControlPlaneError
+// Error implements the Error() interface for ControlPlaneError
 func (s ControlPlaneError) Error() string {
 	return s.Msg
 }
 
-// An request for a control center object.
+// EntityRequest a request for a control center object.
 type EntityRequest interface{}
 
 type ServiceRequest struct {
@@ -59,11 +59,11 @@ type ServiceCloneRequest struct {
 }
 
 type ServiceMigrationRequest struct {
-	ServiceID string				// The tenant service ID
-	Modified  []*service.Service			// Services modified by the migration
-	Added     []*service.Service			// Services added by the migration
-	Deploy    []*ServiceDeploymentRequest		// A services to be deployed by the migration
-	LogFilters map[string]logfilter.LogFilter	// LogFilters to add/replace
+	ServiceID  string                         // The tenant service ID
+	Modified   []*service.Service             // Services modified by the migration
+	Added      []*service.Service             // Services added by the migration
+	Deploy     []*ServiceDeploymentRequest    // A services to be deployed by the migration
+	LogFilters map[string]logfilter.LogFilter // LogFilters to add/replace
 }
 
 type ServiceStateRequest struct {

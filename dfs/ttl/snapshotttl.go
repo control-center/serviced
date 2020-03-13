@@ -31,7 +31,7 @@ var plog = logging.PackageLogger()
 // SnapshotTTLInterface is the client handler for SnapshotTTL
 type SnapshotTTLInterface interface {
 	// GetTenantIDs returns all tenant IDs
-	GetTenantIDs(struct {}, *[]string) error
+	GetTenantIDs(struct{}, *[]string) error
 	// ListSnapshots returns the list of all snapshots given a service id
 	ListSnapshots(string, *[]dao.SnapshotInfo) error
 	// DeleteSnapshot deletes a snapshot by SnapshotID
@@ -57,7 +57,7 @@ func (ttl *SnapshotTTL) Name() string {
 // wait til the next snapshot is to be deleted.
 // Implements utils.TTL
 func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("SnapshotTTL.Purge"))
 
 	logger := plog.WithField("age", int(age.Minutes()))
@@ -83,7 +83,7 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 				// check the age of the snapshot
 				if timeToLive := s.Created.Sub(expire); timeToLive <= 0 {
 					snapshotLogger := logger.WithFields(log.Fields{
-						"tenantid": tenantID,
+						"tenantid":   tenantID,
 						"snapshotid": s.SnapshotID,
 					})
 					if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {

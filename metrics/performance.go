@@ -21,11 +21,13 @@ import (
 
 const timeFormat = "2006/01/02-15:04:00-MST"
 
+// Float wraps a float64 to include a NaN flag
 type Float struct {
 	Value float64
 	IsNaN bool
 }
 
+// UnmarshalJSON updates a Float object from a byte array
 func (f *Float) UnmarshalJSON(b []byte) error {
 	var source string
 	json.Unmarshal(b, &source)
@@ -42,6 +44,7 @@ func (f *Float) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// MarshalJSON converts a Float into a JSON string
 func (f Float) MarshalJSON() ([]byte, error) {
 	if f.IsNaN {
 		return json.Marshal("NaN")
@@ -51,16 +54,16 @@ func (f Float) MarshalJSON() ([]byte, error) {
 	return json.Marshal(value)
 }
 
-type V2Datapoint []float64
+type v2Datapoint []float64
 
-func (dp V2Datapoint) Timestamp() float64 {
+func (dp v2Datapoint) Timestamp() float64 {
 	if len(dp) < 1 {
 		return 0
 	}
 	return dp[0]
 }
 
-func (dp V2Datapoint) Value() float64 {
+func (dp v2Datapoint) Value() float64 {
 	if len(dp) < 2 {
 		return 0
 	}
@@ -68,44 +71,44 @@ func (dp V2Datapoint) Value() float64 {
 }
 
 // PerformanceOptions is the request object for doing a performance query.
-type V2PerformanceOptions struct {
+type v2PerformanceOptions struct {
 	Start     string            `json:"start,omitempty"`
 	End       string            `json:"end,omitempty"`
 	Returnset string            `json:"returnset,omitempty"`
-	Metrics   []V2MetricOptions `json:"queries,omitempty"`
+	Metrics   []v2MetricOptions `json:"queries,omitempty"`
 }
 
 // MetricOptions are the options for receiving metrics for a set of data.
-type V2MetricOptions struct {
+type v2MetricOptions struct {
 	Metric      string              `json:"metric,omitempty"`
 	Aggregator  string              `json:"aggregator,omitempty"`
 	Rate        bool                `json:"rate,omitempty"`
-	RateOptions V2RateOptions       `json:"rateOptions,omitempty"`
+	RateOptions v2RateOptions       `json:"rateOptions,omitempty"`
 	Expression  string              `json:"expression,omitempty"`
 	Tags        map[string][]string `json:"tags,omitempty"`
 	Downsample  string              `json:"downsample,omitempty"`
 }
 
 // RateOptions are the options for collecting performance data.
-type V2RateOptions struct {
+type v2RateOptions struct {
 	Counter        bool `json:"counter,omitempty"`
 	CounterMax     int  `json:"counterMax,omitempty"`
 	ResetThreshold int  `json:"resetThreshold,omitempty"`
 }
 
 // PerformanceData is the resulting object from a performance query.
-type V2PerformanceData struct {
-	Series   []V2ResultData `json:"series,omitempty"`
-	Statuses []V2Status     `json:"statuses,omitempty"`
+type v2PerformanceData struct {
+	Series   []v2ResultData `json:"series,omitempty"`
+	Statuses []v2Status     `json:"statuses,omitempty"`
 }
 
-type V2ResultData struct {
-	Datapoints []V2Datapoint     `json:"datapoints"`
+type v2ResultData struct {
+	Datapoints []v2Datapoint     `json:"datapoints"`
 	Metric     string            `json:"metric,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
-type V2Status struct {
+type v2Status struct {
 	Message string `json:"message"`
 	Status  string `json:"status"`
 }
@@ -166,7 +169,7 @@ type Datapoint struct {
 	Value     Float `json:"value,omitempty"`
 }
 
-func (c *Client) performanceQuery(opts PerformanceOptions) (*PerformanceData, error) {
+func (c *clientImpl) performanceQuery(opts PerformanceOptions) (*PerformanceData, error) {
 	path := "/api/performance/query"
 	body, _, err := c.do("POST", path, opts)
 	if err != nil {
@@ -179,13 +182,13 @@ func (c *Client) performanceQuery(opts PerformanceOptions) (*PerformanceData, er
 	return &perfdata, nil
 }
 
-func (c *Client) v2performanceQuery(opts V2PerformanceOptions) (*V2PerformanceData, error) {
+func (c *clientImpl) v2performanceQuery(opts v2PerformanceOptions) (*v2PerformanceData, error) {
 	path := "/api/v2/performance/query"
 	body, _, err := c.do("POST", path, opts)
 	if err != nil {
 		return nil, err
 	}
-	var perfdata V2PerformanceData
+	var perfdata v2PerformanceData
 	if err = json.Unmarshal(body, &perfdata); err != nil {
 		return nil, err
 	}

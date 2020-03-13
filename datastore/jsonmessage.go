@@ -51,3 +51,22 @@ func (m *jsonMessage) MarshalJSON() ([]byte, error) {
 func (m *jsonMessage) UnmarshalJSON(data []byte) error {
 	return m.data.UnmarshalJSON(data)
 }
+
+func serialize(kind string, entity ValidEntity) (JSONMessage, error) {
+	// hook for looking up serializers by kind; default json Marshal for now
+	data, err := json.Marshal(entity)
+	if err != nil {
+		return nil, err
+	}
+	msg := NewJSONMessage(data, entity.GetDatabaseVersion())
+	return msg, nil
+}
+
+func deserialize(kind string, jsonMsg JSONMessage, entity ValidEntity) error {
+	// hook for looking up deserializers by kind; default json Unmarshal for now
+	if err := SafeUnmarshal(jsonMsg.Bytes(), entity); err != nil {
+		return err
+	}
+	entity.SetDatabaseVersion(jsonMsg.Version())
+	return nil
+}

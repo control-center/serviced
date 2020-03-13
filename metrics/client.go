@@ -25,34 +25,46 @@ var (
 	// ErrInvalidEndpoint is returned when the endpoint is not a valid HTTP URL.
 	ErrInvalidEndpoint = errors.New("invalid endpoint")
 
-	// ErrConnectionRefused is returned when the client cannot connect to the
-	// given endpoint
+	// ErrConnectionRefused is returned when the client cannot connect to the given endpoint
 	ErrConnectionRefused = errors.New("cannot connect to the metric query service")
 )
 
-type Client struct {
-	HTTPClient *http.Client
+// Client defines the interface of the metrics client.
+type Client interface {
+	GetAvailableStorage(window time.Duration, aggregator string, tenants ...string) (*StorageMetrics, error)
+	GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error)
+	GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error)
+	GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error)
+}
 
+// clientImpl is data about a connection to the metrics server
+type clientImpl struct {
+	httpClient  *http.Client
 	endpoint    string
 	endpointURL *url.URL
 }
 
-// NewClient returns a Client instance ready for communication with the given
-// server endpoint.
-func NewClient(endpoint string) (*Client, error) {
+// Error contains error data
+type Error struct {
+	Status  int
+	Message string
+}
+
+// NewClient returns a Client instance ready for communication with the given server endpoint.
+func NewClient(endpoint string) (Client, error) {
 	u, err := parseEndpoint(endpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{
-		HTTPClient:  &http.Client{Timeout: time.Duration(5 * time.Second)},
+	return &clientImpl{
+		httpClient:  &http.Client{Timeout: time.Duration(5 * time.Second)},
 		endpoint:    endpoint,
 		endpointURL: u,
 	}, nil
 }
 
-func (c *Client) do(method, path string, data interface{}) ([]byte, int, error) {
+func (c *clientImpl) do(method, path string, data interface{}) ([]byte, int, error) {
 	var params io.Reader
 	if data != nil {
 		buf, err := json.Marshal(data)
@@ -87,7 +99,7 @@ func (c *Client) do(method, path string, data interface{}) ([]byte, int, error) 
 		}
 		defer clientconn.Close()
 	} else {
-		resp, err = c.HTTPClient.Do(req)
+		resp, err = c.httpClient.Do(req)
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
@@ -106,17 +118,12 @@ func (c *Client) do(method, path string, data interface{}) ([]byte, int, error) 
 	return body, resp.StatusCode, nil
 }
 
-func (c *Client) getURL(path string) string {
+func (c *clientImpl) getURL(path string) string {
 	urlStr := strings.TrimRight(c.endpointURL.String(), "/")
 	if c.endpointURL.Scheme == "unix" {
 		urlStr = ""
 	}
 	return fmt.Sprintf("%s%s", urlStr, path)
-}
-
-type Error struct {
-	Status  int
-	Message string
 }
 
 func newError(status int, body []byte) *Error {

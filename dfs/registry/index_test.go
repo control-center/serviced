@@ -37,15 +37,15 @@ func TestRegistryIndex(t *testing.T) { TestingT(t) }
 type RegistryIndexSuite struct {
 	ctx    datastore.Context
 	facade *mocks.MockFacade
-	index  *RegistryIndexClient
+	index  *indexClient
 }
 
 var _ = Suite(&RegistryIndexSuite{})
 
 func (s *RegistryIndexSuite) SetUpTest(c *C) {
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 	s.facade = &mocks.MockFacade{}
-	s.index = &RegistryIndexClient{s.ctx, s.facade}
+	s.index = &indexClient{s.ctx, s.facade}
 }
 
 func (s *RegistryIndexSuite) TestFindImage(c *C) {

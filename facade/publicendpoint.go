@@ -189,12 +189,12 @@ func (f *Facade) SetAddressConfig(ctx datastore.Context, serviceid, endpointName
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
 		return err
-        }
+	}
 
 	alog := f.auditLogger.Action(audit.Update).Message(ctx, "Remove IP Assignment").
 		WithFields(logrus.Fields{
 			"servicename": svc.Name,
-			"endpoint": endpointName,
+			"endpoint":    endpointName,
 		}).Entity(svc)
 
 	err = svc.SetAddressConfig(endpointName, sa)

@@ -56,11 +56,11 @@ type ControlPlaneDao struct {
 	port         int
 	rpcPort      int
 	facade       *facade.Facade
-	metricClient *metrics.Client
+	metricClient metrics.Client
 	backupsPath  string
 }
 
-func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
+func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetServiceFn {
 	return func(svcID string) (service.Service, error) {
 		svc, err := f.GetService(ctx, svcID)
 		if err != nil {
@@ -70,7 +70,7 @@ func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
 	}
 }
 
-func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildService {
+func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildServiceFn {
 	return func(svcID, childName string) (service.Service, error) {
 		svc, err := f.FindChildService(ctx, svcID, childName)
 		if err != nil {
@@ -83,7 +83,7 @@ func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildServi
 }
 
 func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	svc, err := this.facade.GetService(ctx, request.Running.ServiceID)
 	if err != nil {
 		return err

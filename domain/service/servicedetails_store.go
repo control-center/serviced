@@ -25,7 +25,8 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 )
 
-func (s *storeImpl) Query(ctx datastore.Context, query Query) ([]ServiceDetails, error) {
+// Search executes a query and resturns the result.
+func (s *store) Search(ctx datastore.Context, query Query) ([]ServiceDetails, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"query_string": map[string]interface{}{
@@ -88,7 +89,7 @@ func (s *storeImpl) Query(ctx datastore.Context, query Query) ([]ServiceDetails,
 			}
 		}
 
-		s.fillDetailsVolatileInfo(&d)
+		fillDetailsVolatileInfo(&d)
 		details = append(details, d)
 	}
 
@@ -109,7 +110,7 @@ func contains(slice []string, value string) bool {
 }
 
 // GetServiceDetails returns service details for an id
-func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (*ServiceDetails, error) {
+func (s *store) GetServiceDetails(ctx datastore.Context, serviceID string) (*ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceDetails"))
 	id := strings.TrimSpace(serviceID)
 	if id == "" {
@@ -138,13 +139,13 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 			return nil, err
 		}
 
-		if hasChildren, err := s.hasChildren(ctx, details.ID); err == nil {
+		if hasChildren, err := hasChildren(ctx, details.ID); err == nil {
 			details.HasChildren = hasChildren
 		} else {
 			return nil, err
 		}
 
-		s.fillDetailsVolatileInfo(&details)
+		fillDetailsVolatileInfo(&details)
 		return &details, nil
 	}
 
@@ -152,8 +153,8 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 	return nil, datastore.ErrNoSuchEntity{Key: key}
 }
 
-// GetChildServiceDetailsByParentID returns service details given parent service id
-func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID string, since time.Duration) ([]ServiceDetails, error) {
+// GetServiceDetailsByParentID returns service details given parent service id
+func (s *store) GetServiceDetailsByParentID(ctx datastore.Context, parentID string, since time.Duration) ([]ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceDetailsByParentID"))
 	query := map[string]interface{}{}
 	termQuery := map[string]string{
@@ -198,13 +199,13 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 			return nil, err
 		}
 
-		if hasChildren, err := s.hasChildren(ctx, d.ID); err == nil {
+		if hasChildren, err := hasChildren(ctx, d.ID); err == nil {
 			d.HasChildren = hasChildren
 		} else {
 			return nil, err
 		}
 
-		s.fillDetailsVolatileInfo(&d)
+		fillDetailsVolatileInfo(&d)
 		details = append(details, d)
 	}
 
@@ -214,7 +215,7 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 // GetServiceDetailsByIDOrName returns the service details for any services
 // whose serviceID matches the query exactly or whose names contain the query
 // as a substring
-func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, noprefix bool) ([]ServiceDetails, error) {
+func (s *store) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, noprefix bool) ([]ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceDetailsByIDOrName"))
 
 	// Because we don't analyze any of our fields, we have to do this extremely
@@ -236,17 +237,17 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 		} else {
 			// anything else should be usable as is
 			regex[idx] = r
-			idx += 1
+			idx++
 		}
 	}
 
 	newquery := fmt.Sprintf("%s", string(regex[:idx]))
 
 	if noprefix {
-	// Set query to "ends with" style
+		// Set query to "ends with" style
 		newquery = fmt.Sprintf(".*%s", newquery)
 	} else {
-	// Set query to "contains" style
+		// Set query to "contains" style
 		newquery = fmt.Sprintf(".*%s.*", newquery)
 	}
 
@@ -284,12 +285,12 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 			return nil, err
 		}
 
-		if hasChildren, err := s.hasChildren(ctx, d.ID); err == nil {
+		if hasChildren, err := hasChildren(ctx, d.ID); err == nil {
 			d.HasChildren = hasChildren
 		} else {
 			return nil, err
 		}
-		s.fillDetailsVolatileInfo(&d)
+		fillDetailsVolatileInfo(&d)
 		details = append(details, d)
 	}
 
@@ -297,7 +298,7 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 }
 
 // GetAllPublicEndpoints returns all the public endpoints in the system
-func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error) {
+func (s *store) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetAllPublicEndpoints"))
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
@@ -340,7 +341,7 @@ func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoi
 }
 
 // GetAllExportedEndpoints returns all the exported endpoints in the system
-func (s *storeImpl) GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEndpoint, error) {
+func (s *store) GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEndpoint, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetAllExportedEndpoints"))
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
@@ -371,7 +372,8 @@ func (s *storeImpl) GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEn
 	return eps, nil
 }
 
-func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignment, error) {
+// GetAllIPAssignments returns an array of BaseIPAssignment objects
+func (s *store) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignment, error) {
 	// All services where Endpoints.AddressConfig.Port > 0 and Endpoints.Protocol != ""
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
@@ -416,7 +418,7 @@ func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignme
 	return ipAssignments, nil
 }
 
-func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
+func hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"term": map[string]string{"ParentServiceID": serviceID},
@@ -434,8 +436,8 @@ func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, 
 
 }
 
-func (s *storeImpl) fillDetailsVolatileInfo(d *ServiceDetails) {
-	cacheEntry, ok := s.getVolatileInfo(d.ID) // Uses Mutex RLock
+func fillDetailsVolatileInfo(d *ServiceDetails) {
+	cacheEntry, ok := getVolatileInfo(d.ID) // Uses Mutex RLock
 	if ok {
 		d.DesiredState = cacheEntry.DesiredState
 		d.CurrentState = cacheEntry.CurrentState
@@ -534,8 +536,8 @@ func isRegexReservedChar(r rune) bool {
 	return true
 }
 
-func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
-	return elastic.ElasticSearchRequest{
+func newServiceDetailsElasticRequest(query interface{}) elastic.SearchRequest {
+	return elastic.SearchRequest{
 		Pretty: false,
 		Index:  "controlplane",
 		Type:   "service",

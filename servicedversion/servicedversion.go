@@ -28,17 +28,25 @@ import (
 )
 
 var (
-	Version   string
+	// Version of Control Center
+	Version string
+	// GoVersion version of Go lang
 	GoVersion string
-	Date      string
+	// Date when CC was built
+	Date string
+	// Gitcommit git hash
 	Gitcommit string
+	// Gitbranch git branch
 	Gitbranch string
-	Buildtag  string
-	Release   string
+	// Buildtag build label
+	Buildtag string
+	// Release label
+	Release string
 
 	plog = logging.PackageLogger()
 )
 
+// ServicedVersion is version and build metadata
 type ServicedVersion struct {
 	Version   string
 	GoVersion string
@@ -57,6 +65,7 @@ func init() {
 	}
 }
 
+// GetVersion returns a ServicedVersion object.
 func GetVersion() ServicedVersion {
 	return ServicedVersion{
 		Version:   Version,
@@ -79,7 +88,10 @@ func GetPackageRelease(pkg string) (string, error) {
 	thecmd := exec.Command(command[0], command[1:]...)
 	output, err := thecmd.CombinedOutput()
 	if err != nil {
-		e := fmt.Errorf("unable to retrieve release of package '%s' with command:'%s' output: %s  error: %s\n", pkg, command, output, err)
+		e := fmt.Errorf(
+			"unable to retrieve release of package '%s' with command:'%s' output: %s  error: %s",
+			pkg, command, output, err,
+		)
 		return "", e
 	}
 
@@ -91,9 +103,15 @@ func GetPackageRelease(pkg string) (string, error) {
 func getCommandToGetPackageRelease(pkg string) []string {
 	command := []string{}
 	if utils.Platform == utils.Rhel {
-		command = []string{"bash", "-c", fmt.Sprintf("rpm -q --qf '%%{VERSION}-%%{Release}\n' %s", pkg)}
+		command = []string{
+			"bash", "-c", fmt.Sprintf("rpm -q --qf '%%{VERSION}-%%{Release}\n' %s", pkg),
+		}
 	} else {
-		command = []string{"bash", "-o", "pipefail", "-c", fmt.Sprintf("dpkg -s %s | awk '/^Version/{print $NF;exit}'", pkg)}
+		command = []string{
+			"bash",
+			"-o", "pipefail",
+			"-c", fmt.Sprintf("dpkg -s %s | awk '/^Version/{print $NF;exit}'", pkg),
+		}
 	}
 
 	return command

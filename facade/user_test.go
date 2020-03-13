@@ -20,7 +20,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeIntegrationTest) TestUser_UserOperations(t *C) {
+func (ft *IntegrationTest) TestUser_UserOperations(t *C) {
 	user := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",
@@ -52,7 +52,7 @@ func (ft *FacadeIntegrationTest) TestUser_UserOperations(t *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestUser_ValidateCredentials(t *C) {
+func (ft *IntegrationTest) TestUser_ValidateCredentials(t *C) {
 	user := userdomain.User{
 		Name:     "Pepe",
 		Password: "Pepe",

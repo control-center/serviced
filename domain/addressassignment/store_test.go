@@ -29,21 +29,21 @@ func Test(t *testing.T) {
 }
 
 var _ = Suite(&S{
-	ElasticTest: elastic.ElasticTest{
+	Test: elastic.Test{
 		Index:    "controlplane",
 		Mappings: []elastic.Mapping{MAPPING},
 	}})
 
 type S struct {
-	elastic.ElasticTest
-	ctx datastore.Context
-	store  *Store
+	elastic.Test
+	ctx   datastore.Context
+	store Store
 }
 
 func (s *S) SetUpTest(c *C) {
-	s.ElasticTest.SetUpTest(c)
+	s.Test.SetUpTest(c)
 	datastore.Register(s.Driver())
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 	s.store = NewStore()
 }
 
@@ -89,7 +89,6 @@ func (s *S) Test_AddressAssignmentCRUD(t *C) {
 	}
 
 }
-
 
 func (s *S) Test_GetAllAddressAssignments(t *C) {
 	defer s.store.Delete(s.ctx, Key("testID1"))
@@ -139,7 +138,7 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	t.Assert(len(addrs), Equals, 3)
 
 	addrMap := make(map[string]AddressAssignment)
-	for _, addr := range(addrs) {
+	for _, addr := range addrs {
 		addrMap[addr.ID] = addr
 	}
 	result, ok := addrMap[assignment1.ID]

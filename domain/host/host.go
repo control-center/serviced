@@ -33,8 +33,10 @@ import (
 // initialize the package logger
 var plog = logging.PackageLogger()
 
+// ErrSizeTooBig is an error
 var ErrSizeTooBig = errors.New("calculated memory exceeds base value")
 
+// GetRAMLimit returns the host's RAM limit
 func GetRAMLimit(value string, base uint64) (mem uint64, err error) {
 	if strings.HasSuffix(strings.TrimSpace(value), "%") {
 		mem, err = utils.ParsePercentage(value, base)

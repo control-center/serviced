@@ -29,21 +29,21 @@ func Test(t *testing.T) {
 }
 
 var _ = Suite(&S{
-	ElasticTest: elastic.ElasticTest{
+	Test: elastic.Test{
 		Index:    "controlplane",
 		Mappings: []elastic.Mapping{MAPPING},
 	}})
 
 type S struct {
-	elastic.ElasticTest
+	elastic.Test
 	ctx   datastore.Context
 	store Store
 }
 
 func (s *S) SetUpTest(c *C) {
-	s.ElasticTest.SetUpTest(c)
+	s.Test.SetUpTest(c)
 	datastore.Register(s.Driver())
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 	s.store = NewStore()
 }
 
@@ -55,14 +55,14 @@ func (s *S) Test_GetEmpty(c *C) {
 }
 func (s *S) Test_Put(c *C) {
 	props := New()
-	props.SetCCVersion("9.9.8")	
+	props.SetCCVersion("9.9.8")
 	err := s.store.Put(s.ctx, props)
 	c.Assert(err, IsNil)
 
 	actual, err := s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
 	// update version since it is incremented when stored
-	props.DatabaseVersion++	
+	props.DatabaseVersion++
 	c.Assert(actual, DeepEquals, props)
 
 	props.SetCCVersion("9.9.9")
@@ -71,8 +71,7 @@ func (s *S) Test_Put(c *C) {
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
-	props.DatabaseVersion++		
+	props.DatabaseVersion++
 	c.Assert(actual, DeepEquals, props)
 
 }
-

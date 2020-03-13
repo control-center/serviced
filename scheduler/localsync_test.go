@@ -40,7 +40,7 @@ func Test(t *testing.T) {
 
 type LocalSyncTest struct {
 	zzk.ZZKTestSuite
-	elastic.ElasticTest
+	elastic.Test
 	facade    *facade.Facade
 	CTX       datastore.Context
 	zkConn    coordclient.Connection
@@ -74,18 +74,18 @@ func (lst *LocalSyncTest) SetUpSuite(c *C) {
 		c.Fatalf("Could not get zk connection: %s", err)
 	}
 
-	// Init ElasticTest (starts elasticsearch)
+	// Init Test (starts elasticsearch)
 	lst.Port = 9202
 	lst.MappingsFile = "testmappings.json"
 	lst.Index = "controlplane"
-	lst.ElasticTest.SetUpSuite(c)
+	lst.Test.SetUpSuite(c)
 
 	// Set up Facade
 	datastore.Register(lst.Driver())
-	lst.CTX = datastore.Get()
+	lst.CTX = datastore.GetContext()
 
 	lst.facade = facade.New()
-	regindex := registry.NewRegistryIndexClient(lst.facade)
+	regindex := registry.NewIndexClient(lst.facade)
 	dockerclient, err := docker.NewDockerClient()
 	if err != nil {
 		c.Fatalf("Could not get docker client: %s", err)
@@ -97,17 +97,17 @@ func (lst *LocalSyncTest) SetUpSuite(c *C) {
 
 func (lst *LocalSyncTest) SetUpTest(c *C) {
 	lst.ZZKTestSuite.SetUpTest(c)
-	lst.ElasticTest.SetUpTest(c)
+	lst.Test.SetUpTest(c)
 	lst.scheduler.facade = lst.facade
 }
 
 func (lst *LocalSyncTest) TearDownTest(c *C) {
-	//lst.ElasticTest.TearDownTest(c) // Does not exist
+	//lst.Test.TearDownTest(c) // Does not exist
 	//lst.ZZKTestSuite.TearDownTest(c) // Does not exist
 }
 
 func (lst *LocalSyncTest) TearDownSuite(c *C) {
-	lst.ElasticTest.TearDownSuite(c)
+	lst.Test.TearDownSuite(c)
 	lst.ZZKTestSuite.TearDownSuite(c)
 }
 

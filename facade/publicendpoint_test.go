@@ -31,7 +31,7 @@ var sa = servicedefinition.AddressResourceConfig{
 }
 
 // Perform pre-test setup for each of the PublicEndpoint tests
-func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.Service, service.Service) {
+func (ft *IntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.Service, service.Service) {
 	// Add a service so we can test our public endpoint.
 	svcA := service.Service{
 		ID:           "validate-service-tenant-A",
@@ -94,7 +94,7 @@ func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.
 	return svcA, svcB
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -116,7 +116,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_VerifyEnabledFlag(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd_VerifyEnabledFlag(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_VerifyEnabledFlag: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -139,7 +139,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_VerifyEnabledFlag(c
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_VerifyEnabledFlag: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_DuplicatePort(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd_DuplicatePort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_DuplicatePort: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -155,7 +155,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_DuplicatePort(c *C)
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_DuplicatePort: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_OutOfRangePort(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd_OutOfRangePort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_OutOfRangePort: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -171,7 +171,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_OutOfRangePort(c *C
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_OutOfRangePort: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_PortZero(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd_PortZero(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortZero: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -186,7 +186,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_PortZero(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortZero: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_NegativePort(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd_NegativePort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_NegativePort: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -201,7 +201,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_NegativePort(c *C) 
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_NegativePort: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_InvalidService(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd_InvalidService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_InvalidService: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -217,7 +217,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_InvalidService(c *C
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_InvalidService: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_PortInAnotherService(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortAdd_PortInAnotherService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortInAnotherService: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -233,7 +233,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_PortInAnotherServic
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortInAnotherService: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -248,7 +248,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidService(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortRemove_InvalidService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidService: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -263,7 +263,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidService(c
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidService: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidEndpoint(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortRemove_InvalidEndpoint(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidEndpoint: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -278,7 +278,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidEndpoint(
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidEndpoint: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidPort(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortRemove_InvalidPort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidPort: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -293,7 +293,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidPort(c *C
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidPort: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortDisable(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortDisable(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortDisable: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -320,7 +320,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortDisable(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortDisable: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_EnabledPort(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_EnabledPort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_EnabledPort: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -335,7 +335,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_EnabledPort(c *C
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_EnabledPort: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidService(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_InvalidService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidService: STARTED")
 
 	// Enable a port with an invalid serviceid
@@ -347,7 +347,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidService(c
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidService: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidEndpoint(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_InvalidEndpoint(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidEndpoint: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -362,7 +362,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidEndpoint(
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidEndpoint: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortAddr(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortAddr(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortAddr: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -376,7 +376,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortAddr(
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortAddr: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_NegativePort(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_NegativePort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_NegativePort: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -390,7 +390,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_NegativePort(c *
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_NegativePort: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortZero(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortZero(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortZero: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -404,7 +404,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortZero(
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortZero: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortTooHigh(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortTooHigh(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortTooHigh: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -418,7 +418,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortTooHi
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortTooHigh: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortInUse(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortInUse(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortInUse: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -440,7 +440,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortInUse
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortInUse: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -463,7 +463,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag(
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidService(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidService: STARTED")
 
 	// Add a vhost to an invalid service.
@@ -475,7 +475,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidService(c *
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidService: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidEndpoint(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidEndpoint(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidEndpoint: STARTED")
 
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
@@ -488,7 +488,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidEndpoint(c 
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidEndpoint: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_DuplicateVHost(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostAdd_DuplicateVHost(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_DuplicateVHost: STARTED")
 
 	_, svcB := ft.setupServiceWithPublicEndpoints(c)
@@ -502,7 +502,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_DuplicateVHost(c *
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_DuplicateVHost: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidVHostName(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidVHostName(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidVHostName: STARTED")
 
 	_, svcB := ft.setupServiceWithPublicEndpoints(c)
@@ -519,7 +519,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidVHostName(c
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidVHostName: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd: STARTED")
 
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
@@ -538,7 +538,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Remove(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpointVHost_Remove(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_Remove: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -553,7 +553,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Remove(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_Remove: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidService(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidService: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -568,7 +568,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidService(
 	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidService: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidEndpoint(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidEndpoint(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidEndpoint: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -583,7 +583,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidEndpoint
 	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidEndpoint: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidPort(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidPort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidPort: STARTED")
 
 	// Add a service so we can test our public endpoint.
@@ -598,7 +598,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidPort(c *
 	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidPort: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Disable(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpointVHost_Disable(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_Disable: STARTED")
 
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
@@ -621,7 +621,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Disable(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_Disable: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_EnableEnabledVHost(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpointVHost_EnableEnabledVHost(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_EnableEnabledVHost: STARTED")
 
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
@@ -642,7 +642,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_EnableEnabledVHost(c *
 	fmt.Println(" ##### Test_PublicEndpointVHost_EnableEnabledVHost: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_InvalidService(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpointVHost_InvalidService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_InvalidService: STARTED")
 
 	// Enable a vhost on a service with an invalid service.
@@ -654,7 +654,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_InvalidService(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_InvalidService: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_InvalidEndpoint(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpointVHost_InvalidEndpoint(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_InvalidEndpoint: STARTED")
 
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
@@ -668,7 +668,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_InvalidEndpoint(c *C) 
 	fmt.Println(" ##### Test_PublicEndpointVHost_InvalidEndpoint: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_InvalidVHost(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpointVHost_InvalidVHost(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_InvalidVHost: STARTED")
 
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
@@ -682,7 +682,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_InvalidVHost(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_InvalidVHost: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_SetAddressConfig(c *C) {
+func (ft *IntegrationTest) Test_PublicEndpoint_SetAddressConfig(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_SetAddressConfig: starting")
 
 	// Add a service so we can test our public endpoint.

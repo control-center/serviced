@@ -27,13 +27,14 @@ import (
 )
 
 var _ = Suite(&S{
-	ElasticTest: elastic.ElasticTest{
+	Test: elastic.Test{
 		Index:    "controlplane",
 		Mappings: []elastic.Mapping{MAPPING},
-	}})
+	},
+})
 
 type S struct {
-	elastic.ElasticTest
+	elastic.Test
 	ctx   datastore.Context
 	store Store
 }
@@ -44,9 +45,9 @@ func (s *S) SetupSuite(c *C) {
 }
 
 func (s *S) SetUpTest(c *C) {
-	s.ElasticTest.SetUpTest(c)
+	s.Test.SetUpTest(c)
 	datastore.Register(s.Driver())
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 	s.store = NewStore()
 }
 
@@ -315,22 +316,22 @@ func (s *S) Test_GetServiceDetailsWithSince(c *C) {
 	c.Assert(s.store.Put(s.ctx, svcb), IsNil)
 
 	// Query for all time, get both
-	details, err := s.store.Query(s.ctx, Query{Since: time.Duration(0)})
+	details, err := s.store.Search(s.ctx, Query{Since: time.Duration(0)})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 2)
 
 	// Query for last hour, get both
-	details, err = s.store.Query(s.ctx, Query{Since: time.Hour})
+	details, err = s.store.Search(s.ctx, Query{Since: time.Hour})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 2)
 
 	// Query for last 30 seconds, get one
-	details, err = s.store.Query(s.ctx, Query{Since: 30 * time.Second})
+	details, err = s.store.Search(s.ctx, Query{Since: 30 * time.Second})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 1)
 
 	// Query for last second, get none
-	details, err = s.store.Query(s.ctx, Query{Since: time.Second})
+	details, err = s.store.Search(s.ctx, Query{Since: time.Second})
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 0)
 }
@@ -456,13 +457,13 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 		Endpoints: []ServiceEndpoint{
 			{
 				Application: "application1",
-				Name: "application1",
+				Name:        "application1",
 				Purpose:     "export",
 				Protocol:    "tcp",
 				PortNumber:  12345,
 			}, {
 				Application: "application2",
-				Name: "application2",
+				Name:        "application2",
 				Purpose:     "import",
 				Protocol:    "udp",
 				PortNumber:  23456,
@@ -479,7 +480,7 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 		DeploymentID:    "deployment_id",
 		Endpoints: []ServiceEndpoint{
 			{
-				Name: "application1",
+				Name:        "application1",
 				Application: "application1",
 				Purpose:     "import_all",
 				Protocol:    "tcp",

@@ -19,10 +19,10 @@ import (
 
 // Context is the context of the application or request being made
 type Context interface {
-	// Get a connection to the datastore
+	// Returns a connection to the datastore
 	Connection() (Connection, error)
 
-	// Get the Metrics object from the context
+	// Returns the Metrics object from the context
 	Metrics() *metrics.Metrics
 
 	// Get and set the user for audit logging
@@ -30,7 +30,16 @@ type Context interface {
 	User() string
 }
 
-var savedDriver Driver
+type context struct {
+	driver  Driver
+	metrics *metrics.Metrics
+	user    string
+}
+
+var (
+	ctx         Context
+	savedDriver Driver
+)
 
 //Register a driver to use for the context
 func Register(driver Driver) {
@@ -38,12 +47,12 @@ func Register(driver Driver) {
 	ctx = newCtx(driver)
 }
 
-//Get returns the global Context
-func Get() Context {
+//GetContext returns the global Context
+func GetContext() Context {
 	return ctx
 }
 
-// GetNew() returns a new global context.
+// GetNew returns a new global context.
 // This function is not intended for production use, but is for the purpose
 // of getting fresh contexts for performance testing with metrics for troubleshooting.
 func GetNew() Context {
@@ -56,17 +65,9 @@ func GetNewInstance() Context {
 	return &context{savedDriver, ctx.Metrics(), "system"}
 }
 
-var ctx Context
-
-//new Creates a new context with a Driver to a datastore
+// newCtx Creates a new context with a Driver to a datastore
 func newCtx(driver Driver) Context {
 	return &context{driver, metrics.NewMetrics(), "system"}
-}
-
-type context struct {
-	driver  Driver
-	metrics *metrics.Metrics
-	user    string
 }
 
 func (c *context) Connection() (Connection, error) {

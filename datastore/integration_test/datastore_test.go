@@ -33,33 +33,32 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-var _ = Suite(&S{ElasticTest: elastic.ElasticTest{Index: "twitter"}})
+var _ = Suite(&S{Test: elastic.Test{Index: "twitter"}})
 
 type S struct {
-	elastic.ElasticTest
+	elastic.Test
 	ctx datastore.Context
 }
 
 func (s *S) SetUpTest(c *C) {
 	datastore.Register(s.Driver())
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 }
 
 func (s *S) TestPutGetDelete(t *C) {
 	ctx := s.ctx
-	ds := datastore.New()
 
 	key := datastore.NewKey("tweet", "1")
 	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch", version}
 
-	err := ds.Put(ctx, key, &tweet)
+	err := Put(ctx, key, &tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
 	//Get tweet
 	var storedtweet tweettest
-	err = ds.Get(ctx, key, &storedtweet)
+	err = Get(ctx, key, &storedtweet)
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
@@ -70,13 +69,13 @@ func (s *S) TestPutGetDelete(t *C) {
 	}
 
 	//Delete tweet
-	err = ds.Delete(ctx, key)
+	err = Delete(ctx, key)
 	if err != nil {
 		t.Errorf("Unexpected delete error: %v", err)
 	}
 
 	//test not found
-	err = ds.Get(ctx, key, &storedtweet)
+	err = Get(ctx, key, &storedtweet)
 	if err == nil {
 		t.Error("Expected error, not nil")
 	} else if !datastore.IsErrNoSuchEntity(err) {
@@ -87,19 +86,18 @@ func (s *S) TestPutGetDelete(t *C) {
 
 func (s *S) TestVersionConflict(t *C) {
 	ctx := s.ctx
-	ds := datastore.New()
 
 	key := datastore.NewKey("tweet", "666")
 	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch", version}
 
-	err := ds.Put(ctx, key, &tweet)
+	err := Put(ctx, key, &tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
 	//Get tweet
 	var storedtweet tweettest
-	err = ds.Get(ctx, key, &storedtweet)
+	err = Get(ctx, key, &storedtweet)
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
@@ -109,7 +107,7 @@ func (s *S) TestVersionConflict(t *C) {
 
 	// Update something and send it back with the same version; it should succeed
 	storedtweet.Message = "This is a different message"
-	err = ds.Put(ctx, key, &storedtweet)
+	err = Put(ctx, key, &storedtweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -117,7 +115,7 @@ func (s *S) TestVersionConflict(t *C) {
 	// Make a new tweet with a 1 version, which should conflict (since version
 	// in the database is now 2)
 	tweet.DatabaseVersion = 1
-	err = ds.Put(ctx, key, &tweet)
+	err = Put(ctx, key, &tweet)
 	if err == nil {
 		t.Errorf("Did not get a conflict")
 	}
@@ -127,19 +125,17 @@ func (s *S) TestVersionConflict(t *C) {
 func (s *S) TestQuery(t *C) {
 	ctx := s.ctx
 
-	ds := datastore.New()
-
 	k := datastore.NewKey("tweet", "123")
 	tweet := &tweettest{"kimchy", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch", version}
 
-	err := ds.Put(ctx, k, tweet)
+	err := Put(ctx, k, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
 	k = datastore.NewKey("tweet", "234")
 	tweet = &tweettest{"kimchy2", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch again", version}
-	err = ds.Put(ctx, k, tweet)
+	err = Put(ctx, k, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}

@@ -42,7 +42,7 @@ func (s *scheduler) localSync(shutdown <-chan interface{}, rootConn client.Conne
 }
 
 func (s *scheduler) doSync(rootConn client.Connection) <-chan time.Time {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("scheduler.doSync"))
 	// SyncRegistryImages performs its own DFSLock, so run it before locking in here
 	if err := s.facade.SyncRegistryImages(ctx, false); err != nil {

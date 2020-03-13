@@ -14,7 +14,21 @@
 package datastore
 
 import (
+	"errors"
 	"fmt"
+)
+
+var (
+	//ErrNilEntity returned when Entity parameter is nil
+	ErrNilEntity = errors.New("nil Entity")
+	//ErrNilContext returned when Context parameter is nil
+	ErrNilContext = errors.New("nil Context")
+	//ErrNilKey returned when Kind parameter is nil
+	ErrNilKey = errors.New("nil Key")
+	//ErrEmptyKindID returned when a key has an empty ID
+	ErrEmptyKindID = errors.New("empty Kind id")
+	//ErrEmptyKind returned when a key has an empty kind
+	ErrEmptyKind = errors.New("empty Kind")
 )
 
 // ErrNoSuchEntity is returned when no entity was found for a given key.

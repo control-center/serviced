@@ -20,32 +20,25 @@ import (
 	"github.com/zenoss/elastigo/search"
 )
 
-//NewStore creates a ResourcePool store
-func NewStore() Store {
-	return &storeImpl{}
-}
-
-// Store type for interacting with ResourcePool persistent storage
+// Store is an interface for accessing service template data.
 type Store interface {
-	// Get a ServiceTemplate by id. Return ErrNoSuchEntity if not found
-	Get(ctx datastore.Context, id string) (*ServiceTemplate, error)
-
-	// Put adds or updates a ServiceTemplate
 	Put(ctx datastore.Context, st ServiceTemplate) error
-
-	// Delete removes the a ServiceTemplate if it exists
+	Get(ctx datastore.Context, id string) (*ServiceTemplate, error)
 	Delete(ctx datastore.Context, id string) error
-
-	// GetServiceTemplates returns all ServiceTemplates
 	GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error)
 }
 
-type storeImpl struct {
-	ds datastore.DataStore
+type store struct{}
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
 }
 
+var kind = "servicetemplatewrapper"
+
 // Put adds or updates a ServiceTemplate
-func (s *storeImpl) Put(ctx datastore.Context, st ServiceTemplate) error {
+func (s *store) Put(ctx datastore.Context, st ServiceTemplate) error {
 	if err := st.ValidEntity(); err != nil {
 		return fmt.Errorf("error validating template: %v", err)
 	}
@@ -53,28 +46,25 @@ func (s *storeImpl) Put(ctx datastore.Context, st ServiceTemplate) error {
 	if err != nil {
 		return err
 	}
-	return s.ds.Put(ctx, Key(wrapper.ID), wrapper)
+	return datastore.Put(ctx, Key(wrapper.ID), wrapper)
 }
 
 // Get a ServiceTemplate by id. Return ErrNoSuchEntity if not found
-func (s *storeImpl) Get(ctx datastore.Context, id string) (*ServiceTemplate, error) {
+func (s *store) Get(ctx datastore.Context, id string) (*ServiceTemplate, error) {
 	var wrapper serviceTemplateWrapper
-
-	if err := s.ds.Get(ctx, Key(id), &wrapper); err != nil {
+	if err := datastore.Get(ctx, Key(id), &wrapper); err != nil {
 		return nil, err
 	}
-
 	return FromJSON(wrapper.Data)
-
 }
 
 // Delete removes the a ServiceTemplate if it exists
-func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
-	return s.ds.Delete(ctx, Key(id))
+func (s *store) Delete(ctx datastore.Context, id string) error {
+	return datastore.Delete(ctx, Key(id))
 }
 
 // GetServiceTemplates returns all ServiceTemplates
-func (s *storeImpl) GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error) {
+func (s *store) GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Query(query)
@@ -105,5 +95,3 @@ func convert(results datastore.Results) ([]*ServiceTemplate, error) {
 	}
 	return templates, nil
 }
-
-var kind = "servicetemplatewrapper"

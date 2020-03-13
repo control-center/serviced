@@ -24,12 +24,13 @@ var (
 	cache = NewMemoryUsageCache(time.Minute)
 )
 
+// ServiceInstance identifies an instance of a running service.
 type ServiceInstance struct {
 	ServiceID  string
 	InstanceID int
 }
 
-// Main container for stats for serviced to consume
+// MemoryUsageStats main container for stats for serviced to consume
 type MemoryUsageStats struct {
 	HostID     string
 	ServiceID  string
@@ -44,7 +45,7 @@ type MemoryUsageStats struct {
 // instance ID are in the supplied mapping, then return True.
 //
 // TODO: This could be expensive on large data sets
-func filterV2ResultsInstance(result V2ResultData, svcToInstances map[string][]string) bool {
+func filterV2ResultsInstance(result v2ResultData, svcToInstances map[string][]string) bool {
 	/*
 		tags = serviceID -> [instanceIDs]
 	*/
@@ -63,7 +64,7 @@ func filterV2ResultsInstance(result V2ResultData, svcToInstances map[string][]st
 	return false
 }
 
-func convertV2MemoryUsage(perfData map[string]*V2PerformanceData) []MemoryUsageStats {
+func convertV2MemoryUsage(perfData map[string]*v2PerformanceData) []MemoryUsageStats {
 	memStatsMap := make(map[string]*MemoryUsageStats) // serviceID.InstanceID
 	for agg, perf := range perfData {
 		for _, result := range perf.Series {
@@ -136,7 +137,8 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 	return mems
 }
 
-func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error) {
+// GetHostMemoryStats returns host memory usage stats
+func (c *clientImpl) GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error) {
 	logger := log.WithField("hostid", hostID)
 	getter := func() ([]MemoryUsageStats, error) {
 		logger.Debug("Requesting memory stats for host")
@@ -176,7 +178,8 @@ func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*Memory
 	return &stats[0], nil
 }
 
-func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error) {
+// GetServiceMemoryStats returns service memory usage stats
+func (c *clientImpl) GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error) {
 	logger := log.WithField("serviceid", serviceID)
 	getter := func() ([]MemoryUsageStats, error) {
 		logger.Debug("Requesting memory stats for service")
@@ -216,11 +219,12 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 	return &stats[0], nil
 }
 
-func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
+// GetInstanceMemoryStats returns service instance memory usage stats
+func (c *clientImpl) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
 	logger := log.WithField("instancecount", len(instances))
 	logger.Debug("Requesting memory stats service instances")
 	secsAgo := time.Now().Sub(startDate).Seconds()
-	options := V2PerformanceOptions{
+	options := v2PerformanceOptions{
 		Start: fmt.Sprintf("%ds-ago", int(secsAgo)),
 		End:   "now",
 	}
@@ -228,11 +232,11 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 	// build a list of unique service IDs for the query
 	serviceInstanceFilterMap := make(map[string][]string)
 	servicesMap := make(map[string]struct{})
-	serviceIdTags := []string{}
+	serviceIDTags := []string{}
 	for _, instance := range instances {
 		if _, ok := servicesMap[instance.ServiceID]; !ok {
 			servicesMap[instance.ServiceID] = struct{}{}
-			serviceIdTags = append(serviceIdTags, instance.ServiceID)
+			serviceIDTags = append(serviceIDTags, instance.ServiceID)
 		}
 		// fill out filter map for later use
 		tags, ok := serviceInstanceFilterMap[instance.ServiceID]
@@ -244,20 +248,20 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 		}
 	}
 
-	query := V2MetricOptions{
+	query := v2MetricOptions{
 		Metric: "cgroup.memory.totalrss",
 		Tags: map[string][]string{
-			"controlplane_service_id":  serviceIdTags,
+			"controlplane_service_id":  serviceIDTags,
 			"controlplane_instance_id": []string{"*"},
 		},
 	}
 
 	getter := func() ([]MemoryUsageStats, error) {
 		// get max + avg
-		perfDataMap := make(map[string]*V2PerformanceData)
+		perfDataMap := make(map[string]*v2PerformanceData)
 		for _, agg := range []string{"max", "avg"} {
 			query.Downsample = fmt.Sprintf("%ds-%s", int(secsAgo), agg)
-			options.Metrics = []V2MetricOptions{query}
+			options.Metrics = []v2MetricOptions{query}
 			options.Returnset = "exact"
 
 			result, err := c.v2performanceQuery(options)
@@ -269,9 +273,9 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 
 		// get curr
 		query.Downsample = ""
-		options.Metrics = []V2MetricOptions{query}
+		options.Metrics = []v2MetricOptions{query}
 		options.Returnset = "last"
-		options.Start= "10m-ago" //Reduce the time frame to search for last value to reduce memory usage in CentralQuery
+		options.Start = "10m-ago" //Reduce the time frame to search for last value to reduce memory usage in CentralQuery
 		result, err := c.v2performanceQuery(options)
 		if err != nil {
 			return nil, err
@@ -280,7 +284,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 
 		// filter out our results by service ID + Instance ID
 		for _, perfData := range perfDataMap {
-			filteredSeries := []V2ResultData{}
+			filteredSeries := []v2ResultData{}
 			for _, result := range perfData.Series {
 				if filterV2ResultsInstance(result, serviceInstanceFilterMap) {
 					filteredSeries = append(filteredSeries, result)

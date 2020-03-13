@@ -29,43 +29,44 @@ func Test(t *testing.T) {
 }
 
 var _ = Suite(&S{
-	ElasticTest: elastic.ElasticTest{
+	Test: elastic.Test{
 		Index:    "controlplane",
 		Mappings: []elastic.Mapping{MAPPING},
-	}})
+	},
+})
 
 type S struct {
-	elastic.ElasticTest
+	elastic.Test
 	ctx datastore.Context
 	hs  Store
 }
 
 func (s *S) SetUpTest(c *C) {
-	s.ElasticTest.SetUpTest(c)
+	s.Test.SetUpTest(c)
 	datastore.Register(s.Driver())
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 	s.hs = NewStore()
 }
 
 func (s *S) Test_HostCRUD(t *C) {
 	hostID := "deadb40f"
-	defer s.hs.Delete(s.ctx, HostKey(hostID))
+	defer s.hs.Delete(s.ctx, Key(hostID))
 
 	var host2 Host
 
-	if err := s.hs.Get(s.ctx, HostKey(hostID), &host2); !datastore.IsErrNoSuchEntity(err) {
+	if err := s.hs.Get(s.ctx, Key(hostID), &host2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
 
 	host := New()
 
-	err := s.hs.Put(s.ctx, HostKey(hostID), host)
+	err := s.hs.Put(s.ctx, Key(hostID), host)
 	if err == nil {
 		t.Errorf("Expected failure to create host %-v", host)
 	}
 
 	host.ID = hostID
-	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	err = s.hs.Put(s.ctx, Key(host.ID), host)
 	if err == nil {
 		t.Errorf("Expected failure to create host %-v", host)
 	}
@@ -76,12 +77,12 @@ func (s *S) Test_HostCRUD(t *C) {
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
-	err = s.hs.Put(s.ctx, HostKey(hostID), host)
+	err = s.hs.Put(s.ctx, Key(hostID), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	err = s.hs.Get(s.ctx, HostKey(hostID), &host2)
+	err = s.hs.Get(s.ctx, Key(hostID), &host2)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -91,8 +92,8 @@ func (s *S) Test_HostCRUD(t *C) {
 
 	//Test update
 	host.Memory = 1024
-	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
-	err = s.hs.Get(s.ctx, HostKey(hostID), &host2)
+	err = s.hs.Put(s.ctx, Key(host.ID), host)
+	err = s.hs.Get(s.ctx, Key(hostID), &host2)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -101,8 +102,8 @@ func (s *S) Test_HostCRUD(t *C) {
 	}
 
 	//test delete
-	err = s.hs.Delete(s.ctx, HostKey(hostID))
-	err = s.hs.Get(s.ctx, HostKey(hostID), &host2)
+	err = s.hs.Delete(s.ctx, Key(hostID))
+	err = s.hs.Get(s.ctx, Key(hostID), &host2)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -117,15 +118,15 @@ func (s *S) TestDaoGetHostWithIPs(t *C) {
 		HostIPResource{h.ID, "testip", "ifname", "address1"},
 		HostIPResource{h.ID, "testip2", "ifname", "address2"},
 	}
-	err = s.hs.Put(s.ctx, HostKey(h.ID), h)
-	defer s.hs.Delete(s.ctx, HostKey(h.ID))
+	err = s.hs.Put(s.ctx, Key(h.ID), h)
+	defer s.hs.Delete(s.ctx, Key(h.ID))
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 		return
 	}
 
 	var resultHost Host
-	err = s.hs.Get(s.ctx, HostKey(h.ID), &resultHost)
+	err = s.hs.Get(s.ctx, Key(h.ID), &resultHost)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 		return
@@ -139,15 +140,15 @@ func (s *S) TestDaoGetHostWithIPs(t *C) {
 }
 
 func (s *S) Test_GetHosts(t *C) {
-	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts1"))
-	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts2"))
+	defer s.hs.Delete(s.ctx, Key("Test_GetHosts1"))
+	defer s.hs.Delete(s.ctx, Key("Test_GetHosts2"))
 
 	host, err := Build("", "65535", "pool-id", "", []string{}...)
 	host.ID = "deadb51f"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
-	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	err = s.hs.Put(s.ctx, Key(host.ID), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -159,7 +160,7 @@ func (s *S) Test_GetHosts(t *C) {
 	}
 
 	host.ID = "deadb52f"
-	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	err = s.hs.Put(s.ctx, Key(host.ID), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -178,19 +179,19 @@ func (s *S) Test_FindHostsInPool(t *C) {
 	id2 := "deadb62f"
 	id3 := "deadb63f"
 
-	defer s.hs.Delete(s.ctx, HostKey(id1))
-	defer s.hs.Delete(s.ctx, HostKey(id2))
-	defer s.hs.Delete(s.ctx, HostKey(id3))
+	defer s.hs.Delete(s.ctx, Key(id1))
+	defer s.hs.Delete(s.ctx, Key(id2))
+	defer s.hs.Delete(s.ctx, Key(id3))
 
 	host, err := Build("", "65535", "pool1", "", []string{}...)
 	host.ID = id1
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
-	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	err = s.hs.Put(s.ctx, Key(host.ID), host)
 
 	host.ID = id2
-	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	err = s.hs.Put(s.ctx, Key(host.ID), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -198,7 +199,7 @@ func (s *S) Test_FindHostsInPool(t *C) {
 	//add one with different pool
 	host.ID = id3
 	host.PoolID = "pool2"
-	err = s.hs.Put(s.ctx, HostKey(host.ID), host)
+	err = s.hs.Put(s.ctx, Key(host.ID), host)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -233,10 +234,10 @@ func (s *S) Test_GetHostByIP(t *C) {
 
 	host.ID = "deadb70f"
 	host.IPs = append(host.IPs, HostIPResource{IPAddress: "111.22.333.4"})
-	if err := s.hs.Put(s.ctx, HostKey(host.ID), host); err != nil {
+	if err := s.hs.Put(s.ctx, Key(host.ID), host); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	defer s.hs.Delete(s.ctx, HostKey(host.ID))
+	defer s.hs.Delete(s.ctx, Key(host.ID))
 
 	result, err := s.hs.GetHostByIP(s.ctx, "111.22.333.4")
 	if err != nil {

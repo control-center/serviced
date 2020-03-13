@@ -84,7 +84,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	hosts := []host.Host{}
 	for _, h := range reghosts {
 		hlogger := logger.WithField("hostid", h.ID)
-		isAuthenticated, err := l.facade.HostIsAuthenticated(datastore.Get(), h.ID)
+		isAuthenticated, err := l.facade.HostIsAuthenticated(datastore.GetContext(), h.ID)
 		if err != nil {
 			hlogger.WithError(err).Debug("Unable to check if host is authenticated")
 		} else if !isAuthenticated {
@@ -154,4 +154,3 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 
 	return StrategySelectHost(sn, hosts, strat, l.facade)
 }
-

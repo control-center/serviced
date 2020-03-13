@@ -34,8 +34,8 @@ miqYybTUZga1O9mykjDbrwtaigb2rP1EjQzJoMLHW27edXBZUFQjedD0N20+WkUx
 0wIDAQAB
 -----END PUBLIC KEY-----`
 
-func (s *validationSuite) TestHostKey_Success(c *C) {
-	key := HostKey{PEM: DefaultKeyText}
+func (s *validationSuite) TestRSAKey_Success(c *C) {
+	key := RSAKey{PEM: DefaultKeyText}
 	err := key.ValidEntity()
 	c.Assert(err, IsNil)
 }
@@ -46,22 +46,22 @@ func AssertContains(c *C, actual, expected string) {
 	}
 }
 
-func (s *validationSuite) TestHostKey_Empty(c *C) {
-	key := HostKey{PEM: ""}
+func (s *validationSuite) TestRSAKey_Empty(c *C) {
+	key := RSAKey{PEM: ""}
 	err := key.ValidEntity()
 	c.Assert(err, NotNil)
 	AssertContains(c, err.Error(), "Invalid public key PEM block")
 }
 
-func (s *validationSuite) TestHostKey_KeyType(c *C) {
-	key := HostKey{PEM: strings.Replace(DefaultKeyText, "PUBLIC KEY", "FOOBAR KEY", 2)}
+func (s *validationSuite) TestRSAKey_KeyType(c *C) {
+	key := RSAKey{PEM: strings.Replace(DefaultKeyText, "PUBLIC KEY", "FOOBAR KEY", 2)}
 	err := key.ValidEntity()
 	c.Assert(err, NotNil)
 	AssertContains(c, err.Error(), "Unexpected public key PEM type")
 }
 
-func (s *validationSuite) TestHostKey_Trailing(c *C) {
-	key := HostKey{PEM: DefaultKeyText + "\n--- FOO ---"}
+func (s *validationSuite) TestRSAKey_Trailing(c *C) {
+	key := RSAKey{PEM: DefaultKeyText + "\n--- FOO ---"}
 	err := key.ValidEntity()
 	c.Assert(err, NotNil)
 	AssertContains(c, err.Error(), "Unexpected characters following public key PEM block")

@@ -22,8 +22,8 @@ import (
 	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	. "gopkg.in/check.v1"
 	"github.com/stretchr/testify/mock"
+	. "gopkg.in/check.v1"
 )
 
 func (ft *FacadeUnitTest) Test_UpdateLogFilters_AddsNewFilters(c *C) {
@@ -71,7 +71,7 @@ func (ft *FacadeUnitTest) Test_UpdateLogFilters_UpdateFails(c *C) {
 func (ft *FacadeUnitTest) Test_UpdateLogFilters_GenericGetFailure(c *C) {
 	template := buildTestTemplate()
 	getError := errors.New("mock get failed")
-	ft.logFilterStore.On("Get", ft.ctx, "filter1", template.Version).Return(nil, getError)
+	ft.logfilterStore.On("Get", ft.ctx, "filter1", template.Version).Return(nil, getError)
 
 	err := ft.Facade.UpdateLogFilters(ft.ctx, template)
 
@@ -81,7 +81,7 @@ func (ft *FacadeUnitTest) Test_UpdateLogFilters_GenericGetFailure(c *C) {
 
 func (ft *FacadeUnitTest) Test_RemoveLogFilters_RemovesFilters(c *C) {
 	template := buildTestTemplate()
-	ft.logFilterStore.On("Delete", ft.ctx, "filter1", template.Version).Return(nil)
+	ft.logfilterStore.On("Delete", ft.ctx, "filter1", template.Version).Return(nil)
 
 	err := ft.Facade.RemoveLogFilters(ft.ctx, template)
 
@@ -91,7 +91,7 @@ func (ft *FacadeUnitTest) Test_RemoveLogFilters_RemovesFilters(c *C) {
 func (ft *FacadeUnitTest) Test_RemoveLogFilters_IgnoresNoSuchEntity(c *C) {
 	template := buildTestTemplate()
 	removeError := datastore.ErrNoSuchEntity{}
-	ft.logFilterStore.On("Delete", ft.ctx, "filter1", template.Version).Return(removeError)
+	ft.logfilterStore.On("Delete", ft.ctx, "filter1", template.Version).Return(removeError)
 
 	err := ft.Facade.RemoveLogFilters(ft.ctx, template)
 
@@ -101,7 +101,7 @@ func (ft *FacadeUnitTest) Test_RemoveLogFilters_IgnoresNoSuchEntity(c *C) {
 func (ft *FacadeUnitTest) Test_RemoveLogFilters_ReportsUnexpectedErrors(c *C) {
 	template := buildTestTemplate()
 	removeError := errors.New("mock delete failed")
-	ft.logFilterStore.On("Delete", ft.ctx, "filter1", template.Version).Return(removeError)
+	ft.logfilterStore.On("Delete", ft.ctx, "filter1", template.Version).Return(removeError)
 
 	err := ft.Facade.RemoveLogFilters(ft.ctx, template)
 
@@ -115,7 +115,7 @@ func buildTestTemplate() *servicetemplate.ServiceTemplate {
 		Name:    "template1",
 		Version: "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
+			servicedefinition.ServiceDefinition{
 				Name: "service1",
 				LogFilters: map[string]string{
 					"filter1": "new filter",
@@ -126,8 +126,8 @@ func buildTestTemplate() *servicetemplate.ServiceTemplate {
 }
 
 func (ft *FacadeUnitTest) setupAddFilter(c *C, template *servicetemplate.ServiceTemplate, result error) {
-	ft.logFilterStore.On("Get", ft.ctx, "filter1", template.Version).Return(nil, datastore.ErrNoSuchEntity{})
-	ft.logFilterStore.On("Put", ft.ctx, mock.AnythingOfType("*logfilter.LogFilter")).
+	ft.logfilterStore.On("Get", ft.ctx, "filter1", template.Version).Return(nil, datastore.ErrNoSuchEntity{})
+	ft.logfilterStore.On("Put", ft.ctx, mock.AnythingOfType("*logfilter.LogFilter")).
 		Run(func(args mock.Arguments) {
 			filter := args.Get(1).(*logfilter.LogFilter)
 			c.Assert(filter.Version, Equals, template.Version)
@@ -138,12 +138,12 @@ func (ft *FacadeUnitTest) setupAddFilter(c *C, template *servicetemplate.Service
 
 func (ft *FacadeUnitTest) setupUpdateFilter(c *C, template *servicetemplate.ServiceTemplate, result error) {
 	existingFilter := &logfilter.LogFilter{
-		Name: "filter1",
+		Name:    "filter1",
 		Version: template.Version,
-		Filter: "old filter",
+		Filter:  "old filter",
 	}
-	ft.logFilterStore.On("Get", ft.ctx, "filter1", template.Version).Return(existingFilter, nil)
-	ft.logFilterStore.On("Put", ft.ctx, existingFilter).
+	ft.logfilterStore.On("Get", ft.ctx, "filter1", template.Version).Return(existingFilter, nil)
+	ft.logfilterStore.On("Put", ft.ctx, existingFilter).
 		Run(func(args mock.Arguments) {
 			filter := args.Get(1).(*logfilter.LogFilter)
 			c.Assert(filter.Version, Equals, template.Version)

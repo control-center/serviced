@@ -25,12 +25,12 @@ import (
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
 	hostmocks "github.com/control-center/serviced/domain/host/mocks"
 	keymocks "github.com/control-center/serviced/domain/hostkey/mocks"
+	logfiltermocks "github.com/control-center/serviced/domain/logfilter/mocks"
 	poolmocks "github.com/control-center/serviced/domain/pool/mocks"
 	registrymocks "github.com/control-center/serviced/domain/registry/mocks"
 	servicemocks "github.com/control-center/serviced/domain/service/mocks"
 	configmocks "github.com/control-center/serviced/domain/serviceconfigfile/mocks"
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
-	logfiltermocks "github.com/control-center/serviced/domain/logfilter/mocks"
 	"github.com/control-center/serviced/facade"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
 	"github.com/control-center/serviced/metrics"
@@ -50,9 +50,9 @@ type FacadeUnitTest struct {
 	hostkeyStore     *keymocks.Store
 	registryStore    *registrymocks.ImageRegistryStore
 	serviceStore     *servicemocks.Store
-	configStore      *configmocks.Store
+	configfileStore  *configmocks.Store
 	templateStore    *templatemocks.Store
-	logFilterStore   *logfiltermocks.Store
+	logfilterStore   *logfiltermocks.Store
 	metricsClient    *zzkmocks.MetricsClient
 	hostauthregistry *authmocks.HostExpirationRegistryInterface
 }
@@ -92,7 +92,7 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 	ft.Facade.SetHostStore(ft.hostStore)
 
 	ft.hostkeyStore = &keymocks.Store{}
-	ft.Facade.SetHostkeyStore(ft.hostkeyStore)
+	ft.Facade.SetHostKeyStore(ft.hostkeyStore)
 
 	ft.poolStore = &poolmocks.Store{}
 	ft.Facade.SetPoolStore(ft.poolStore)
@@ -103,14 +103,14 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 	ft.serviceStore = &servicemocks.Store{}
 	ft.Facade.SetServiceStore(ft.serviceStore)
 
-	ft.configStore = &configmocks.Store{}
-	ft.Facade.SetConfigStore(ft.configStore)
+	ft.configfileStore = &configmocks.Store{}
+	ft.Facade.SetServiceConfigFileStore(ft.configfileStore)
 
 	ft.templateStore = &templatemocks.Store{}
-	ft.Facade.SetTemplateStore(ft.templateStore)
+	ft.Facade.SetServiceTemplateStore(ft.templateStore)
 
-	ft.logFilterStore = &logfiltermocks.Store{}
-	ft.Facade.SetLogFilterStore(ft.logFilterStore)
+	ft.logfilterStore = &logfiltermocks.Store{}
+	ft.Facade.SetLogFilterStore(ft.logfilterStore)
 
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)

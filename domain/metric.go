@@ -12,7 +12,6 @@
 // limitations under the License.
 
 // Package domain contains metric data objects for all domain objects
-
 package domain
 
 import (
@@ -192,7 +191,7 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 	}
 
 	logger := plog.WithFields(log.Fields{
-		"url": RequestURI,
+		"url":    RequestURI,
 		"method": Method,
 	})
 

@@ -69,7 +69,7 @@ func (f *Facade) GetRegistryImages(ctx datastore.Context) ([]registry.Image, err
 	return rImages, nil
 }
 
-// SearchRegistryLibrary searches the docker registry index for images at a
+// SearchRegistryLibraryByTag searches the docker registry index for images at a
 // particular library and tag.
 // e.g. library/reponame:tagname => SearchRegistryLibrary("library", "tagname")
 func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagname string) ([]registry.Image, error) {

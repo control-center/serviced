@@ -17,8 +17,8 @@ import (
 	"github.com/control-center/serviced/datastore"
 )
 
-// Entity containing a PEM-encoded RSA public key
-type HostKey struct {
+// RSAKey containing a PEM-encoded RSA public key
+type RSAKey struct {
 	PEM string
 	datastore.VersionedEntity
 }

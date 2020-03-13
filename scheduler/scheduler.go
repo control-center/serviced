@@ -85,7 +85,7 @@ func (s *scheduler) Start() {
 	}
 	s.started = true
 
-	pool, err := s.facade.GetResourcePool(datastore.Get(), s.poolID)
+	pool, err := s.facade.GetResourcePool(datastore.GetContext(), s.poolID)
 	if err != nil {
 		glog.Errorf("Could not acquire resource pool %s: %s", s.poolID, err)
 		return
@@ -155,9 +155,9 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 
 	// ensure all the services are unlocked
 	glog.Infof("Resetting service locks")
-	locker := s.facade.DFSLock(datastore.Get())
+	locker := s.facade.DFSLock(datastore.GetContext())
 	locker.Lock("reset service locks")
-	if err := s.facade.ResetLocks(datastore.Get()); err != nil {
+	if err := s.facade.ResetLocks(datastore.GetContext()); err != nil {
 		glog.Errorf("Could not reset dfs locks: %s", err)
 		return
 	}

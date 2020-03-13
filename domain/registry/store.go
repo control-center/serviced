@@ -21,57 +21,46 @@ import (
 	"github.com/zenoss/elastigo/search"
 )
 
-// NewStore creates a new image registry store
-func NewStore() ImageRegistryStore {
-	return &storeImpl{}
-}
-
-// RegistryImageStore is the database for the docker image registry
-type ImageRegistryStore interface {
-	// Get an image by id.  Return ErrNoSuchEntity if not found
+// Store is an interface for accessing registry data.
+type Store interface {
 	Get(ctx datastore.Context, id string) (*Image, error)
-
-	// Put adds/updates an image to the registry
 	Put(ctx datastore.Context, image *Image) error
-
-	// Delete removes an image from the registry
 	Delete(ctx datastore.Context, id string) error
-
-	// GetImages returns all the images that are in the registry
 	GetImages(ctx datastore.Context) ([]Image, error)
-
-	// SearchLibraryByTag looks for repos that are registered under a library and tag
 	SearchLibraryByTag(ctx datastore.Context, library, tag string) ([]Image, error)
 }
 
-type storeImpl struct {
-	ds datastore.DataStore
+type store struct{}
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
 }
 
 // Get an image by id.  Return ErrNoSuchEntity if not found
-func (s *storeImpl) Get(ctx datastore.Context, id string) (*Image, error) {
+func (s *store) Get(ctx datastore.Context, id string) (*Image, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.Get"))
 	image := &Image{}
-	if err := s.ds.Get(ctx, Key(id), image); err != nil {
+	if err := datastore.Get(ctx, Key(id), image); err != nil {
 		return nil, err
 	}
 	return image, nil
 }
 
 // Put adds/updates an image to the registry
-func (s *storeImpl) Put(ctx datastore.Context, image *Image) error {
+func (s *store) Put(ctx datastore.Context, image *Image) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.Put"))
-	return s.ds.Put(ctx, image.key(), image)
+	return datastore.Put(ctx, image.key(), image)
 }
 
 // Delete removes an image from the registry
-func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
+func (s *store) Delete(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.Delete"))
-	return s.ds.Delete(ctx, Key(id))
+	return datastore.Delete(ctx, Key(id))
 }
 
 // GetImages returns all the images that are in the registry
-func (s *storeImpl) GetImages(ctx datastore.Context) ([]Image, error) {
+func (s *store) GetImages(ctx datastore.Context) ([]Image, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.GetImages"))
 	query := search.Query().Search("_exists_:Library")
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
@@ -84,20 +73,20 @@ func (s *storeImpl) GetImages(ctx datastore.Context) ([]Image, error) {
 }
 
 // SearchLibraryByTag looks for repos that are registered under a library and tag
-func (s *storeImpl) SearchLibraryByTag(ctx datastore.Context, library, tag string) ([]Image, error) {
+func (s *store) SearchLibraryByTag(ctx datastore.Context, library, tag string) ([]Image, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.SearchLibraryByTag"))
 	if library = strings.TrimSpace(library); library == "" {
 		return nil, errors.New("empty library not allowed")
 	} else if tag = strings.TrimSpace(tag); tag == "" {
 		return nil, errors.New("empty tag not allowed")
 	}
-	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
+	searchParams := search.Search("controlplane").Type(kind).Size("50000").Filter(
 		"and",
 		search.Filter().Terms("Library", library),
 		search.Filter().Terms("Tag", tag),
 	)
 	q := datastore.NewQuery(ctx)
-	results, err := q.Execute(search)
+	results, err := q.Execute(searchParams)
 	if err != nil {
 		return nil, err
 	}

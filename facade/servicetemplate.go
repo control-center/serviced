@@ -34,7 +34,6 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 		"template":       serviceTemplate.Name,
 		"reloadlogstash": reloadLogstashConfig,
 	})
-	store := f.templateStore
 	hash, err := serviceTemplate.Hash()
 	if err != nil {
 		return "", alog.Error(err)
@@ -42,7 +41,7 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 	serviceTemplate.ID = hash
 	alog = alog.Entity(&serviceTemplate)
 	// Look up the template by ID
-	if st, err := store.Get(ctx, hash); err != nil && !datastore.IsErrNoSuchEntity(err) {
+	if st, err := f.templateStore.Get(ctx, hash); err != nil && !datastore.IsErrNoSuchEntity(err) {
 		logger.WithError(err).WithField("hash", hash).Error("Could not look up service template by hash")
 		return "", alog.Error(err)
 	} else if st != nil {
@@ -62,7 +61,7 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 		return tid, nil
 	}
 	// Add the template to the database
-	if err := store.Put(ctx, serviceTemplate); err != nil {
+	if err := f.templateStore.Put(ctx, serviceTemplate); err != nil {
 		logger.WithError(err).Error("Could not add template")
 		return "", alog.Error(err)
 	}
@@ -176,8 +175,7 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 // getServiceTemplateByMD5Sum returns the id of the template that matches the
 // given md5sum (if it exists)
 func (f *Facade) getServiceTemplateByMD5Sum(ctx datastore.Context, md5Sum string) (string, error) {
-	store := f.templateStore
-	templates, err := store.GetServiceTemplates(ctx)
+	templates, err := f.templateStore.GetServiceTemplates(ctx)
 	if err != nil {
 		plog.WithError(err).Error("Could not get service templates")
 		return "", err
@@ -370,7 +368,6 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 // with the same name will be overwritten, otherwise services may only be added.
 func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployService"))
-	store := f.serviceStore
 	alog := f.auditLogger.Message(ctx, "Deploying Service Definition").Action(audit.Deploy).
 		ID(parentID).Type(service.GetType()).
 		WithFields(logrus.Fields{"poolid": poolID, "svcdefname": svcDef.GetID()})
@@ -381,7 +378,7 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 		"svcdefname": svcDef.GetID(),
 	})
 	// get the parent service
-	svc, err := store.Get(ctx, parentID)
+	svc, err := f.serviceStore.Get(ctx, parentID)
 	if err != nil {
 		logger.WithError(err).Error("Could not get parent service")
 		return "", alog.Error(err)
@@ -457,8 +454,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		newsvc.ImageID = image
 	}
 	// find the service
-	store := f.serviceStore
-	if svc, err := store.FindChildService(ctx, newsvc.DeploymentID, newsvc.ParentServiceID, newsvc.Name); err != nil {
+	if svc, err := f.serviceStore.FindChildService(ctx, newsvc.DeploymentID, newsvc.ParentServiceID, newsvc.Name); err != nil {
 		logger.WithError(err).Error("Could not look up child service")
 		return "", err
 	} else if svc != nil {

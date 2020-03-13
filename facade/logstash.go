@@ -20,30 +20,29 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 	"strings"
+	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/logfilter"
-	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/version"
 )
 
-
 var (
-	logstashConfigLock = &sync.Mutex{}
+	logstashConfigLock   = &sync.Mutex{}
 	ErrLogstashUnchanged = errors.New("logstash config unchanged")
 )
 
 type serviceLogInfo struct {
-	ID         string               // service ID
-	Name       string		// service name
-	Version    string		// version of parent tenant application
+	ID         string // service ID
+	Name       string // service name
+	Version    string // version of parent tenant application
 	LogConfigs []servicedefinition.LogConfig
 }
 
@@ -108,7 +107,7 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 	}
 
 	filterSection := ""
-	logFiles := []string{} 	// a list of unique application log file names
+	logFiles := []string{} // a list of unique application log file names
 	auditLogSection := ""
 	auditableTypes := []string{} // a list of unique log types where IsAudit=true
 
@@ -129,15 +128,15 @@ func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
 	return nil
 }
 
-type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
+type reloadLogstashContainer func(ctx datastore.Context, f API) error
 
 var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
 
-func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
+func reloadLogstashContainerImpl(ctx datastore.Context, f API) error {
 	return f.ReloadLogstashConfig(ctx)
 }
 
-func addServiceLogs(tenantVersion string, svcs []service.Service, serviceLogs map[string]serviceLogInfo){
+func addServiceLogs(tenantVersion string, svcs []service.Service, serviceLogs map[string]serviceLogInfo) {
 	for _, svc := range svcs {
 		if len(svc.LogConfigs) == 0 {
 			continue
@@ -166,9 +165,9 @@ func writeLogstashConfiguration(filterSection, auditLogSection string) error {
 
 	logstashDir := getLogstashConfigDirectory()
 	newConfigFile := filepath.Join(logstashDir, "logstash.conf.new")
-	originalFile :=filepath.Join(logstashDir, "logstash.conf")
+	originalFile := filepath.Join(logstashDir, "logstash.conf")
 	logger := plog.WithFields(log.Fields{
-		"newconfigfile": newConfigFile,
+		"newconfigfile":     newConfigFile,
 		"currentconfigfile": originalFile,
 	})
 
@@ -202,7 +201,6 @@ func writeLogstashConfiguration(filterSection, auditLogSection string) error {
 	return nil
 }
 
-
 func getFilterSection(logInfo serviceLogInfo, logFilters []*logfilter.LogFilter, logFiles *[]string) string {
 	filterSection := ""
 	for _, config := range logInfo.LogConfigs {
@@ -210,9 +208,9 @@ func getFilterSection(logInfo serviceLogInfo, logFilters []*logfilter.LogFilter,
 			filterValue, ok := findNewestFilter(filterName, logInfo, logFilters)
 			if !ok {
 				plog.WithFields(log.Fields{
-					"serviceid": logInfo.ID,
+					"serviceid":   logInfo.ID,
 					"servicename": logInfo.Name,
-					"filter": filterName,
+					"filter":      filterName,
 				}).Warn("service log filter not found")
 				continue
 			}
@@ -256,13 +254,13 @@ func findNewestFilter(filterName string, logInfo serviceLogInfo, logFilters []*l
 	if closest == nil {
 		return "", false
 	}
-	if !svcVersion.Equal(filterVersion)  {
+	if !svcVersion.Equal(filterVersion) {
 		plog.WithFields(log.Fields{
-			"serviceid": logInfo.ID,
-			"servicename": logInfo.Name,
+			"serviceid":      logInfo.ID,
+			"servicename":    logInfo.Name,
 			"serviceversion": logInfo.Version,
-			"filter": filterName,
-			"filterversion": closest.Version,
+			"filter":         filterName,
+			"filterversion":  closest.Version,
 		}).Warn("Unable to find exact match for service log filter version")
 	}
 	return closest.Filter, true
@@ -278,7 +276,7 @@ func getAuditLogSection(configs []servicedefinition.LogConfig, auditTypes *[]str
 	fileSection = fmt.Sprintf(fileSection, auditLogFile)
 	for _, config := range configs {
 		if config.IsAudit {
-			if !utils.StringInSlice(config.Type, *auditTypes){
+			if !utils.StringInSlice(config.Type, *auditTypes) {
 				plog.Infof("found type %q enabled for audit, file=%s", config.Type, config.Path)
 				auditSection += fmt.Sprintf("\n        if [fields][type] == \"%s\" {\n%s        }",
 					config.Type, indent(fileSection, "            "))
@@ -329,10 +327,10 @@ filter {
 
 	newContents := strings.Replace(string(contents), "${FILTER_SECTION}", filterDefinition, 1)
 	if len(auditLogSection) > 0 {
-		newContents = strings.Replace(string(newContents),"${AUDITLOG_SECTION}", auditLogSection, 1)
+		newContents = strings.Replace(string(newContents), "${AUDITLOG_SECTION}", auditLogSection, 1)
 	}
 	if config.GetOptions().LogstashStdout {
-		newContents = strings.Replace(string(newContents),"${STDOUT_SECTION}", stdoutSection, 1)
+		newContents = strings.Replace(string(newContents), "${STDOUT_SECTION}", stdoutSection, 1)
 	}
 	newBytes := []byte(newContents)
 	// generate the filters section

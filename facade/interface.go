@@ -31,8 +31,8 @@ import (
 	"github.com/control-center/serviced/utils"
 )
 
-// The FacadeInterface is the API for a Facade
-type FacadeInterface interface {
+// The API is the API for a Facade
+type API interface {
 	AddService(ctx datastore.Context, svc service.Service) error
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)

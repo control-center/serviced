@@ -19,18 +19,31 @@ import (
 	"strings"
 )
 
-// NewStore creates a user Store
-func NewStore() Store {
-	return &userStoreImpl{}
-}
-
-// UserStore type for interacting with User persistent storage
+// Store is an interface for accessing user data.
 type Store interface {
-	datastore.EntityStore
+	datastore.Store
 }
 
-type userStoreImpl struct {
-	datastore.DataStore
+type store struct{}
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
+}
+
+// Put adds or updates an entity
+func (s *store) Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Put(ctx, key, entity)
+}
+
+// Get an entity. Return ErrNoSuchEntity if nothing found for the key.
+func (s *store) Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Get(ctx, key, entity)
+}
+
+// Delete removes the entity
+func (s *store) Delete(ctx datastore.Context, key datastore.Key) error {
+	return datastore.Delete(ctx, key)
 }
 
 //Key creates a Key suitable for getting, putting and deleting Users

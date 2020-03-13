@@ -22,17 +22,43 @@ import (
 	"github.com/zenoss/elastigo/search"
 )
 
-//NewStore creates a AddressAssignmentStore store
-func NewStore() *Store {
-	return &Store{}
+// Store is an interface for accessing address assignment data.
+type Store interface {
+	datastore.Store
+
+	GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssignment, error)
+	GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error)
+	GetServiceAddressAssignmentsByPort(ctx datastore.Context, poolID string, port uint16) ([]AddressAssignment, error)
+	FindAssignmentByHostPort(ctx datastore.Context, poolID string, ipAddr string, port uint16) (*AddressAssignment, error)
+	FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*AddressAssignment, error)
 }
 
-//Store type for interacting with AddressAssignment persistent storage
-type Store struct {
-	datastore.DataStore
+type store struct{}
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
 }
 
-func (s *Store) GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssignment, error) {
+var kind = "addressassignment"
+
+// Put adds or updates an entity
+func (s *store) Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Put(ctx, key, entity)
+}
+
+// Get an entity. Return ErrNoSuchEntity if nothing found for the key.
+func (s *store) Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Get(ctx, key, entity)
+}
+
+// Delete removes the entity
+func (s *store) Delete(ctx datastore.Context, key datastore.Key) error {
+	return datastore.Delete(ctx, key)
+}
+
+// GetAllAddressAssignments stuff
+func (s *store) GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetAllAddressAssignments"))
 	q := datastore.NewQuery(ctx)
 	search := search.Search("controlplane").Type(kind).Size("50000")
@@ -43,7 +69,8 @@ func (s *Store) GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssign
 	return convert(results)
 }
 
-func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
+// GetServiceAddressAssignments stuff
+func (s *store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignments"))
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Term("ServiceID", serviceID)
@@ -55,7 +82,8 @@ func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID st
 	return convert(results)
 }
 
-func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, poolID string, port uint16) ([]AddressAssignment, error) {
+// GetServiceAddressAssignmentsByPort stuff
+func (s *store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, poolID string, port uint16) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignmentsByPort"))
 	if poolID = strings.TrimSpace(poolID); poolID == "" {
 		return nil, fmt.Errorf("poolID cannot be empty")
@@ -69,14 +97,15 @@ func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, poolID
 		search.Filter().Terms("Port", strconv.FormatUint(uint64(port), 10)),
 	)
 
-	if results, err := datastore.NewQuery(ctx).Execute(search); err != nil {
+	results, err := datastore.NewQuery(ctx).Execute(search)
+	if err != nil {
 		return nil, err
-	} else {
-		return convert(results)
 	}
+	return convert(results)
 }
 
-func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*AddressAssignment, error) {
+// FindAssignmentByServiceEndpoint stuff
+func (s *store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.FindAssignmentByServiceEndpoint"))
 	if serviceID = strings.TrimSpace(serviceID); serviceID == "" {
 		return nil, fmt.Errorf("service ID cannot be empty")
@@ -101,7 +130,8 @@ func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID
 	}
 }
 
-func (s *Store) FindAssignmentByHostPort(ctx datastore.Context, poolID string, ipAddr string, port uint16) (*AddressAssignment, error) {
+// FindAssignmentByHostPort suff
+func (s *store) FindAssignmentByHostPort(ctx datastore.Context, poolID string, ipAddr string, port uint16) (*AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.FindAssignmentByHostPort"))
 	if poolID = strings.TrimSpace(poolID); poolID == "" {
 		return nil, fmt.Errorf("poolID cannot be empty")
@@ -147,5 +177,3 @@ func convert(results datastore.Results) ([]AddressAssignment, error) {
 	}
 	return assignments, nil
 }
-
-var kind = "addressassignment"

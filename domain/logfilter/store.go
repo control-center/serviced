@@ -14,62 +14,52 @@
 package logfilter
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
-	"fmt"
 	"github.com/zenoss/elastigo/search"
 )
 
-
-// Store is the database for the LogFilters
+// Store defines the interface to accessing LogFilter data.
 type Store interface {
-	// Get a LogFilter by name and version. Return ErrNoSuchEntity if not found
 	Get(ctx datastore.Context, name, version string) (*LogFilter, error)
-
-	// Put adds or updates a LogFilter
 	Put(ctx datastore.Context, lf *LogFilter) error
-
-	// Delete removes the a LogFilter if it exists
 	Delete(ctx datastore.Context, name, version string) error
-
-	// GetLogFilters returns all LogFilters
 	GetLogFilters(ctx datastore.Context) ([]*LogFilter, error)
 }
 
-type storeImpl struct {
-	ds datastore.DataStore
-}
+type store struct{}
 
-// NewStore creates a Store for LogFilters
+// NewStore returns a new object that implements the Store interface.
 func NewStore() Store {
-	return &storeImpl{}
+	return &store{}
 }
 
 // Get a LogFilter by id.  Return ErrNoSuchEntity if not found
-func (s *storeImpl) Get(ctx datastore.Context, name, version string) (*LogFilter, error) {
+func (s *store) Get(ctx datastore.Context, name, version string) (*LogFilter, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("LogFilterStore.Get"))
 	val := &LogFilter{}
-	if err := s.ds.Get(ctx, Key(name, version), val); err != nil {
+	if err := datastore.Get(ctx, Key(name, version), val); err != nil {
 		return nil, err
 	}
 	return val, nil
 }
 
 // Put adds/updates a LogFilter
-func (s *storeImpl) Put(ctx datastore.Context, lf *LogFilter) error {
+func (s *store) Put(ctx datastore.Context, lf *LogFilter) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("LogFilterStore.Put"))
-	return s.ds.Put(ctx, Key(lf.Name, lf.Version), lf)
+	return datastore.Put(ctx, Key(lf.Name, lf.Version), lf)
 }
 
 // Delete removes a LogFilter
-func (s *storeImpl) Delete(ctx datastore.Context, name, version string) error {
+func (s *store) Delete(ctx datastore.Context, name, version string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("LogFilterStore.Delete"))
-	return s.ds.Delete(ctx, Key(name, version))
+	return datastore.Delete(ctx, Key(name, version))
 }
 
 // GetLogFilters returns all LogFilters
-func (s *storeImpl) GetLogFilters(ctx datastore.Context) ([]*LogFilter, error) {
+func (s *store) GetLogFilters(ctx datastore.Context) ([]*LogFilter, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:Name")
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)

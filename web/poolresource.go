@@ -211,7 +211,7 @@ func restGetPoolIps(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	w.WriteJson(&ips)
 }
 
-func getPoolHostIds(poolID string, facade facade.FacadeInterface, dataCtx datastore.Context) ([]string, error) {
+func getPoolHostIds(poolID string, facade facade.API, dataCtx datastore.Context) ([]string, error) {
 	hosts, err := facade.FindHostsInPool(dataCtx, poolID)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
@@ -225,7 +225,7 @@ func getPoolHostIds(poolID string, facade facade.FacadeInterface, dataCtx datast
 	return hostIDs, nil
 }
 
-func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, facade facade.FacadeInterface, dataCtx datastore.Context) error {
+func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, facade facade.API, dataCtx datastore.Context) error {
 	var totalMemory uint64
 	var totalCores int
 

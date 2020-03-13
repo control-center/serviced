@@ -18,9 +18,21 @@ import (
 	"fmt"
 )
 
+// Mapping defines a named mapping set.
 type Mapping struct {
 	Name    string
 	Entries map[string]interface{}
+}
+
+// NewMapping returns a new Mapping object.
+func NewMapping(mapping string) (Mapping, error) {
+	bytes := []byte(mapping)
+	var result Mapping
+	if err := json.Unmarshal(bytes, &result); err != nil {
+		plog.WithError(err).Error("Unable to create mapping")
+		return result, err
+	}
+	return result, nil
 }
 
 // MarshalJSON returns *m as the JSON encoding of m.
@@ -35,12 +47,12 @@ func (m *Mapping) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &rawmapping); err != nil {
 		return err
 	}
-	if mapping, err := newMapping(rawmapping); err != nil {
+	mapping, err := newMapping(rawmapping)
+	if err != nil {
 		return err
-	} else {
-		m.Name = mapping.Name
-		m.Entries = mapping.Entries
 	}
+	m.Name = mapping.Name
+	m.Entries = mapping.Entries
 	return nil
 }
 
@@ -54,14 +66,4 @@ func newMapping(rawmapping map[string]map[string]interface{}) (Mapping, error) {
 		mapping.Entries = val
 	}
 	return mapping, nil
-}
-
-func NewMapping(mapping string) (Mapping, error) {
-	bytes := []byte(mapping)
-	var result Mapping
-	if err := json.Unmarshal(bytes, &result); err != nil {
-		plog.WithError(err).Error("Unable to create mapping")
-		return result, err
-	}
-	return result, nil
 }

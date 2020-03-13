@@ -13,14 +13,16 @@
 
 package mocks
 
-import "github.com/control-center/serviced/datastore"
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/control-center/serviced/datastore"
+	"github.com/stretchr/testify/mock"
+)
 
-type EntityStore struct {
+type Store struct {
 	mock.Mock
 }
 
-func (_m *EntityStore) Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+func (_m *Store) Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
 	ret := _m.Called(ctx, key, entity)
 
 	var r0 error
@@ -32,7 +34,8 @@ func (_m *EntityStore) Put(ctx datastore.Context, key datastore.Key, entity data
 
 	return r0
 }
-func (_m *EntityStore) Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+
+func (_m *Store) Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
 	ret := _m.Called(ctx, key, entity)
 
 	var r0 error
@@ -44,7 +47,8 @@ func (_m *EntityStore) Get(ctx datastore.Context, key datastore.Key, entity data
 
 	return r0
 }
-func (_m *EntityStore) Delete(ctx datastore.Context, key datastore.Key) error {
+
+func (_m *Store) Delete(ctx datastore.Context, key datastore.Key) error {
 	ret := _m.Called(ctx, key)
 
 	var r0 error

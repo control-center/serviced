@@ -399,44 +399,44 @@ func (s *TestDockerSuite) TestNewContainerOnCreatedAndStartedActions(c *C) {
 		HostConfig: &dockerclient.HostConfig{},
 	}
 
-	cc := make(chan struct{})
-	sc := make(chan struct{})
+	createActionChan := make(chan struct{})
+	startActionChan := make(chan struct{})
 
-	ca := func(id string) {
-		cc <- struct{}{}
+	createAction := func(id string) {
+		createActionChan <- struct{}{}
 	}
 
-	sa := func(id string) {
-		sc <- struct{}{}
+	startAction := func(id string) {
+		startActionChan <- struct{}{}
 	}
 
 	var ctr *Container
-	ctrCreated := make(chan struct{})
+	createdChan := make(chan struct{})
 	go func() {
 		var err error
 
-		ctr, err = NewContainer(cd, true, 300*time.Second, ca, sa)
+		ctr, err = NewContainer(cd, true, 300*time.Second, createAction, startAction)
 		c.Assert(err, IsNil)
 
-		ctrCreated <- struct{}{}
+		createdChan <- struct{}{}
 	}()
 
 	select {
-	case <-cc:
+	case <-createActionChan:
 		break
 	case <-time.After(360 * time.Second):
 		c.Fatal("timed out waiting for create action execution")
 	}
 
 	select {
-	case <-sc:
+	case <-startActionChan:
 		break
-	case <-time.After(1 * time.Second):
+	case <-time.After(30 * time.Second):
 		c.Fatal("timed out waiting for start action execution")
 	}
 
 	select {
-	case <-ctrCreated:
+	case <-createdChan:
 		ctr.Kill()
 		ctr.Delete(true)
 		break

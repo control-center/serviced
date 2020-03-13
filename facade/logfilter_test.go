@@ -24,7 +24,7 @@ import (
 // Add a service template with no log filters
 //	run bootstrap
 //	Expect false returned and no log filters exist
-func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_NoFilters(c *C) {
+func (ft *IntegrationTest) TestFacade_LogFilterBootstrap_NoFilters(c *C) {
 	var (
 		result bool
 		err    error
@@ -36,8 +36,8 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_NoFilters(c *C) {
 		Description: "test bootstrap template1",
 		Version:     "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
-				Name: "service1",
+			servicedefinition.ServiceDefinition{
+				Name:   "service1",
 				Launch: "manual",
 			},
 		},
@@ -50,15 +50,14 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_NoFilters(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(result, Equals, false)
 
-	_, err = ft.Facade.logFilterStore.Get(ft.CTX, "filter1", template.Version)
+	_, err = ft.Facade.logfilterStore.Get(ft.CTX, "filter1", template.Version)
 	c.Assert(err, ErrorMatches, "No such entity.*")
 }
-
 
 // Add a service template with log filters
 //	run bootstrap
 //	Expect false returned and log filters exist
-func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_ExistingFilters(c *C) {
+func (ft *IntegrationTest) TestFacade_LogFilterBootstrap_ExistingFilters(c *C) {
 	var (
 		result bool
 		err    error
@@ -69,8 +68,8 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_ExistingFilters(c
 		Description: "test bootstrap template2",
 		Version:     "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
-				Name: "service1",
+			servicedefinition.ServiceDefinition{
+				Name:   "service1",
 				Launch: "manual",
 				LogFilters: map[string]string{
 					"filter1": "some filter",
@@ -86,7 +85,7 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_ExistingFilters(c
 	c.Assert(err, IsNil)
 	c.Assert(result, Equals, false)
 
-	_, err = ft.Facade.logFilterStore.Get(ft.CTX, "filter1", template.Version)
+	_, err = ft.Facade.logfilterStore.Get(ft.CTX, "filter1", template.Version)
 	c.Assert(err, IsNil)
 }
 
@@ -94,7 +93,7 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_ExistingFilters(c
 //	remove the filters to simulate older implementations
 //	run bootstrap
 //	Expect true returned and log filters exist
-func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_AddsFilters(c *C) {
+func (ft *IntegrationTest) TestFacade_LogFilterBootstrap_AddsFilters(c *C) {
 	var (
 		result bool
 		err    error
@@ -105,8 +104,8 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_AddsFilters(c *C)
 		Description: "test bootstrap template2",
 		Version:     "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
-				Name: "service1",
+			servicedefinition.ServiceDefinition{
+				Name:   "service1",
 				Launch: "manual",
 				LogFilters: map[string]string{
 					"filter1": "some filter",
@@ -123,13 +122,13 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_AddsFilters(c *C)
 
 	// Sanity check to prove the filters were really removed so that we're sure that
 	//   the following BootstrapLogFilters was responsible for adding the filters
-	_, err = ft.Facade.logFilterStore.Get(ft.CTX, "filter1", template.Version)
+	_, err = ft.Facade.logfilterStore.Get(ft.CTX, "filter1", template.Version)
 	c.Assert(err, ErrorMatches, "No such entity.*")
 
 	result, err = ft.Facade.BootstrapLogFilters(ft.CTX)
 	c.Assert(err, IsNil)
 	c.Assert(result, Equals, true)
 
-	_, err = ft.Facade.logFilterStore.Get(ft.CTX, "filter1", template.Version)
+	_, err = ft.Facade.logfilterStore.Get(ft.CTX, "filter1", template.Version)
 	c.Assert(err, IsNil)
 }

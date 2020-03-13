@@ -60,7 +60,7 @@ func StrategySelectHost(sn *zkservice.ServiceNode, hosts []host.Host, strat stra
 
 	// Look up all running services for the hosts
 	glog.V(2).Infof("Looking up instances for hosts: %+v", hostids)
-	svcs, err := facade.GetHostStrategyInstances(datastore.Get(), hosts)
+	svcs, err := facade.GetHostStrategyInstances(datastore.GetContext(), hosts)
 	if err != nil {
 		return "", err
 	}

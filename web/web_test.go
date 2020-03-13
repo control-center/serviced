@@ -39,7 +39,7 @@ type TestWebSuite struct {
 	recorder   *httptest.ResponseRecorder
 	writer     rest.ResponseWriter
 	mockDriver *datastoreMocks.Driver
-	mockFacade *facadeMocks.FacadeInterface
+	mockFacade *facadeMocks.API
 }
 
 // verify TestWebSuite implements the Suite interface
@@ -49,7 +49,7 @@ func (s *TestWebSuite) SetUpTest(c *C) {
 	s.mockDriver = &datastoreMocks.Driver{}
 	datastore.Register(s.mockDriver)
 
-	s.mockFacade = &facadeMocks.FacadeInterface{}
+	s.mockFacade = &facadeMocks.API{}
 	config := ServiceConfig{facade: s.mockFacade}
 	s.ctx = newRequestContext(&config)
 

@@ -71,7 +71,7 @@ var dfsRegistrySvcDefs = [...]service.Service{
 var _ = gocheck.Suite(&FacadeDfsRegistryTest{})
 
 type FacadeDfsRegistryTest struct {
-	elastic.ElasticTest
+	elastic.Test
 	CTX    datastore.Context
 	Facade *Facade
 	zzk    *zzkmocks.ZZK
@@ -96,9 +96,9 @@ func (fdrt *FacadeDfsRegistryTest) SetUpSuite(c *gocheck.C) {
 	fdrt.Mappings = append(fdrt.Mappings, user.MAPPING)
 	fdrt.Mappings = append(fdrt.Mappings, registry.MAPPING)
 
-	fdrt.ElasticTest.SetUpSuite(c)
+	fdrt.Test.SetUpSuite(c)
 	datastore.Register(fdrt.Driver())
-	fdrt.CTX = datastore.Get()
+	fdrt.CTX = datastore.GetContext()
 
 	fdrt.Facade = New()
 
@@ -107,7 +107,7 @@ func (fdrt *FacadeDfsRegistryTest) SetUpSuite(c *gocheck.C) {
 }
 
 func (fdrt *FacadeDfsRegistryTest) SetUpTest(c *gocheck.C) {
-	fdrt.ElasticTest.SetUpTest(c)
+	fdrt.Test.SetUpTest(c)
 	fdrt.zzk = &zzkmocks.ZZK{}
 	fdrt.Facade.SetZZK(fdrt.zzk)
 	fdrt.dfs = &dfsmocks.DFS{}
@@ -126,9 +126,9 @@ func (fdrt *FacadeDfsRegistryTest) TearDownTest(c *gocheck.C) {
 
 func (fdrt *FacadeDfsRegistryTest) TearDownSuite(c *gocheck.C) {
 	if exists := fdrt.oldRegistryImageExists(c); exists {
-		cmd := exec.Command("docker", "rmi", "--force", fdrt.registryVersionInfo.imageId)
+		cmd := exec.Command("docker", "rmi", "--force", fdrt.registryVersionInfo.imageID)
 		if err := cmd.Run(); err != nil {
-			c.Errorf("Could not delete image %s: %s", fdrt.registryVersionInfo.imageId, err)
+			c.Errorf("Could not delete image %s: %s", fdrt.registryVersionInfo.imageID, err)
 		}
 	}
 }
@@ -171,7 +171,7 @@ func (fdrt *FacadeDfsRegistryTest) oldRegistryContainerExists(c *gocheck.C) (fou
 }
 
 func (fdrt *FacadeDfsRegistryTest) oldRegistryImageExists(c *gocheck.C) (found bool) {
-	return execGrep(c, "docker images", fdrt.registryVersionInfo.imageId)
+	return execGrep(c, "docker images", fdrt.registryVersionInfo.imageID)
 }
 
 func execGrep(c *gocheck.C, command string, stringToFind string) (found bool) {

@@ -185,7 +185,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceSimple(c *C) {
 	}
 	ft.serviceStore.On("GetServiceDetails", ft.ctx, serviceID).Return(&service.ServiceDetails{ID: serviceID}, nil)
 	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(&svc, nil)
-	ft.configStore.On("GetConfigFiles", ft.ctx, serviceID, "/"+serviceID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, serviceID, "/"+serviceID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	instanceID := 99
 	result, err := ft.Facade.GetEvaluatedService(ft.ctx, serviceID, instanceID)
@@ -214,11 +214,11 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceUsesParent(c *C) {
 		Actions:         map[string]string{"parent": "{{(parent .).ID}}", "instanceID": "{{.InstanceID}}"},
 	}
 	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parentSvc, nil)
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	ft.serviceStore.On("Get", ft.ctx, childID).Return(&childSvc, nil)
 	childServicePath := "/" + parentID + "/" + childID
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	instanceID := 99
 	result, err := ft.Facade.GetEvaluatedService(ft.ctx, childID, instanceID)
@@ -250,12 +250,12 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceUsesChild(c *C) {
 		Title:           childTitle,
 	}
 	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parentSvc, nil)
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 	ft.serviceStore.On("FindChildService", ft.ctx, deploymentID, parentID, childName).Return(&childSvc, nil)
 
 	ft.serviceStore.On("Get", ft.ctx, childID).Return(&childSvc, nil)
 	childServicePath := "/" + parentID + "/" + childID
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	instanceID := 99
 	result, err := ft.Facade.GetEvaluatedService(ft.ctx, parentID, instanceID)
@@ -315,14 +315,14 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 		ParentServiceID: parentID,
 		Actions:         map[string]string{"parent": "{{(parent .).ID}}", "instanceID": "{{.InstanceID}}"},
 	}
-	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(&service.ServiceDetails{ID:childID, ParentServiceID:parentID}, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(&service.ServiceDetails{ID: childID, ParentServiceID: parentID}, nil)
 	ft.serviceStore.On("Get", ft.ctx, childID).Return(&childSvc, nil)
 	childServicePath := "/" + parentID + "/" + childID
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil).Twice()
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil).Twice()
 
 	expectedError := fmt.Errorf("expected error: oops")
 	ft.serviceStore.On("Get", ft.ctx, parentID).Return(nil, expectedError)
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	unused := 0
 	result, err := ft.Facade.GetEvaluatedService(ft.ctx, childID, unused)
@@ -352,16 +352,16 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetChildFails(c *C) {
 		ParentServiceID: parentID,
 		Title:           childTitle,
 	}
-	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(&service.ServiceDetails{ID:parentID}, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(&service.ServiceDetails{ID: parentID}, nil)
 	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parentSvc, nil)
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	expectedError := fmt.Errorf("expected error: oops")
 	ft.serviceStore.On("FindChildService", ft.ctx, deploymentID, parentID, childName).Return(nil, expectedError)
 
 	ft.serviceStore.On("Get", ft.ctx, childID).Return(&childSvc, nil)
 	childServicePath := "/" + parentID + "/" + childID
-	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	unused := 0
 	result, err := ft.Facade.GetEvaluatedService(ft.ctx, parentID, unused)

@@ -37,5 +37,5 @@ type Server struct {
 
 func (s *Server) context() datastore.Context {
 	//here in case we ever need to create a per request context
-	return datastore.Get()
+	return datastore.GetContext()
 }

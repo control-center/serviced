@@ -269,7 +269,7 @@ func (_m *Store) FindTenantByDeploymentID(ctx datastore.Context, deploymentID st
 
 	return r0, r1
 }
-func (_m *Store) Query(ctx datastore.Context, query service.Query) ([]service.ServiceDetails, error) {
+func (_m *Store) Search(ctx datastore.Context, query service.Query) ([]service.ServiceDetails, error) {
 	ret := _m.Called(ctx, query)
 
 	var r0 []service.ServiceDetails

@@ -37,8 +37,7 @@ func (f *Facade) ReportInstanceDead(serviceID string, instanceID int) {
 // GetServicesHealth returns the status of all services health instances.
 func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServicesHealth"))
-	store := f.serviceStore
-	shs, err := store.GetAllServiceHealth(ctx)
+	shs, err := f.serviceStore.GetAllServiceHealth(ctx)
 	if err != nil {
 		glog.Errorf("Could not look up services: %s", err)
 		return nil, err
@@ -56,8 +55,7 @@ func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]ma
 // GetServiceHealth returns the status of all health instances.
 func (f *Facade) GetServiceHealth(ctx datastore.Context, serviceID string) (map[int]map[string]health.HealthStatus, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceHealth"))
-	store := f.serviceStore
-	sh, err := store.GetServiceHealth(ctx, serviceID)
+	sh, err := f.serviceStore.GetServiceHealth(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not look up service %s: %s", serviceID, err)
 		return nil, err

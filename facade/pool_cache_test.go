@@ -37,7 +37,7 @@ type poolCacheEnv struct {
 	secondService service.Service
 }
 
-func NewPoolCacheEnv() *poolCacheEnv {
+func newPoolCacheEnv() *poolCacheEnv {
 	timeStamp := time.Now()
 	return &poolCacheEnv{
 		resourcePool: pool.ResourcePool{
@@ -83,7 +83,7 @@ func NewPoolCacheEnv() *poolCacheEnv {
 func (ft *FacadeUnitTest) Test_PoolCacheEditPool(c *C) {
 	ft.setupMockDFSLocking()
 
-	pc := NewPoolCacheEnv()
+	pc := newPoolCacheEnv()
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost, pc.secondHost}, nil)
@@ -149,7 +149,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditPool(c *C) {
 func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 	ft.setupMockDFSLocking()
 
-	pc := NewPoolCacheEnv()
+	pc := newPoolCacheEnv()
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost, pc.secondHost}, nil)
@@ -175,7 +175,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 	ft.serviceStore.On("GetServiceDetailsByParentID", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).
 		Return([]service.ServiceDetails{}, nil)
 
-	ft.configStore.On("GetConfigFiles", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+	ft.configfileStore.On("GetConfigFiles", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 		Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	emptyMap := []*servicetemplate.ServiceTemplate{}
@@ -183,7 +183,6 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 
 	ft.zzk.On("UpdateService", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), false, false).
 		Return(nil)
-
 
 	pools, err := ft.Facade.GetReadPools(ft.ctx)
 	c.Assert(err, IsNil)
@@ -222,7 +221,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 	ft.setupMockDFSLocking()
 
-	pc := NewPoolCacheEnv()
+	pc := newPoolCacheEnv()
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost, pc.secondHost}, nil).Once()
@@ -239,7 +238,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 			RAMCommitment: pc.firstService.RAMCommitment,
 		}, nil)
 
-	ft.hostStore.On("Get", ft.ctx, host.HostKey(pc.secondHost.ID), mock.AnythingOfType("*host.Host")).
+	ft.hostStore.On("Get", ft.ctx, host.Key(pc.secondHost.ID), mock.AnythingOfType("*host.Host")).
 		Return(nil).
 		Run(func(args mock.Arguments) {
 			*args.Get(2).(*host.Host) = pc.secondHost
@@ -249,7 +248,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 	ft.zzk.On("UnregisterDfsClients", []host.Host{pc.secondHost}).Return(nil)
 
 	ft.hostkeyStore.On("Delete", ft.ctx, pc.secondHost.ID).Return(nil)
-	ft.hostStore.On("Delete", ft.ctx, host.HostKey(pc.secondHost.ID)).Return(nil)
+	ft.hostStore.On("Delete", ft.ctx, host.Key(pc.secondHost.ID)).Return(nil)
 
 	pools, err := ft.Facade.GetReadPools(ft.ctx)
 	c.Assert(err, IsNil)
@@ -284,7 +283,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 func (ft *FacadeUnitTest) Test_PoolCacheAddHost(c *C) {
 	ft.setupMockDFSLocking()
 
-	pc := NewPoolCacheEnv()
+	pc := newPoolCacheEnv()
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost}, nil).Once()
@@ -301,7 +300,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheAddHost(c *C) {
 			RAMCommitment: pc.firstService.RAMCommitment,
 		}, nil)
 
-	ft.hostStore.On("Get", ft.ctx, host.HostKey(pc.secondHost.ID), mock.AnythingOfType("*host.Host")).
+	ft.hostStore.On("Get", ft.ctx, host.Key(pc.secondHost.ID), mock.AnythingOfType("*host.Host")).
 		Return(datastore.ErrNoSuchEntity{}).
 		Once()
 
@@ -325,10 +324,10 @@ func (ft *FacadeUnitTest) Test_PoolCacheAddHost(c *C) {
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost, pc.secondHost}, nil)
 
-	ft.hostkeyStore.On("Put", ft.ctx, pc.secondHost.ID, mock.AnythingOfType("*hostkey.HostKey")).
+	ft.hostkeyStore.On("Put", ft.ctx, pc.secondHost.ID, mock.AnythingOfType("*hostkey.RSAKey")).
 		Return(nil)
 
-	ft.hostStore.On("Put", ft.ctx, host.HostKey(pc.secondHost.ID), &pc.secondHost).
+	ft.hostStore.On("Put", ft.ctx, host.Key(pc.secondHost.ID), &pc.secondHost).
 		Return(nil)
 
 	ft.zzk.On("AddHost", &pc.secondHost).Return(nil)

@@ -37,11 +37,20 @@ const (
 )
 
 var (
-	ErrPoolExists    = errors.New("facade: resource pool exists")
+	// ErrPoolExists a pool this name already exists
+	ErrPoolExists = errors.New("facade: resource pool exists")
+
+	// ErrPoolNotExists the name pool not does exist
 	ErrPoolNotExists = errors.New("facade: resource pool does not exist")
-	ErrIPExists      = errors.New("facade: ip exists in resource pool")
-	ErrIPNotExists   = errors.New("facade: ip does not exist in resource pool")
-	ErrDefaultPool   = errors.New("facade: cannot delete default resource pool")
+
+	// ErrIPExists the IP address already exists in the resource pool
+	ErrIPExists = errors.New("facade: ip exists in resource pool")
+
+	// ErrIPNotExists the IP address does not exist
+	ErrIPNotExists = errors.New("facade: ip does not exist in resource pool")
+
+	// ErrDefaultPool the default resource pool cannot be deleted
+	ErrDefaultPool = errors.New("facade: cannot delete default resource pool")
 )
 
 // AddResourcePool adds a new resource pool

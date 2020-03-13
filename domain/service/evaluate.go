@@ -24,7 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func parent(gs GetService) func(s *runtimeContext) (*runtimeContext, error) {
+func parent(gs GetServiceFn) func(s *runtimeContext) (*runtimeContext, error) {
 	rc := &runtimeContext{}
 	return func(svc *runtimeContext) (*runtimeContext, error) {
 		s, err := gs(svc.ParentServiceID)
@@ -35,7 +35,7 @@ func parent(gs GetService) func(s *runtimeContext) (*runtimeContext, error) {
 	}
 }
 
-func child(fc FindChildService) func(s *runtimeContext, childName string) (*runtimeContext, error) {
+func child(fc FindChildServiceFn) func(s *runtimeContext, childName string) (*runtimeContext, error) {
 	rc := &runtimeContext{}
 	return func(svc *runtimeContext, childName string) (*runtimeContext, error) {
 		s, err := fc(svc.ID, childName)
@@ -46,7 +46,7 @@ func child(fc FindChildService) func(s *runtimeContext, childName string) (*runt
 	}
 }
 
-func flattenContext(svc Service, gs GetService, prefix string, ctx *map[string]interface{}) error {
+func flattenContext(svc Service, gs GetServiceFn, prefix string, ctx *map[string]interface{}) error {
 	if svc.ParentServiceID != "" {
 		parent, err := gs(svc.ParentServiceID)
 		if err != nil {
@@ -67,14 +67,14 @@ func flattenContext(svc Service, gs GetService, prefix string, ctx *map[string]i
 	return nil
 }
 
-func getContext(gs GetService) func(s *runtimeContext, key string) (interface{}, error) {
+func getContext(gs GetServiceFn) func(s *runtimeContext, key string) (interface{}, error) {
 	return func(s *runtimeContext, key string) (interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := flattenContext(s.Service, gs, "", &ctx)
 		if err != nil {
 			plog.WithFields(log.Fields{
 				"servicename": s.Name,
-				"serviceid": s.ID,
+				"serviceid":   s.ID,
 			}).WithError(err).Error("Flattening context failed")
 		}
 
@@ -82,29 +82,29 @@ func getContext(gs GetService) func(s *runtimeContext, key string) (interface{},
 	}
 }
 
-func context(gs GetService) func(s *runtimeContext) (map[string]interface{}, error) {
+func context(gs GetServiceFn) func(s *runtimeContext) (map[string]interface{}, error) {
 	return func(s *runtimeContext) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := flattenContext(s.Service, gs, "", &ctx)
 		if err != nil {
 			plog.WithFields(log.Fields{
 				"servicename": s.Name,
-				"serviceid": s.ID,
+				"serviceid":   s.ID,
 			}).WithError(err).Error("Flattening context failed")
 		}
 		return ctx, err
 	}
 }
 
-func contextFilter(gs GetService) func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
+func contextFilter(gs GetServiceFn) func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
 	return func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := flattenContext(s.Service, gs, prefix, &ctx)
 		if err != nil {
 			plog.WithFields(log.Fields{
 				"servicename": s.Name,
-				"serviceid": s.ID,
-				"prefix": prefix,
+				"serviceid":   s.ID,
+				"prefix":      prefix,
 			}).WithError(err).Error("Flattening context failed")
 		}
 		return ctx, err
@@ -112,7 +112,7 @@ func contextFilter(gs GetService) func(s *runtimeContext, prefix string) (map[st
 }
 
 // EvaluateActionsTemplate parses and evaluates the Actions string of a service.
-func (service *Service) EvaluateActionsTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateActionsTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	for key, value := range service.Actions {
 		err, result := service.evaluateTemplate(gs, fc, instanceID, value)
 		if err != nil {
@@ -127,7 +127,7 @@ func (service *Service) EvaluateActionsTemplate(gs GetService, fc FindChildServi
 }
 
 // EvaluateHostnameTemplate parses and evaluates the Hostname string of a service.
-func (service *Service) EvaluateHostnameTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateHostnameTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	err, result := service.evaluateTemplate(gs, fc, instanceID, service.Hostname)
 	if err == nil {
 		service.Hostname = result
@@ -137,7 +137,7 @@ func (service *Service) EvaluateHostnameTemplate(gs GetService, fc FindChildServ
 
 // EvaluateVolumesTemplate parses and evaluates the ResourcePath string in
 // volumes of a service
-func (service *Service) EvaluateVolumesTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateVolumesTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	for i, vol := range service.Volumes {
 		err, result := service.evaluateTemplate(gs, fc, instanceID, vol.ResourcePath)
 		if err != nil {
@@ -153,7 +153,7 @@ func (service *Service) EvaluateVolumesTemplate(gs GetService, fc FindChildServi
 }
 
 // EvaluateStartupTemplate parses and evaluates the StartUp string of a service.
-func (service *Service) EvaluateStartupTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateStartupTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	err, result := service.evaluateTemplate(gs, fc, instanceID, service.Startup)
 	if err == nil && result != "" {
 		service.Startup = result
@@ -162,7 +162,7 @@ func (service *Service) EvaluateStartupTemplate(gs GetService, fc FindChildServi
 }
 
 // EvaluateRunsTemplate parses and evaluates the Runs string of a service.
-func (service *Service) EvaluateRunsTemplate(gs GetService, fc FindChildService) (err error) {
+func (service *Service) EvaluateRunsTemplate(gs GetServiceFn, fc FindChildServiceFn) (err error) {
 	for key, value := range service.Runs {
 		err, result := service.evaluateTemplate(gs, fc, 0, value)
 		if err != nil {
@@ -188,7 +188,7 @@ func (service *Service) EvaluateRunsTemplate(gs GetService, fc FindChildService)
 // evaluateTemplate takes a control center client and template string and evaluates
 // the template using the service as the context. If the template is invalid or there is an error
 // then an empty string is returned.
-func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, instanceID int, serviceTemplate string) (err error, result string) {
+func (service *Service) evaluateTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int, serviceTemplate string) (err error, result string) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -231,11 +231,11 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 
 // EvaluateLogConfigTemplate parses and evals the Path, Type and all the values for the tags of the log
 // configs. This happens for each LogConfig on the service.
-func (service *Service) EvaluateLogConfigTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateLogConfigTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	log.WithFields(log.Fields{
 		"servicename": service.Name,
-		"serviceid": service.ID,
-		"instanceid": instanceID,
+		"serviceid":   service.ID,
+		"instanceid":  instanceID,
 	}).Debug("Evaluating LogConfig Files")
 
 	// evaluate the template for the LogConfig as well as the tags
@@ -274,11 +274,11 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService, fc FindChildSer
 
 // EvaluateConfigFilesTemplate parses and evals the Filename and Content. This happens for each
 // ConfigFile on the service.
-func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateConfigFilesTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	log.WithFields(log.Fields{
 		"servicename": service.Name,
-		"serviceid": service.ID,
-		"instanceid": instanceID,
+		"serviceid":   service.ID,
+		"instanceid":  instanceID,
 	}).Debug("Evaluating Config Files")
 
 	for key, configFile := range service.ConfigFiles {
@@ -304,11 +304,11 @@ func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildS
 }
 
 // EvaluatePrereqsTemplate parses and evals the Script field for each Prereq.
-func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluatePrereqsTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	log.WithFields(log.Fields{
 		"servicename": service.Name,
-		"serviceid": service.ID,
-		"instanceid": instanceID,
+		"serviceid":   service.ID,
+		"instanceid":  instanceID,
 	}).Debug("Evaluating Prereq scripts")
 
 	for i, prereq := range service.Prereqs {
@@ -325,11 +325,11 @@ func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildServi
 }
 
 // EvaluateHealthCheckTemplate parses and evals the Script field for each HealthCheck.
-func (service *Service) EvaluateHealthCheckTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateHealthCheckTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	log.WithFields(log.Fields{
 		"servicename": service.Name,
-		"serviceid": service.ID,
-		"instanceid": instanceID,
+		"serviceid":   service.ID,
+		"instanceid":  instanceID,
 	}).Debug("Evaluating HealthCheck scripts")
 
 	for key, healthcheck := range service.HealthChecks {
@@ -381,7 +381,7 @@ func Round(value float64) int64 {
 
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
-func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateEndpointTemplates(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	for i, ep := range service.Endpoints {
 		//cache the application template (assumes this is called after service creation from svc definition)
 		if ep.Application != "" && ep.ApplicationTemplate == "" {
@@ -422,7 +422,7 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildSer
 
 // EvaluateEndpointTemplates parses and evaluates the "Environment" property of
 // this service.
-func (service *Service) EvaluateEnvironmentTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateEnvironmentTemplate(gs GetServiceFn, fc FindChildServiceFn, instanceID int) (err error) {
 	for i, envvar := range service.Environment {
 		err, result := service.evaluateTemplate(gs, fc, instanceID, envvar)
 		if err != nil {
@@ -458,7 +458,7 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 // Evaluate evaluates all the fields of the Service that we care about, using
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.
-func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, instanceID int) (err error) {
+func (service *Service) Evaluate(getSvc GetServiceFn, findChild FindChildServiceFn, instanceID int) (err error) {
 	if err = service.EvaluateEndpointTemplates(getSvc, findChild, instanceID); err != nil {
 		plog.WithError(err).Error()
 		return err

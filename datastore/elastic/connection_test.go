@@ -17,7 +17,7 @@ package elastic_test
 
 import (
 	"github.com/control-center/serviced/datastore"
-	. "github.com/control-center/serviced/datastore/elastic"
+	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/zenoss/elastigo/search"
 	. "gopkg.in/check.v1"
 
@@ -31,10 +31,10 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-var _ = Suite(&S{ElasticTest{Index: "twitter"}})
+var _ = Suite(&S{elastic.Test{Index: "twitter"}})
 
 type S struct {
-	ElasticTest
+	elastic.Test
 }
 
 //func TestPutGetDelete(t *testing.T) {

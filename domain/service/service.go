@@ -785,7 +785,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 }
 
 // GetPath uses the GetService function to determine the / delimited name path i.e. /test/app/sevicename
-func (s Service) GetPath(gs GetService) (string, error) {
+func (s Service) GetPath(gs GetServiceFn) (string, error) {
 	var err error
 	svc := s
 	path := fmt.Sprintf("/%s", s.Name)

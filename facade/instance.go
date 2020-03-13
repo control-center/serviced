@@ -79,7 +79,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 	for i, state := range states {
 		hst, ok := hostMap[state.HostID]
 		if !ok {
-			if err := f.hostStore.Get(ctx, host.HostKey(state.HostID), &hst); err != nil {
+			if err := f.hostStore.Get(ctx, host.Key(state.HostID), &hst); err != nil {
 
 				logger.WithFields(log.Fields{
 					"hostid":     state.HostID,
@@ -135,7 +135,7 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 	imgMap := make(map[string]string)
 
 	var hst host.Host
-	err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
+	err := f.hostStore.Get(ctx, host.Key(hostID), &hst)
 	if err != nil {
 
 		logger.WithError(err).Debug("Could not look up host")
@@ -479,8 +479,7 @@ func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, in
 	return nil
 }
 
-// LocateServiceInstance returns host and container information about a service
-// instance
+// LocateServiceInstance returns host and container information about a service instance
 func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, instanceID int) (*service.LocationInstance, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.LocateServiceInstance"))
 	logger := plog.WithFields(log.Fields{

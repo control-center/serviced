@@ -50,7 +50,7 @@ const (
 type registryVersionInfo struct {
 	version int
 	rootDir string
-	imageId string
+	imageID string
 }
 
 var registryVersionInfos = map[int]registryVersionInfo{
@@ -62,7 +62,9 @@ var registryVersionInfos = map[int]registryVersionInfo{
 	2: registryVersionInfo{
 		2,
 		"v2",
-		"registry:2.2.0", // This is the registry we currently use--may change in the future (WILL USE ISVCS DOCKER REG)
+		// This is the registry we currently use
+		// --may change in the future (WILL USE ISVCS DOCKER REG)
+		"registry:2.2.0",
 	},
 }
 
@@ -76,8 +78,9 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 	alog := f.auditLogger.Message(ctx, "Started Backup").
 		Action(audit.Backup).
 		WithFields(logrus.Fields{
-				"starttime": stime.UTC().Format("2006-01-02-150405"),
-				"backupfile": backupFilename})
+			"starttime":  stime.UTC().Format("2006-01-02-150405"),
+			"backupfile": backupFilename,
+		})
 	alog.Succeeded()
 	alog = f.auditLogger.Message(ctx, "Completed Backup").
 		Action(audit.Backup)
@@ -140,9 +143,9 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 	duration := time.Since(stime)
 	plog.WithField("duration", duration).Info("Completed backup")
 	alog.WithFields(logrus.Fields{
-				"backupfile": backupFilename,
-				"elasped": fmt.Sprintf("%fsec", duration.Seconds()),
-			}).Succeeded()
+		"backupfile": backupFilename,
+		"elasped":    fmt.Sprintf("%fsec", duration.Seconds()),
+	}).Succeeded()
 	return nil
 }
 
@@ -581,10 +584,10 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 	stime := time.Now()
 	plog.Info("Started restore from backup")
 	alog := f.auditLogger.Message(ctx, "Started Restoring from Backup").Action(audit.Restore).
-			WithFields(logrus.Fields{
-				"backupfile": backupFilename,
-				"starttime": stime.UTC().Format("2006-01-02-150405"),
-			})
+		WithFields(logrus.Fields{
+			"backupfile": backupFilename,
+			"starttime":  stime.UTC().Format("2006-01-02-150405"),
+		})
 	alog.Succeeded()
 	if err := f.dfs.Restore(r, backupInfo.BackupVersion); err != nil {
 		plog.WithError(err).Debug("Could not restore from backup")
@@ -605,39 +608,36 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
 			logger.WithError(err).Debug("Could not rollback snapshot")
 			return alog.Error(err)
-		} else {
-			logger.Info("Rolled back snapshot")
-			if err := f.dfs.Delete(snapshot); err != nil {
-				// if we couldn't delete, untag it so the TTL reaper will get it eventually
-				info, err := f.dfs.Info(snapshot)
-				if err != nil {
-					logger.WithError(err).Warning("Could not get info for snapshot.")
-				} else if len(info.Tags) > 0 {
-					if _, err := f.dfs.Untag(info.TenantID, info.Tags[0]); err != nil {
-						logger.WithError(err).Warning("Could not untag snapshot.  Snapshot must be deleted manually!")
-					} else {
-						logger.Info("Snapshot from backup untagged.")
-					}
-				}
-			} else {
-				logger.Info("Removed snapshot after rollback")
-			}
 		}
-
+		logger.Info("Rolled back snapshot")
+		if err := f.dfs.Delete(snapshot); err != nil {
+			// if we couldn't delete, untag it so the TTL reaper will get it eventually
+			info, err := f.dfs.Info(snapshot)
+			if err != nil {
+				logger.WithError(err).Warning("Could not get info for snapshot.")
+			} else if len(info.Tags) > 0 {
+				if _, err := f.dfs.Untag(info.TenantID, info.Tags[0]); err != nil {
+					logger.WithError(err).Warning("Could not untag snapshot.  Snapshot must be deleted manually!")
+				} else {
+					logger.Info("Snapshot from backup untagged.")
+				}
+			}
+		} else {
+			logger.Info("Removed snapshot after rollback")
+		}
 	}
 	restoreDuration := time.Since(stime)
 	plog.Info("Completed restore from backup")
 	alog = f.auditLogger.Message(ctx, "Completed Restoring from Backup").Action(audit.Restore).
 		WithFields(logrus.Fields{
 			"backupfile": backupFilename,
-			"elapsed": fmt.Sprintf("%fsec", restoreDuration.Seconds()),
+			"elapsed":    fmt.Sprintf("%fsec", restoreDuration.Seconds()),
 		})
 	alog.Succeeded()
 	return nil
 }
 
-// Rollback rolls back an application to state described in the provided
-// snapshot.
+// Rollback rolls back an application to state described in the provided snapshot.
 func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Rollback"))
 	// Do not DFSLock here, ControlPlaneDao does that
@@ -663,7 +663,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 	serviceids := make([]string, len(svcs))
 	servicesToStop := []*service.Service{}
 	var stoppedServiceIds []string
-	for i, _ := range svcs {
+	for i := range svcs {
 		svc := &svcs[i]
 		if svc.DesiredState == int(service.SVCRun) {
 			servicesToStop = append(servicesToStop, svc)
@@ -741,7 +741,7 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	servicesToPause := []*service.Service{}
 	poolmap := make(map[string]bool)
 	var pausedServiceIds []string
-	for i, _ := range svcs {
+	for i := range svcs {
 		svc := &svcs[i]
 
 		// only pause services that have access to the dfs
@@ -840,7 +840,7 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 			Config: &dockerclient.Config{
 				User:       "root",
 				WorkingDir: "/tmp/registry",
-				Image:      info.imageId,
+				Image:      info.imageID,
 				Env:        []string{"SETTINGS_FLAVOR=local"},
 			},
 			HostConfig: &dockerclient.HostConfig{
@@ -944,7 +944,7 @@ func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead tim
 	return result, nil
 }
 
-// Interface to allow filtering DFS clients
+// DfsClientValidator to allow filtering DFS clients
 type DfsClientValidator interface {
 	ValidateClient(string) bool
 }
@@ -954,6 +954,7 @@ type clientValidator struct {
 	facade  *Facade
 }
 
+// NewDfsClientValidator returns a new DfsClientValidator instance.
 func NewDfsClientValidator(fac *Facade, ctx datastore.Context) DfsClientValidator {
 	return &clientValidator{ctx, fac}
 }

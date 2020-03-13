@@ -14,26 +14,27 @@
 package facade
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/Sirupsen/logrus"
 )
 
+// UpdateLogFilters updates the log filters from a service template.
 func (f *Facade) UpdateLogFilters(ctx datastore.Context, serviceTemplate *servicetemplate.ServiceTemplate) error {
 	logger := plog.WithFields(logrus.Fields{
-		"templateid": serviceTemplate.ID,
-		"templatename": serviceTemplate.Name,
+		"templateid":      serviceTemplate.ID,
+		"templatename":    serviceTemplate.Name,
 		"templateversion": serviceTemplate.Version,
 	})
 	action := "find"
 	filterDefs := getFilterDefinitions(serviceTemplate.Services)
 	for name, value := range filterDefs {
-		logFilter, err := f.logFilterStore.Get(ctx, name, serviceTemplate.Version)
+		logFilter, err := f.logfilterStore.Get(ctx, name, serviceTemplate.Version)
 		if err == nil {
 			logFilter.Filter = value
-			err = f.logFilterStore.Put(ctx, logFilter)
+			err = f.logfilterStore.Put(ctx, logFilter)
 			action = "update"
 		} else if err != nil && datastore.IsErrNoSuchEntity(err) {
 			newFilter := &logfilter.LogFilter{
@@ -41,19 +42,19 @@ func (f *Facade) UpdateLogFilters(ctx datastore.Context, serviceTemplate *servic
 				Version: serviceTemplate.Version,
 				Filter:  value,
 			}
-			err = f.logFilterStore.Put(ctx, newFilter)
+			err = f.logfilterStore.Put(ctx, newFilter)
 			action = "add"
 		}
 		if err != nil {
 			logger.WithError(err).WithFields(logrus.Fields{
-				"action": action,
+				"action":     action,
 				"filtername": name,
 			}).Error("Failed to add/update log filter")
 			return err
 		}
 		logger.WithFields(logrus.Fields{
-			"action": action,
-			"filtername": name,
+			"action":        action,
+			"filtername":    name,
 			"filterversion": serviceTemplate.Version,
 		}).Debug("Saved LogFilter")
 	}
@@ -61,15 +62,16 @@ func (f *Facade) UpdateLogFilters(ctx datastore.Context, serviceTemplate *servic
 	return nil
 }
 
+// RemoveLogFilters removes the log filters specified in a service template.
 func (f *Facade) RemoveLogFilters(ctx datastore.Context, serviceTemplate *servicetemplate.ServiceTemplate) error {
 	logger := plog.WithFields(logrus.Fields{
-		"templateid": serviceTemplate.ID,
-		"templatename": serviceTemplate.Name,
+		"templateid":      serviceTemplate.ID,
+		"templatename":    serviceTemplate.Name,
 		"templateversion": serviceTemplate.Version,
 	})
 	filterDefs := getFilterDefinitions(serviceTemplate.Services)
 	for name := range filterDefs {
-		err := f.logFilterStore.Delete(ctx, name, serviceTemplate.Version)
+		err := f.logfilterStore.Delete(ctx, name, serviceTemplate.Version)
 		// ignore not-found errors, but stop on anything other failure
 		if err != nil && !datastore.IsErrNoSuchEntity(err) {
 			logger.WithError(err).WithFields(logrus.Fields{
@@ -81,9 +83,10 @@ func (f *Facade) RemoveLogFilters(ctx datastore.Context, serviceTemplate *servic
 	return nil
 }
 
-// Bootstraps the LogFilter store in cases where templates were added to the system in some prior CC version which
-// did not have a separate store for LogFilters. For cases like that, this code creates new records in the
-// LogFilter store for each logfilter found in an existing service template.
+// BootstrapLogFilters bootstraps the LogFilter store in cases where templates were added to the
+// system in some prior CC version which did not have a separate store for LogFilters.
+// For cases like that, this code creates new records in the LogFilter store for each logfilter
+// found in an existing service template.
 func (f *Facade) BootstrapLogFilters(ctx datastore.Context) (bool, error) {
 	logFiltersCreated := false
 	templates, err := f.GetServiceTemplates(ctx)
@@ -94,13 +97,13 @@ func (f *Facade) BootstrapLogFilters(ctx datastore.Context) (bool, error) {
 
 	for _, template := range templates {
 		logger := plog.WithFields(logrus.Fields{
-			"templateid": template.ID,
-			"templatename": template.Name,
+			"templateid":      template.ID,
+			"templatename":    template.Name,
 			"templateversion": template.Version,
 		})
 		filterDefs := getFilterDefinitions(template.Services)
 		for name, value := range filterDefs {
-			if _, err := f.logFilterStore.Get(ctx, name, template.Version); err == nil {
+			if _, err := f.logfilterStore.Get(ctx, name, template.Version); err == nil {
 				continue
 			} else if !datastore.IsErrNoSuchEntity(err) {
 				logger.WithError(err).
@@ -108,7 +111,7 @@ func (f *Facade) BootstrapLogFilters(ctx datastore.Context) (bool, error) {
 					Error("Could not retrieve log filter")
 				return false, err
 			} else {
-				err = f.logFilterStore.Put(ctx, &logfilter.LogFilter{
+				err = f.logfilterStore.Put(ctx, &logfilter.LogFilter{
 					Name:    name,
 					Version: template.Version,
 					Filter:  value,
@@ -128,8 +131,9 @@ func (f *Facade) BootstrapLogFilters(ctx datastore.Context) (bool, error) {
 	return logFiltersCreated, nil
 }
 
+// GetLogFilters returns an array of LogFilter objects.
 func (f *Facade) GetLogFilters(ctx datastore.Context) ([]*logfilter.LogFilter, error) {
-	return f.logFilterStore.GetLogFilters(ctx)
+	return f.logfilterStore.GetLogFilters(ctx)
 }
 
 func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[string]string {
@@ -148,4 +152,3 @@ func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[st
 	}
 	return filterDefs
 }
-

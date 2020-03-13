@@ -24,7 +24,7 @@ import (
 )
 
 func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) error {
-	location, err := this.facade.LocateServiceInstance(datastore.Get(), serviceID, 0)
+	location, err := this.facade.LocateServiceInstance(datastore.GetContext(), serviceID, 0)
 	if err != nil {
 		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", serviceID, err)
 		return err
@@ -54,7 +54,7 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 		return err
 	}
 
-	location, err := this.facade.LocateServiceInstance(datastore.Get(), serviceID, instanceID)
+	location, err := this.facade.LocateServiceInstance(datastore.GetContext(), serviceID, instanceID)
 	if err != nil {
 		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", request, err)
 		return err

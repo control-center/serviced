@@ -26,13 +26,13 @@ import (
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) (err error) {
 	since := time.Now().Add(-time.Hour)
 
-	hosts, err := this.facade.GetHosts(datastore.Get())
+	hosts, err := this.facade.GetHosts(datastore.GetContext())
 	if err != nil {
 		return err
 	}
 	var rss []dao.RunningService
 	for _, h := range hosts {
-		insts, err := this.facade.GetHostInstances(datastore.Get(), since, h.ID)
+		insts, err := this.facade.GetHostInstances(datastore.GetContext(), since, h.ID)
 		if err != nil {
 			return err
 		}
@@ -47,7 +47,7 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {
 	since := time.Now().Add(-time.Hour)
 
-	insts, err := this.facade.GetHostInstances(datastore.Get(), since, hostID)
+	insts, err := this.facade.GetHostInstances(datastore.GetContext(), since, hostID)
 	if err != nil {
 		return nil
 	}
@@ -63,7 +63,7 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]dao.RunningService) error {
 	since := time.Now().Add(-time.Hour)
 
-	insts, err := this.facade.GetServiceInstances(datastore.Get(), since, serviceID)
+	insts, err := this.facade.GetServiceInstances(datastore.GetContext(), since, serviceID)
 	if err != nil {
 		return err
 	}

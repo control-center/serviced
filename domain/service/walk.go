@@ -13,20 +13,20 @@
 
 package service
 
-//Visit called with current Service being visited
-type Visit func(svc *Service) error
+// VisitFn called with current Service being visited
+type VisitFn func(svc *Service) error
 
-//GetChildServices returns a list of services that are children to the parentID, return empty list if none found
-type GetChildServices func(parentID string) ([]Service, error)
+// GetChildServicesFn returns a list of services that are children to the parentID, return empty list if none found
+type GetChildServicesFn func(parentID string) ([]Service, error)
 
-//GetService return a service, return error if not found
-type GetService func(serviceID string) (Service, error)
+// GetServiceFn return a service, return error if not found
+type GetServiceFn func(serviceID string) (Service, error)
 
-//FindChildService finds a child service with a given name, error if not found
-type FindChildService func(parentID, childName string) (Service, error)
+// FindChildServiceFn finds a child service with a given name, error if not found
+type FindChildServiceFn func(parentID, childName string) (Service, error)
 
 //Walk traverses the service hierarchy and calls the supplied Visit function on each service
-func Walk(serviceID string, visitFn Visit, getService GetService, getChildren GetChildServices) error {
+func Walk(serviceID string, visit VisitFn, getService GetServiceFn, getChildren GetChildServicesFn) error {
 	// get the children
 	subServices, err := getChildren(serviceID)
 	if err != nil {
@@ -35,7 +35,7 @@ func Walk(serviceID string, visitFn Visit, getService GetService, getChildren Ge
 
 	// walk the children
 	for _, svc := range subServices {
-		if err := Walk(svc.ID, visitFn, getService, getChildren); err != nil {
+		if err := Walk(svc.ID, visit, getService, getChildren); err != nil {
 			return err
 		}
 	}
@@ -46,5 +46,5 @@ func Walk(serviceID string, visitFn Visit, getService GetService, getChildren Ge
 		return err
 	}
 
-	return visitFn(&svc)
+	return visit(&svc)
 }

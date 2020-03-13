@@ -25,7 +25,7 @@ import (
 const kind = "keyregistry"
 
 var (
-	plog = logging.PackageLogger()
+	plog          = logging.PackageLogger()
 	mappingString = fmt.Sprintf(`
 {
     "%s": {
@@ -45,11 +45,13 @@ func init() {
 	}
 }
 
+// Key creates a datastore.Key object
 func Key(id string) datastore.Key {
 	id = strings.TrimSpace(id)
 	return datastore.NewKey(kind, id)
 }
 
+// DecodeKey decodes the key
 func DecodeKey(id string) (string, error) {
 	return id, nil
 }

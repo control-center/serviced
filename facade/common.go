@@ -43,7 +43,7 @@ type beforeEvent string
 type afterEvent string
 
 // delete common code for removing an entity and publishes events
-func (f *Facade) delete(ctx datastore.Context, ds datastore.EntityStore, key datastore.Key, be beforeEvent, ae afterEvent) error {
+func (f *Facade) delete(ctx datastore.Context, ds datastore.Store, key datastore.Key, be beforeEvent, ae afterEvent) error {
 	glog.V(2).Infof("Facade.delete: %s:%s", key.Kind(), key.ID())
 	ec := newEventCtx()
 	err := f.beforeEvent(be, ec, key.ID())

@@ -33,8 +33,8 @@ type elasticConnection struct {
 }
 
 var (
-	plog = logging.PackageLogger() // the standard package logger
-	traceLogger  *logri.Logger // a 'trace' logger for an additional level of debug messages
+	plog        = logging.PackageLogger() // the standard package logger
+	traceLogger *logri.Logger             // a 'trace' logger for an additional level of debug messages
 )
 
 func init() {
@@ -44,21 +44,22 @@ func init() {
 
 func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
 	logger := plog.WithFields(log.Fields{
-		"kind":  key.Kind(),
-		"id":  key.ID(),
+		"kind": key.Kind(),
+		"id":   key.ID(),
 	})
 	logger.Debug("Put")
 	traceLogger.WithField("payload", string(msg.Bytes())).Debug("Put")
 
-	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
 	var raw json.RawMessage
 	raw = msg.Bytes()
-	resp, err := core.IndexWithParameters(false, ec.index, key.Kind(), key.ID(), "", msg.Version(), "", "", "", 0, "", "", false, &raw)
+	resp, err := core.IndexWithParameters(
+		false, ec.index, key.Kind(), key.ID(), "", msg.Version(), "", "", "", 0, "", "", false, &raw,
+	)
 	if err != nil {
 		logger.WithError(err).Error("Put failed")
 		if eserr, iseserror := err.(api.ESError); iseserror && eserr.Code == 409 {
 			// Conflict
-			return fmt.Errorf("Your changes conflict with those made by another user. Please reload and try your changes again.")
+			return fmt.Errorf("your changes conflict with those made by another user. Please reload and try your changes again")
 		}
 		return err
 	}
@@ -72,8 +73,8 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 
 func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, error) {
 	logger := plog.WithFields(log.Fields{
-		"kind":  key.Kind(),
-		"id":  key.ID(),
+		"kind": key.Kind(),
+		"id":   key.ID(),
 	})
 	logger.Debug("Get")
 	traceLogger.Debug("Get")
@@ -96,8 +97,8 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 
 func (ec *elasticConnection) Delete(key datastore.Key) error {
 	logger := plog.WithFields(log.Fields{
-		"kind":  key.Kind(),
-		"id":  key.ID(),
+		"kind": key.Kind(),
+		"id":   key.ID(),
 	})
 	logger.Debug("Delete")
 
@@ -121,7 +122,7 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 			return nil, err
 		}
 		return toJSONMessages(resp), nil
-	case ElasticSearchRequest:
+	case SearchRequest:
 		resp, err := core.SearchRequest(
 			s.Pretty,
 			s.Index,
@@ -204,8 +205,8 @@ type elasticResponse struct {
 	Exists  bool            `json:"exists,omitempty"`
 }
 
-// Used to directly search elastic
-type ElasticSearchRequest struct {
+// SearchRequest used to directly search elastic
+type SearchRequest struct {
 	Pretty bool
 	Index  string
 	Type   string

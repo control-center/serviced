@@ -24,7 +24,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeIntegrationTest) Test_NewResourcePool(t *C) {
+func (ft *IntegrationTest) Test_NewResourcePool(t *C) {
 	fmt.Println(" ##### Test_NewResourcePool: starting")
 	poolID := "Test_NewResourcePool"
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
@@ -53,7 +53,7 @@ func (ft *FacadeIntegrationTest) Test_NewResourcePool(t *C) {
 	fmt.Println(" ##### Test_NewResourcePool: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_UpdateResourcePool(t *C) {
+func (ft *IntegrationTest) Test_UpdateResourcePool(t *C) {
 	fmt.Println(" ##### Test_UpdateResourcePool: starting")
 	poolID := "Test_UpdateResourcePool"
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
@@ -83,7 +83,7 @@ func (ft *FacadeIntegrationTest) Test_UpdateResourcePool(t *C) {
 	fmt.Println(" ##### Test_UpdateResourcePool: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_GetResourcePool(t *C) {
+func (ft *IntegrationTest) Test_GetResourcePool(t *C) {
 	fmt.Println(" ##### Test_GetResourcePool: starting")
 	poolID := "Test_GetResourcePool"
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
@@ -112,7 +112,7 @@ func (ft *FacadeIntegrationTest) Test_GetResourcePool(t *C) {
 	fmt.Println(" ##### Test_GetResourcePool: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) Test_RemoveResourcePool(t *C) {
+func (ft *IntegrationTest) Test_RemoveResourcePool(t *C) {
 	fmt.Println(" ##### Test_RemoveResourcePool: starting")
 	poolID := "Test_RemoveResourcePool"
 
@@ -140,7 +140,7 @@ func (ft *FacadeIntegrationTest) Test_RemoveResourcePool(t *C) {
 	fmt.Println(" ##### Test_RemoveResourcePool: PASSED")
 }
 
-func (ft *FacadeIntegrationTest) TestRestoreResourcePools(c *C) {
+func (ft *IntegrationTest) TestRestoreResourcePools(c *C) {
 	pools1 := []pool.ResourcePool{
 		{
 			ID:    "testpool-1",
@@ -213,7 +213,7 @@ func (ft *FacadeIntegrationTest) TestRestoreResourcePools(c *C) {
 	c.Assert(actual, DeepEquals, pools2)
 }
 
-func (ft *FacadeIntegrationTest) Test_GetResourcePools(t *C) {
+func (ft *IntegrationTest) Test_GetResourcePools(t *C) {
 	result, err := ft.Facade.GetResourcePools(ft.CTX)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -246,7 +246,7 @@ func (ft *FacadeIntegrationTest) Test_GetResourcePools(t *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) Test_GetPoolsIPs(t *C) {
+func (ft *IntegrationTest) Test_GetPoolsIPs(t *C) {
 	assignIPsPool := pool.New("Test_GetPoolsIPs")
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
 	defer func() {
@@ -305,7 +305,7 @@ func (ft *FacadeIntegrationTest) Test_GetPoolsIPs(t *C) {
 
 }
 
-func (ft *FacadeIntegrationTest) Test_VirtualIPs(t *C) {
+func (ft *IntegrationTest) Test_VirtualIPs(t *C) {
 	fmt.Println(" ##### Test_VirtualIPs")
 	myPoolID := "Test_VirtualIPs"
 	assignIPsPool := pool.New(myPoolID)
@@ -407,7 +407,7 @@ func (ft *FacadeIntegrationTest) Test_VirtualIPs(t *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) Test_InvalidVirtualIPs(t *C) {
+func (ft *IntegrationTest) Test_InvalidVirtualIPs(t *C) {
 	fmt.Println(" ##### Test_InvalidVirtualIPs")
 	myPoolID := "Test_InvalidVirtualIPs"
 	assignIPsPool := pool.New(myPoolID)
@@ -502,7 +502,7 @@ func (ft *FacadeIntegrationTest) Test_InvalidVirtualIPs(t *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) Test_PoolCapacity(t *C) {
+func (ft *IntegrationTest) Test_PoolCapacity(t *C) {
 	hostid := "deadb23f"
 	poolid := "pool-id"
 
@@ -536,7 +536,7 @@ func (ft *FacadeIntegrationTest) Test_PoolCapacity(t *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) Test_PoolCommitment(t *C) {
+func (ft *IntegrationTest) Test_PoolCommitment(t *C) {
 	poolid := "pool-id"
 
 	//create pool for test

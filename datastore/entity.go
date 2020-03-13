@@ -19,3 +19,25 @@ type Entity interface {
 	GetID() string
 	GetType() string
 }
+
+//ValidEntity interface for entities that can be stored in the Store
+type ValidEntity interface {
+	ValidEntity() error
+	GetDatabaseVersion() int
+	SetDatabaseVersion(int)
+}
+
+// VersionedEntity contains the database version.
+type VersionedEntity struct {
+	DatabaseVersion int `json:",omitempty"`
+}
+
+// GetDatabaseVersion returns the database version
+func (e *VersionedEntity) GetDatabaseVersion() int {
+	return e.DatabaseVersion
+}
+
+// SetDatabaseVersion sets the database version
+func (e *VersionedEntity) SetDatabaseVersion(i int) {
+	e.DatabaseVersion = i
+}

@@ -20,26 +20,42 @@ import (
 	"github.com/zenoss/elastigo/search"
 )
 
-//NewStore creates a Service Config File store
-func NewStore() Store {
-	return &storeImpl{}
-}
-
-//Store type for interacting with Service Config File persistent storage
+// Store is an interface for accessing service configuration files data.
 type Store interface {
-	datastore.EntityStore
+	datastore.Store
 
 	GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error)
 	GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error)
 }
 
-type storeImpl struct {
-	datastore.DataStore
+type store struct{}
+
+var kind = "svcconfigfile"
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
 }
 
-//GetConfigFiles returns all Configuration Files in tenant service that have the given service path. The service path
-//is a "/" delimited string of the service name hierarchy, i.e /Zenoss.Core/Zproxy
-func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
+// Put adds or updates an entity
+func (s *store) Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Put(ctx, key, entity)
+}
+
+// Get an entity. Return ErrNoSuchEntity if nothing found for the key.
+func (s *store) Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Get(ctx, key, entity)
+}
+
+// Delete removes the entity
+func (s *store) Delete(ctx datastore.Context, key datastore.Key) error {
+	return datastore.Delete(ctx, key)
+}
+
+// GetConfigFiles returns all Configuration Files in tenant service that have the given service
+// path. The service path is a "/" delimited string of the service name hierarchy,
+// i.e /Zenoss.Core/Zproxy
+func (s *store) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceConfigFileStore.GetConfigFiles"))
 
 	size := 20
@@ -72,7 +88,8 @@ func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPa
 	}
 }
 
-func (s *storeImpl) GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error) {
+// GetConfigFile stuff
+func (s *store) GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceConfigFileStore.GetConfigFile"))
 	search := search.Search("controlplane").Type(kind).Filter(
 		"and",
@@ -115,7 +132,3 @@ func convert(results datastore.Results) ([]*SvcConfigFile, error) {
 func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
-
-var (
-	kind = "svcconfigfile"
-)

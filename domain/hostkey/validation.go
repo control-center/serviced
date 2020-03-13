@@ -37,7 +37,8 @@ func isRSAPublicKey(value string) error {
 	return nil
 }
 
-func (rsaKey *HostKey) ValidEntity() error {
+// ValidEntity validates the RSAKey.
+func (rsaKey *RSAKey) ValidEntity() error {
 	violations := validation.NewValidationError()
 	violations.Add(isRSAPublicKey(rsaKey.PEM))
 	if violations.HasError() {

@@ -17,6 +17,7 @@ import (
 	"time"
 )
 
+// Query describes a query
 type Query struct {
 	Name    string
 	Since   time.Duration

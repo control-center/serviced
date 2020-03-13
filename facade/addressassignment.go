@@ -72,7 +72,6 @@ func (f *Facade) GetServiceAddressAssignmentDetails(ctx datastore.Context, servi
 
 	// For each service endpoint that needs an address assignement,
 	// 	retrieve the corresponding assignment from the DB
-	store := addressassignment.NewStore()
 	ipAssignments := []service.IPAssignment{}
 	for _, ip := range serviceIPs {
 		servicelogger := logger.WithFields(log.Fields{
@@ -85,7 +84,7 @@ func (f *Facade) GetServiceAddressAssignmentDetails(ctx datastore.Context, servi
 		ipassignment := service.IPAssignment{
 			BaseIPAssignment: ip,
 		}
-		addr, err := store.FindAssignmentByServiceEndpoint(ctx, ip.ServiceID, ip.EndpointName)
+		addr, err := f.addressassignmentStore.FindAssignmentByServiceEndpoint(ctx, ip.ServiceID, ip.EndpointName)
 		if err != nil {
 			err := fmt.Errorf("Can not find address assignment")
 			servicelogger.WithFields(log.Fields{
@@ -105,7 +104,7 @@ func (f *Facade) GetServiceAddressAssignmentDetails(ctx datastore.Context, servi
 
 			if hostID != "" {
 				hst := &host.Host{}
-				if err := f.hostStore.Get(ctx, host.HostKey(hostID), hst); err != nil {
+				if err := f.hostStore.Get(ctx, host.Key(hostID), hst); err != nil {
 					servicelogger.WithField("hostid", hostID).WithError(err).Debug("Could not look up host for address assignment")
 					return nil, err
 				}
@@ -130,27 +129,25 @@ func (f *Facade) GetServiceAddressAssignmentDetails(ctx datastore.Context, servi
 // GetServiceAddressAssignments fills in all address assignments for the specified service id.
 func (f *Facade) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]addressassignment.AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceAddressAssignments"))
-	store := addressassignment.NewStore()
-	return store.GetServiceAddressAssignments(ctx, serviceID)
+	return f.addressassignmentStore.GetServiceAddressAssignments(ctx, serviceID)
 }
 
+// GetServiceAddressAssignmentsByPort returns address assignments by port
 func (f *Facade) GetServiceAddressAssignmentsByPort(ctx datastore.Context, poolID string, port uint16) ([]addressassignment.AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceAddressAssignmentsByPort"))
-	store := addressassignment.NewStore()
-	return store.GetServiceAddressAssignmentsByPort(ctx, poolID, port)
+	return f.addressassignmentStore.GetServiceAddressAssignmentsByPort(ctx, poolID, port)
 }
 
-// GetAddressAssignmentsByEndpoint returns the address assignment by serviceID and endpoint name
+// FindAssignmentByServiceEndpoint returns the address assignment by serviceID and endpoint name
 func (f *Facade) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*addressassignment.AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindAssignmentByServiceEndpoint"))
-	store := addressassignment.NewStore()
-	return store.FindAssignmentByServiceEndpoint(ctx, serviceID, endpointName)
+	return f.addressassignmentStore.FindAssignmentByServiceEndpoint(ctx, serviceID, endpointName)
 }
 
+// FindAssignmentByHostPort returns assignment by host and port
 func (f *Facade) FindAssignmentByHostPort(ctx datastore.Context, poolID, ipAddr string, port uint16) (*addressassignment.AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindAssignmentByHostPort"))
-	store := addressassignment.NewStore()
-	return store.FindAssignmentByHostPort(ctx, poolID, ipAddr, port)
+	return f.addressassignmentStore.FindAssignmentByHostPort(ctx, poolID, ipAddr, port)
 }
 
 // RemoveAddressAssignment Removes an AddressAssignment by id
@@ -158,21 +155,20 @@ func (f *Facade) RemoveAddressAssignment(ctx datastore.Context, id string) error
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveAddressAssignment"))
 	alog := f.auditLogger.Message(ctx, "Removing AddressAssignment").Action(audit.Remove).
 		ID(id).Type(addressassignment.GetType())
-	store := addressassignment.NewStore()
 	key := addressassignment.Key(id)
 
 	var assignment addressassignment.AddressAssignment
-	if err := store.Get(ctx, key, &assignment); err != nil {
+	if err := f.addressassignmentStore.Get(ctx, key, &assignment); err != nil {
 		return alog.Error(err)
 	}
 	alog = alog.WithFields(log.Fields{
-		"ipaddr": assignment.IPAddr,
-		"port": assignment.Port,
-		"endpointname": assignment.EndpointName,
+		"ipaddr":         assignment.IPAddr,
+		"port":           assignment.Port,
+		"endpointname":   assignment.EndpointName,
 		"assignmenttype": assignment.AssignmentType,
 	})
 
-	if err := store.Delete(ctx, key); err != nil {
+	if err := f.addressassignmentStore.Delete(ctx, key); err != nil {
 		return alog.Error(err)
 	}
 
@@ -201,9 +197,9 @@ func (f *Facade) assign(ctx datastore.Context, assignment addressassignment.Addr
 	}
 
 	alog = alog.WithFields(log.Fields{
-		"ipaddr": assignment.IPAddr,
-		"port": assignment.Port,
-		"endpointname": assignment.EndpointName,
+		"ipaddr":         assignment.IPAddr,
+		"port":           assignment.Port,
+		"endpointname":   assignment.EndpointName,
 		"assignmenttype": assignment.AssignmentType,
 	})
 
@@ -212,8 +208,7 @@ func (f *Facade) assign(ctx datastore.Context, assignment addressassignment.Addr
 		return "", alog.Error(err)
 	}
 
-	store := addressassignment.NewStore()
-	if err := store.Put(ctx, addressassignment.Key(assignment.ID), &assignment); err != nil {
+	if err := f.addressassignmentStore.Put(ctx, addressassignment.Key(assignment.ID), &assignment); err != nil {
 		return "", alog.ID(assignment.ID).Error(err)
 	}
 

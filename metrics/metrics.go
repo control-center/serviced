@@ -15,14 +15,13 @@ var (
 	log = logging.PackageLogger()
 )
 
-/*
- * To record metrics, enable metrics for a function with ctx.Metrics().Enabled = true
- * and: defer ctx.Metrics().Stop(ctx.Metrics().Start("FunctionName")) where
- * you want to time some code through the end of the method. If you want to time
- * specific parts of a function, you can break it out the Start/Stop into two calls.
- * Call the Log() method to capture the timing information and clear the data.  For
- * running logs use the go-metrics Log() method, passing in the Metrics.Registy object.
- */
+// Metrics stores metric data.
+// To record metrics, enable metrics for a function with ctx.Metrics().Enabled = true
+// and: defer ctx.Metrics().Stop(ctx.Metrics().Start("FunctionName")) where
+// you want to time some code through the end of the method. If you want to time
+// specific parts of a function, you can break it out the Start/Stop into two calls.
+// Call the Log() method to capture the timing information and clear the data.  For
+// running logs use the go-metrics Log() method, passing in the Metrics.Registy object.
 type Metrics struct {
 	sync.Mutex
 	Enabled   bool
@@ -31,6 +30,7 @@ type Metrics struct {
 	GroupName string
 }
 
+// NewMetrics returns a new Metrics object.
 func NewMetrics() *Metrics {
 	return &Metrics{
 		Registry: gometrics.NewRegistry(), // Keep these metrics separate from others in the app
@@ -38,14 +38,15 @@ func NewMetrics() *Metrics {
 	}
 }
 
+// MetricTimer represents a named timer.
 type MetricTimer struct {
 	Name  string
 	Timer gometrics.Timer
 	Time  time.Time
 }
 
-// Returns a new timing object.  This will be used as an
-// argument to Stop() to record the duration/count.
+// Start returns a new timing object.
+// This will be used as an argument to Stop() to record the duration/count.
 func (m *Metrics) Start(name string) *MetricTimer {
 	if !m.Enabled {
 		return nil
@@ -62,7 +63,7 @@ func (m *Metrics) Start(name string) *MetricTimer {
 	return &MetricTimer{Name: name, Timer: timer, Time: time.Now()}
 }
 
-// When stop is called, calculate the duration.
+// Stop calculates the duration.
 func (m *Metrics) Stop(timer *MetricTimer) {
 	if timer != nil {
 		timer.Timer.UpdateSince(timer.Time)
@@ -118,21 +119,28 @@ func (m *Metrics) Log() {
 	m.Timers = make(map[string]gometrics.Timer)
 }
 
-// This function is intended to be used in a defer call on methods for which metric logging is desired.
+// LogAndCleanUp is used in a defer call on methods for which metric logging is desired.
 // To write metrics for a method invocation to the log, add the following at the top of the method:
+//
 //   ctx.Metrics().Enabled = true
 //   defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("methodname"))
+//
 // if Enabled is true, the metrics will be gathered and written at the end of the method.
-// if Enabled is false, this will gather metrics for the method, but only report them if the method is called
-//   by another method with metrics enabled. I.E. it should behave similarly to 'defer <metrics>.Stop(<metrics>.Start("methodname"))'
-// It is not necessary to reset Metrics().Enabled to false, as the Log() method does so before exiting.
+// if Enabled is false, this will gather metrics for the method, but only report them if the
+// method is called by another method with metrics enabled. I.E. it should behave similarly to
+// 'defer <metrics>.Stop(<metrics>.Start("methodname"))'
+// It is not necessary to reset Metrics().Enabled to false, as the Log() method does so before
+// exiting.
 func (m *Metrics) LogAndCleanUp(ssTimer *MetricTimer) {
 	m.Stop(ssTimer)
 	if m.Enabled {
 		metricsLogger := logri.GetLogger("metrics")
-		saveLevel := metricsLogger.GetEffectiveLevel()  // FIXME: this is temporary - remove once log level configuration is available via logger
-		metricsLogger.SetLevel(logrus.DebugLevel, true) // FIXME: this is temporary - remove once log level configuration is available via logger
+		// FIXME: this is temporary - remove once log level configuration is available via logger
+		saveLevel := metricsLogger.GetEffectiveLevel()
+		// FIXME: this is temporary - remove once log level configuration is available via logger
+		metricsLogger.SetLevel(logrus.DebugLevel, true)
 		m.Log()
-		metricsLogger.SetLevel(saveLevel, false) // FIXME: this is temporary - remove once log level configuration is available via logger
+		// FIXME: this is temporary - remove once log level configuration is available via logger
+		metricsLogger.SetLevel(saveLevel, false)
 	}
 }

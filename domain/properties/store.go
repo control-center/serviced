@@ -19,33 +19,29 @@ import (
 
 const propsID = "cc_properties"
 
-// NewStore creates a new RSA Key store
-func NewStore() Store {
-	return &storeImpl{}
-}
-
-// Store is used to access the stored properties
+// Store is an interface for accessing property data.
 type Store interface {
 	Get(ctx datastore.Context) (*StoredProperties, error)
-
-	// Put adds/updates an RSA Key to the registry
 	Put(ctx datastore.Context, properties *StoredProperties) error
 }
 
-type storeImpl struct {
-	ds datastore.DataStore
+type store struct{}
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
 }
 
 // Get the single instance of StoredProperties.  Return ErrNoSuchEntity if not found
-func (s *storeImpl) Get(ctx datastore.Context) (*StoredProperties, error) {
+func (s *store) Get(ctx datastore.Context) (*StoredProperties, error) {
 	val := &StoredProperties{}
-	if err := s.ds.Get(ctx, Key(propsID), val); err != nil {
+	if err := datastore.Get(ctx, Key(propsID), val); err != nil {
 		return nil, err
 	}
 	return val, nil
 }
 
-// Put adds/updates an RSA Key to the registry
-func (s *storeImpl) Put(ctx datastore.Context, properties *StoredProperties) error {
-	return s.ds.Put(ctx, Key(propsID), properties)
+// Put adds/updates an properties to the registry
+func (s *store) Put(ctx datastore.Context, properties *StoredProperties) error {
+	return datastore.Put(ctx, Key(propsID), properties)
 }

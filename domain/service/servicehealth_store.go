@@ -21,10 +21,11 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 )
 
-func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*ServiceHealth, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServiceHealth"))
+// GetServiceHealth returns the requested ServiceHealth object.
+func (s *store) GetServiceHealth(ctx datastore.Context, svcID string) (*ServiceHealth, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceHealth"))
 
-	id := strings.TrimSpace(svcId)
+	id := strings.TrimSpace(svcID)
 	if id == "" {
 		return nil, errors.New("empty service id not allowed")
 	}
@@ -50,15 +51,16 @@ func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*Serv
 		if err != nil {
 			return nil, err
 		}
-		s.fillHealthVolatileInfo(&health)
+		fillHealthVolatileInfo(&health)
 		return &health, nil
 	}
 
-	key := datastore.NewKey(kind, svcId)
+	key := datastore.NewKey(kind, svcID)
 	return nil, datastore.ErrNoSuchEntity{Key: key}
 }
 
-func (s *storeImpl) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth, error) {
+// GetAllServiceHealth returns an array of ServiceHealth objects
+func (s *store) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceHealth"))
 	searchRequest := newServiceHealthElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
@@ -82,15 +84,15 @@ func (s *storeImpl) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth,
 		if err != nil {
 			return nil, err
 		}
-		s.fillHealthVolatileInfo(&sh)
+		fillHealthVolatileInfo(&sh)
 		health = append(health, sh)
 	}
 
 	return health, nil
 }
 
-func (s *storeImpl) fillHealthVolatileInfo(sh *ServiceHealth) {
-	cacheEntry, ok := s.getVolatileInfo(sh.ID) // Uses Mutex RLock
+func fillHealthVolatileInfo(sh *ServiceHealth) {
+	cacheEntry, ok := getVolatileInfo(sh.ID) // Uses Mutex RLock
 	if ok {
 		sh.DesiredState = cacheEntry.DesiredState
 		sh.CurrentState = cacheEntry.CurrentState
@@ -101,8 +103,8 @@ func (s *storeImpl) fillHealthVolatileInfo(sh *ServiceHealth) {
 	}
 }
 
-func newServiceHealthElasticRequest(query interface{}) elastic.ElasticSearchRequest {
-	return elastic.ElasticSearchRequest{
+func newServiceHealthElasticRequest(query interface{}) elastic.SearchRequest {
+	return elastic.SearchRequest{
 		Pretty: false,
 		Index:  "controlplane",
 		Type:   "service",

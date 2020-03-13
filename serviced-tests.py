@@ -15,8 +15,7 @@ log = logging.getLogger("serviced-tests")
 
 
 SERVICED_ROOT = os.path.dirname(os.path.abspath(__file__))
-DEVNULL = open(os.devnull, 'w')
-
+DEVNULL = open(os.devnull, "w")
 
 
 def fail(msg):
@@ -36,12 +35,21 @@ def elastic_server(port):
         # TODO: handle already started
         # TODO: Get image name from serviced binary or isvcs.go
         # TODO: Wait for start more betterly
-        cmd = ["docker", "run", "-d", "--name", container_name,
-               "-p", "%d:9200" % port, "zenoss/serviced-isvcs:v59",
-               "/opt/elasticsearch-0.90.9/bin/elasticsearch", "-f",
-               "-Des.cluster.name=%s" % container_name,
-               "-Dmulticast.enabled=false",
-               "-Ddiscovery.zen.ping.multicast.ping.enabled=false"]
+        cmd = [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            container_name,
+            "-p",
+            "%d:9200" % port,
+            "zenoss/serviced-isvcs:v59",
+            "/opt/elasticsearch-0.90.9/bin/elasticsearch",
+            "-f",
+            "-Des.cluster.name=%s" % container_name,
+            "-Dmulticast.enabled=false",
+            "-Ddiscovery.zen.ping.multicast.ping.enabled=false",
+        ]
         subprocess.call(cmd)
         time.sleep(10)
         yield
@@ -78,7 +86,9 @@ EOF
 )
 """
     try:
-        subprocess.check_call(cmd, shell=True, stdout=DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.check_call(
+            cmd, shell=True, stdout=DEVNULL, stderr=subprocess.STDOUT,
+        )
         return False
     except subprocess.CalledProcessError:
         return True
@@ -91,30 +101,80 @@ def args():
     """
     parser = argparse.ArgumentParser("serviced-tests")
 
-    parser.add_argument("-v", "--verbose", action="store_true", help="verbose logging")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="verbose logging",
+    )
 
     types = parser.add_argument_group("Test Type")
-    types.add_argument("--unit", action="store_true", help="pass the 'unit' build tag")
-    types.add_argument("--integration", action="store_true", help="pass the 'integration' build tag")
+    types.add_argument(
+        "--unit", action="store_true", help="pass the 'unit' build tag"
+    )
+    types.add_argument(
+        "--integration",
+        action="store_true",
+        help="pass the 'integration' build tag",
+    )
 
     options = parser.add_argument_group("Test Options")
-    options.add_argument("--quick", action="store_true", help="don't run tests with the '!quick' build constraint")
-    options.add_argument("--root", action="store_true", help="run the tests as the root user")
-    options.add_argument("--race", action="store_true", help="run tests with race detection")
-    options.add_argument("--cover", action="store_true", help="run tests with coverage")
-    options.add_argument("--tag", action="append", help="optional extra build tag (may be specified multiple times)")
-    options.add_argument("--include_vendor", action="store_true", dest="include_vendor", help="run tests against the vendor directory")
+    options.add_argument(
+        "--quick",
+        action="store_true",
+        help="don't run tests with the '!quick' build constraint",
+    )
+    options.add_argument(
+        "--root", action="store_true", help="run the tests as the root user"
+    )
+    options.add_argument(
+        "--race", action="store_true", help="run tests with race detection"
+    )
+    options.add_argument(
+        "--cover", action="store_true", help="run tests with coverage"
+    )
+    options.add_argument(
+        "--tag",
+        action="append",
+        help="optional extra build tag (may be specified multiple times)",
+    )
+    options.add_argument(
+        "--include_vendor",
+        action="store_true",
+        dest="include_vendor",
+        help="run tests against the vendor directory",
+    )
 
     coverage = parser.add_argument_group("Coverage Options")
-    coverage.add_argument("--cover-html", required=False, help="output file for HTML coverage report")
-    coverage.add_argument("--cover-xml", required=False, help="output file for Cobertura coverage report")
+    coverage.add_argument(
+        "--cover-html",
+        required=False,
+        help="output file for HTML coverage report",
+    )
+    coverage.add_argument(
+        "--cover-xml",
+        required=False,
+        help="output file for Cobertura coverage report",
+    )
 
     fixtures = parser.add_argument_group("Fixture Options")
-    fixtures.add_argument("--elastic", action="store_true", help="start an elastic server before the test run")
-    fixtures.add_argument("--elastic-port", type=int, help="elastic server port", default=9202)
+    fixtures.add_argument(
+        "--elastic",
+        action="store_true",
+        help="start an elastic server before the test run",
+    )
+    fixtures.add_argument(
+        "--elastic-port", type=int, help="elastic server port", default=9202
+    )
 
-    parser.add_argument("--packages", nargs="*", help="serviced packages to test, relative to the serviced root (defaults to ./...)")
-    parser.add_argument("arguments", nargs=argparse.REMAINDER, help="optional arguments to be passed through to the test runner")
+    parser.add_argument(
+        "--packages",
+        nargs="*",
+        help="serviced packages to test, "
+        "relative to the serviced root (defaults to ./...)",
+    )
+    parser.add_argument(
+        "arguments",
+        nargs=argparse.REMAINDER,
+        help="optional arguments to be passed through to the test runner",
+    )
 
     return parser.parse_args()
 
@@ -132,23 +192,28 @@ def build_tags(options):
         tags.append("unit")
 
     if options.integration:
-        tags.append('integration')
+        tags.append("integration")
 
     if options.quick:
-        tags.append('quick')
+        tags.append("quick")
 
     if options.root:
-        tags.append('root')
+        tags.append("root")
 
     log.debug("Using build tags: %s" % tags)
     return tags
 
 
 def main(options):
-    logging.basicConfig(level=logging.DEBUG if options.verbose else logging.INFO)
+    logging.basicConfig(
+        level=logging.DEBUG if options.verbose else logging.INFO
+    )
 
     if not any((options.unit, options.integration)):
-        fail("No tests were specified to run. Please pass at least one of --unit or --integration.")
+        fail(
+            "No tests were specified to run. "
+            "Please pass at least one of --unit or --integration."
+        )
 
     log.debug("Running tests under serviced in %s" % SERVICED_ROOT)
 
@@ -156,7 +221,7 @@ def main(options):
 
     env["SERVICED_HOME"] = SERVICED_ROOT
 
-    #set environment variable for serviced log directory
+    # set environment variable for serviced log directory
     env["SERVICED_LOG_PATH"] = os.path.join(SERVICED_ROOT, "var_log_serviced")
 
     # Unset EDITOR so CLI tests won't fail
@@ -203,14 +268,16 @@ def main(options):
         usep1 = True
 
     if usep1:
-        cmd.extend(['-p', '1'])
+        cmd.extend(["-p", "1"])
 
     packages = options.packages
     if not packages:
         if options.include_vendor:
             packages = "./..."
         else:
-            packages = subprocess.check_output("go list ./... | grep -v vendor", shell=True).splitlines()
+            packages = subprocess.check_output(
+                "go list ./... | grep -v vendor", shell=True
+            ).splitlines()
     cmd.extend(packages)
 
     passthru = options.arguments
@@ -225,25 +292,24 @@ def main(options):
 
     with fixture(options.elastic_port):
         try:
-                subprocess.check_call(
-                    cmd,
-                    env=env,
-                    cwd=SERVICED_ROOT,
-                    **args
-                )
+            subprocess.check_call(cmd, env=env, cwd=SERVICED_ROOT, **args)
         except (subprocess.CalledProcessError, KeyboardInterrupt):
             sys.exit(1)
 
     if options.cover_html:
         log.debug("Converting coverage to HTML")
-        with open(options.cover_html, 'w') as output:
+        with open(options.cover_html, "w") as output:
             subprocess.call(["gocov-html", stdout.name], stdout=output)
         log.info("HTML output written to %s" % options.cover_html)
 
     if options.cover_xml:
         log.debug("Converting coverage to Cobertura XML")
-        with open(options.cover_xml, 'w') as output:
-            proc = subprocess.Popen(["gocov-xml", stdout.name], stdout=output, stdin=subprocess.PIPE)
+        with open(options.cover_xml, "w") as output:
+            proc = subprocess.Popen(
+                ["gocov-xml", stdout.name],
+                stdout=output,
+                stdin=subprocess.PIPE,
+            )
             stdout.seek(0)
             proc.communicate(stdout.read())
         log.info("Cobertura output written to %s" % options.cover_xml)

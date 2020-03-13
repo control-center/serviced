@@ -13,10 +13,11 @@
 
 package mocks
 
-import "github.com/control-center/serviced/domain/host"
-import "github.com/stretchr/testify/mock"
-
-import "github.com/control-center/serviced/datastore"
+import (
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/stretchr/testify/mock"
+)
 
 type Store struct {
 	mock.Mock

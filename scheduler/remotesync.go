@@ -21,45 +21,45 @@ import (
 )
 
 func (s *scheduler) GetResourcePools() ([]pool.ResourcePool, error) {
-	return s.facade.GetResourcePools(datastore.Get())
+	return s.facade.GetResourcePools(datastore.GetContext())
 }
 
 func (s *scheduler) AddUpdateResourcePool(pool *pool.ResourcePool) error {
-	if p, err := s.facade.GetResourcePool(datastore.Get(), pool.ID); err != nil {
+	if p, err := s.facade.GetResourcePool(datastore.GetContext(), pool.ID); err != nil {
 		return err
 	} else if p == nil {
-		return s.facade.AddResourcePool(datastore.Get(), pool)
+		return s.facade.AddResourcePool(datastore.GetContext(), pool)
 	}
 
-	return s.facade.UpdateResourcePool(datastore.Get(), pool)
+	return s.facade.UpdateResourcePool(datastore.GetContext(), pool)
 }
 
 func (s *scheduler) RemoveResourcePool(id string) error {
-	return s.facade.RemoveResourcePool(datastore.Get(), id)
+	return s.facade.RemoveResourcePool(datastore.GetContext(), id)
 }
 
 func (s *scheduler) GetServicesByPool(id string) ([]service.Service, error) {
-	return s.facade.GetServicesByPool(datastore.Get(), id)
+	return s.facade.GetServicesByPool(datastore.GetContext(), id)
 }
 
 func (s *scheduler) AddUpdateService(svc *service.Service) error {
-	if sv, err := s.facade.GetService(datastore.Get(), svc.ID); err != nil {
+	if sv, err := s.facade.GetService(datastore.GetContext(), svc.ID); err != nil {
 		return err
 	} else if sv == nil {
-		return s.facade.AddService(datastore.Get(), *svc)
+		return s.facade.AddService(datastore.GetContext(), *svc)
 	}
 
-	return s.facade.UpdateService(datastore.Get(), *svc)
+	return s.facade.UpdateService(datastore.GetContext(), *svc)
 }
 
 func (s *scheduler) RemoveService(id string) error {
-	return s.facade.RemoveService(datastore.Get(), id)
+	return s.facade.RemoveService(datastore.GetContext(), id)
 }
 
 func (s *scheduler) GetHostsByPool(id string) ([]host.Host, error) {
-	return s.facade.FindHostsInPool(datastore.Get(), id)
+	return s.facade.FindHostsInPool(datastore.GetContext(), id)
 }
 
 func (s *scheduler) RemoveHost(id string) error {
-	return s.facade.RemoveHost(datastore.Get(), id)
+	return s.facade.RemoveHost(datastore.GetContext(), id)
 }

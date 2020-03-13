@@ -35,7 +35,7 @@ var (
 func (ft *FacadeUnitTest) Test_GetHost(c *C) {
 	hostID := "someHostID"
 	expectedHost := host.Host{ID: hostID}
-	key := host.HostKey(hostID)
+	key := host.Key(hostID)
 	ft.hostStore.On("Get", ft.ctx, key, mock.AnythingOfType("*host.Host")).
 		Return(nil).
 		Run(func(args mock.Arguments) {
@@ -51,7 +51,7 @@ func (ft *FacadeUnitTest) Test_GetHost(c *C) {
 
 func (ft *FacadeUnitTest) Test_GetHostFailsForNoSuchEntity(c *C) {
 	hostID := "someHostID"
-	key := host.HostKey(hostID)
+	key := host.Key(hostID)
 	ft.hostStore.On("Get", ft.ctx, key, mock.AnythingOfType("*host.Host")).Return(datastore.ErrNoSuchEntity{})
 
 	result, err := ft.Facade.GetHost(ft.ctx, hostID)
@@ -62,7 +62,7 @@ func (ft *FacadeUnitTest) Test_GetHostFailsForNoSuchEntity(c *C) {
 
 func (ft *FacadeUnitTest) Test_GetHostFailsForOtherDBError(c *C) {
 	hostID := "someHostID"
-	key := host.HostKey(hostID)
+	key := host.Key(hostID)
 	expectedError := datastore.ErrEmptyKind
 	ft.hostStore.On("Get", ft.ctx, key, mock.AnythingOfType("*host.Host")).Return(expectedError)
 
@@ -133,20 +133,20 @@ func (ft *FacadeUnitTest) Test_FindReadHostsInPoolShouldReturnCorrectValues(c *C
 func (ft *FacadeUnitTest) Test_AddHost_HappyPath(c *C) {
 	h := getTestHost()
 
-	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(datastore.ErrNoSuchEntity{})
+	ft.hostStore.On("Get", ft.ctx, host.Key(h.ID), mock.AnythingOfType("*host.Host")).Return(datastore.ErrNoSuchEntity{})
 	ft.poolStore.On("Get", ft.ctx, pool.Key(h.PoolID), mock.AnythingOfType("*pool.ResourcePool")).Return(nil).Run(
 		func(args mock.Arguments) {
 			args.Get(2).(*pool.ResourcePool).ID = h.PoolID
 		})
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, h.PoolID).Return(nil, nil)
-	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.HostKey")).Return(nil, nil).Run(
+	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.RSAKey")).Return(nil, nil).Run(
 		func(args mock.Arguments) {
 			// The hostkey PEM is an RSA public key
-			hostkeyPEM := args.Get(2).(*hostkey.HostKey).PEM
+			hostkeyPEM := args.Get(2).(*hostkey.RSAKey).PEM
 			_, err := auth.RSAPublicKeyFromPEM([]byte(hostkeyPEM))
 			c.Assert(err, IsNil)
 		})
-	ft.hostStore.On("Put", ft.ctx, host.HostKey(h.ID), &h).Return(nil)
+	ft.hostStore.On("Put", ft.ctx, host.Key(h.ID), &h).Return(nil)
 	ft.zzk.On("AddHost", &h).Return(nil)
 
 	result, err := ft.Facade.AddHost(ft.ctx, &h)
@@ -170,14 +170,14 @@ func (ft *FacadeUnitTest) Test_AddHost_HappyPath(c *C) {
 func (ft *FacadeUnitTest) Test_RemoveHost_HappyPath(c *C) {
 	h := getTestHost()
 
-	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
+	ft.hostStore.On("Get", ft.ctx, host.Key(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
 		func(args mock.Arguments) {
 			*args.Get(2).(*host.Host) = h
 		})
 	ft.zzk.On("RemoveHost", &h).Return(nil)
 	ft.zzk.On("UnregisterDfsClients", []host.Host{h}).Return(nil)
 	ft.hostkeyStore.On("Delete", ft.ctx, h.ID).Return(nil)
-	ft.hostStore.On("Delete", ft.ctx, host.HostKey(h.ID)).Return(nil)
+	ft.hostStore.On("Delete", ft.ctx, host.Key(h.ID)).Return(nil)
 
 	err := ft.Facade.RemoveHost(ft.ctx, h.ID)
 
@@ -190,14 +190,14 @@ func (ft *FacadeUnitTest) Test_RemoveHost_HappyPath(c *C) {
 func (ft *FacadeUnitTest) Test_ResetHostKey_HappyPath(c *C) {
 	h := getTestHost()
 
-	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
+	ft.hostStore.On("Get", ft.ctx, host.Key(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
 		func(args mock.Arguments) {
 			*args.Get(2).(*host.Host) = h
 		})
-	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.HostKey")).Return(nil, nil).Run(
+	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.RSAKey")).Return(nil, nil).Run(
 		func(args mock.Arguments) {
 			// The hostkey PEM is an RSA public key
-			hostkeyPEM := args.Get(2).(*hostkey.HostKey).PEM
+			hostkeyPEM := args.Get(2).(*hostkey.RSAKey).PEM
 			_, err := auth.RSAPublicKeyFromPEM([]byte(hostkeyPEM))
 			c.Assert(err, IsNil)
 		})

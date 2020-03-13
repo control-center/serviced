@@ -17,45 +17,38 @@ import (
 	"github.com/control-center/serviced/datastore"
 )
 
-// NewStore creates a new RSA Key store
-func NewStore() Store {
-	return &storeImpl{}
-}
-
-// Store is the database for the RSA keys per host
+// Store is an interface for accessing host key data.
 type Store interface {
-	// Get an RSA Key by host id.  Return ErrNoSuchEntity if not found
-	Get(ctx datastore.Context, id string) (*HostKey, error)
-
-	// Put adds/updates an RSA Key to the registry
-	Put(ctx datastore.Context, id string, val *HostKey) error
-
-	// Delete removes an RSA Key from the registry
+	Get(ctx datastore.Context, id string) (*RSAKey, error)
+	Put(ctx datastore.Context, id string, val *RSAKey) error
 	Delete(ctx datastore.Context, id string) error
 }
 
-type storeImpl struct {
-	ds datastore.DataStore
+type store struct{}
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
 }
 
 // Get an RSA Key by host id.  Return ErrNoSuchEntity if not found
-func (s *storeImpl) Get(ctx datastore.Context, id string) (*HostKey, error) {
+func (s *store) Get(ctx datastore.Context, id string) (*RSAKey, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("HostKeyStore.Get"))
-	val := &HostKey{}
-	if err := s.ds.Get(ctx, Key(id), val); err != nil {
+	val := &RSAKey{}
+	if err := datastore.Get(ctx, Key(id), val); err != nil {
 		return nil, err
 	}
 	return val, nil
 }
 
 // Put adds/updates an RSA Key to the registry
-func (s *storeImpl) Put(ctx datastore.Context, id string, val *HostKey) error {
+func (s *store) Put(ctx datastore.Context, id string, val *RSAKey) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("HostKeyStore.Put"))
-	return s.ds.Put(ctx, Key(id), val)
+	return datastore.Put(ctx, Key(id), val)
 }
 
 // Delete removes an RSA Key from the registry
-func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
+func (s *store) Delete(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("HostKeyStore.Delete"))
-	return s.ds.Delete(ctx, Key(id))
+	return datastore.Delete(ctx, Key(id))
 }

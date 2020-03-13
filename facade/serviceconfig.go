@@ -44,7 +44,7 @@ func (f *Facade) GetServiceConfigs(ctx datastore.Context, serviceID string) ([]s
 		"servicepath": servicePath,
 	})
 
-	files, err := f.configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	files, err := f.configfileStore.GetConfigFiles(ctx, tenantID, servicePath)
 	if err != nil {
 		logger.WithError(err).Debug("Could not load existing configs for service")
 		return nil, err
@@ -68,7 +68,7 @@ func (f *Facade) GetServiceConfig(ctx datastore.Context, fileID string) (*servic
 	logger := plog.WithField("fileid", fileID)
 
 	file := &serviceconfigfile.SvcConfigFile{}
-	if err := f.configStore.Get(ctx, serviceconfigfile.Key(fileID), file); err != nil {
+	if err := f.configfileStore.Get(ctx, serviceconfigfile.Key(fileID), file); err != nil {
 		logger.WithError(err).Debug("Could not get service config file")
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (f *Facade) AddServiceConfig(ctx datastore.Context, serviceID string, conf 
 	})
 
 	// make sure the file does not already exist
-	file, err := f.configStore.GetConfigFile(ctx, tenantID, servicePath, conf.Filename)
+	file, err := f.configfileStore.GetConfigFile(ctx, tenantID, servicePath, conf.Filename)
 	if err != nil {
 		logger.WithError(err).Debug("Could not search for service config file")
 		return alog.Error(err)
@@ -121,7 +121,7 @@ func (f *Facade) AddServiceConfig(ctx datastore.Context, serviceID string, conf 
 	alog = alog.ID(file.ID)
 
 	// write the record into the database
-	if err := f.configStore.Put(ctx, serviceconfigfile.Key(file.ID), file); err != nil {
+	if err := f.configfileStore.Put(ctx, serviceconfigfile.Key(file.ID), file); err != nil {
 		logger.WithField("fileid", file.ID).WithError(err).Debug("Could not add record to the database")
 		return alog.Error(err)
 	}
@@ -144,7 +144,7 @@ func (f *Facade) UpdateServiceConfig(ctx datastore.Context, fileID string, conf 
 		WithField("path", conf.Filename)
 
 	file := &serviceconfigfile.SvcConfigFile{}
-	if err := f.configStore.Get(ctx, serviceconfigfile.Key(fileID), file); err != nil {
+	if err := f.configfileStore.Get(ctx, serviceconfigfile.Key(fileID), file); err != nil {
 		logger.WithError(err).Debug("Could not get service config file")
 		return alog.Error(err)
 	}
@@ -155,7 +155,7 @@ func (f *Facade) UpdateServiceConfig(ctx datastore.Context, fileID string, conf 
 	file.ConfFile = conf
 
 	// write the record into the database
-	if err := f.configStore.Put(ctx, serviceconfigfile.Key(fileID), file); err != nil {
+	if err := f.configfileStore.Put(ctx, serviceconfigfile.Key(fileID), file); err != nil {
 		logger.WithError(err).Debug("Could not update record in database")
 		return alog.Error(err)
 	}
@@ -173,7 +173,7 @@ func (f *Facade) DeleteServiceConfig(ctx datastore.Context, fileID string) error
 	alog := f.auditLogger.Message(ctx, "Removing Service Configuration").
 		Action(audit.Remove).ID(fileID).Type(servicedefinition.GetConfigFileType())
 
-	if err := f.configStore.Delete(ctx, serviceconfigfile.Key(fileID)); err != nil {
+	if err := f.configfileStore.Delete(ctx, serviceconfigfile.Key(fileID)); err != nil {
 		logger.WithError(err).Debug("Could not delete service config file")
 		return alog.Error(err)
 	}
@@ -206,7 +206,7 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 	if err != nil {
 		return err
 	}
-	svcConfigFiles, err := f.configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	svcConfigFiles, err := f.configfileStore.GetConfigFiles(ctx, tenantID, servicePath)
 	if err != nil {
 		glog.Errorf("Could not load existing configs for service %s: %s", serviceID, err)
 		return err
@@ -240,7 +240,7 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 			}
 			glog.Infof("Adding config file %s for service %s", configFile.Filename, serviceID)
 		}
-		if err := f.configStore.Put(ctx, serviceconfigfile.Key(svcConfigFile.ID), svcConfigFile); err != nil {
+		if err := f.configfileStore.Put(ctx, serviceconfigfile.Key(svcConfigFile.ID), svcConfigFile); err != nil {
 			glog.Errorf("Could not update service config file %s for service %s: %s", configFile.Filename, serviceID, err)
 			return err
 		}
@@ -248,7 +248,7 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 	// delete any nonmatching configurations
 	if forceDelete {
 		for filename, svcConfigFile := range svcConfigFileMap {
-			if err := f.configStore.Delete(ctx, serviceconfigfile.Key(svcConfigFile.ID)); err != nil {
+			if err := f.configfileStore.Delete(ctx, serviceconfigfile.Key(svcConfigFile.ID)); err != nil {
 				glog.Errorf("Could not delete service config file %s for service %s: %s", filename, serviceID, err)
 				return err
 			}
@@ -264,7 +264,7 @@ func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service)
 	if err != nil {
 		return err
 	}
-	svcConfigFiles, err := f.configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	svcConfigFiles, err := f.configfileStore.GetConfigFiles(ctx, tenantID, servicePath)
 	if err != nil {
 		glog.Errorf("Could not load existing configs for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err

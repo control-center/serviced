@@ -10,6 +10,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package facade
 
 import (
@@ -17,6 +18,12 @@ import (
 
 	"github.com/control-center/serviced/domain/pool"
 )
+
+// PoolCache is an interface accessing the pool cache data
+type PoolCache interface {
+	GetPools(getPoolsFunc GetPoolsFunc) ([]pool.ReadPool, error)
+	SetDirty()
+}
 
 // poolCache is a simple in-memory cache for storing ReadPools.
 // The dirty flag should be set when changes are made that affect a ReadPool.
@@ -29,8 +36,8 @@ type poolCache struct {
 // GetPoolsFunc should return an up-to-date slice of ReadPools.
 type GetPoolsFunc func() ([]pool.ReadPool, error)
 
-// NewPoolCache creates a new poolCache, which is dirty and empty by default
-func NewPoolCache() *poolCache {
+// NewPoolCache returns a new object that implements the PoolCache interface
+func NewPoolCache() PoolCache {
 	return &poolCache{
 		mutex: sync.RWMutex{},
 		dirty: true,

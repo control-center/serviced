@@ -38,9 +38,9 @@ import (
 	gocheck "gopkg.in/check.v1"
 )
 
-// FacadeIntegrationTest used for running integration tests where a facade type is needed.
-type FacadeIntegrationTest struct {
-	elastic.ElasticTest
+// IntegrationTest used for running integration tests where a facade type is needed.
+type IntegrationTest struct {
+	elastic.Test
 	CTX    datastore.Context
 	Facade *Facade
 	zzk    *zzkmocks.ZZK
@@ -48,10 +48,10 @@ type FacadeIntegrationTest struct {
 	ssm    *servicestatemanager.BatchServiceStateManager
 }
 
-var _ = gocheck.Suite(&FacadeIntegrationTest{})
+var _ = gocheck.Suite(&IntegrationTest{})
 
 //SetUpSuite sets up test suite
-func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
+func (ft *IntegrationTest) SetUpSuite(c *gocheck.C) {
 
 	//set up index and mappings before setting up elastic
 	ft.Index = "controlplane"
@@ -67,9 +67,9 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	ft.Mappings = append(ft.Mappings, user.MAPPING)
 	ft.Mappings = append(ft.Mappings, registry.MAPPING)
 
-	ft.ElasticTest.SetUpSuite(c)
+	ft.Test.SetUpSuite(c)
 	datastore.Register(ft.Driver())
-	ft.CTX = datastore.Get()
+	ft.CTX = datastore.GetContext()
 
 	ft.Facade = New()
 	mockLogger := &auditmocks.Logger{}
@@ -101,8 +101,9 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	auth.LoadMasterKeysFromPEM(pub, priv)
 }
 
-func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
-	ft.ElasticTest.SetUpTest(c)
+// SetUpTest does what it says on the tin
+func (ft *IntegrationTest) SetUpTest(c *gocheck.C) {
+	ft.Test.SetUpTest(c)
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
 	ft.dfs = &dfsmocks.DFS{}
@@ -114,7 +115,7 @@ func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
 	ft.Facade.SetServiceStateManager(ft.ssm)
 }
 
-func (ft *FacadeIntegrationTest) setupMockZZK(c *gocheck.C) {
+func (ft *IntegrationTest) setupMockZZK(c *gocheck.C) {
 	ft.zzk.On("AddResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("UpdateResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("RemoveResourcePool", mock.AnythingOfType("string")).Return(nil)
@@ -140,18 +141,21 @@ func (ft *FacadeIntegrationTest) setupMockZZK(c *gocheck.C) {
 		mock.AnythingOfType("<-chan interface {}")).Return(nil)
 }
 
-func (ft *FacadeIntegrationTest) setupMockDFS() {
+func (ft *IntegrationTest) setupMockDFS() {
 	ft.dfs.On("Destroy", mock.AnythingOfType("string")).Return(nil)
 }
 
-func (ft *FacadeIntegrationTest) TearDownTest(c *gocheck.C) {
+// TearDownTest cleans up after a test
+func (ft *IntegrationTest) TearDownTest(c *gocheck.C) {
 	ft.ssm.Shutdown()
 }
 
-func (ft *FacadeIntegrationTest) BeforeTest(suiteName, testName string) {
+// BeforeTest run pre-test steps
+func (ft *IntegrationTest) BeforeTest(suiteName, testName string) {
 	fmt.Printf("Starting test %s\n", testName)
 }
 
-func (ft *FacadeIntegrationTest) Dfs() *dfsmocks.DFS {
+// Dfs provides access to the DFS mock
+func (ft *IntegrationTest) Dfs() *dfsmocks.DFS {
 	return ft.dfs
 }

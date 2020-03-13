@@ -19,9 +19,12 @@ import (
 	"github.com/control-center/serviced/audit"
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/hostkey"
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/properties"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
@@ -31,60 +34,29 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/scheduler/servicestatemanager"
-	"github.com/control-center/serviced/domain/logfilter"
 )
-
-type MetricsClient interface {
-	GetInstanceMemoryStats(time.Time, ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error)
-	GetAvailableStorage(time.Duration, string, ...string) (*metrics.StorageMetrics, error)
-}
-
-// instantiate the package logger
-var plog = logging.PackageLogger()
-
-// assert interface
-var _ FacadeInterface = &Facade{}
-
-// New creates an initialized Facade instance
-func New() *Facade {
-	return &Facade{
-		auditLogger:    audit.NewLogger(),
-		hostStore:      host.NewStore(),
-		hostkeyStore:   hostkey.NewStore(),
-		registryStore:  registry.NewStore(),
-		poolStore:      pool.NewStore(),
-		serviceStore:   service.NewStore(),
-		configStore:    serviceconfigfile.NewStore(),
-		templateStore:  servicetemplate.NewStore(),
-		logFilterStore: logfilter.NewStore(),
-		userStore:      user.NewStore(),
-		serviceCache:   NewServiceCache(),
-		poolCache:      NewPoolCache(),
-		hostRegistry:   auth.NewHostExpirationRegistry(),
-		deployments:    NewPendingDeploymentMgr(),
-		zzk:            getZZK(),
-	}
-}
 
 // Facade is an entrypoint to available controlplane methods
 type Facade struct {
-	hostStore      host.Store
-	hostkeyStore   hostkey.Store
-	registryStore  registry.ImageRegistryStore
-	poolStore      pool.Store
-	templateStore  servicetemplate.Store
-	logFilterStore logfilter.Store
-	serviceStore   service.Store
-	configStore    serviceconfigfile.Store
-	userStore      user.Store
+	addressassignmentStore addressassignment.Store
+	configfileStore        serviceconfigfile.Store
+	hostStore              host.Store
+	hostkeyStore           hostkey.Store
+	logfilterStore         logfilter.Store
+	poolStore              pool.Store
+	propertyStore          properties.Store
+	registryStore          registry.Store
+	serviceStore           service.Store
+	templateStore          servicetemplate.Store
+	userStore              user.Store
 
 	auditLogger   audit.Logger
 	zzk           ZZK
 	dfs           dfs.DFS
 	hcache        *health.HealthStatusCache
-	metricsClient MetricsClient
+	metricsClient metrics.Client
 	serviceCache  *serviceCache
-	poolCache     *poolCache
+	poolCache     PoolCache
 	hostRegistry  auth.HostExpirationRegistryInterface
 	deployments   *PendingDeploymentMgr
 	ssm           servicestatemanager.ServiceStateManager
@@ -93,51 +65,105 @@ type Facade struct {
 	rollingRestartTimeout time.Duration
 }
 
-func (f *Facade) SetAuditLogger(logger audit.Logger) { f.auditLogger = logger }
+// instantiate the package logger
+var plog = logging.PackageLogger()
 
-func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
+// assert Facade implements the API (interface)
+var _ API = &Facade{}
 
-func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
+// New creates new Facade instance
+func New() *Facade {
+	return &Facade{
+		addressassignmentStore: addressassignment.NewStore(),
+		configfileStore:        serviceconfigfile.NewStore(),
+		hostStore:              host.NewStore(),
+		hostkeyStore:           hostkey.NewStore(),
+		logfilterStore:         logfilter.NewStore(),
+		poolStore:              pool.NewStore(),
+		propertyStore:          properties.NewStore(),
+		registryStore:          registry.NewStore(),
+		serviceStore:           service.NewStore(),
+		templateStore:          servicetemplate.NewStore(),
+		userStore:              user.NewStore(),
 
-func (f *Facade) SetServiceStateManager(ssm servicestatemanager.ServiceStateManager) { f.ssm = ssm }
-
-func (f *Facade) SetHostStore(store host.Store) {
-	f.hostStore = store
-	f.poolCache.SetDirty()
+		auditLogger:  audit.NewLogger(),
+		serviceCache: NewServiceCache(),
+		poolCache:    NewPoolCache(),
+		hostRegistry: auth.NewHostExpirationRegistry(),
+		deployments:  NewPendingDeploymentMgr(),
+		zzk:          getZZK(),
+	}
 }
 
-func (f *Facade) SetHostkeyStore(store hostkey.Store) { f.hostkeyStore = store }
+// SetAddressAssignmentStore sets a addressassignment.Store object on the facade.
+func (f *Facade) SetAddressAssignmentStore(store addressassignment.Store) {
+	f.addressassignmentStore = store
+}
 
-func (f *Facade) SetRegistryStore(store registry.ImageRegistryStore) { f.registryStore = store }
+// SetHostStore sets a host.Store object on the facade.
+func (f *Facade) SetHostStore(store host.Store) { f.hostStore = store }
 
+// SetHostKeyStore sets a hostkey.Store object on the facade.
+func (f *Facade) SetHostKeyStore(store hostkey.Store) { f.hostkeyStore = store }
+
+// SetLogFilterStore sets a logfilter.Store object on the facade.
+func (f *Facade) SetLogFilterStore(store logfilter.Store) { f.logfilterStore = store }
+
+// SetPoolStore sets a pool.Store object on the facade.
 func (f *Facade) SetPoolStore(store pool.Store) {
 	f.poolStore = store
 	f.poolCache.SetDirty()
 }
 
+// SetPropertyStore sets a properties.Store object on the facade.
+func (f *Facade) SetPropertyStore(store properties.Store) { f.propertyStore = store }
+
+// SetRegistryStore sets a registry.Store object on the facade.
+func (f *Facade) SetRegistryStore(store registry.Store) { f.registryStore = store }
+
+// SetServiceStore sets a service.Store object on the facade.
 func (f *Facade) SetServiceStore(store service.Store) {
 	f.serviceStore = store
 	f.poolCache.SetDirty()
 }
 
-func (f *Facade) SetConfigStore(store serviceconfigfile.Store) { f.configStore = store }
+// SetServiceConfigFileStore sets a serviceconfigfile.Store object on the facade.
+func (f *Facade) SetServiceConfigFileStore(store serviceconfigfile.Store) { f.configfileStore = store }
 
+// SetServiceTemplateStore sets a servicetemplate.Store object on the facade.
+func (f *Facade) SetServiceTemplateStore(store servicetemplate.Store) { f.templateStore = store }
+
+// SetUserStore sets a user.Store object on the facade.
 func (f *Facade) SetUserStore(store user.Store) { f.userStore = store }
 
-func (f *Facade) SetTemplateStore(store servicetemplate.Store) { f.templateStore = store }
+// SetAuditLogger sets AuditLogger
+func (f *Facade) SetAuditLogger(logger audit.Logger) { f.auditLogger = logger }
 
-func (f *Facade) SetLogFilterStore(store logfilter.Store) { f.logFilterStore = store }
+// SetZZK sets ZZK
+func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 
+// SetDFS sets DFS
+func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
+
+// SetServiceStateManager sets ServiceStateManager
+func (f *Facade) SetServiceStateManager(ssm servicestatemanager.ServiceStateManager) { f.ssm = ssm }
+
+// SetHealthCache sets HealthCache
 func (f *Facade) SetHealthCache(hcache *health.HealthStatusCache) { f.hcache = hcache }
 
-func (f *Facade) SetMetricsClient(client MetricsClient) { f.metricsClient = client }
+// SetMetricsClient sets MetricsClient
+func (f *Facade) SetMetricsClient(client metrics.Client) { f.metricsClient = client }
 
+// SetIsvcsPath sets ISVCS path
 func (f *Facade) SetIsvcsPath(path string) { f.isvcsPath = path }
 
+// SetHostExpirationRegistry sets HostExpirationRegistry
 func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegistryInterface) {
 	f.hostRegistry = hostRegistry
 }
 
+// SetDeploymentMgr sets the PendingDeploymentMgr
 func (f *Facade) SetDeploymentMgr(mgr *PendingDeploymentMgr) { f.deployments = mgr }
 
+// SetRollingRestartTimeout sets the duration between restarts of instances.
 func (f *Facade) SetRollingRestartTimeout(t time.Duration) { f.rollingRestartTimeout = t }

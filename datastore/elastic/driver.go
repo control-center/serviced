@@ -27,19 +27,41 @@ import (
 	"github.com/zenoss/elastigo/api"
 )
 
-//ElasticDriver describes an the Elastic Search driver
-type ElasticDriver interface {
+// Driver describes an the Elastic Search driver
+type Driver interface {
+	datastore.Driver
+
+	// SetProperty sets a value to a named property.
 	SetProperty(name string, prop interface{}) error
+
 	// AddMapping add a document mapping to be registered with ElasticSearch
 	AddMapping(mapping Mapping) error
-	//Initialize the driver, register mappings with elasticserach. Timeout in ms to wait for elastic to be available.
+
+	// Initialize the driver, register mappings with elasticserach.
+	// Timeout in ms to wait for elastic to be available.
 	Initialize(timeout time.Duration) error
-	GetConnection() (datastore.Connection, error)
 }
 
-// New creates a new ElasticDriver
+type elasticDriver struct {
+	host     string
+	port     uint16
+	settings map[string]interface{}
+	mappings []Mapping
+	index    string
+}
+
+// Ensure elasticDriver implements datastore.Driver
+var _ datastore.Driver = &elasticDriver{}
+
+// Singleton instance because elastigo doesn't support multiple endpoints.
+var driver *elasticDriver = nil
+
+// New creates a new elastic.Driver
 func New(host string, port uint16, index string, requestTimeout time.Duration) ElasticDriver {
-	return newDriver(host, port, index, requestTimeout)
+	if driver == nil {
+		driver = newDriver(host, port, index, requestTimeout)
+	}
+	return driver
 }
 
 func newDriver(host string, port uint16, index string, requestTimeout time.Duration) *elasticDriver {
@@ -48,26 +70,13 @@ func newDriver(host string, port uint16, index string, requestTimeout time.Durat
 	api.HttpClient = &http.Client{
 		Timeout: time.Second * requestTimeout,
 	}
-	//TODO: singleton since elastigo doesn't support multiple endpoints
-
-	driver := &elasticDriver{}
-	driver.host = host
-	driver.port = port
-	driver.index = index
-	driver.settings = map[string]interface{}{"number_of_shards": 1}
-	driver.mappings = make([]Mapping, 0)
-	return driver
-}
-
-//Make sure elasticDriver implements datastore.Driver
-var _ datastore.Driver = &elasticDriver{}
-
-type elasticDriver struct {
-	host     string
-	port     uint16
-	settings map[string]interface{}
-	mappings []Mapping
-	index    string
+	return &elasticDriver{
+		host:     host,
+		port:     port,
+		index:    index,
+		settings: map[string]interface{}{"number_of_shards": 1},
+		mappings: make([]Mapping, 0),
+	}
 }
 
 func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
@@ -83,9 +92,9 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 
 	select {
 	case <-healthy:
-		plog.Debug("Got response from Elastic")
+		plog.Debug("Got response from ElasticSearch")
 	case <-time.After(timeout):
-		return errors.New("timed Out waiting for response from Elasticsearch")
+		return errors.New("timed Out waiting for response from ElasticSearch")
 	}
 
 	if err := ed.postIndex(); err != nil {
@@ -101,9 +110,9 @@ func (ed *elasticDriver) Initialize(timeout time.Duration) error {
 
 	select {
 	case <-healthy:
-		plog.Debug("Got response from Elasticsearch")
+		plog.Debug("Got response from ElasticSearch")
 	case <-time.After(timeout):
-		return errors.New("timed Out waiting for response from Elasticsearch")
+		return errors.New("timed Out waiting for response from ElasticSearch")
 	}
 
 	return nil
@@ -121,7 +130,7 @@ func (ed *elasticDriver) AddMapping(mapping Mapping) error {
 
 func (ed *elasticDriver) AddMappingsFile(path string) error {
 	logger := plog.WithField("mappingfile", path)
-	logger.Info("Adding mapping to Elasticsearch")
+	logger.Info("Adding mapping to ElasticSearch")
 
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -146,15 +155,15 @@ func (ed *elasticDriver) AddMappingsFile(path string) error {
 
 		var rawMapping = make(map[string]map[string]interface{})
 		rawMapping[key] = mapping
-		if value, err := newMapping(rawMapping); err != nil {
+		value, err := newMapping(rawMapping)
+		if err != nil {
 			logger.WithError(err).WithField("rawmapping", rawMapping).Error("Unable to create mapping")
 			return err
-		} else {
-			ed.AddMapping(value)
 		}
+		ed.AddMapping(value)
 	}
 
-	logger.Info("Successfully added mapping to Elasticsearch")
+	logger.Info("Successfully added mapping to ElasticSearch")
 	return nil
 }
 
@@ -191,14 +200,14 @@ func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		plog.WithError(err).Error("Unable to read healthcheck response from Elasticsearch")
+		plog.WithError(err).Error("Unable to read healthcheck response from ElasticSearch")
 		return health, err
 	}
 	if err := json.Unmarshal(body, &health); err != nil {
-		plog.WithError(err).WithField("response", string(body)).Error("Unable to decode JSON healthcheck response from Elasticsearch")
+		plog.WithError(err).WithField("response", string(body)).Error("Unable to decode JSON healthcheck response from ElasticSearch")
 		return health, err
 	}
-	plog.WithError(err).WithField("response", string(body)).Debug("Received good healthcheck response from Elasticsearch")
+	plog.WithError(err).WithField("response", string(body)).Debug("Received good healthcheck response from ElasticSearch")
 	return health, nil
 
 }
@@ -211,7 +220,7 @@ func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
 				healthy <- 1
 				return
 			}
-			plog.Info("Waiting for Elasticsearch")
+			plog.Info("Waiting for ElasticSearch")
 			time.Sleep(1000 * time.Millisecond)
 
 		case <-quit:
@@ -303,7 +312,7 @@ func (ed *elasticDriver) postIndex() error {
 	if err != nil {
 		return err
 	}
-	logger.WithField("response", resp).Debug("Received response from Elasticsearch")
+	logger.WithField("response", resp).Debug("Received response from ElasticSearch")
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err

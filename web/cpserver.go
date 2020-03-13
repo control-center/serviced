@@ -56,7 +56,7 @@ type ServiceConfig struct {
 	keyPEMFile  string
 	localAddrs  map[string]struct{}
 	uiConfig    UIConfig
-	facade      facade.FacadeInterface
+	facade      facade.API
 	vhostmgr    *VHostManager
 }
 
@@ -73,7 +73,7 @@ var uiConfig UIConfig
 
 // NewServiceConfig creates a new ServiceConfig
 func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int,
-	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int, configuredSnapshotSpacePercent int, facade facade.FacadeInterface) *ServiceConfig {
+	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int, configuredSnapshotSpacePercent int, facade facade.API) *ServiceConfig {
 
 	logger := plog.WithFields(logrus.Fields{
 		"bindport":  bindPort,
@@ -405,7 +405,7 @@ func (ctx *requestContext) getMasterClient() (master.ClientInterface, error) {
 	return ctx.master, nil
 }
 
-func (ctx *requestContext) getFacade() facade.FacadeInterface {
+func (ctx *requestContext) getFacade() facade.API {
 	return ctx.sc.facade
 }
 
@@ -457,7 +457,7 @@ func (sc *ServiceConfig) startPublicPortListener(shutdown <-chan interface{}) {
 		}
 
 		// disable the public port
-		if err := sc.facade.EnablePublicEndpointPort(datastore.Get(), serviceID, application, portAddress, false); err != nil {
+		if err := sc.facade.EnablePublicEndpointPort(datastore.GetContext(), serviceID, application, portAddress, false); err != nil {
 			logger.WithError(err).Error("Could not disable public port")
 			return
 		}

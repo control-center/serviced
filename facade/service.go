@@ -47,10 +47,11 @@ import (
 )
 
 const (
-	// The mount point in the service migration docker image
+	// MIGRATION_MOUNT_POINT is the mount point in the service migration docker image
 	MIGRATION_MOUNT_POINT = "/migration"
 
-	// The well-known path within the service's docker image of the directory which contains the service's migration script
+	// EMBEDDED_MIGRATION_DIRECTORY is the well-known path within the service's docker image of
+	// the directory which contains the service's migration script
 	EMBEDDED_MIGRATION_DIRECTORY = "/opt/serviced/migration"
 )
 
@@ -96,7 +97,6 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err err
 }
 
 func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.Service, setLockOnCreate bool) error {
-	store := f.serviceStore
 	// service add validation
 	if err := f.validateServiceAdd(ctx, &svc); err != nil {
 		glog.Errorf("Could not validate service %s (%s) for adding: %s", svc.Name, svc.ID, err)
@@ -116,7 +116,7 @@ func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.
 	// write the service into the database
 	svc.UpdatedAt = time.Now()
 	svc.CreatedAt = svc.UpdatedAt
-	if err := store.Put(ctx, &svc); err != nil {
+	if err := f.serviceStore.Put(ctx, &svc); err != nil {
 		glog.Errorf("Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -143,9 +143,8 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 		"parentserviceid": svc.ParentServiceID,
 	})
 
-	store := f.serviceStore
 	// verify that the service does not already exist
-	if _, err := store.Get(ctx, svc.ID); !datastore.IsErrNoSuchEntity(err) {
+	if _, err := f.serviceStore.Get(ctx, svc.ID); !datastore.IsErrNoSuchEntity(err) {
 		if err != nil {
 			logger.WithError(err).Error("Could not check the existance of service")
 			return err
@@ -261,8 +260,7 @@ func validateServiceOptions(svc *service.Service) error {
 //Get changes made by "serviced service edit" call
 func (f *Facade) getChanges(ctx datastore.Context, svc service.Service) string {
 	var updates string
-	store := f.serviceStore
-	cursvc, err := store.Get(ctx, svc.ID)
+	cursvc, err := f.serviceStore.Get(ctx, svc.ID)
 	if err != nil {
 		glog.Errorf("Could not load service %s (%s) from database: %s", svc.Name, svc.ID, err)
 		return updates
@@ -325,7 +323,6 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) erro
 
 func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc service.Service, migrate, setLockOnUpdate bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateService"))
-	store := f.serviceStore
 	cursvc, err := f.validateServiceUpdate(ctx, &svc)
 	if err != nil {
 		glog.Errorf("Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
@@ -354,7 +351,7 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 
 	// write the service into the database
 	svc.UpdatedAt = time.Now()
-	if err := store.Put(ctx, &svc); err != nil {
+	if err := f.serviceStore.Put(ctx, &svc); err != nil {
 		glog.Errorf("Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -395,9 +392,8 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 		"parentserviceid": svc.ParentServiceID,
 	})
 
-	store := f.serviceStore
 	// verify that the service exists
-	cursvc, err := store.Get(ctx, svc.ID)
+	cursvc, err := f.serviceStore.Get(ctx, svc.ID)
 	if err != nil {
 		logger.WithError(err).Error("Could not load service from database")
 		return nil, err
@@ -508,16 +504,15 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 // service at the same path
 func (f *Facade) validateServiceName(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceName"))
-	store := f.serviceStore
 	if svc.ParentServiceID != "" {
-		psvc, err := store.Get(ctx, svc.ParentServiceID)
+		psvc, err := f.serviceStore.Get(ctx, svc.ParentServiceID)
 		if err != nil {
 			glog.Errorf("Could not verify the existance of parent %s for service %s: %s", svc.ParentServiceID, svc.Name, err)
 			return err
 		}
 		svc.DeploymentID = psvc.DeploymentID
 	}
-	cursvc, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name)
+	cursvc, err := f.serviceStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name)
 	if err != nil {
 		glog.Errorf("Could not check the service name %s for parent %s: %s", svc.Name, svc.ParentServiceID, err)
 		return err
@@ -766,13 +761,13 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	// Do migration
 	for _, filter := range req.LogFilters {
 		var action string
-		existingFilter, err := f.logFilterStore.Get(ctx, filter.Name, filter.Version)
+		existingFilter, err := f.logfilterStore.Get(ctx, filter.Name, filter.Version)
 		if err == nil {
 			existingFilter.Filter = filter.Filter
-			err = f.logFilterStore.Put(ctx, existingFilter)
+			err = f.logfilterStore.Put(ctx, existingFilter)
 			action = "update"
 		} else if err != nil && datastore.IsErrNoSuchEntity(err) {
-			err = f.logFilterStore.Put(ctx, &filter)
+			err = f.logfilterStore.Put(ctx, &filter)
 			action = "add"
 		}
 		if err != nil {
@@ -816,7 +811,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SyncServiceRegistry"))
 	alog := f.auditLogger.Action(audit.Update).Message(ctx, "Sync Service Registry").WithField("servicename", svc.Name).Entity(svc)
-	tenantID, err := f.GetTenantID(datastore.Get(), svc.ID)
+	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
 		glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
 		return alog.Error(err)
@@ -832,8 +827,7 @@ func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service
 
 // validateServiceDeployment returns the services that will be deployed
 func (f *Facade) validateServiceDeployment(ctx datastore.Context, parentID string, sd *servicedefinition.ServiceDefinition) ([]service.Service, error) {
-	store := f.serviceStore
-	parent, err := store.Get(ctx, parentID)
+	parent, err := f.serviceStore.Get(ctx, parentID)
 	if err != nil {
 		glog.Errorf("Could not get parent service %s: %s", parentID, err)
 		return nil, err
@@ -970,7 +964,7 @@ func (f *Facade) SetIPs(ctx datastore.Context, request addressassignment.Assignm
 	if err != nil {
 		return err
 	}
-	visitor := IpVisitorFn(portmap, request, f, ctx)
+	visitor := IPVisitorFn(portmap, request, f, ctx)
 	return f.walkServices(ctx, request.ServiceID, true, visitor, "SetIPs")
 }
 
@@ -1000,7 +994,6 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 }
 
 func (f *Facade) removeService(ctx datastore.Context, id string) error {
-	store := f.serviceStore
 	logger := plog.WithField("serviceid", id)
 
 	return f.walkServices(ctx, id, true, func(svc *service.Service) error {
@@ -1034,7 +1027,7 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 			return err
 		}
 
-		if err := store.Delete(ctx, svc.ID); err != nil {
+		if err := f.serviceStore.Delete(ctx, svc.ID); err != nil {
 			logger.WithError(err).Error("Error while removing service %s")
 			return err
 		}
@@ -1073,8 +1066,7 @@ func (f *Facade) CheckRemoveRegistryImage(ctx datastore.Context, imageID string)
 func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetPoolForService"))
 	glog.V(3).Infof("Facade.GetPoolForService: id=%s", id)
-	store := f.serviceStore
-	svc, err := store.Get(ctx, id)
+	svc, err := f.serviceStore.Get(ctx, id)
 	if err != nil {
 		return "", err
 	}
@@ -1084,8 +1076,7 @@ func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, er
 func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]health.HealthCheck, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHealthChecksForService"))
 	glog.V(3).Infof("Facade.GetHealthChecksForService: id=%s", serviceID)
-	store := f.serviceStore
-	svc, err := store.Get(ctx, serviceID)
+	svc, err := f.serviceStore.Get(ctx, serviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -1095,8 +1086,7 @@ func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID stri
 func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetService"))
 	glog.V(3).Infof("Facade.GetService: id=%s", id)
-	store := f.serviceStore
-	svc, err := store.Get(ctx, id)
+	svc, err := f.serviceStore.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1181,15 +1171,14 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 	logger.Debug("Started Facade.GetServices")
 	defer logger.Debug("Finished Facade.GetServices")
 
-	store := f.serviceStore
 	if serviceRequest.UpdatedSince != 0 {
-		services, err = store.GetUpdatedServices(ctx, serviceRequest.UpdatedSince)
+		services, err = f.serviceStore.GetUpdatedServices(ctx, serviceRequest.UpdatedSince)
 		if err != nil {
 			logger.WithError(err).Error("Unable to get services changed since")
 			return nil, err
 		}
 	} else {
-		services, err = store.GetServices(ctx)
+		services, err = f.serviceStore.GetServices(ctx)
 		if err != nil {
 			logger.WithError(err).Error("Unable to get all services")
 			return nil, err
@@ -1244,8 +1233,7 @@ func (f *Facade) GetAllServices(ctx datastore.Context) ([]service.Service, error
 func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServicesByPool"))
 	glog.V(3).Infof("Facade.GetServicesByPool")
-	store := f.serviceStore
-	results, err := store.GetServicesByPool(ctx, poolID)
+	results, err := f.serviceStore.GetServicesByPool(ctx, poolID)
 	if err != nil {
 		glog.Error("Facade.GetServicesByPool: err=", err)
 		return results, err
@@ -1296,8 +1284,7 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 	logger.Debug("Started Facade.GetTaggedServices")
 	defer logger.Debug("Finished Facade.GetTaggedServices")
 
-	store := f.serviceStore
-	services, err = store.GetTaggedServices(ctx, tags...)
+	services, err = f.serviceStore.GetTaggedServices(ctx, tags...)
 	if err != nil {
 		logger.WithError(err).Error("Unable to get tagged services")
 		return nil, err
@@ -1470,8 +1457,7 @@ func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string,
 	logger.Debug("Started Facade.FindChildService")
 	defer logger.Debug("Finished Facade.FindChildService")
 
-	store := f.serviceStore
-	parentService, err := store.Get(ctx, parentServiceID)
+	parentService, err := f.serviceStore.Get(ctx, parentServiceID)
 	if err != nil {
 		glog.Errorf("Could not look up service %s: %s", parentServiceID, err)
 		return nil, err
@@ -1480,7 +1466,7 @@ func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string,
 		return nil, err
 	}
 
-	return store.FindChildService(ctx, parentService.DeploymentID, parentService.ID, childName)
+	return f.serviceStore.FindChildService(ctx, parentService.DeploymentID, parentService.ID, childName)
 }
 
 // ScheduleService changes a services' desired state and returns the number of affected services
@@ -2252,7 +2238,8 @@ func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
 	return nil
 }
 
-func IpVisitorFn(portmap Ports, request addressassignment.AssignmentRequest, f *Facade, ctx datastore.Context) service.Visit {
+// IPVisitorFn is a function
+func IPVisitorFn(portmap Ports, request addressassignment.AssignmentRequest, f *Facade, ctx datastore.Context) service.VisitFn {
 	visitor := func(svc *service.Service) error {
 		// get all of the address assignments for the service
 		assignments, err := f.GetServiceAddressAssignments(ctx, svc.ID)
@@ -2355,7 +2342,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 		return err
 	}
 	portmap, _ := GetPorts(svc.Endpoints)
-	visitor := IpVisitorFn(portmap, request, f, ctx)
+	visitor := IPVisitorFn(portmap, request, f, ctx)
 
 	// traverse all the services
 	return f.walkServices(ctx, request.ServiceID, true, visitor, "AssignIPs")
@@ -2588,8 +2575,7 @@ func filterByNameRegex(nmregex string, services []service.Service) ([]service.Se
 //and modified config files
 func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, error) {
 	glog.V(3).Infof("Facade.getService: id=%s", id)
-	store := f.serviceStore
-	svc, err := store.Get(ctx, id)
+	svc, err := f.serviceStore.Get(ctx, id)
 	if err != nil || svc == nil {
 		return service.Service{}, err
 	}
@@ -2621,8 +2607,7 @@ func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 	plog.Debug("Started Facade.getServices")
 	defer plog.Debug("Finished Facade.getServices")
 
-	store := f.serviceStore
-	results, err := store.GetServices(ctx)
+	results, err := f.serviceStore.GetServices(ctx)
 	if err != nil {
 		plog.WithError(err).Error("Unable to get a list of all services")
 		return results, err
@@ -2631,17 +2616,16 @@ func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 }
 
 // traverse all the services (including the children of the provided service)
-func (f *Facade) walkServices(ctx datastore.Context, serviceID string, traverse bool, visitFn service.Visit, callerLabel string) error {
+func (f *Facade) walkServices(ctx datastore.Context, serviceID string, traverse bool, visitFn service.VisitFn, callerLabel string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("Facade.walkServices_%s", callerLabel)))
-	store := f.serviceStore
 	getChildren := func(parentID string) ([]service.Service, error) {
 		if !traverse {
 			return []service.Service{}, nil
 		}
-		return store.GetChildServices(ctx, parentID)
+		return f.serviceStore.GetChildServices(ctx, parentID)
 	}
 	getService := func(svcID string) (service.Service, error) {
-		svc, err := store.Get(ctx, svcID)
+		svc, err := f.serviceStore.Get(ctx, svcID)
 		if err != nil {
 			return service.Service{}, err
 		}
@@ -2674,7 +2658,6 @@ func (f *Facade) fillOutServices(ctx datastore.Context, svcs []service.Service) 
 
 func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.fillServiceAddr"))
-	store := addressassignment.NewStore()
 
 	for idx := range svc.Endpoints {
 		endpointName := svc.Endpoints[idx].Name
@@ -2689,7 +2672,7 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 				// verify the ports match
 				if port := svc.Endpoints[idx].AddressConfig.Port; assignment.Port != port {
 					glog.Infof("Removing address assignment for endpoint %s of service %s (%s)", endpointName, svc.Name, svc.ID)
-					if err := store.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
+					if err := f.addressassignmentStore.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
 						glog.Errorf("Error removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
 						return err
 					}
@@ -2702,7 +2685,7 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 					return err
 				} else if !exists {
 					glog.Infof("Removing address assignment for endpoint %s of service %s (%s)", endpointName, svc.Name, svc.ID)
-					if err := store.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
+					if err := f.addressassignmentStore.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
 						glog.Errorf("Error removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
 						return err
 					}
@@ -2820,7 +2803,7 @@ func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID str
 // Get the details of all services for the specified tenant
 func (f *Facade) GetServiceDetailsByTenantID(ctx datastore.Context, tenantID string) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceDetailsByTenantID"))
-	svcs, err := f.serviceStore.Query(ctx, service.Query{})
+	svcs, err := f.serviceStore.Search(ctx, service.Query{})
 	if err != nil {
 		return nil, err
 	}
@@ -3082,7 +3065,7 @@ func isEmptyPath(p string) bool {
 
 func (f *Facade) QueryServiceDetails(ctx datastore.Context, request service.Query) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.QueryServiceDetails"))
-	return f.serviceStore.Query(ctx, request)
+	return f.serviceStore.Search(ctx, request)
 }
 
 func (f *Facade) GetServiceNamePath(ctx datastore.Context, serviceID string) (tenantID string, serviceNamePath string, err error) {

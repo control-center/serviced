@@ -22,21 +22,22 @@ import (
 )
 
 var _ = Suite(&S{
-	ElasticTest: elastic.ElasticTest{
+	Test: elastic.Test{
 		Index:    "controlplane",
 		Mappings: []elastic.Mapping{MAPPING},
-	}})
+	},
+})
 
 type S struct {
-	elastic.ElasticTest
+	elastic.Test
 	ctx   datastore.Context
 	store Store
 }
 
 func (s *S) SetUpTest(c *C) {
-	s.ElasticTest.SetUpTest(c)
+	s.Test.SetUpTest(c)
 	datastore.Register(s.Driver())
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 	s.store = NewStore()
 }
 

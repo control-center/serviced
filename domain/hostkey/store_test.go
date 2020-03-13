@@ -29,25 +29,25 @@ func Test(t *testing.T) {
 }
 
 var _ = Suite(&S{
-	ElasticTest: elastic.ElasticTest{
+	Test: elastic.Test{
 		Index:    "controlplane",
 		Mappings: []elastic.Mapping{MAPPING},
 	}})
 
 type S struct {
-	elastic.ElasticTest
+	elastic.Test
 	ctx   datastore.Context
 	store Store
 }
 
 func (s *S) SetUpTest(c *C) {
-	s.ElasticTest.SetUpTest(c)
+	s.Test.SetUpTest(c)
 	datastore.Register(s.Driver())
-	s.ctx = datastore.Get()
+	s.ctx = datastore.GetContext()
 	s.store = NewStore()
 }
 
-func (s *S) Test_HostKeyCRUD(c *C) {
+func (s *S) Test_RSAKeyCRUD(c *C) {
 	hostID := "hostID"
 	keyText := `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxeGhO/4jJ7fPwXHjtZx+
@@ -58,7 +58,7 @@ Zmpt11QJ8YV5yiBtziSyYfiXTFs5yoydvRqmTIRm1CBnV3JYXio9fXv4C1BVTk11
 miqYybTUZga1O9mykjDbrwtaigb2rP1EjQzJoMLHW27edXBZUFQjedD0N20+WkUx
 0wIDAQAB
 -----END PUBLIC KEY-----`
-	expected := &HostKey{
+	expected := &RSAKey{
 		PEM: keyText,
 	}
 	actual, err := s.store.Get(s.ctx, hostID)

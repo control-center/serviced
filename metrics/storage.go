@@ -54,7 +54,7 @@ type StorageMetrics struct {
 	Tenants               map[string]MetricSeries
 }
 
-func (c *Client) GetAvailableStorage(window time.Duration, aggregator string, tenants ...string) (*StorageMetrics, error) {
+func (c *clientImpl) GetAvailableStorage(window time.Duration, aggregator string, tenants ...string) (*StorageMetrics, error) {
 	log.WithField("tenants", tenants).Debug("Requesting storage availability metrics")
 
 	options := PerformanceOptions{

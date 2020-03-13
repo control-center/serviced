@@ -22,7 +22,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *FacadeIntegrationTest) TestServiceConfig_CRUD(c *C) {
+func (s *IntegrationTest) TestServiceConfig_CRUD(c *C) {
 	svcA := service.Service{
 		ID:           "servicea",
 		Name:         "serviceA",

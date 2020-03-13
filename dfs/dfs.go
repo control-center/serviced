@@ -106,7 +106,7 @@ type SnapshotInfo struct {
 // applications.
 type DistributedFilesystem struct {
 	docker docker.Docker
-	index  registry.RegistryIndex
+	index  registry.IndexClient
 	reg    registry.Registry
 	disk   volume.Driver
 	// FIXME: replace this with a NFS server, instead of restarting the
@@ -124,7 +124,7 @@ type ImageInfo struct {
 }
 
 // NewDistributedFilesystem instantiates a new DistributedFilsystem object
-func NewDistributedFilesystem(docker docker.Docker, index registry.RegistryIndex, reg registry.Registry, disk volume.Driver, net storage.StorageDriver, timeout time.Duration) *DistributedFilesystem {
+func NewDistributedFilesystem(docker docker.Docker, index registry.IndexClient, reg registry.Registry, disk volume.Driver, net storage.StorageDriver, timeout time.Duration) *DistributedFilesystem {
 	return &DistributedFilesystem{
 		docker:  docker,
 		index:   index,

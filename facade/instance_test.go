@@ -106,7 +106,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 		UUID:    "someimageuuid",
 	}
 	ft.registryStore.On("Get", ft.ctx, "testtenant/image:latest").Return(img, nil)
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
+	ft.hostStore.On("Get", ft.ctx, host.Key("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
 	inst, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "testservice")
 	c.Assert(err, Equals, ErrTestHostStore)
 	c.Assert(inst, IsNil)
@@ -146,7 +146,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_BadImage(c *C) {
 		Name:   "sometest.host.org",
 		PoolID: "default",
 	}
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
+	ft.hostStore.On("Get", ft.ctx, host.Key("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
 		arg := args.Get(2).(*host.Host)
 		*arg = *hst
 	})
@@ -192,7 +192,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 		Name:   "sometest.host.org",
 		PoolID: "default",
 	}
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
+	ft.hostStore.On("Get", ft.ctx, host.Key("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
 		arg := args.Get(2).(*host.Host)
 		*arg = *hst
 	})
@@ -235,7 +235,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 }
 
 func (ft *FacadeUnitTest) TestGetHostInstances_HostNotFound(c *C) {
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
+	ft.hostStore.On("Get", ft.ctx, host.Key("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
 	inst, err := ft.Facade.GetHostInstances(ft.ctx, testStartTime, "testhost")
 	c.Assert(err, Equals, ErrTestHostStore)
 	c.Assert(inst, IsNil)
@@ -247,7 +247,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_StatesError(c *C) {
 		Name:   "sometest.host.org",
 		PoolID: "default",
 	}
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
+	ft.hostStore.On("Get", ft.ctx, host.Key("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
 		arg := args.Get(2).(*host.Host)
 		*arg = *hst
 	})
@@ -264,7 +264,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_ServiceNotFound(c *C) {
 		Name:   "sometest.host.org",
 		PoolID: "default",
 	}
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
+	ft.hostStore.On("Get", ft.ctx, host.Key("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
 		arg := args.Get(2).(*host.Host)
 		*arg = *hst
 	})
@@ -300,7 +300,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 		Name:   "sometest.host.org",
 		PoolID: "default",
 	}
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
+	ft.hostStore.On("Get", ft.ctx, host.Key("testhost"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
 		arg := args.Get(2).(*host.Host)
 		*arg = *hst
 	})

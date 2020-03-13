@@ -22,37 +22,47 @@ import (
 	"github.com/zenoss/elastigo/search"
 )
 
-//NewStore creates a ResourcePool store
-func NewStore() Store {
-	return &storeImpl{}
-}
-
-// Store type for interacting with ResourcePool persistent storage
+// Store is an interface for accessing pool data.
 type Store interface {
-	datastore.EntityStore
+	datastore.Store
 
-	// GetResourcePools Get a list of all the resource pools
 	GetResourcePools(ctx datastore.Context) ([]ResourcePool, error)
-
-	// GetResourcePoolsByRealm gets a list of resource pools for a given realm
 	GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error)
-
-	// HasVirtualIP returns true if there is a virtual ip found for the given pool
 	HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error)
 }
 
-type storeImpl struct {
-	datastore.DataStore
+type store struct{}
+
+var kind = "resourcepool"
+
+// NewStore returns a new object that implements the Store interface.
+func NewStore() Store {
+	return &store{}
+}
+
+// Put adds or updates an entity
+func (s *store) Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Put(ctx, key, entity)
+}
+
+// Get an entity. Return ErrNoSuchEntity if nothing found for the key.
+func (s *store) Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	return datastore.Get(ctx, key, entity)
+}
+
+// Delete removes the entity
+func (s *store) Delete(ctx datastore.Context, key datastore.Key) error {
+	return datastore.Delete(ctx, key)
 }
 
 //GetResourcePools Get a list of all the resource pools
-func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
+func (s *store) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePools"))
 	return query(ctx, "_exists_:ID")
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
-func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
+func (s *store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePoolsByRealm"))
 	id := strings.TrimSpace(realm)
 	if id == "" {
@@ -69,7 +79,7 @@ func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string)
 }
 
 // HasVirtualIP returns true if there is a virtual ip found for the given pool
-func (s *storeImpl) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
+func (s *store) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.HasVirtualIP"))
 	if poolID = strings.TrimSpace(poolID); poolID == "" {
 		return false, errors.New("empty pool id not allowed")
@@ -90,7 +100,7 @@ func (s *storeImpl) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string
 	return results.Len() > 0, nil
 }
 
-//Key creates a Key suitable for getting, putting and deleting ResourcePools
+// Key creates a Key suitable for getting, putting and deleting ResourcePools
 func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
@@ -119,5 +129,3 @@ func query(ctx datastore.Context, query string) ([]ResourcePool, error) {
 	}
 	return convert(results)
 }
-
-var kind = "resourcepool"

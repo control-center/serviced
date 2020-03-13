@@ -397,7 +397,7 @@ func (d *daemon) run() (err error) {
 func (d *daemon) initContext() datastore.Context {
 	log.Debug("Acquiring application context from Elastic")
 	datastore.Register(d.dsDriver)
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	if ctx == nil {
 		log.Fatal("Unable to acquire application context from Elastic")
 	}
@@ -625,16 +625,16 @@ func (d *daemon) checkVersion() error {
 // 1.5.0+.
 func (d *daemon) removeOrphanRegistryImages() error {
 	log.Info("Checking the image registry for orphan images")
-	if images, err := d.facade.GetRegistryImages(d.dsContext); err != nil {
+	images, err := d.facade.GetRegistryImages(d.dsContext)
+	if err != nil {
 		log.WithError(err).Error("Unable to get docker image registry entries")
 		return err
-	} else {
-		for _, image := range images {
-			imageID := image.ID()
-			if d.facade.CheckRemoveRegistryImage(d.dsContext, imageID) != nil {
-				log.WithField("imageid", imageID).WithError(err).Error("Error checking the image registry for orphan images")
-				return err
-			}
+	}
+	for _, image := range images {
+		imageID := image.ID()
+		if d.facade.CheckRemoveRegistryImage(d.dsContext, imageID) != nil {
+			log.WithField("imageid", imageID).WithError(err).Error("Error checking the image registry for orphan images")
+			return err
 		}
 	}
 	return nil
@@ -1121,7 +1121,13 @@ func (d *daemon) startAgent() error {
 						}
 						ServiceInstances := make([]metrics.ServiceInstance, 0, len(getServiceInstances))
 						for _, instance := range getServiceInstances {
-							ServiceInstances = append(ServiceInstances, metrics.ServiceInstance{instance.ServiceID, instance.InstanceID})
+							ServiceInstances = append(
+								ServiceInstances,
+								metrics.ServiceInstance{
+									ServiceID:  instance.ServiceID,
+									InstanceID: instance.InstanceID,
+								},
+							)
 						}
 						ramMetric, err := d.facade.GetInstanceMemoryStats(time.Now().Add(5*-time.Minute), ServiceInstances...)
 						if err != nil {
@@ -1213,7 +1219,7 @@ func (d *daemon) initDriver() datastore.Driver {
 	return eDriver
 }
 
-func initMetricsClient() *metrics.Client {
+func initMetricsClient() metrics.Client {
 	addr := fmt.Sprintf("http://%s:8888", localhost)
 	log := log.WithFields(logrus.Fields{
 		"metricsaddr": addr,
@@ -1230,7 +1236,7 @@ func initMetricsClient() *metrics.Client {
 func (d *daemon) initFacade() *facade.Facade {
 	options := config.GetOptions()
 	f := facade.New()
-	index := registry.NewRegistryIndexClient(f)
+	index := registry.NewIndexClient(f)
 	dfs := dfs.NewDistributedFilesystem(d.docker, index, d.reg, d.disk, d.net, time.Duration(options.MaxDFSTimeout)*time.Second)
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)

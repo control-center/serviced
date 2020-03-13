@@ -28,7 +28,7 @@ import (
 )
 
 func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Connection, error) {
-	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
+	poolID, err := this.facade.GetPoolForService(datastore.GetContext(), serviceID)
 	if err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetPoolForService service=%+v err=%s", serviceID, err)
 		return nil, err
@@ -47,12 +47,12 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 	if err != nil {
 		return err
 	}
-	return this.facade.StopServiceInstance(datastore.Get(), serviceID, instanceID)
+	return this.facade.StopServiceInstance(datastore.GetContext(), serviceID, instanceID)
 }
 
 func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *[]service.Instance) error {
 	since := time.Now().Add(-time.Hour)
-	inst, err := this.facade.GetServiceInstances(datastore.Get(), since, serviceID)
+	inst, err := this.facade.GetServiceInstances(datastore.GetContext(), since, serviceID)
 	if err != nil {
 		return err
 	}

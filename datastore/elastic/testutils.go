@@ -33,10 +33,10 @@ const (
 	esVersion = "0.90.13"
 )
 
-// ElasticTest for running tests that need elasticsearch. Type is to be used a a gocheck Suite. When writing a test,
-// embed ElasticTest to create a test suite that will automatically start and stop elasticsearch. See gocheck
+// Test for running tests that need elasticsearch. Type is to be used a a gocheck Suite. When writing a test,
+// embed Test to create a test suite that will automatically start and stop elasticsearch. See gocheck
 // documentation for more infomration about writing gocheck tests.
-type ElasticTest struct {
+type Test struct {
 	driver *elasticDriver
 	server *testCluster
 	//InitTimeout in seconds to wait for elastic to start
@@ -52,9 +52,9 @@ type ElasticTest struct {
 }
 
 //setDefaults sets up sane defaults for what it can. Fatal if required values not set.
-func (et *ElasticTest) setDefaults(c *gocheck.C) {
+func (et *Test) setDefaults(c *gocheck.C) {
 	if et.Index == "" {
-		c.Fatal("index required to run ElasticTest")
+		c.Fatal("index required to run elastic.Test")
 	}
 	if et.InitTimeout == 0 {
 		et.InitTimeout = 60
@@ -65,8 +65,8 @@ func (et *ElasticTest) setDefaults(c *gocheck.C) {
 }
 
 //SetUpSuite Run once when the suite starts running.
-func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
-	log.Printf("ElasticTest SetUpSuite called.\n")
+func (et *Test) SetUpSuite(c *gocheck.C) {
+	log.Printf("elastic.Test SetUpSuite called.\n")
 	et.setDefaults(c)
 	driver := newDriver("localhost", et.Port, et.Index, time.Duration(0))
 	et.driver = driver
@@ -74,7 +74,7 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 	existingServer := true
 	//is elastic already running?
 	if !driver.isUp() {
-		log.Printf("ElasticTest SetUpSuite: starting new cluster.\n")
+		log.Printf("elastic.Test SetUpSuite: starting new cluster.\n")
 
 		//Seeding because mkdir uses rand and it was returning the same directory
 		rand.Seed(time.Now().Unix())
@@ -91,7 +91,7 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 		et.server = tc
 		existingServer = false
 	} else {
-		log.Printf("ElasticTest SetUpSuite: using existing cluster.\n")
+		log.Printf("elastic.Test SetUpSuite: using existing cluster.\n")
 	}
 
 	for _, mapping := range et.Mappings {
@@ -115,14 +115,15 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 }
 
 //TearDownSuite Run once after all tests or benchmarks have finished running.
-func (et *ElasticTest) TearDownSuite(c *gocheck.C) {
-	log.Print("ElasticTest TearDownSuite called")
+func (et *Test) TearDownSuite(c *gocheck.C) {
+	log.Print("elastic.Test TearDownSuite called")
 
 	et.stop()
 }
 
-func (et *ElasticTest) SetUpTest(c *gocheck.C) {
-	log.Print("ElasticTest SetUpTest called")
+// SetUpTest sets up the test
+func (et *Test) SetUpTest(c *gocheck.C) {
+	log.Print("elastic.Test SetUpTest called")
 	err := et.driver.deleteIndex()
 	c.Assert(err, gocheck.IsNil)
 	err = et.driver.Initialize(time.Second * et.InitTimeout)
@@ -130,11 +131,11 @@ func (et *ElasticTest) SetUpTest(c *gocheck.C) {
 }
 
 //Driver returns the initialized driver
-func (et *ElasticTest) Driver() ElasticDriver {
+func (et *Test) Driver() Driver {
 	return et.driver
 }
 
-func (et *ElasticTest) stop() error {
+func (et *Test) stop() error {
 	if et.server != nil {
 		et.server.Stop()
 	}

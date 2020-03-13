@@ -28,12 +28,18 @@ import (
 const conffile = "/etc/default/serviced"
 
 var (
-	Version   string
+	// Version of Control Center
+	Version string
+	// GoVersion version of Go lang
 	GoVersion string
-	Date      string
+	// Date when CC was built
+	Date string
+	// Gitcommit git hash
 	Gitcommit string
+	// Gitbranch git branch
 	Gitbranch string
-	Buildtag  string
+	// Buildtag build label
+	Buildtag string
 )
 
 func main() {

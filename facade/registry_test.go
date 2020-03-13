@@ -21,7 +21,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeIntegrationTest) TestGetRegistryImage(c *C) {
+func (ft *IntegrationTest) TestGetRegistryImage(c *C) {
 	expected := &registry.Image{
 		Library: "library",
 		Repo:    "reponame",
@@ -36,14 +36,14 @@ func (ft *FacadeIntegrationTest) TestGetRegistryImage(c *C) {
 	c.Assert(actual, DeepEquals, expected)
 }
 
-func (ft *FacadeIntegrationTest) TestGetRegistryImage_NotFound(c *C) {
+func (ft *IntegrationTest) TestGetRegistryImage_NotFound(c *C) {
 	result, err := ft.Facade.GetRegistryImage(ft.CTX, "someImageID")
 	c.Assert(err, NotNil)
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 	c.Assert(result, IsNil)
 }
 
-func (ft *FacadeIntegrationTest) TestSetRegistryImage(c *C) {
+func (ft *IntegrationTest) TestSetRegistryImage(c *C) {
 	expected := &registry.Image{
 		Library: "library",
 		Repo:    "reponame",
@@ -95,7 +95,7 @@ func (ft *FacadeIntegrationTest) TestSetRegistryImage(c *C) {
 	c.Assert(actual, DeepEquals, expected2)
 }
 
-func (ft *FacadeIntegrationTest) TestDeleteRegistryImage(c *C) {
+func (ft *IntegrationTest) TestDeleteRegistryImage(c *C) {
 	expected := &registry.Image{
 		Library: "library",
 		Repo:    "reponame",
@@ -115,7 +115,7 @@ func (ft *FacadeIntegrationTest) TestDeleteRegistryImage(c *C) {
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 }
 
-func (ft *FacadeIntegrationTest) TestGetRegistryImages(c *C) {
+func (ft *IntegrationTest) TestGetRegistryImages(c *C) {
 	expected := []registry.Image{
 		{
 			Library: "library",
@@ -151,7 +151,7 @@ func (ft *FacadeIntegrationTest) TestGetRegistryImages(c *C) {
 	c.Assert(actual, DeepEquals, expected)
 }
 
-func (ft *FacadeIntegrationTest) TestSearchRegistryLibraryByTag(c *C) {
+func (ft *IntegrationTest) TestSearchRegistryLibraryByTag(c *C) {
 	expected1 := []registry.Image{
 		{
 			Library: "library",

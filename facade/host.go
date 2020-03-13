@@ -39,8 +39,11 @@ const (
 )
 
 var (
+	// ErrHostDoesNotExist indicates a host is unknown.
 	ErrHostDoesNotExist = errors.New("facade: host does not exist")
-	ErrHostOffline      = errors.New("host is offline")
+
+	// ErrHostOffline indicates a host is known but offline.
+	ErrHostOffline = errors.New("host is offline")
 )
 
 //---------------------------------------------------------------------------
@@ -61,7 +64,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	return key, alog.Error(err)
 }
 
-// AddHost registers a host with serviced. Returns the host's _public_ key.
+// AddHostPrivate registers a host with serviced. Returns the host's _public_ key.
 // Returns an error if host already exists or if the host's IP is a virtual IP.
 func (f *Facade) AddHostPrivate(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddHostPrivate"))
@@ -120,7 +123,7 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	entity.CreatedAt = now
 	entity.UpdatedAt = now
 
-	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+	if err = f.hostStore.Put(ctx, host.Key(entity.ID), entity); err != nil {
 		return nil, err
 	}
 	err = f.zzk.AddHost(entity)
@@ -165,7 +168,7 @@ func (f *Facade) addHostPrivate(ctx datastore.Context, entity *host.Host) ([]byt
 	entity.CreatedAt = now
 	entity.UpdatedAt = now
 
-	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+	if err = f.hostStore.Put(ctx, host.Key(entity.ID), entity); err != nil {
 		return nil, err
 	}
 	err = f.zzk.AddHost(entity)
@@ -199,7 +202,7 @@ func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) (
 	}
 
 	// Store the key
-	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
+	hostkeyEntity := hostkey.RSAKey{PEM: string(publicPEM[:])}
 	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
 	if err != nil {
 		return nil, err
@@ -236,7 +239,7 @@ func (f *Facade) useCommonKey(ctx datastore.Context, entity *host.Host) ([]byte,
 	}
 
 	// Store the key
-	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
+	hostkeyEntity := hostkey.RSAKey{PEM: string(publicPEM[:])}
 	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
 	if err != nil {
 		return nil, err
@@ -287,7 +290,7 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	entity.NatIP = foundhost.NatIP
 
 	entity.UpdatedAt = time.Now()
-	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+	if err = f.hostStore.Put(ctx, host.Key(entity.ID), entity); err != nil {
 		return alog.Error(err)
 	}
 
@@ -334,7 +337,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	}
 
 	//remove host from datastore
-	if err = f.hostStore.Delete(ctx, host.HostKey(hostID)); err != nil {
+	if err = f.hostStore.Delete(ctx, host.Key(hostID)); err != nil {
 		return alog.Error(err)
 	}
 
@@ -380,7 +383,7 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 	glog.V(2).Infof("Facade.GetHost: id=%s", hostID)
 
 	var value host.Host
-	err := f.hostStore.Get(ctx, host.HostKey(hostID), &value)
+	err := f.hostStore.Get(ctx, host.Key(hostID), &value)
 	glog.V(4).Infof("Facade.GetHost: get error %v", err)
 	if datastore.IsErrNoSuchEntity(err) {
 		return nil, nil
@@ -396,11 +399,11 @@ func (f *Facade) GetHostKey(ctx datastore.Context, hostID string) ([]byte, error
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostKey"))
 	glog.V(2).Infof("Facade.GetHostKey: id=%s", hostID)
 
-	if key, err := f.hostkeyStore.Get(ctx, hostID); err != nil {
+	key, err := f.hostkeyStore.Get(ctx, hostID)
+	if err != nil {
 		return nil, err
-	} else {
-		return []byte(key.PEM), nil
 	}
+	return []byte(key.PEM), nil
 }
 
 // ResetHostKey generates and returns a host key by id. Returns nil if host not found
@@ -411,15 +414,14 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 		Action(audit.Update).ID(hostID).Type(host.GetType())
 
 	var value host.Host
-	if err := f.hostStore.Get(ctx, host.HostKey(hostID), &value); err != nil {
+	if err := f.hostStore.Get(ctx, host.Key(hostID), &value); err != nil {
 		return nil, alog.Error(err)
 	}
 	key, err := f.generateDelegateKey(ctx, &value)
 	return key, alog.Error(err)
 }
 
-// RegisterHost attempts to register a host's keys over ssh, or locally if it's
-// the current host.
+// RegisterHostKeys registers a host's keys over ssh, or locally if it's the current host.
 func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, nat utils.URL, keys []byte, prompt bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RegisterHostKeys"))
 	alog := f.auditLogger.Message(ctx, "Registering Host Keys").

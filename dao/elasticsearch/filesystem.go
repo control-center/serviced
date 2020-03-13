@@ -92,7 +92,7 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 // Backup takes a backup of the full application stack and returns the filename
 // that it is written to.
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	if len(backupRequest.Username) > 0 {
 		ctx.SetUser(backupRequest.Username)
 	}
@@ -157,7 +157,7 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 }
 
 func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest, backupEstimate *model.BackupEstimate) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	start := time.Now()
 	if backupRequest.Dirpath == "" {
 		log.WithField("backupspath", dao.backupsPath).Info("Dirpath was empty. Using value from dao.BackupsPath")
@@ -177,7 +177,7 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 
 // AsyncBackup is the same as backup, but asynchronous
 func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filename *string) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	if len(backupRequest.Username) > 0 {
 		ctx.SetUser(backupRequest.Username)
 	}
@@ -191,7 +191,7 @@ func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filen
 
 // Restore restores the full application stack from a backup file.
 func (dao *ControlPlaneDao) Restore(restoreRequest model.RestoreRequest, _ *int) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	if len(restoreRequest.Username) > 0 {
 		ctx.SetUser(restoreRequest.Username)
 	}
@@ -225,7 +225,7 @@ func (dao *ControlPlaneDao) Restore(restoreRequest model.RestoreRequest, _ *int)
 
 // AsyncRestore is the same as restore, but asynchronous.
 func (dao *ControlPlaneDao) AsyncRestore(restoreRequest model.RestoreRequest, unused *int) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	if len(restoreRequest.Username) > 0 {
 		ctx.SetUser(restoreRequest.Username)
 	}
@@ -283,7 +283,7 @@ func (dao *ControlPlaneDao) ListBackups(dirpath string, files *[]model.BackupFil
 						return false
 					}
 					defer gz.Close()
-					_, err = dao.facade.BackupInfo(datastore.Get(), gz)
+					_, err = dao.facade.BackupInfo(datastore.GetContext(), gz)
 					if err != nil {
 						return false
 					}
@@ -319,7 +319,7 @@ func (dao *ControlPlaneDao) BackupStatus(_ model.EntityRequest, status *string) 
 
 // Snapshot captures the current state of a single application
 func (dao *ControlPlaneDao) Snapshot(req model.SnapshotRequest, snapshotID *string) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -341,7 +341,7 @@ func (dao *ControlPlaneDao) Snapshot(req model.SnapshotRequest, snapshotID *stri
 
 // Rollback reverts a single application to a particular state
 func (dao *ControlPlaneDao) Rollback(req model.RollbackRequest, _ *int) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -353,7 +353,7 @@ func (dao *ControlPlaneDao) Rollback(req model.RollbackRequest, _ *int) (err err
 
 // DeleteSnapshot deletes a single snapshot
 func (dao *ControlPlaneDao) DeleteSnapshot(snapshotID string, _ *int) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -365,7 +365,7 @@ func (dao *ControlPlaneDao) DeleteSnapshot(snapshotID string, _ *int) (err error
 
 // DeleteSnapshots deletes all snapshots for a service
 func (dao *ControlPlaneDao) DeleteSnapshots(serviceID string, _ *int) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -377,7 +377,7 @@ func (dao *ControlPlaneDao) DeleteSnapshots(serviceID string, _ *int) (err error
 
 // ListSnapshots returns a list of all snapshots for a service
 func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.SnapshotInfo) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -419,7 +419,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 // ResetRegistry prompts all images to be pushed back into the docker registry
 func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err error) {
 	// Do not DFSLock here, Facade does that
-	err = dao.facade.SyncRegistryImages(datastore.Get(), true)
+	err = dao.facade.SyncRegistryImages(datastore.GetContext(), true)
 	return
 }
 
@@ -427,13 +427,13 @@ func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err er
 // from the docker registry and save it to the index.
 func (dao *ControlPlaneDao) RepairRegistry(_ model.EntityRequest, _ *int) (err error) {
 	// Do not DFSLock here, Facade does that
-	err = dao.facade.RepairRegistry(datastore.Get())
+	err = dao.facade.RepairRegistry(datastore.GetContext())
 	return
 }
 
 // ReadyDFS locks until it receives notice that the dfs is idle
 func (dao *ControlPlaneDao) ReadyDFS(serviceID string, _ *int) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -451,14 +451,14 @@ func (dao *ControlPlaneDao) TagSnapshot(request model.TagSnapshotRequest, _ *int
 
 // RemoveSnapshotTag removes a tag from an existing snapshot
 func (dao *ControlPlaneDao) RemoveSnapshotTag(request model.SnapshotByTagRequest, snapshotID *string) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	*snapshotID, err = dao.facade.RemoveSnapshotTag(ctx, request.ServiceID, request.TagName)
 	return err
 }
 
 // GetSnapshotByServiceIDAndTag Gets the snapshot from a specific service with a specific tag
 func (dao *ControlPlaneDao) GetSnapshotByServiceIDAndTag(request model.SnapshotByTagRequest, snapshot *model.SnapshotInfo) (err error) {
-	ctx := datastore.Get()
+	ctx := datastore.GetContext()
 	info, err := dao.facade.GetSnapshotByServiceIDAndTag(ctx, request.ServiceID, request.TagName)
 	if err != nil {
 		return

@@ -9,15 +9,15 @@ type Store struct {
 	mock.Mock
 }
 
-func (_m *Store) Get(ctx datastore.Context, id string) (*hostkey.HostKey, error) {
+func (_m *Store) Get(ctx datastore.Context, id string) (*hostkey.RSAKey, error) {
 	ret := _m.Called(ctx, id)
 
-	var r0 *hostkey.HostKey
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) *hostkey.HostKey); ok {
+	var r0 *hostkey.RSAKey
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *hostkey.RSAKey); ok {
 		r0 = rf(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*hostkey.HostKey)
+			r0 = ret.Get(0).(*hostkey.RSAKey)
 		}
 	}
 
@@ -30,11 +30,11 @@ func (_m *Store) Get(ctx datastore.Context, id string) (*hostkey.HostKey, error)
 
 	return r0, r1
 }
-func (_m *Store) Put(ctx datastore.Context, id string, val *hostkey.HostKey) error {
+func (_m *Store) Put(ctx datastore.Context, id string, val *hostkey.RSAKey) error {
 	ret := _m.Called(ctx, id, val)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(datastore.Context, string, *hostkey.HostKey) error); ok {
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, *hostkey.RSAKey) error); ok {
 		r0 = rf(ctx, id, val)
 	} else {
 		r0 = ret.Error(0)

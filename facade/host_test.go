@@ -28,7 +28,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *FacadeIntegrationTest) Test_HostCRUD(t *C) {
+func (s *IntegrationTest) Test_HostCRUD(t *C) {
 	testid := "deadb10f"
 	poolid := "pool-id"
 	defer s.Facade.RemoveHost(s.CTX, testid)
@@ -94,7 +94,7 @@ func (s *FacadeIntegrationTest) Test_HostCRUD(t *C) {
 	}
 }
 
-func (s *FacadeIntegrationTest) Test_HostGetKey(t *C) {
+func (s *IntegrationTest) Test_HostGetKey(t *C) {
 	testid := "deadb10f"
 	poolid := "pool-id"
 
@@ -132,7 +132,7 @@ func (s *FacadeIntegrationTest) Test_HostGetKey(t *C) {
 	t.Assert(err, IsNil)
 }
 
-	func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
+func (s *IntegrationTest) Test_HostRemove(t *C) {
 	//create pool for testing
 	resoucePool := pool.New("poolid")
 	s.Facade.AddResourcePool(s.CTX, resoucePool)
