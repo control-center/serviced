@@ -14,27 +14,27 @@
 package elastic
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/logging"
-	"github.com/zenoss/elastigo/api"
-	"github.com/zenoss/elastigo/core"
-	"github.com/zenoss/elastigo/indices"
-	"github.com/zenoss/elastigo/search"
+	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/zenoss/logri"
+	"io/ioutil"
 )
 
 type elasticConnection struct {
-	index string
+	index  string
+	client *elasticsearch.Client
 }
 
 var (
-	plog = logging.PackageLogger() // the standard package logger
-	traceLogger  *logri.Logger // a 'trace' logger for an additional level of debug messages
+	plog        = logging.PackageLogger() // the standard package logger
+	traceLogger *logri.Logger             // a 'trace' logger for an additional level of debug messages
 )
 
 func init() {
@@ -44,172 +44,208 @@ func init() {
 
 func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
 	logger := plog.WithFields(log.Fields{
-		"kind":  key.Kind(),
-		"id":  key.ID(),
+		"kind": key.Kind(),
+		"id":   key.ID(),
 	})
 	logger.Debug("Put")
 	traceLogger.WithField("payload", string(msg.Bytes())).Debug("Put")
 
-	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
-	var raw json.RawMessage
-	raw = msg.Bytes()
-	resp, err := core.IndexWithParameters(false, ec.index, key.Kind(), key.ID(), "", msg.Version(), "", "", "", 0, "", "", false, &raw)
+	//Because of document type depreciation in ES 7.x we combine id and key
+	args := []func(*esapi.IndexRequest){
+		ec.client.Index.WithDocumentID(fmt.Sprintf("%s-%s", key.ID(), key.Kind())),
+		ec.client.Index.WithRefresh("true"),
+	}
+
+	if (msg.Version()["seqNo"] + msg.Version()["primaryTerm"]) > 0 {
+		args = append(args, ec.client.Index.WithIfPrimaryTerm(msg.Version()["primaryTerm"]),
+			ec.client.Index.WithIfSeqNo(msg.Version()["seqNo"]))
+	}
+
+	res, err := ec.client.Index(ec.index, bytes.NewReader(msg.Bytes()), args...)
+
+	defer res.Body.Close()
 	if err != nil {
 		logger.WithError(err).Error("Put failed")
-		if eserr, iseserror := err.(api.ESError); iseserror && eserr.Code == 409 {
-			// Conflict
-			return fmt.Errorf("Your changes conflict with those made by another user. Please reload and try your changes again.")
-		}
+		//TODO handle new type of ES error
+		//if eserr, iseserror := err.(api.ESError); iseserror && eserr.Code == 409 {
+		// Conflict
+		//return fmt.Errorf("Your changes conflict with those made by another user. Please reload and try your changes again.")
+		//}
 		return err
 	}
-	indices.Refresh(ec.index)
-	traceLogger.WithField("response", resp).Debug("Put")
-	if !resp.Ok {
-		return fmt.Errorf("non OK response: %v", resp)
+
+	traceLogger.WithField("response", res).Debug("Put")
+	if res.IsError() {
+		logger.Info("error while put")
+		return fmt.Errorf("non OK response: %v", res)
 	}
 	return nil
 }
 
 func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, error) {
 	logger := plog.WithFields(log.Fields{
-		"kind":  key.Kind(),
-		"id":  key.ID(),
+		"kind": key.Kind(),
+		"id":   key.ID(),
 	})
 	logger.Debug("Get")
 	traceLogger.Debug("Get")
 
-	//	func Get(pretty bool, index string, _type string, id string) (api.BaseResponse, error) {
-	//	err := core.GetSource(ec.index, key.Kind(), key.ID(), &bytes)
-	response, err := elasticGet(false, ec.index, key.Kind(), key.ID())
+	//Because of document type depreciation in ES 7.x we combine id and key
+	response, err := ec.elasticGet(fmt.Sprintf("%s-%s", key.ID(), key.Kind()))
 	if err != nil {
 		logger.WithError(err).Error("Get failed")
 		return nil, err
 	}
-	if !response.Exists {
+	if !response.Found {
 		logger.Debug("Entity not found")
 		return nil, datastore.ErrNoSuchEntity{Key: key}
 	}
 	bytes := response.Source
-	msg := datastore.NewJSONMessage(bytes, response.Version)
+	msg := datastore.NewJSONMessage(bytes, map[string]int{
+		"version":     response.Version,
+		"primaryTerm": response.PrimaryTerm,
+		"seqNo":       response.SeqNo})
 	return msg, nil
 }
 
 func (ec *elasticConnection) Delete(key datastore.Key) error {
 	logger := plog.WithFields(log.Fields{
-		"kind":  key.Kind(),
-		"id":  key.ID(),
+		"kind": key.Kind(),
+		"id":   key.ID(),
 	})
 	logger.Debug("Delete")
 
-	//func Delete(pretty bool, index string, _type string, id string, version int, routing string) (api.BaseResponse, error) {
-	resp, err := core.Delete(false, ec.index, key.Kind(), key.ID(), 0, "")
-	indices.Refresh(ec.index)
-	traceLogger.WithField("response", resp).Debug("Delete")
+	//Because of document type depreciation in ES 7.x we combine id and key
+	res, err := ec.client.Delete(ec.index,
+		fmt.Sprintf("%s-%s", key.ID(), key.Kind()),
+		ec.client.Delete.WithRefresh("true"))
+
+	traceLogger.WithField("response", res).Debug("Delete")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, error) {
-	switch s := query.(type) {
-	case *search.SearchDsl:
-		resp, err := s.Result()
-		if err != nil {
-			err = fmt.Errorf("error executing query %v", err)
-			plog.WithError(err).Error("error executing query")
-			return nil, err
-		}
-		return toJSONMessages(resp), nil
-	case ElasticSearchRequest:
-		resp, err := core.SearchRequest(
-			s.Pretty,
-			s.Index,
-			s.Type,
-			s.Query,
-			s.Scroll,
-			s.Scan,
-		)
-		if err != nil {
-			err = fmt.Errorf("error executing query %v", err)
-			return nil, err
-		}
-		return toJSONMessages(&resp), nil
-	default:
-		return nil, fmt.Errorf("invalid search type %v", reflect.ValueOf(query))
+func (ec *elasticConnection) Query(query esapi.SearchRequest) ([]datastore.JSONMessage, error) {
+
+	resp, err := query.Do(context.Background(), ec.client)
+	if err != nil {
+		err = fmt.Errorf("error executing query %v", err)
+		plog.WithError(err).Error("error executing query")
+		return nil, err
 	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		var e map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+			plog.WithError(err).Errorf("Error parsing the response body: %s", err)
+		} else {
+			plog.WithError(err).Errorf("[%s] %s: %s",
+				resp.Status(),
+				e["error"].(map[string]interface{})["type"],
+				e["error"].(map[string]interface{})["reason"],
+			)
+		}
+		return nil, err
+	}
+
+	return toJSONMessages(resp)
 }
 
 // convert search result of json host to dao.Host array
-func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
-	var total = len(result.Hits.Hits)
+func toJSONMessages(result *esapi.Response) ([]datastore.JSONMessage, error) {
+	// Deserialize the response into a map.
+	var r map[string]interface{}
+	if err := json.NewDecoder(result.Body).Decode(&r); err != nil {
+		plog.WithError(err).Errorf("Error parsing the response body: %s", err)
+		return nil, err
+	}
+
+	var total = int(r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
 	var msgs = make([]datastore.JSONMessage, total)
 
 	logger := plog.WithField("total", total)
 	if total > 0 {
 		// Note that while it's possible for queries to span types, the vast majority of CC use cases (all?)
 		//   only query a single type at a time, so it's sufficient to get the type of the first hit
-		logger.WithField("type", result.Hits.Hits[0].Type)
+		logger.WithField("type", r["hits"].(map[string]interface{})["hits"].([]interface{})[0].(map[string]interface{})["_type"])
 	}
 	logger.Debug("Query finished")
 
-	for i := 0; i < total; i++ {
-		src := result.Hits.Hits[i].Source
-		fields := result.Hits.Hits[i].Fields
-		var data []byte
-		if len(fields) == 0 {
-			data = src
-		} else {
-			data = fields
+	for i, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
+		var data bytes.Buffer
+		if err := json.NewEncoder(&data).Encode(hit.(map[string]interface{})["_source"]); err != nil {
+			plog.WithError(err).Errorf("Error encoding query: %s", err)
+			return nil, err
 		}
-		version := result.Hits.Hits[i].Version
-		msg := datastore.NewJSONMessage(data, version)
+
+		msg := datastore.NewJSONMessage(data.Bytes(), map[string]int{
+			"version":     int(hit.(map[string]interface{})["_version"].(float64)),
+			"primaryTerm": int(hit.(map[string]interface{})["_primary_term"].(float64)),
+			"seqNo":       int(hit.(map[string]interface{})["_seq_no"].(float64)),
+		})
 		msgs[i] = msg
 	}
-	return msgs
+	return msgs, nil
 }
 
 //Modified from elastigo to use custom response type
-func elasticGet(pretty bool, index string, _type string, id string) (elasticResponse, error) {
-	var url string
-	var retval elasticResponse
-	if len(_type) > 0 {
-		url = fmt.Sprintf("/%s/%s/%s?%s", index, _type, id, api.Pretty(pretty))
-	} else {
-		url = fmt.Sprintf("/%s/%s?%s", index, id, api.Pretty(pretty))
+func (ec *elasticConnection) elasticGet(id string) (elasticResponse, error) {
+	var (
+		retval elasticResponse
+		res    *esapi.Response
+		err    error
+	)
+
+	res, err = ec.client.Get(ec.index, id)
+
+	defer res.Body.Close()
+
+	if err != nil {
+		plog.Errorf("Error getting response: %s", err)
+		return retval, err
 	}
-	body, err := api.DoCommand("GET", url, nil)
+
+	if res.IsError() {
+		var e map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+			plog.Errorf("Error parsing the response body: %s", err)
+			return retval, err
+		} else {
+			// Print the response status and error information.
+			plog.Errorf("%s ID:%s", res.Status(), id)
+			return retval, nil
+		}
+	}
+	//body, err := api.DoCommand("GET", url, nil)
+
+	// marshall into json
+	var body []byte
+	body, err = ioutil.ReadAll(res.Body)
+
 	if err != nil {
 		return retval, err
 	}
-	if err == nil {
-		// marshall into json
-		jsonErr := json.Unmarshal(body, &retval)
-		if jsonErr != nil {
-			return retval, jsonErr
-		}
+
+	jsonErr := json.Unmarshal(body, &retval)
+	if jsonErr != nil {
+		return retval, jsonErr
 	}
 	return retval, err
 }
 
 //Modified from elastigo BaseResponse to accept document source into a json.RawMessage
 type elasticResponse struct {
-	Ok      bool            `json:"ok"`
-	Index   string          `json:"_index,omitempty"`
-	Type    string          `json:"_type,omitempty"`
-	ID      string          `json:"_id,omitempty"`
-	Source  json.RawMessage `json:"_source,omitempty"` // depends on the schema you've defined
-	Version int             `json:"_version,omitempty"`
-	Found   bool            `json:"found,omitempty"`
-	Exists  bool            `json:"exists,omitempty"`
-}
-
-// Used to directly search elastic
-type ElasticSearchRequest struct {
-	Pretty bool
-	Index  string
-	Type   string
-	Query  interface{}
-	Scroll string
-	Scan   int
+	Ok          bool            `json:"ok"`
+	Index       string          `json:"_index,omitempty"`
+	Type        string          `json:"_type,omitempty"`
+	ID          string          `json:"_id,omitempty"`
+	Source      json.RawMessage `json:"_source,omitempty"` // depends on the schema you've defined
+	Version     int             `json:"_version,omitempty"`
+	Found       bool            `json:"found,omitempty"`
+	Exists      bool            `json:"exists,omitempty"`
+	PrimaryTerm int             `json:"_primary_term,omitempty"`
+	SeqNo       int             `json:"_seq_no,omitempty"`
 }

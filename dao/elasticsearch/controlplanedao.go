@@ -31,7 +31,6 @@ package elasticsearch
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -40,7 +39,6 @@ import (
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
-	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
 )
 
@@ -122,8 +120,6 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 // Create a elastic search control center data access object
 func NewControlPlaneDao(hostName string, port int, rpcPort int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
-	api.Domain = hostName
-	api.Port = strconv.Itoa(port)
 
 	dao := &ControlPlaneDao{
 		hostName: hostName,

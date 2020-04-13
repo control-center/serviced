@@ -36,9 +36,9 @@ import (
 	ssmmocks "github.com/control-center/serviced/scheduler/servicestatemanager/mocks"
 	zks "github.com/control-center/serviced/zzk/service"
 
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
-	"github.com/control-center/serviced/domain/logfilter"
 )
 
 var (
@@ -379,7 +379,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 		PoolID:       "pool_id",
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
-		HostPolicy: servicedefinition.RequireSeparate,
+		HostPolicy:   servicedefinition.RequireSeparate,
 		ChangeOptions: []servicedefinition.ChangeOption{
 			servicedefinition.RestartAllOnInstanceChanged,
 		},
@@ -399,7 +399,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_InvalidServiceOpt
 		PoolID:       "pool_id",
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
-		HostPolicy: "REQUIRE_SEPARATE",
+		HostPolicy:   "REQUIRE_SEPARATE",
 		ChangeOptions: []servicedefinition.ChangeOption{
 			"RESTARTALLONINSTANCECHANGED",
 		},
@@ -861,9 +861,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddedAndDeployed_Fai
 
 	err = ft.Facade.MigrateServices(ft.CTX, request)
 
-	// Conceptually, this is the same condition as ErrServiceCollision, but since it's caught in deployment
-	//	the error value is a different string.
-	t.Assert(err, ErrorMatches, "service exists")
+	t.Assert(err, ErrorMatches, ".*service name already exists.*")
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_Success(t *C) {
@@ -948,7 +946,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupNew(t 
 
 	// Conceptually, this is the same condition as ErrServiceCollision, but since it's caught in deployment
 	//	the error value is a different string.
-	t.Assert(err, ErrorMatches, "service exists")
+	t.Assert(err, ErrorMatches, ".*service name already exists.*")
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidParentID(t *C) {
@@ -1276,8 +1274,8 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilter(t *C) {
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
 	err := ft.setupMigrationTestWithoutEndpoints(t)
@@ -1307,8 +1305,8 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_AddsLogFilterVersion
 	t.Assert(err, IsNil)
 
 	filter1 := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
 	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter1)
@@ -1343,8 +1341,8 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *
 	t.Assert(err, IsNil)
 
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
-		Filter: "some filter",
+		Name:    "filter1",
+		Filter:  "some filter",
 		Version: "1.0",
 	}
 	err = ft.Facade.logFilterStore.Put(ft.CTX, &filter)
@@ -1371,7 +1369,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_UpdatesLogFilter(t *
 
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailsLogFilter(t *C) {
 	filter := logfilter.LogFilter{
-		Name:	"filter1",
+		Name:   "filter1",
 		Filter: "some filter",
 	}
 	err := ft.setupMigrationTestWithoutEndpoints(t)
@@ -1453,22 +1451,21 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 		DeploymentID:    "deployment_id_2",
 	}
 	svcnoprefix1 := service.Service{
-                ID:              "svcnoprefix1id",
-                PoolID:          "testPool",
-                Name:            "svc_noprefix",
-                Launch:          "auto",
-                ParentServiceID: "svcbid",
-                DeploymentID:    "deployment_id",
-        }
-        svcnoprefix2 := service.Service{
-                ID:              "svcnoprefix2id",
-                PoolID:          "testPool",
-                Name:            "svc_noprefix2",
-                Launch:          "auto",
-                ParentServiceID: "svcbid",
-                DeploymentID:    "deployment_id",
-        }
-
+		ID:              "svcnoprefix1id",
+		PoolID:          "testPool",
+		Name:            "svc_noprefix",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcnoprefix2 := service.Service{
+		ID:              "svcnoprefix2id",
+		PoolID:          "testPool",
+		Name:            "svc_noprefix2",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
 
 	c.Assert(ft.Facade.AddService(ft.CTX, svca), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcb), IsNil)
@@ -2878,9 +2875,9 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 // If the dfs mounts are invalid. Do not start services.
 func (ft *FacadeIntegrationTest) TestFacade_StartService_InvalidMounts(c *C) {
 	svc := service.Service{
-		ID: "TestFacade_StartService_PoolWithDFS",
-		Name: "TestFacade_StartService_PoolWithDFS",
-		PoolID: "default",
+		ID:             "TestFacade_StartService_PoolWithDFS",
+		Name:           "TestFacade_StartService_PoolWithDFS",
+		PoolID:         "default",
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
@@ -3745,6 +3742,8 @@ func (ft *FacadeIntegrationTest) createNewChildService(t *C) *service.Service {
 	newSvc = *oldSvc
 	newSvc.ID = "new-clone-id"
 	newSvc.Name = oldSvc.Name + "_CLONE"
+	newSvc.IfSeqNo = 0
+	newSvc.IfPrimaryTerm = 0
 	return &newSvc
 }
 
@@ -3797,14 +3796,14 @@ func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string,
 
 func (ft *FacadeIntegrationTest) TestFacade_getChanges(c *C) {
 	cursvc := service.Service{
-		ID:			"get-changes-service",
-		Name:			"TestFacade_getChanges_Current",
-		DeploymentID:		"deployment-id",
-		PoolID:			"pool-id",
-		Launch:			"auto",
+		ID:           "get-changes-service",
+		Name:         "TestFacade_getChanges_Current",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
 	}
 	c.Assert(ft.Facade.AddService(ft.CTX, cursvc), IsNil)
-	svc , _ := ft.Facade.getService(ft.CTX, cursvc.ID)
+	svc, _ := ft.Facade.getService(ft.CTX, cursvc.ID)
 	svc.Name = "TestFacade_getChanges_Updated"
 	updates := ft.Facade.getChanges(ft.CTX, svc)
 	expected := "Name:TestFacade_getChanges_Updated;"

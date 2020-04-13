@@ -15,10 +15,10 @@ package registry
 
 import (
 	"errors"
+	"github.com/control-center/serviced/datastore/elastic"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/search"
 )
 
 // NewStore creates a new image registry store
@@ -73,8 +73,23 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 // GetImages returns all the images that are in the registry
 func (s *storeImpl) GetImages(ctx datastore.Context) ([]Image, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.GetImages"))
-	query := search.Query().Search("_exists_:Library")
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "Library"}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	q := datastore.NewQuery(ctx)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -91,11 +106,23 @@ func (s *storeImpl) SearchLibraryByTag(ctx datastore.Context, library, tag strin
 	} else if tag = strings.TrimSpace(tag); tag == "" {
 		return nil, errors.New("empty tag not allowed")
 	}
-	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
-		"and",
-		search.Filter().Terms("Library", library),
-		search.Filter().Terms("Tag", tag),
-	)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"Library": library}},
+					{"term": map[string]string{"Tag": tag}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 	q := datastore.NewQuery(ctx)
 	results, err := q.Execute(search)
 	if err != nil {

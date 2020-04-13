@@ -14,27 +14,30 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/datastore/elastic"
 )
 
 func (s *storeImpl) Query(ctx datastore.Context, query Query) ([]ServiceDetails, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
-			"query_string": map[string]interface{}{
-				"query": "_exists_:ID",
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "ID"}},
+					{"term": map[string]string{"type": kind}},
+				},
 			},
 		},
-		"fields": serviceDetailsFields,
-		"size":   serviceDetailsLimit,
-	})
+	}, serviceDetailsLimit, serviceDetailsFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -119,12 +122,10 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"ids": map[string]interface{}{
-				"values": []string{id},
+				"values": []string{fmt.Sprintf("%s-%s", id, kind)},
 			},
 		},
-		"fields": serviceDetailsFields,
-		"size":   1,
-	})
+	}, 1, serviceDetailsFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -163,10 +164,9 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 		t0 := time.Now().Add(-since)
 		query["bool"] = map[string]interface{}{
 			"must": []map[string]interface{}{
-				map[string]interface{}{
-					"term": termQuery,
-				},
-				map[string]interface{}{
+				{"term": termQuery},
+				{"term": map[string]interface{}{"type": kind}},
+				{
 					"range": map[string]interface{}{
 						"UpdatedAt": map[string]string{
 							"gte": t0.Format(time.RFC3339),
@@ -176,14 +176,17 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 			},
 		}
 	} else {
-		query["term"] = termQuery
+		query["bool"] = map[string]interface{}{
+			"must": []map[string]interface{}{
+				{"term": termQuery},
+				{"term": map[string]interface{}{"type": kind}},
+			},
+		}
 	}
 
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
-		"query":  query,
-		"fields": serviceDetailsFields,
-		"size":   serviceDetailsLimit,
-	})
+		"query": query,
+	}, serviceDetailsLimit, serviceDetailsFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -243,23 +246,26 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 	newquery := fmt.Sprintf("%s", string(regex[:idx]))
 
 	if noprefix {
-	// Set query to "ends with" style
+		// Set query to "ends with" style
 		newquery = fmt.Sprintf(".*%s", newquery)
 	} else {
-	// Set query to "contains" style
+		// Set query to "contains" style
 		newquery = fmt.Sprintf(".*%s.*", newquery)
 	}
 
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]interface{}{"type": kind}},
+				},
 				"should": []map[string]interface{}{
-					map[string]interface{}{
+					{
 						"ids": map[string]interface{}{
-							"values": []string{query},
+							"values": []string{fmt.Sprintf("%s-%s", query, kind)},
 						},
 					},
-					map[string]interface{}{
+					{
 						"regexp": map[string]interface{}{
 							"Name": newquery,
 						},
@@ -267,9 +273,7 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 				},
 			},
 		},
-		"fields": serviceDetailsFields,
-		"size":   serviceDetailsLimit,
-	})
+	}, serviceDetailsLimit, serviceDetailsFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -302,13 +306,16 @@ func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoi
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]interface{}{"type": kind}},
+				},
 				"should": []map[string]interface{}{
-					map[string]interface{}{
+					{
 						"regexp": map[string]interface{}{
 							"Endpoints.VHostList.Name": ".+",
 						},
 					},
-					map[string]interface{}{
+					{
 						"regexp": map[string]interface{}{
 							"Endpoints.PortList.PortAddr": ".+",
 						},
@@ -316,9 +323,7 @@ func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoi
 				},
 			},
 		},
-		"fields": serviceEndpointFields,
-		"size":   serviceDetailsLimit,
-	})
+	}, serviceDetailsLimit, serviceEndpointFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -344,13 +349,14 @@ func (s *storeImpl) GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEn
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetAllExportedEndpoints"))
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
-			"term": map[string]interface{}{
-				"Endpoints.Purpose": "export",
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"Endpoints.Purpose": "export"}},
+					{"term": map[string]string{"type": kind}},
+				},
 			},
 		},
-		"fields": exportedEndpointFields,
-		"size":   serviceDetailsLimit,
-	})
+	}, serviceDetailsLimit, exportedEndpointFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -377,7 +383,8 @@ func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignme
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []map[string]interface{}{
-					map[string]interface{}{
+					{"term": map[string]interface{}{"type": kind}},
+					{
 						"range": map[string]interface{}{
 							"Endpoints.AddressConfig.Port": map[string]interface{}{
 								"gt":  0,
@@ -385,7 +392,7 @@ func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignme
 							},
 						},
 					},
-					map[string]interface{}{
+					{
 						"regexp": map[string]interface{}{
 							"Endpoints.Protocol": ".+",
 						},
@@ -393,9 +400,7 @@ func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignme
 				},
 			},
 		},
-		"fields": serviceEndpointFields,
-		"size":   serviceDetailsLimit,
-	})
+	}, serviceDetailsLimit, serviceEndpointFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -419,11 +424,14 @@ func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignme
 func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
-			"term": map[string]string{"ParentServiceID": serviceID},
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"ParentServiceID": serviceID}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
 		},
-		"fields": []string{"ID"},
-		"size":   1,
-	})
+	}, 1, []string{"ID"})
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -534,18 +542,26 @@ func isRegexReservedChar(r rune) bool {
 	return true
 }
 
-func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
-	return elastic.ElasticSearchRequest{
-		Pretty: false,
-		Index:  "controlplane",
-		Type:   "service",
-		Scroll: "",
-		Scan:   0,
-		Query:  query,
+func newServiceDetailsElasticRequest(query interface{}, size int, fields []string) esapi.SearchRequest {
+	// Build the request body.
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		plog.Fatalf("Error encoding query: %s", err)
+	}
+
+	version := true
+	seqNoPrimaryTerm := true
+	return esapi.SearchRequest{
+		Index:            []string{"controlplane"},
+		Body:             &buf,
+		Size:             &size,
+		Version:          &version,
+		SeqNoPrimaryTerm: &seqNoPrimaryTerm,
+		SourceIncludes:   fields,
 	}
 }
 
-var serviceDetailsLimit = 50000
+var serviceDetailsLimit = 10000
 
 var serviceDetailsFields = []string{
 	"ID",

@@ -25,8 +25,8 @@ import (
 	"github.com/control-center/serviced/zzk/service/mocks"
 	"github.com/stretchr/testify/mock"
 
-	. "gopkg.in/check.v1"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	. "gopkg.in/check.v1"
 )
 
 var (

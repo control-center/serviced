@@ -877,10 +877,10 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 				glog.Errorf("Found a collision for service name %s and parent %s", svc.Name, svc.ParentServiceID)
 				return ErrServiceCollision
 			}
-			svcParentMapNameMap[svc.ParentServiceID][svc.Name] = struct{}{}
 		} else {
 			svcParentMapNameMap[svc.ParentServiceID] = make(map[string]struct{})
 		}
+		svcParentMapNameMap[svc.ParentServiceID][svc.Name] = struct{}{}
 
 		// check for endpoint name uniqueness within the set of new/modified/deployed services
 		for _, ep := range svc.Endpoints {
@@ -1035,7 +1035,7 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 		}
 
 		if err := store.Delete(ctx, svc.ID); err != nil {
-			logger.WithError(err).Error("Error while removing service %s")
+			logger.WithError(err).Error("Error while removing service")
 			return err
 		}
 

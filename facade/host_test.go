@@ -132,7 +132,7 @@ func (s *FacadeIntegrationTest) Test_HostGetKey(t *C) {
 	t.Assert(err, IsNil)
 }
 
-	func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
+func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
 	//create pool for testing
 	resoucePool := pool.New("poolid")
 	s.Facade.AddResourcePool(s.CTX, resoucePool)

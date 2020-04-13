@@ -240,7 +240,6 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 		"hostid":    host.ID,
 		"ipaddress": host.IPAddr,
 	}).Info("Created host")
-
 	return host, nil
 }
 

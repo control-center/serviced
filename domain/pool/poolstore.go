@@ -16,10 +16,10 @@ package pool
 
 import (
 	"errors"
+	"github.com/control-center/serviced/datastore/elastic"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/search"
 )
 
 //NewStore creates a ResourcePool store
@@ -48,7 +48,23 @@ type storeImpl struct {
 //GetResourcePools Get a list of all the resource pools
 func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePools"))
-	return query(ctx, "_exists_:ID")
+	req := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": map[string]interface{}{
+					"exists": map[string]interface{}{
+						"field": "ID",
+					},
+				},
+				"filter": map[string]interface{}{
+					"match": map[string]interface{}{
+						"type": kind,
+					},
+				},
+			},
+		},
+	}
+	return query(ctx, req)
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
@@ -59,8 +75,22 @@ func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string)
 		return nil, errors.New("empty realm not allowed")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("Realm", id)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"Realm": id}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -76,12 +106,22 @@ func (s *storeImpl) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string
 	} else if virtualIP = strings.TrimSpace(virtualIP); virtualIP == "" {
 		return false, errors.New("empty virtual ip not allowed")
 	}
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"ID": poolID}},
+					{"term": map[string]string{"VirtualIPs.IP": virtualIP}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
 
-	search := search.Search("controlplane").Type(kind).Filter(
-		"and",
-		search.Filter().Terms("ID", poolID),
-		search.Filter().Terms("VirtualIPs.IP", virtualIP),
-	)
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return false, err
+	}
 
 	results, err := datastore.NewQuery(ctx).Execute(search)
 	if err != nil {
@@ -109,10 +149,14 @@ func convert(results datastore.Results) ([]ResourcePool, error) {
 	return pools, nil
 }
 
-func query(ctx datastore.Context, query string) ([]ResourcePool, error) {
+func query(ctx datastore.Context, query interface{}) ([]ResourcePool, error) {
 	q := datastore.NewQuery(ctx)
-	elasticQuery := search.Query().Search(query)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err

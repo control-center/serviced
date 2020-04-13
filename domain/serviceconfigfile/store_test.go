@@ -124,6 +124,7 @@ func (s *S) Test_GetConfigFiles(t *C) {
 	t.Assert(1, Equals, len(configFiles))
 	// Need to bump the DB version to make this pass the test
 	configFile.DatabaseVersion = 1
+	configFile.IfPrimaryTerm = 1
 	t.Assert(*configFile, Equals, *configFiles[0])
 
 	//	configFile.ID = "Test_GetHosts2"

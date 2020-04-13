@@ -15,6 +15,7 @@ package datastore
 
 import (
 	"errors"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 )
 
 // Query is a query used to search for and return entities from a datastore
@@ -22,7 +23,7 @@ type Query interface {
 
 	// Execute performs the query and returns an Results to the results.  For now this query is specific to the
 	// underlying Connection and Driver implementation.
-	Execute(query interface{}) (Results, error)
+	Execute(query esapi.SearchRequest) (Results, error)
 }
 
 // NewQuery returns a Query type to be executed
@@ -53,7 +54,7 @@ type query struct {
 	ctx Context
 }
 
-func (q *query) Execute(query interface{}) (Results, error) {
+func (q *query) Execute(query esapi.SearchRequest) (Results, error) {
 	defer q.ctx.Metrics().Stop(q.ctx.Metrics().Start("Query.Execute"))
 	ctx := q.ctx
 	conn, err := ctx.Connection()
@@ -86,7 +87,9 @@ func (r *results) Get(idx int, entity ValidEntity) error {
 	if err := SafeUnmarshal(v.Bytes(), entity); err != nil {
 		return err
 	}
-	entity.SetDatabaseVersion(v.Version())
+	entity.SetDatabaseVersion(v.Version()["version"])
+	entity.SetPrimaryTerm(v.Version()["primaryTerm"])
+	entity.SetSeqNo(v.Version()["seqNo"])
 	return nil
 }
 
@@ -99,7 +102,9 @@ func (r *results) Next(entity ValidEntity) error {
 	if err := SafeUnmarshal(v.Bytes(), entity); err != nil {
 		return err
 	}
-	entity.SetDatabaseVersion(v.Version())
+	entity.SetDatabaseVersion(v.Version()["version"])
+	entity.SetPrimaryTerm(v.Version()["primaryTerm"])
+	entity.SetSeqNo(v.Version()["seqNo"])
 	return nil
 }
 

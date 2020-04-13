@@ -55,14 +55,15 @@ func (s *S) Test_GetEmpty(c *C) {
 }
 func (s *S) Test_Put(c *C) {
 	props := New()
-	props.SetCCVersion("9.9.8")	
+	props.SetCCVersion("9.9.8")
 	err := s.store.Put(s.ctx, props)
 	c.Assert(err, IsNil)
 
 	actual, err := s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
 	// update version since it is incremented when stored
-	props.DatabaseVersion++	
+	props.DatabaseVersion = 1
+	props.IfPrimaryTerm = 1
 	c.Assert(actual, DeepEquals, props)
 
 	props.SetCCVersion("9.9.9")
@@ -71,8 +72,8 @@ func (s *S) Test_Put(c *C) {
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
-	props.DatabaseVersion++		
+	props.DatabaseVersion = 2
+	props.IfSeqNo = 1
 	c.Assert(actual, DeepEquals, props)
 
 }
-

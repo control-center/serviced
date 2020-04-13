@@ -1687,7 +1687,7 @@ func (v *DeviceMapperVolume) loadSnapshotImport(reader io.Reader, label, deviceH
 				return err
 			}
 			if volInfo.Size > size {
-				glog.Warning("Device size from import %s is greater than size of staging device; expanding.", label, deviceHash)
+				glog.Warningf("Device size from import %s is greater than size of staging device %s expanding.", label, deviceHash)
 				if err := v.driver.resize(deviceHash, volInfo.Size); err != nil {
 					glog.Errorf("Could not resize device %s; not importing snapshot %s: %s", deviceHash, label, err)
 					return err

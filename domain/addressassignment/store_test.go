@@ -36,8 +36,8 @@ var _ = Suite(&S{
 
 type S struct {
 	elastic.ElasticTest
-	ctx datastore.Context
-	store  *Store
+	ctx   datastore.Context
+	store *Store
 }
 
 func (s *S) SetUpTest(c *C) {
@@ -90,7 +90,6 @@ func (s *S) Test_AddressAssignmentCRUD(t *C) {
 
 }
 
-
 func (s *S) Test_GetAllAddressAssignments(t *C) {
 	defer s.store.Delete(s.ctx, Key("testID1"))
 	defer s.store.Delete(s.ctx, Key("testID2"))
@@ -126,6 +125,7 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(addrs), Equals, 1)
 	assignment1.DatabaseVersion = 1
+	assignment1.IfPrimaryTerm = 1
 	t.Assert(addrs[0], Equals, assignment1)
 
 	err = s.store.Put(s.ctx, Key(assignment2.ID), &assignment2)
@@ -139,7 +139,7 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	t.Assert(len(addrs), Equals, 3)
 
 	addrMap := make(map[string]AddressAssignment)
-	for _, addr := range(addrs) {
+	for _, addr := range addrs {
 		addrMap[addr.ID] = addr
 	}
 	result, ok := addrMap[assignment1.ID]
@@ -147,11 +147,15 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	t.Assert(result, Equals, assignment1)
 
 	assignment2.DatabaseVersion = 1
+	assignment2.IfPrimaryTerm = 1
+	assignment2.IfSeqNo = 1
 	result, ok = addrMap[assignment2.ID]
 	t.Assert(ok, Equals, true)
 	t.Assert(result, Equals, assignment2)
 
 	assignment3.DatabaseVersion = 1
+	assignment3.IfPrimaryTerm = 1
+	assignment3.IfSeqNo = 2
 	result, ok = addrMap[assignment3.ID]
 	t.Assert(ok, Equals, true)
 	t.Assert(result, Equals, assignment3)

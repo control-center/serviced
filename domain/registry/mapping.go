@@ -15,8 +15,6 @@ package registry
 
 import (
 	"encoding/base64"
-	"fmt"
-
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/control-center/serviced/logging"
@@ -28,18 +26,16 @@ const kind = "imageregistry"
 var plog = logging.PackageLogger()
 
 var (
-	mappingString = fmt.Sprintf(`                                                              
+	mappingString = `                                                              
 {
-    "%s": {
-        "properties": {
-            "Library":  {"type": "string", "index": "not_analyzed"},
-            "Repo":     {"type": "string", "index": "not_analyzed"},
-            "Tag":      {"type": "string", "index": "not_analyzed"},
-            "UUID":     {"type": "string", "index": "not_analyzed"}
-        }
-    }
+	"properties": {
+		"Library":  {"type": "keyword", "index":"true"},
+		"Repo":     {"type": "keyword", "index":"true"},
+		"Tag":      {"type": "keyword", "index":"true"},
+		"UUID":     {"type": "keyword", "index":"true"}
+	}
 }
-`, kind)
+`
 	// MAPPING is the elastic mapping for the docker registry
 	MAPPING, mappingError = elastic.NewMapping(mappingString)
 )

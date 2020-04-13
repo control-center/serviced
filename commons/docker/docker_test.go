@@ -30,4 +30,3 @@ var _ = Suite(&TestDockerSuite{})
 
 // Wire gocheck into the go test runner
 func TestDockerSync(t *testing.T) { TestingT(t) }
-

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/api"
+	"github.com/elastic/go-elasticsearch/v7"
 )
 
 //ElasticDriver describes an the Elastic Search driver
@@ -43,19 +43,17 @@ func New(host string, port uint16, index string, requestTimeout time.Duration) E
 }
 
 func newDriver(host string, port uint16, index string, requestTimeout time.Duration) *elasticDriver {
-	api.Domain = host
-	api.Port = fmt.Sprintf("%v", port)
-	api.HttpClient = &http.Client{
-		Timeout: time.Second * requestTimeout,
-	}
-	//TODO: singleton since elastigo doesn't support multiple endpoints
-
 	driver := &elasticDriver{}
 	driver.host = host
 	driver.port = port
 	driver.index = index
-	driver.settings = map[string]interface{}{"number_of_shards": 1}
+	driver.settings = map[string]interface{}{
+		"number_of_shards":           1,
+		"number_of_replicas":         0,
+		"mapping.total_fields.limit": 2000,
+	}
 	driver.mappings = make([]Mapping, 0)
+	driver.requestTimeout = requestTimeout
 	return driver
 }
 
@@ -63,15 +61,25 @@ func newDriver(host string, port uint16, index string, requestTimeout time.Durat
 var _ datastore.Driver = &elasticDriver{}
 
 type elasticDriver struct {
-	host     string
-	port     uint16
-	settings map[string]interface{}
-	mappings []Mapping
-	index    string
+	host           string
+	port           uint16
+	settings       map[string]interface{}
+	mappings       []Mapping
+	index          string
+	requestTimeout time.Duration
 }
 
 func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
-	return &elasticConnection{ed.index}, nil
+	es, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{
+			ed.elasticURL(),
+		},
+	})
+	if err != nil {
+		plog.Errorf("Error creating the client: %s", err)
+		return nil, err
+	}
+	return &elasticConnection{ed.index, es}, nil
 }
 
 func (ed *elasticDriver) Initialize(timeout time.Duration) error {
@@ -130,7 +138,7 @@ func (ed *elasticDriver) AddMappingsFile(path string) error {
 	}
 
 	type mapFile struct {
-		Mappings map[string]map[string]interface{}
+		Mappings map[string]interface{}
 		Settings map[string]interface{}
 	}
 	var allMappings mapFile
@@ -142,16 +150,12 @@ func (ed *elasticDriver) AddMappingsFile(path string) error {
 	for key, val := range allMappings.Settings {
 		ed.settings[key] = val
 	}
-	for key, mapping := range allMappings.Mappings {
 
-		var rawMapping = make(map[string]map[string]interface{})
-		rawMapping[key] = mapping
-		if value, err := newMapping(rawMapping); err != nil {
-			logger.WithError(err).WithField("rawmapping", rawMapping).Error("Unable to create mapping")
-			return err
-		} else {
-			ed.AddMapping(value)
-		}
+	if value, err := newMapping(allMappings.Mappings); err != nil {
+		logger.WithError(err).WithField("rawmapping", allMappings.Mappings).Error("Unable to create mapping")
+		return err
+	} else {
+		ed.AddMapping(value)
 	}
 
 	logger.Info("Successfully added mapping to Elasticsearch")
@@ -200,7 +204,99 @@ func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
 	}
 	plog.WithError(err).WithField("response", string(body)).Debug("Received good healthcheck response from Elasticsearch")
 	return health, nil
+}
 
+func SetMaxResultWindow(elasticURL string, index string) error {
+	client := &http.Client{}
+	indexSettingsURL := fmt.Sprintf("%v/%s/settings", elasticURL, index)
+	indexSettings := map[string]interface{}{
+		"index": map[string]int{
+			"max_result_window": 50000,
+		},
+	}
+
+	indexSettingsJson, _ := json.Marshal(indexSettings)
+
+	req, _ := http.NewRequest(http.MethodPut, indexSettingsURL, bytes.NewBuffer(indexSettingsJson))
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("http status: %v %s", resp.StatusCode, err)
+	}
+
+	return nil
+}
+
+func SetDiscSpaceThresholds(elasticURL string) error {
+	client := &http.Client{}
+	clusterSettingsURL := fmt.Sprintf("%v/_cluster/settings", elasticURL)
+	clusterSettings := map[string]interface{}{
+		"transient": map[string]string{
+			"cluster.routing.allocation.disk.watermark.low":         "3gb",
+			"cluster.routing.allocation.disk.watermark.high":        "2gb",
+			"cluster.routing.allocation.disk.watermark.flood_stage": "1gb",
+		},
+	}
+
+	clusterSettingsJson, _ := json.Marshal(clusterSettings)
+
+	req, _ := http.NewRequest(http.MethodPut, clusterSettingsURL, bytes.NewBuffer(clusterSettingsJson))
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("http status: %v %s", resp.StatusCode, err)
+	}
+
+	return nil
+}
+
+func SetSingleNodeCluster(index string, elasticURL string) error {
+	client := &http.Client{}
+	indexSettingsURL := fmt.Sprintf("%v/%s/_settings", elasticURL, index)
+	indexSettings := map[string]interface{}{
+		"index": map[string]interface{}{
+			"number_of_replicas": 0,
+			"number_of_shards":   1,
+		},
+	}
+
+	indexSettingsJson, _ := json.Marshal(indexSettings)
+
+	req, _ := http.NewRequest(http.MethodPut, indexSettingsURL, bytes.NewBuffer(indexSettingsJson))
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("http status: %v %s", resp.StatusCode, err)
+	}
+
+	return nil
+}
+
+func TurnOffIndexReadOnlyMode(index string, elasticURL string) error {
+	client := &http.Client{}
+	indexSettingsURL := fmt.Sprintf("%v/%s/_settings", elasticURL, index)
+	indexSettings := map[string]interface{}{
+		"index": map[string]interface{}{
+			"blocks": map[string]string{
+				"read_only_allow_delete": "false",
+			},
+		},
+	}
+
+	indexSettingsJson, _ := json.Marshal(indexSettings)
+
+	req, _ := http.NewRequest(http.MethodPut, indexSettingsURL, bytes.NewBuffer(indexSettingsJson))
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("http status: %v %s", resp.StatusCode, err)
+	}
+
+	return nil
 }
 
 func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
@@ -222,17 +318,23 @@ func (ed *elasticDriver) checkHealth(quit chan int, healthy chan int) {
 }
 
 func (ed *elasticDriver) postMappings() error {
+	//mapping types are deprecated since 6.x release and it's completely removed from 8.x version
+	mappingUrl := fmt.Sprintf("%s%s", ed.indexURL(), "_mapping")
 
-	post := func(typeName string, mappingBytes []byte) error {
-		mapURL := fmt.Sprintf("%s/%s/_mapping", ed.indexURL(), typeName)
-		logger := plog.WithField("mapurl", mapURL)
+	post := func(mappingBytes []byte) error {
+		client := &http.Client{}
+		logger := plog.WithField("mapurl", mappingUrl)
 		logger.WithField("mapping", string(mappingBytes)).Debug("Posting mapping")
-		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
+
+		req, _ := http.NewRequest(http.MethodPut, mappingUrl, bytes.NewBuffer(mappingBytes))
+		req.Header.Set("Content-Type", "application/json; charset=utf-8")
+		resp, err := client.Do(req)
+
 		if resp != nil {
 			defer resp.Body.Close()
 		}
 		if err != nil {
-			return fmt.Errorf("error mapping %s: %s", typeName, err)
+			return fmt.Errorf("error mapping %s", err)
 		}
 		body, err := ioutil.ReadAll(resp.Body)
 		logger.WithField("body", body).Debug("Received response")
@@ -240,18 +342,29 @@ func (ed *elasticDriver) postMappings() error {
 			return err
 		}
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("response %d mapping %s: %s", resp.StatusCode, typeName, string(body))
+			return fmt.Errorf("response %d mapping %s", resp.StatusCode, string(body))
 		}
 		return nil
 	}
 
-	for _, mapping := range ed.mappings {
-		mappingBytes, err := json.Marshal(mapping)
+	ed.AddMapping(Mapping{
+		Entries: map[string]interface{}{
+			"properties": map[string]interface{}{
+				"type": map[string]interface{}{
+					"type": "keyword",
+				},
+			},
+		},
+	})
+	plog.Debugf("Mapping dict %s", ed.mappings)
+	for i := range ed.mappings {
+		mappingBytes, err := json.Marshal(ed.mappings[i].Entries)
+
 		if err != nil {
 			return err
 		}
 
-		err = post(mapping.Name, mappingBytes)
+		err = post(mappingBytes)
 		if err != nil {
 			return err
 		}
@@ -286,9 +399,12 @@ func (ed *elasticDriver) deleteIndex() error {
 func (ed *elasticDriver) postIndex() error {
 	url := ed.indexURL()
 	logger := plog.WithField("index", url)
-
-	config := make(map[string]interface{})
-	config["settings"] = ed.settings
+	client := &http.Client{}
+	config := map[string]interface{}{
+		"settings": map[string]interface{}{
+			"index": ed.settings,
+		},
+	}
 	configBytes, err := json.Marshal(config)
 	logger.WithField("config", string(configBytes)).Debug("Posting Index")
 
@@ -296,7 +412,10 @@ func (ed *elasticDriver) postIndex() error {
 		return err
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewReader(configBytes))
+	req, _ := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(configBytes))
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+
 	if resp != nil {
 		defer resp.Body.Close()
 	}

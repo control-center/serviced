@@ -36,12 +36,9 @@ def elastic_server(port):
         # TODO: handle already started
         # TODO: Get image name from serviced binary or isvcs.go
         # TODO: Wait for start more betterly
-        cmd = ["docker", "run", "-d", "--name", container_name,
-               "-p", "%d:9200" % port, "zenoss/serviced-isvcs:v59",
-               "/opt/elasticsearch-0.90.9/bin/elasticsearch", "-f",
-               "-Des.cluster.name=%s" % container_name,
-               "-Dmulticast.enabled=false",
-               "-Ddiscovery.zen.ping.multicast.ping.enabled=false"]
+        cmd = ["docker", "run", "-d", "--name", container_name, "--user", "1000:1000",
+               "-p", "%d:9200" % port, "zenoss/serviced-isvcs:v64-dev",
+               "/opt/elasticsearch-serviced/bin/elasticsearch"]
         subprocess.call(cmd)
         time.sleep(10)
         yield

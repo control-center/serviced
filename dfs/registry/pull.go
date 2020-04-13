@@ -40,7 +40,7 @@ type Registry interface {
 }
 
 // Returns docker registry Address (e.g. localhost:5000)
-func (l *RegistryListener) GetAddress() (string) {
+func (l *RegistryListener) GetAddress() string {
 	return l.address
 }
 
@@ -140,7 +140,7 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 		glog.Infof("Waiting for image %s to be uploaded into the docker registry (idpath=%s)", regaddr, idpath)
 		select {
 		case e := <-evt:
-			glog.Infof("Got an event: %s", e)
+			glog.Infof("Got an event: %v", e)
 		case <-cancel:
 			return ErrOpTimeout
 		}

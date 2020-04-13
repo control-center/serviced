@@ -18,6 +18,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zenoss/elastigo/core"
 	"math"
 	"reflect"
 	"time"
@@ -26,7 +27,6 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/stretchr/testify/mock"
-	"github.com/zenoss/elastigo/core"
 	. "gopkg.in/check.v1"
 )
 
@@ -298,7 +298,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c,  "log", "host1", "ServiceID", "container1", "file1", "message1")},
+				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID", "container1", "file1", "message1")},
 			},
 		},
 	}
@@ -343,7 +343,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c,  "log", "host1", "ServiceID", "container1", "file1", "message1")},
+				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID", "container1", "file1", "message1")},
 			},
 		},
 	}
@@ -389,7 +389,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c,  "log", "host1", "ServiceID1", "container1", "file1", "message1")},
+				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID1", "container1", "file1", "message1")},
 			},
 		},
 	}
@@ -405,7 +405,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		Hits: core.Hits{
 			Total: 1,
 			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c,  "log", "host2", "ServiceID2", "container2", "file2", "message1")},
+				core.Hit{Source: setupOneSearchResult(c, "log", "host2", "ServiceID2", "container2", "file2", "message1")},
 			},
 		},
 	}
@@ -544,14 +544,14 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 
 func setupOneSearchResult(c *C, logType, hostID, serviceID, containerID, fileName, message string) []byte {
 	oneResultLine := logSingleLine{
-		Type:     logType,
-		File:     fileName,
-		Message:  message,
+		Type:    logType,
+		File:    fileName,
+		Message: message,
 		FileBeat: beatProps{
 			Name:     containerID,
 			Hostname: containerID,
 		},
-		Fields:   fieldProps{
+		Fields: fieldProps{
 			CCWorkerID: hostID,
 			Service:    serviceID,
 		},

@@ -14,7 +14,6 @@
 package properties
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
@@ -27,15 +26,13 @@ const kind = "ccproperties"
 var (
 	log = logging.PackageLogger()
 
-	mappingString = fmt.Sprintf(`
+	mappingString = `
 {
-    "%s": {
-        "properties": {
-            "Props": {"type": "object", "index": "not_analyzed"}
-        }
-    }
+	"properties": {
+		"Props": {"type": "object"}
+	}
 }
-`, kind)
+`
 	// MAPPING for elastic
 	MAPPING, mappingError = elastic.NewMapping(mappingString)
 )

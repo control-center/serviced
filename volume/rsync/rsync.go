@@ -640,7 +640,7 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 		return err
 	}
 	rsync := exec.Command("rsync", "-a", "--del", "--force", src+"/", v.Path()+"/")
-	glog.V(0).Infof("About to execute: %s", rsync)
+	glog.V(0).Infof("About to execute: %v", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(0).Infof("Could not perform rsync: %s", string(output))
 		return err

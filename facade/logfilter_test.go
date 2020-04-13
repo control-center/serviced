@@ -36,8 +36,8 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_NoFilters(c *C) {
 		Description: "test bootstrap template1",
 		Version:     "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
-				Name: "service1",
+			servicedefinition.ServiceDefinition{
+				Name:   "service1",
 				Launch: "manual",
 			},
 		},
@@ -54,7 +54,6 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_NoFilters(c *C) {
 	c.Assert(err, ErrorMatches, "No such entity.*")
 }
 
-
 // Add a service template with log filters
 //	run bootstrap
 //	Expect false returned and log filters exist
@@ -69,8 +68,8 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_ExistingFilters(c
 		Description: "test bootstrap template2",
 		Version:     "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
-				Name: "service1",
+			servicedefinition.ServiceDefinition{
+				Name:   "service1",
 				Launch: "manual",
 				LogFilters: map[string]string{
 					"filter1": "some filter",
@@ -105,8 +104,8 @@ func (ft *FacadeIntegrationTest) TestFacade_LogFilterBootstrap_AddsFilters(c *C)
 		Description: "test bootstrap template2",
 		Version:     "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
-				Name: "service1",
+			servicedefinition.ServiceDefinition{
+				Name:   "service1",
 				Launch: "manual",
 				LogFilters: map[string]string{
 					"filter1": "some filter",

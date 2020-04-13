@@ -20,17 +20,15 @@ import (
 var (
 	mappingString = `
 {
-    "addressassignment": {
-      "properties": {
-        "AssignmentType" :  {"type": "string", "index":"not_analyzed"},
-        "HostID":           {"type": "string", "index":"not_analyzed"},
-        "PoolID":           {"type": "string", "index":"not_analyzed"},
-        "IPAddr" :          {"type": "string", "index":"not_analyzed"},
-        "Port" :            {"type": "long", "index":"not_analyzed"},
-        "ServiceID" :       {"type": "string", "index":"not_analyzed"},
-        "EndpointName" :    {"type": "string", "index":"not_analyzed"}
-      }
-    }
+ "properties": {
+	"AssignmentType" :  {"type": "keyword", "index":"true"},
+	"HostID":           {"type": "keyword", "index":"true"},
+	"PoolID":           {"type": "keyword", "index":"true"},
+	"IPAddr" :          {"type": "keyword", "index":"true"},
+	"Port" :            {"type": "long", "index":"true"},
+	"ServiceID" :       {"type": "keyword", "index":"true"},
+	"EndpointName" :    {"type": "keyword", "index":"true"}
+  }
 }
 `
 	//MAPPING is the elastic mapping for an address assignment

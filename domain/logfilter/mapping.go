@@ -14,26 +14,21 @@
 package logfilter
 
 import (
-	"fmt"
-
 	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/control-center/serviced/logging"
 )
 
 var (
-	kind = "logfilter"
-	plog = logging.PackageLogger()
-	mappingString = fmt.Sprintf(`
-{
-     "%s": {
-      "properties":{
-        "Name":           {"type": "string", "index":"not_analyzed"},
-        "Version":        {"type": "string", "index":"not_analyzed"},
-        "Filter":         {"type": "string", "index":"not_analyzed"}
-      }
-    }
-}
-`, kind)
+	kind          = "logfilter"
+	plog          = logging.PackageLogger()
+	mappingString = `
+	{
+	  "properties":{
+		"Name":           {"type": "keyword", "index":"true"},
+		"Version":        {"type": "keyword", "index":"true"},
+		"Filter":         {"type": "keyword", "index":"true"}
+	  }
+	}`
 	// MAPPING is the elastic mapping for a log filter
 	MAPPING, mappingError = elastic.NewMapping(mappingString)
 )

@@ -66,13 +66,15 @@ miqYybTUZga1O9mykjDbrwtaigb2rP1EjQzJoMLHW27edXBZUFQjedD0N20+WkUx
 	c.Assert(actual, IsNil)
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 	err = s.store.Put(s.ctx, hostID, expected)
-	expected.DatabaseVersion++
+	expected.DatabaseVersion = 1
+	expected.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx, hostID)
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
 	err = s.store.Put(s.ctx, hostID, expected)
-	expected.DatabaseVersion++
+	expected.DatabaseVersion = 2
+	expected.IfSeqNo = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx, hostID)
 	c.Assert(err, IsNil)

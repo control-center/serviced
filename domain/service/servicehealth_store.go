@@ -14,11 +14,14 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/datastore/elastic"
 )
 
 func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*ServiceHealth, error) {
@@ -32,12 +35,10 @@ func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*Serv
 	searchRequest := newServiceHealthElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"ids": map[string]interface{}{
-				"values": []string{id},
+				"values": []string{fmt.Sprintf("%s-%s", id, kind)},
 			},
 		},
-		"fields": serviceHealthFields,
-		"size":   1,
-	})
+	}, 1, serviceHealthFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -62,13 +63,20 @@ func (s *storeImpl) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth,
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceHealth"))
 	searchRequest := newServiceHealthElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
-			"query_string": map[string]string{
-				"query": "_exists_:ID",
+			"bool": map[string]interface{}{
+				"must": map[string]interface{}{
+					"exists": map[string]interface{}{
+						"field": "ID",
+					},
+				},
+				"filter": map[string]interface{}{
+					"match": map[string]interface{}{
+						"type": "service",
+					},
+				},
 			},
 		},
-		"fields": serviceHealthFields,
-		"size":   serviceHealthLimit,
-	})
+	}, serviceHealthLimit, serviceHealthFields)
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -101,18 +109,26 @@ func (s *storeImpl) fillHealthVolatileInfo(sh *ServiceHealth) {
 	}
 }
 
-func newServiceHealthElasticRequest(query interface{}) elastic.ElasticSearchRequest {
-	return elastic.ElasticSearchRequest{
-		Pretty: false,
-		Index:  "controlplane",
-		Type:   "service",
-		Scroll: "",
-		Scan:   0,
-		Query:  query,
+func newServiceHealthElasticRequest(query interface{}, size int, fields []string) esapi.SearchRequest {
+	// Build the request body.
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		plog.Fatalf("Error encoding query: %s", err)
+	}
+	version := true
+	seqNoPrimaryTerm := true
+	return esapi.SearchRequest{
+		Pretty:           false,
+		Index:            []string{"controlplane"},
+		Body:             &buf,
+		Size:             &size,
+		Version:          &version,
+		SeqNoPrimaryTerm: &seqNoPrimaryTerm,
+		SourceIncludes:   fields,
 	}
 }
 
-var serviceHealthLimit = 50000
+var serviceHealthLimit = 10000
 
 var serviceHealthFields = []string{
 	"ID",

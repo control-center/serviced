@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/search"
+	"github.com/control-center/serviced/datastore/elastic"
 )
 
 //NewStore creates a AddressAssignmentStore store
@@ -35,7 +35,16 @@ type Store struct {
 func (s *Store) GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetAllAddressAssignments"))
 	q := datastore.NewQuery(ctx)
-	search := search.Search("controlplane").Type(kind).Size("50000")
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]string{"type": kind},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -46,8 +55,23 @@ func (s *Store) GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssign
 func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignments"))
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("ServiceID", serviceID)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	// Build the request body.
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"ServiceID": serviceID}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -63,11 +87,22 @@ func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, poolID
 		return nil, fmt.Errorf("port must be greater than 0")
 	}
 
-	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
-		"and",
-		search.Filter().Terms("PoolID", poolID),
-		search.Filter().Terms("Port", strconv.FormatUint(uint64(port), 10)),
-	)
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"PoolID": poolID}},
+					{"term": map[string]string{"Port": strconv.FormatUint(uint64(port), 10)}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 
 	if results, err := datastore.NewQuery(ctx).Execute(search); err != nil {
 		return nil, err
@@ -83,12 +118,22 @@ func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID
 	} else if endpointName = strings.TrimSpace(endpointName); endpointName == "" {
 		return nil, fmt.Errorf("endpoint name cannot be empty")
 	}
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"ServiceID": serviceID}},
+					{"term": map[string]string{"EndpointName": endpointName}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
 
-	search := search.Search("controlplane").Type(kind).Filter(
-		"and",
-		search.Filter().Terms("ServiceID", serviceID),
-		search.Filter().Terms("EndpointName", endpointName),
-	)
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 
 	if results, err := datastore.NewQuery(ctx).Execute(search); err != nil {
 		return nil, err
@@ -110,13 +155,22 @@ func (s *Store) FindAssignmentByHostPort(ctx datastore.Context, poolID string, i
 	} else if port == 0 {
 		return nil, fmt.Errorf("port must be greater than 0")
 	}
-
-	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
-		"and",
-		search.Filter().Terms("PoolID", poolID),
-		search.Filter().Terms("IPAddr", ipAddr),
-		search.Filter().Terms("Port", strconv.FormatUint(uint64(port), 10)),
-	)
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"PoolID": poolID}},
+					{"term": map[string]string{"IPAddr": ipAddr}},
+					{"term": map[string]string{"Port": strconv.FormatUint(uint64(port), 10)}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 
 	if results, err := datastore.NewQuery(ctx).Execute(search); err != nil {
 		return nil, err

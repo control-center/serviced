@@ -60,13 +60,15 @@ func (s *S) Test_ImageCRUD(c *C) {
 	c.Assert(actual, IsNil)
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 	err = s.store.Put(s.ctx, expected)
-	expected.DatabaseVersion++
+	expected.DatabaseVersion = 1
+	expected.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx, expected.String())
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
 	err = s.store.Put(s.ctx, expected)
-	expected.DatabaseVersion++
+	expected.DatabaseVersion = 2
+	expected.IfSeqNo = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx, expected.String())
 	c.Assert(err, IsNil)
@@ -111,7 +113,8 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 		UUID:    "123abc",
 	}
 	err = s.store.Put(s.ctx, image)
-	image.DatabaseVersion++
+	image.DatabaseVersion = 1
+	image.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	expected = append(expected, *image)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
@@ -125,7 +128,9 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 		UUID:    "4567dsfdsg",
 	}
 	err = s.store.Put(s.ctx, image)
-	image.DatabaseVersion++
+	image.DatabaseVersion = 1
+	image.IfSeqNo = 1
+	image.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	expected = append(expected, *image)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
@@ -139,7 +144,9 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 		UUID:    "4567dsfdsg",
 	}
 	err = s.store.Put(s.ctx, image)
-	image.DatabaseVersion++
+	image.DatabaseVersion = 1
+	image.IfSeqNo = 2
+	image.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
 	c.Assert(err, IsNil)
@@ -155,7 +162,9 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 		UUID:    "5654gge",
 	}
 	err = s.store.Put(s.ctx, image)
-	image.DatabaseVersion++
+	image.DatabaseVersion = 1
+	image.IfSeqNo = 3
+	image.IfPrimaryTerm = 1
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)

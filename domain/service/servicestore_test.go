@@ -217,6 +217,8 @@ func (s *S) Test_VersionConflicts(t *C) {
 
 	svc3 := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
 	svc3.DatabaseVersion = 1
+	svc3.IfPrimaryTerm = 0
+	svc3.IfSeqNo = 1
 	err = s.store.Put(s.ctx, svc3)
 	t.Assert(err, Not(IsNil))
 }
@@ -456,13 +458,13 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 		Endpoints: []ServiceEndpoint{
 			{
 				Application: "application1",
-				Name: "application1",
+				Name:        "application1",
 				Purpose:     "export",
 				Protocol:    "tcp",
 				PortNumber:  12345,
 			}, {
 				Application: "application2",
-				Name: "application2",
+				Name:        "application2",
 				Purpose:     "import",
 				Protocol:    "udp",
 				PortNumber:  23456,
@@ -479,7 +481,7 @@ func (s *S) Test_GetAllExportedEndpoints(c *C) {
 		DeploymentID:    "deployment_id",
 		Endpoints: []ServiceEndpoint{
 			{
-				Name: "application1",
+				Name:        "application1",
 				Application: "application1",
 				Purpose:     "import_all",
 				Protocol:    "tcp",

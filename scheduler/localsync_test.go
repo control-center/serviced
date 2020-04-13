@@ -125,7 +125,7 @@ func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 		}
 		c.Logf("Adding pool: %s", newPool.ID)
 		if err := lst.facade.AddResourcePool(lst.CTX, newPool); err != nil {
-			c.Fatalf("AddResourcePool(%s) failed: $s", newPool.ID, err)
+			c.Fatalf("AddResourcePool(%s) failed: %s", newPool.ID, err)
 		}
 		poolIDs = append(poolIDs, newPool.ID)
 	}

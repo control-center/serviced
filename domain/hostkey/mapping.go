@@ -14,7 +14,6 @@
 package hostkey
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
@@ -25,16 +24,13 @@ import (
 const kind = "keyregistry"
 
 var (
-	plog = logging.PackageLogger()
-	mappingString = fmt.Sprintf(`
-{
-    "%s": {
-        "properties": {
-            "PEM": {"type": "string", "index": "no"}
-        }
-    }
-}
-`, kind)
+	plog          = logging.PackageLogger()
+	mappingString = `
+		{
+			"properties": {
+				"PEM": {"type": "keyword", "index": "false"}
+			}
+		}`
 	// MAPPING is the elastic mapping for the docker registry
 	MAPPING, mappingError = elastic.NewMapping(mappingString)
 )

@@ -14,12 +14,11 @@
 package service
 
 import (
+	"errors"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/validation"
-	"github.com/zenoss/elastigo/search"
-
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -193,7 +192,17 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 // GetServices returns all services
 func (s *storeImpl) GetServices(ctx datastore.Context) ([]Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServices"))
-	return s.query(ctx, "_exists_:ID")
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "ID"}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+	return s.query(ctx, query)
 }
 
 // GetUpdatedServices returns all services updated since "since" time.Duration ago
@@ -202,8 +211,23 @@ func (s *storeImpl) GetUpdatedServices(ctx datastore.Context, since time.Duratio
 	q := datastore.NewQuery(ctx)
 	t0 := time.Now().Add(-since)
 	t0s := t0.Format(time.RFC3339)
-	elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0s)).Search("_exists_:ID")
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+	//elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0s)).Search("_exists_:ID")
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"range": map[string]interface{}{"UpdatedAt": map[string]interface{}{"gte": t0s}}},
+					{"exists": map[string]string{"field": "ID"}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -235,8 +259,23 @@ func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]S
 		return nil, errors.New("empty poolID not allowed")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("PoolID", id)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"PoolID": id}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -252,8 +291,23 @@ func (s *storeImpl) GetServiceCountByImage(ctx datastore.Context, imageID string
 		return 0, errors.New("empty imageID not allowed")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("ImageID", id)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"ImageID": id}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return 0, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return 0, err
@@ -269,8 +323,23 @@ func (s *storeImpl) GetServicesByDeployment(ctx datastore.Context, deploymentID 
 		return nil, errors.New("empty deploymentID not allowed")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("DeploymentID", id)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"DeploymentID": id}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -286,8 +355,22 @@ func (s *storeImpl) GetChildServices(ctx datastore.Context, parentID string) ([]
 		return nil, errors.New("empty parent service id not allowed")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("ParentServiceID", id)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"ParentServiceID": id}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -304,14 +387,23 @@ func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parent
 	} else if serviceName = strings.TrimSpace(serviceName); serviceName == "" {
 		return nil, errors.New("empty service name not allowed")
 	}
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"DeploymentID": deploymentID}},
+					{"term": map[string]string{"ParentServiceID": parentID}},
+					{"term": map[string]string{"Name": serviceName}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
 
-	search := search.Search("controlplane").Type(kind).Filter(
-		"and",
-		search.Filter().Terms("DeploymentID", deploymentID),
-		search.Filter().Terms("ParentServiceID", parentID),
-		search.Filter().Terms("Name", serviceName),
-	)
-
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 	q := datastore.NewQuery(ctx)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -336,13 +428,23 @@ func (s *storeImpl) FindTenantByDeploymentID(ctx datastore.Context, deploymentID
 		return nil, errors.New("empty service name not allowed")
 	}
 
-	search := search.Search("controlplane").Type(kind).Filter(
-		"and",
-		search.Filter().Terms("DeploymentID", deploymentID),
-		search.Filter().Terms("Name", name),
-		search.Filter().Terms("ParentServiceID", ""),
-	)
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"DeploymentID": deploymentID}},
+					{"term": map[string]string{"ParentServiceID": ""}},
+					{"term": map[string]string{"Name": name}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
 
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 	q := datastore.NewQuery(ctx)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -358,10 +460,14 @@ func (s *storeImpl) FindTenantByDeploymentID(ctx datastore.Context, deploymentID
 	}
 }
 
-func (s *storeImpl) query(ctx datastore.Context, query string) ([]Service, error) {
+func (s *storeImpl) query(ctx datastore.Context, query interface{}) ([]Service, error) {
 	q := datastore.NewQuery(ctx)
-	elasticQuery := search.Query().Search(query)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -572,6 +678,6 @@ func (s *storeImpl) getUpdatedCacheEntries(since time.Time) []volatileService {
 			cacheEntries = append(cacheEntries, cacheEntry)
 		}
 	}
-	logger.WithField("count", len(cacheEntries)).Debug("Returning %d cached entries")
+	logger.WithField("count", len(cacheEntries)).Debug("Returning cached entries")
 	return cacheEntries
 }
