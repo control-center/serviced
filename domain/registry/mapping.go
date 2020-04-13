@@ -30,14 +30,14 @@ var plog = logging.PackageLogger()
 var (
 	mappingString = fmt.Sprintf(`                                                              
 {
-    "%s": {
-        "properties": {
-            "Library":  {"type": "string", "index": "not_analyzed"},
-            "Repo":     {"type": "string", "index": "not_analyzed"},
-            "Tag":      {"type": "string", "index": "not_analyzed"},
-            "UUID":     {"type": "string", "index": "not_analyzed"}
-        }
+  "%s": {
+    "properties": {
+      "Library":  {"type": "string", "index": "not_analyzed"},
+      "Repo":     {"type": "string", "index": "not_analyzed"},
+      "Tag":      {"type": "string", "index": "not_analyzed"},
+      "UUID":     {"type": "string", "index": "not_analyzed"}
     }
+  }
 }
 `, kind)
 	// MAPPING is the elastic mapping for the docker registry
@@ -50,11 +50,13 @@ func init() {
 	}
 }
 
+// Key returns a datastore.Key encoded from the given ID string.
 func Key(id string) datastore.Key {
 	enc := base64.URLEncoding.EncodeToString([]byte(id))
 	return datastore.NewKey(kind, enc)
 }
 
+// DecodeKey returns the decoded form of the given encoded ID string.
 func DecodeKey(id string) (string, error) {
 	dec, err := base64.URLEncoding.DecodeString(id)
 	if err != nil {

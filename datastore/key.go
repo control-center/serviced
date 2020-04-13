@@ -17,7 +17,8 @@ import (
 	"fmt"
 )
 
-// Key is a unique identifier for an entity. A key is composed of a kind or type of entity and the id of the entity.
+// Key is a unique identifier for an entity.
+// A key is composed of a kind or type of entity and the id of the entity.
 type Key interface {
 	// Kind is the type of the entity
 	Kind() string

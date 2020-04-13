@@ -410,12 +410,10 @@ func (ctx *requestContext) getFacade() facade.API {
 }
 
 func (ctx *requestContext) getDatastoreContext() datastore.Context {
-	context := datastore.GetNewInstance()
-
+	context := datastore.GetContext()
 	if len(ctx.username) > 0 {
-		context.SetUser(ctx.username)
+		return context.WithUser(ctx.username)
 	}
-
 	return context
 }
 

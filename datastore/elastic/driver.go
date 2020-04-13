@@ -37,7 +37,7 @@ type Driver interface {
 	// AddMapping add a document mapping to be registered with ElasticSearch
 	AddMapping(mapping Mapping) error
 
-	// Initialize the driver, register mappings with elasticserach.
+	// Initialize the driver, register mappings with elasticsearch.
 	// Timeout in ms to wait for elastic to be available.
 	Initialize(timeout time.Duration) error
 }

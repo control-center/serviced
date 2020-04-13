@@ -17,6 +17,7 @@ import "github.com/control-center/serviced/validation"
 
 const excludeChars = " \t\r\n\v\f/?"
 
+// ValidEntity verifies that an Image does not have bad data.
 func (image *Image) ValidEntity() error {
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("Image.Library", image.Library))

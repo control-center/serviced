@@ -25,7 +25,8 @@ type Connection interface {
 	// Put adds or updates an entity in the datastore using the Key.
 	Put(key Key, data JSONMessage) error
 
-	// Get returns an entity from the datastore. Can return ErrNoSuchEntity if the entity does not exists
+	// Get returns an entity from the datastore.
+	// Can return ErrNoSuchEntity if the entity does not exists
 	Get(key Key) (JSONMessage, error)
 
 	// Delete deletes an entity associated with the key

@@ -20,8 +20,8 @@ import (
 // Query is a query used to search for and return entities from a datastore
 type Query interface {
 
-	// Execute performs the query and returns an Results to the results.  For now this query is specific to the
-	// underlying Connection and Driver implementation.
+	// Execute performs the query and returns an Results to the results.
+	// For now, the query is specific to the underlying Connection and Driver implementation.
 	Execute(query interface{}) (Results, error)
 }
 
@@ -35,17 +35,17 @@ var ErrNoSuchElement = errors.New("no such element")
 
 // Results iterates or indexes into the results returned from a query
 type Results interface {
-	// Next retrieves the next available result into entity and advances the Results to the next available entity.
+	// Next retrieves the next available result into entity.
 	// ErrNoSuchElement is returned if no more results.
 	Next(entity ValidEntity) error
 
-	// HasNext returns true if a call to next would yield a value or false if no more entities are available
+	// HasNext returns true if Next() would yield an entity, otherwise false is returned.
 	HasNext() bool
 
-	//Len return the length of the results
+	// Len return the count of results
 	Len() int
 
-	//Len return the length of the results
+	// Get retrieves the idx result into entity.
 	Get(idx int, entity ValidEntity) error
 }
 
@@ -91,16 +91,11 @@ func (r *results) Get(idx int, entity ValidEntity) error {
 }
 
 func (r *results) Next(entity ValidEntity) error {
-	if !r.HasNext() {
-		return ErrNoSuchElement
+	err := r.Get(r.idx, entity)
+	if err == nil {
+		r.idx = r.idx + 1
 	}
-	v := r.data[r.idx]
-	r.idx = r.idx + 1
-	if err := SafeUnmarshal(v.Bytes(), entity); err != nil {
-		return err
-	}
-	entity.SetDatabaseVersion(v.Version())
-	return nil
+	return err
 }
 
 func (r *results) HasNext() bool {

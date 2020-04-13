@@ -94,7 +94,7 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.GetContext()
 	if len(backupRequest.Username) > 0 {
-		ctx.SetUser(backupRequest.Username)
+		ctx = ctx.WithUser(backupRequest.Username)
 	}
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
@@ -179,7 +179,7 @@ func (dao *ControlPlaneDao) GetBackupEstimate(backupRequest model.BackupRequest,
 func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.GetContext()
 	if len(backupRequest.Username) > 0 {
-		ctx.SetUser(backupRequest.Username)
+		ctx = ctx.WithUser(backupRequest.Username)
 	}
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
@@ -193,7 +193,7 @@ func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filen
 func (dao *ControlPlaneDao) Restore(restoreRequest model.RestoreRequest, _ *int) (err error) {
 	ctx := datastore.GetContext()
 	if len(restoreRequest.Username) > 0 {
-		ctx.SetUser(restoreRequest.Username)
+		ctx = ctx.WithUser(restoreRequest.Username)
 	}
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("restore")
@@ -227,7 +227,7 @@ func (dao *ControlPlaneDao) Restore(restoreRequest model.RestoreRequest, _ *int)
 func (dao *ControlPlaneDao) AsyncRestore(restoreRequest model.RestoreRequest, unused *int) (err error) {
 	ctx := datastore.GetContext()
 	if len(restoreRequest.Username) > 0 {
-		ctx.SetUser(restoreRequest.Username)
+		ctx = ctx.WithUser(restoreRequest.Username)
 	}
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("restore")

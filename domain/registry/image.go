@@ -19,6 +19,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 )
 
+// Image is a description of a Docker image.
 type Image struct {
 	Library string
 	Repo    string
@@ -38,6 +39,7 @@ func (image *Image) String() string {
 	return imageStr
 }
 
+// ID returns the Image's key ID string.
 func (image *Image) ID() string {
 	return image.key().ID()
 }

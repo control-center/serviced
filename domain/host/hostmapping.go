@@ -20,28 +20,28 @@ import (
 var (
 	mappingString = `
 {
-    "host": {
-      "properties":{
-        "ID" :            {"type": "string", "index":"not_analyzed"},
-        "Name":           {"type": "string", "index":"not_analyzed"},
-        "KernelVersion":  {"type": "string", "index":"not_analyzed"},
-        "KernelRelease":  {"type": "string", "index":"not_analyzed"},
-        "PoolID":         {"type": "string", "index":"not_analyzed"},
-        "IpAddr":         {"type": "string", "index":"not_analyzed"},
-        "Cores":          {"type": "long", "index":"not_analyzed"},
-        "Memory":         {"type": "long", "index":"not_analyzed"},
-        "PrivateNetwork": {"type": "string", "index":"not_analyzed"},
-        "CreatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
-        "UpdatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
-        "IPs" :{
-          "properties":{
-            "IP" : {"type": "string", "index":"not_analyzed"},
-            "InterfaceName" : {"type": "string", "index":"not_analyzed"},
-            "State" : {"type": "string", "index":"not_analyzed"}
-          }
+  "host": {
+    "properties": {
+      "ID":             {"type": "string", "index": "not_analyzed"},
+      "Name":           {"type": "string", "index": "not_analyzed"},
+      "KernelVersion":  {"type": "string", "index": "not_analyzed"},
+      "KernelRelease":  {"type": "string", "index": "not_analyzed"},
+      "PoolID":         {"type": "string", "index": "not_analyzed"},
+      "IpAddr":         {"type": "string", "index": "not_analyzed"},
+      "Cores":          {"type": "long",   "index": "not_analyzed"},
+      "Memory":         {"type": "long",   "index": "not_analyzed"},
+      "PrivateNetwork": {"type": "string", "index": "not_analyzed"},
+      "CreatedAt":      {"type": "date",   "format": "dateOptionalTime"},
+      "UpdatedAt":      {"type": "date",   "format": "dateOptionalTime"},
+      "IPs": {
+        "properties": {
+          "IP": {"type": "string", "index":"not_analyzed"},
+          "InterfaceName": {"type": "string", "index": "not_analyzed"},
+          "State": {"type": "string", "index": "not_analyzed"}
         }
       }
     }
+  }
 }
 `
 	//MAPPING is the elastic mapping for a host
@@ -50,6 +50,6 @@ var (
 
 func init() {
 	if mappingError != nil {
-          plog.WithError(mappingError).Fatal("error creating mapping for the host object")
+		plog.WithError(mappingError).Fatal("error creating mapping for the host object")
 	}
 }

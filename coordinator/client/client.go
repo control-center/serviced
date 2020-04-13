@@ -142,8 +142,7 @@ type opClientRequest struct {
 	response chan interface{}
 }
 
-// Client is a coordination client that abstracts using services like etcd or
-// zookeeper.
+// Client is a coordination client that abstracts using services like etcd or zookeeper.
 type Client struct {
 	basePath          string               // the base path for every connection
 	connectionString  string               // the driver specific connection string

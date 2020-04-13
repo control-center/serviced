@@ -49,17 +49,20 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 // e.g. DeleteRegistryImage(ctx, "library/reponame:tagname")
 func (f *Facade) DeleteRegistryImage(ctx datastore.Context, image string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeleteRegistryImage"))
+
+	// Delete the image ID from elastic
 	if err := f.registryStore.Delete(ctx, image); err != nil {
 		return err
 	}
+
+	// Delete the image from Docker
 	if err := f.zzk.DeleteRegistryImage(registry.Key(image).ID()); err != nil {
 		return err
 	}
 	return nil
 }
 
-// GetRegistryImages returns all the image that are in the docker registry
-// index.
+// GetRegistryImages returns all the image that are in the docker registry index.
 func (f *Facade) GetRegistryImages(ctx datastore.Context) ([]registry.Image, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetRegistryImages"))
 	rImages, err := f.registryStore.GetImages(ctx)
@@ -81,8 +84,8 @@ func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagn
 	return rImages, nil
 }
 
-// SyncRegistryImages makes sure images on es are in sync with zk.  If force is
-// enabled, all images are reset.
+// SyncRegistryImages makes sure images on ES are in sync with ZK.
+// If force is true, all images are reset.
 func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SyncRegistryImages"))
 	if err := f.DFSLock(ctx).LockWithTimeout("sync registry images", userLockTimeout); err != nil {
@@ -91,22 +94,20 @@ func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
 	}
 	defer f.DFSLock(ctx).Unlock()
 
-	// get all the images that are currently in the index
 	rImages, err := f.GetRegistryImages(ctx)
 	if err != nil {
 		return err
 	}
-	// we aren't going to try to sync deletes because that can get too messy;
-	// only adds and updates
+
+	// NOTE: only adds and updates are synced.  Deletes are ignored (too messy).
 	for _, rImage := range rImages {
 		img, err := f.zzk.GetRegistryImage(rImage.ID())
 		if err != client.ErrNoNode && err != nil {
 			return err
 		}
-		// only update the images where the uuid has changed and from the
-		// upstream only, to make sure we don't override any changes that
-		// occur out of band from the sync.  If force is set, then it is okay
-		// to blanket reset everything.
+		// Only update the images where the UUID has changed and from the upstream only, to make
+		// sure we don't override any changes that occur out of band from the sync.
+		// If force is true, then it is okay to blanket reset everything.
 		if force || img == nil || img.UUID != rImage.UUID {
 			if err := f.SetRegistryImage(ctx, &rImage); err != nil {
 				return err
