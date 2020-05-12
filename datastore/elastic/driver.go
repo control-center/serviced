@@ -38,13 +38,16 @@ type ElasticDriver interface {
 }
 
 // New creates a new ElasticDriver
-func New(host string, port uint16, index string) ElasticDriver {
-	return newDriver(host, port, index)
+func New(host string, port uint16, index string, requestTimeout time.Duration) ElasticDriver {
+	return newDriver(host, port, index, requestTimeout)
 }
 
-func newDriver(host string, port uint16, index string) *elasticDriver {
+func newDriver(host string, port uint16, index string, requestTimeout time.Duration) *elasticDriver {
 	api.Domain = host
 	api.Port = fmt.Sprintf("%v", port)
+	api.HttpClient = &http.Client{
+		Timeout: time.Second * requestTimeout,
+	}
 	//TODO: singleton since elastigo doesn't support multiple endpoints
 
 	driver := &elasticDriver{}
