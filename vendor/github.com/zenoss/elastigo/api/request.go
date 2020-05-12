@@ -38,6 +38,7 @@ var (
 	Domain         string    = DefaultDomain
 	ClusterDomains [1]string = [1]string{DefaultDomain}
 	Port           string    = DefaultPort
+	HttpClient = &http.Client{}
 )
 
 func ElasticSearchRequest(method, path string) (*Request, error) {
@@ -89,7 +90,7 @@ func (r *Request) Do(v interface{}) (int, []byte, error) {
 }
 
 func (r *Request) DoResponse(v interface{}) (*http.Response, []byte, error) {
-	res, err := http.DefaultClient.Do((*http.Request)(r))
+	res, err := HttpClient.Do((*http.Request)(r))
 	if err != nil {
 		return nil, nil, err
 	}

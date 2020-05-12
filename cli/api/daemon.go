@@ -1196,8 +1196,9 @@ func (d *daemon) initDriver() datastore.Driver {
 		"address": "localhost:9200",
 		"index":   "controlplane",
 	})
+	options := config.GetOptions()
 	log.Debug("Establishing connection with Elastic")
-	eDriver := elastic.New("localhost", 9200, "controlplane")
+	eDriver := elastic.New("localhost", 9200, "controlplane", time.Duration(options.ESRequestTimeout))
 	eDriver.AddMapping(host.MAPPING)
 	eDriver.AddMapping(pool.MAPPING)
 	eDriver.AddMapping(servicetemplate.MAPPING)

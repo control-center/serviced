@@ -145,6 +145,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		MCPasswd:                   "tiger",
 		FSType:                     volume.DriverType(cfg.StringVal("FS_TYPE", "devicemapper")),
 		ESStartupTimeout:           getDefaultESStartupTimeout(cfg.IntVal("ES_STARTUP_TIMEOUT", isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)),
+		ESRequestTimeout:           cfg.IntVal("ES_REQUEST_TIMEOUT", 0),
 		HostAliases:                cfg.StringSlice("VHOST_ALIASES", []string{}),
 		Verbosity:                  cfg.IntVal("LOG_LEVEL", 0),
 		StaticIPs:                  cfg.StringSlice("STATIC_IPS", []string{}),
