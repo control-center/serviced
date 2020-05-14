@@ -247,6 +247,9 @@
 # Time (in seconds) to wait for elastic search to start
 # SERVICED_ES_STARTUP_TIMEOUT=240
 
+# The http request connect timeout, in seconds, for an elasticsearch client connection.
+# SERVICED_ES_REQUEST_TIMEOUT=0
+
 # The timeout for performing a DFS snapshot (in seconds)
 # SERVICED_MAX_DFS_TIMEOUT=300
 
