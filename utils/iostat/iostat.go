@@ -15,19 +15,19 @@ import (
 
 var plog = logging.PackageLogger()
 
-// IOStatGetter is an interface to get a channel that reports iostats
+// Getter is an interface to get a channel that reports iostats.
 type Getter interface {
 	GetIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error)
 	GetStatInterval() time.Duration
 }
 
-// IOStatReporter implements IOStatGetter and uses interval and quit to control reporting
+// Reporter implements IOStatGetter and uses interval and quit to control reporting.
 type Reporter struct {
 	interval time.Duration
 	quit     <-chan interface{}
 }
 
-// NewIOStatReporter creates a new IOStatReporter with interval and quit
+// NewReporter creates a new IOStatReporter with interval and quit.
 func NewReporter(interval time.Duration, quit <-chan interface{}) *Reporter {
 	return &Reporter{
 		interval: interval,
@@ -95,8 +95,7 @@ func (d DeviceUtilizationReport) ToSimpleIOStat() (SimpleIOStat, error) {
 	}, nil
 }
 
-// ParseIOStat creates a map of DeviceUtilizationReports (device name as keys)
-// from a reader with iostat output.
+// ParseIOStat creates a map of DeviceUtilizationReports (device name as keys) from a reader with iostat output.
 func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 	scanner := bufio.NewScanner(r)
 	var err error
@@ -107,7 +106,7 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 		line := strings.TrimSpace(scanner.Text())
 		// iostat might print out some system info and some spaces
 		if !passedSysInfo {
-			if strings.HasPrefix(strings.TrimSpace(line), "Device") {
+			if strings.HasPrefix(line, "Device") {
 				passedSysInfo = true
 				fields = strings.Fields(line)
 			}
@@ -124,7 +123,7 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 
 		for index, field := range fields {
 			switch field {
-			case "Device:":
+			case "Device", "Device:":
 				report.Device = metrics[index]
 			case "tps":
 				report.TPS, err = strconv.ParseFloat(metrics[index], 64)
@@ -191,10 +190,9 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 }
 
 // GetIOStatsCh calls iostat with -dNxy and an interval defined in reporter.
-// It parses the output and creates a DeviceUtilizationReport for each device
-// and sends it to the returned channel.
+// It parses the output and creates a DeviceUtilizationReport for each device and sends it to the returned channel.
 func (reporter *Reporter) GetIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error) {
-	cmd := exec.Command("iostat", "-dNxy", fmt.Sprintf("%f", reporter.interval.Seconds()))
+	cmd := exec.Command("iostat", "-dNxy", fmt.Sprintf("%.0f", reporter.interval.Seconds()))
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -204,8 +202,16 @@ func (reporter *Reporter) GetIOStatsCh() (<-chan map[string]DeviceUtilizationRep
 	}
 	c := make(chan map[string]DeviceUtilizationReport)
 
+	shutdown := func() {
+		cmd.Process.Kill()
+		err := cmd.Wait()
+		if err != nil {
+			plog.WithError(err).Error("iostat error while waiting to exit")
+		}
+	}
+
 	go func() {
-		defer cmd.Process.Kill()
+		defer shutdown()
 		defer out.Close()
 		defer close(c)
 		parseIOStatWatcher(out, c, reporter.quit)
