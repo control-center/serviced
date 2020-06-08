@@ -96,10 +96,14 @@ endif
 # Avoid the inception problem of building from a container within a container.
 IN_DOCKER = 0
 
-GO        = $(shell which go)
+GO = $(shell which go)
 
 # Verify that we are running with the right go version
-MIN_GO_VERSION ?= go1.7
+GOVERSION = $(shell $(GO) version)
+COMPATIBLE_GO_VERSIONS = 1.7 1.8 1.9
+GO_VERSION_PATTERN := $(foreach ver,$(COMPATIBLE_GO_VERSIONS),$(ver)%)
+MIN_GO_VERSION = $(firstword $(COMPATIBLE_GO_VERSIONS))
+GO_VERSION_TOO_FAR = 1.10
 
 # Normalize DESTDIR so we can use this idiom in our install targets:
 #
@@ -126,8 +130,8 @@ FORCE:
 
 .PHONY: goversion
 goversion:
-ifeq "$(shell go version | grep $(MIN_GO_VERSION))" ""
-	$(error "Build requires go version $(MIN_GO_VERSION)")
+ifeq "$(filter $(GO_VERSION_PATTERN),$(patsubst go%,%,$(filter go1.%,$(GOVERSION))))" ""
+	$(error "Build requires go version >= $(MIN_GO_VERSION) and < $(GO_VERSION_TOO_FAR)")
 endif
 
 .PHONY: build_isvcs

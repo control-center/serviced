@@ -37,7 +37,7 @@ const (
 	IMAGE_REPO         = "zenoss/serviced-isvcs"
 	IMAGE_TAG          = "v63"
 	ZK_IMAGE_REPO      = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG       = "v11"
+	ZK_IMAGE_TAG       = "v12"
 	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
 	OTSDB_BT_TAG       = "v1"
 	API_KEY_PROXY_REPO = "gcr.io/zing-registry-188222/api-key-proxy"

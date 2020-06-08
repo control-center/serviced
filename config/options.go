@@ -86,6 +86,7 @@ type Options struct {
 	LogstashMaxSize            int    // Max size of logstash data
 	LogstashCycleTime          int    // Logstash purging cycle time in hours
 	LogstashURL                string
+	LogstashStdout             bool     // Write Logstash logs to stdout
 	DebugPort                  int      // Port to listen for profile clients
 	AdminGroup                 string   // user group that can log in to control center
 	MaxRPCClients              int      // the max number of rpc clients to an endpoint
@@ -139,7 +140,7 @@ type Options struct {
 	Auth0Scope                 string            // Auth0 Scope for request.
 	KeyProxyJsonServer         string            // Address of api-key-server endpoint for getting CC Access tokens
 	KeyProxyListenPort         string            // Port where api-key-proxy will listen
-
+	ESRequestTimeout           int               // The http request connect timeout, in seconds, for an elasticsearch client connection.
 }
 
 // GetOptions returns a COPY of the global options struct

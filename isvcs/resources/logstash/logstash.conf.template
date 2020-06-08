@@ -22,5 +22,7 @@ output {
 		template_overwrite => true
 	}
 
+	#${STDOUT_SECTION}
+
 	#${AUDITLOG_SECTION}
 }
