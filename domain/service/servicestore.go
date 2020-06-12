@@ -19,6 +19,7 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/validation"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -462,6 +463,16 @@ func (s *storeImpl) FindTenantByDeploymentID(ctx datastore.Context, deploymentID
 
 func (s *storeImpl) query(ctx datastore.Context, query interface{}) ([]Service, error) {
 	q := datastore.NewQuery(ctx)
+
+	if reflect.TypeOf(query).Kind() == reflect.String {
+		query = map[string]interface{}{
+			"query": map[string]interface{}{
+				"query_string": map[string]string{
+					"query": query.(string),
+				},
+			},
+		}
+	}
 
 	search, err := elastic.BuildSearchRequest(query, "controlplane")
 	if err != nil {

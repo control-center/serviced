@@ -17,6 +17,7 @@ package elastic
 
 import (
 	gocheck "gopkg.in/check.v1"
+	"runtime"
 
 	"fmt"
 	"io/ioutil"
@@ -112,6 +113,8 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 	}
 	//In case we change result size above 10000 hits per request
 	//SetMaxResultWindow(et.driver.elasticURL(), et.Index)
+	SetDiscSpaceThresholds(et.driver.elasticURL())
+	TurnOffIndexReadOnlyMode(et.driver.index, et.driver.elasticURL())
 	if !existingServer {
 		//give it some time if we started it
 		time.Sleep(time.Second * 1)
@@ -225,7 +228,11 @@ func ensureElasticJar(runDir string) string {
 	if err != nil {
 		log.Fatal("Can't find java in path")
 	}
-	gz := fmt.Sprintf("elasticsearch-%s-linux-x86_64.tar.gz", esVersion)
+	distro := "linux"
+	if strings.Contains(runtime.GOOS, "darwin") {
+		distro = "darwin"
+	}
+	gz := fmt.Sprintf("elasticsearch-%s-%s-x86_64.tar.gz", esVersion, distro)
 	gzPath := fmt.Sprintf("/tmp/%s", gz)
 
 	path := fmt.Sprintf("%s/elasticsearch-%s", runDir, esVersion)

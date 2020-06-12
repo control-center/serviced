@@ -47,7 +47,6 @@ func (s *S) TestPutGetDelete(t *C) {
 
 	//Turn off read only mode
 	elasticUrl := fmt.Sprintf("http://localhost:%d", s.Port)
-	elastic.SetDiscSpaceThresholds(elasticUrl)
 	elastic.TurnOffIndexReadOnlyMode("twitter", elasticUrl)
 
 	conn, err := esdriver.GetConnection()

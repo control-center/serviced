@@ -258,18 +258,12 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 			"bool": map[string]interface{}{
 				"must": []map[string]interface{}{
 					{"term": map[string]interface{}{"type": kind}},
-				},
-				"should": []map[string]interface{}{
-					{
-						"ids": map[string]interface{}{
-							"values": []string{fmt.Sprintf("%s-%s", query, kind)},
+					{"bool": map[string]interface{}{
+						"should": []map[string]interface{}{
+							{"regexp": map[string]interface{}{"Name": newquery}},
+							{"ids": map[string]interface{}{"values": []string{fmt.Sprintf("%s-%s", query, kind)}}},
 						},
-					},
-					{
-						"regexp": map[string]interface{}{
-							"Name": newquery,
-						},
-					},
+					}},
 				},
 			},
 		},
