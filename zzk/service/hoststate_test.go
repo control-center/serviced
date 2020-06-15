@@ -1508,7 +1508,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartRestart(c *C) {
 
 		c.Assert(ssdatResult.ContainerID, Equals, ssdat.ContainerID)
 		c.Assert(ssdatResult.ImageUUID, Equals, ssdat.ImageUUID)
-		c.Assert(ssdatResult.Started, Equals, ssdat.Started)
+		c.Assert(ssdatResult.Started.Unix(), Equals, ssdat.Started.Unix())
 		c.Assert(ssdatResult.Paused, Equals, ssdat.Paused)
 	case <-done:
 		c.Fatalf("Listener exit")
@@ -1994,7 +1994,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartPauseStart(c *C) {
 
 		c.Assert(ssdatResult.ContainerID, Equals, ssdat.ContainerID)
 		c.Assert(ssdatResult.ImageUUID, Equals, ssdat.ImageUUID)
-		c.Assert(ssdatResult.Started, Equals, ssdat.Started)
+		c.Assert(ssdatResult.Started.Unix(), Equals, ssdat.Started.Unix())
 		c.Assert(ssdatResult.Paused, Equals, ssdat.Paused)
 	case <-done:
 		c.Fatalf("Listener exit")
@@ -2033,7 +2033,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartPauseStart(c *C) {
 		// Make sure the zk data is correct
 		c.Assert(ssdatResult.ContainerID, Equals, ssdat.ContainerID)
 		c.Assert(ssdatResult.ImageUUID, Equals, ssdat.ImageUUID)
-		c.Assert(ssdatResult.Started, Equals, ssdat.Started)
+		c.Assert(ssdatResult.Started.Unix(), Equals, ssdat.Started.Unix())
 		c.Assert(ssdatResult.Paused, Equals, true)
 	case <-done:
 		c.Fatalf("Listener exit")
@@ -2072,7 +2072,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartPauseStart(c *C) {
 		// Make sure the zk data is correct
 		c.Assert(ssdatResult.ContainerID, Equals, ssdat.ContainerID)
 		c.Assert(ssdatResult.ImageUUID, Equals, ssdat.ImageUUID)
-		c.Assert(ssdatResult.Started, Equals, ssdat.Started)
+		c.Assert(ssdatResult.Started.Unix(), Equals, ssdat.Started.Unix())
 		c.Assert(ssdatResult.Paused, Equals, false)
 	case <-done:
 		c.Fatalf("Listener exit")
