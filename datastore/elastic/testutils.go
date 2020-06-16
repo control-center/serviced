@@ -104,15 +104,12 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 			c.Fatalf("error in SetUpSuite: %v", err)
 		}
 	}
-	//In case the instance will have less the 10% free disk space
-	//SetDiscSpaceThresholds(et.driver.elasticURL())
 	et.driver.deleteIndex()
 	err := driver.Initialize(time.Second * et.InitTimeout)
 	if err != nil {
 		c.Fatalf("error in SetUpSuite: %v", err)
 	}
-	//In case we change result size above 10000 hits per request
-	//SetMaxResultWindow(et.driver.elasticURL(), et.Index)
+	//In case the instance will have less the 10% free disk space
 	SetDiscSpaceThresholds(et.driver.elasticURL())
 	TurnOffIndexReadOnlyMode(et.driver.index, et.driver.elasticURL())
 	if !existingServer {

@@ -17,11 +17,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 )
 
 func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*ServiceHealth, error) {
@@ -35,7 +35,7 @@ func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*Serv
 	searchRequest := newServiceHealthElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"ids": map[string]interface{}{
-				"values": []string{fmt.Sprintf("%s-%s", id, kind)},
+				"values": []string{elastic.BuildID(id, kind)},
 			},
 		},
 	}, 1, serviceHealthFields)
@@ -64,15 +64,9 @@ func (s *storeImpl) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth,
 	searchRequest := newServiceHealthElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
-				"must": map[string]interface{}{
-					"exists": map[string]interface{}{
-						"field": "ID",
-					},
-				},
-				"filter": map[string]interface{}{
-					"match": map[string]interface{}{
-						"type": "service",
-					},
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "ID"}},
+					{"term": map[string]string{"type": "service"}},
 				},
 			},
 		},

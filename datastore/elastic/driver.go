@@ -206,28 +206,6 @@ func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
 	return health, nil
 }
 
-func SetMaxResultWindow(elasticURL string, index string) error {
-	client := &http.Client{}
-	indexSettingsURL := fmt.Sprintf("%v/%s/settings", elasticURL, index)
-	indexSettings := map[string]interface{}{
-		"index": map[string]int{
-			"max_result_window": 50000,
-		},
-	}
-
-	indexSettingsJson, _ := json.Marshal(indexSettings)
-
-	req, _ := http.NewRequest(http.MethodPut, indexSettingsURL, bytes.NewBuffer(indexSettingsJson))
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-	resp, err := client.Do(req)
-
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("http status: %v %s", resp.StatusCode, err)
-	}
-
-	return nil
-}
-
 func SetDiscSpaceThresholds(elasticURL string) error {
 	client := &http.Client{}
 	clusterSettingsURL := fmt.Sprintf("%v/_cluster/settings", elasticURL)
@@ -242,29 +220,6 @@ func SetDiscSpaceThresholds(elasticURL string) error {
 	clusterSettingsJson, _ := json.Marshal(clusterSettings)
 
 	req, _ := http.NewRequest(http.MethodPut, clusterSettingsURL, bytes.NewBuffer(clusterSettingsJson))
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-	resp, err := client.Do(req)
-
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("http status: %v %s", resp.StatusCode, err)
-	}
-
-	return nil
-}
-
-func SetSingleNodeCluster(index string, elasticURL string) error {
-	client := &http.Client{}
-	indexSettingsURL := fmt.Sprintf("%v/%s/_settings", elasticURL, index)
-	indexSettings := map[string]interface{}{
-		"index": map[string]interface{}{
-			"number_of_replicas": 0,
-			"number_of_shards":   1,
-		},
-	}
-
-	indexSettingsJson, _ := json.Marshal(indexSettings)
-
-	req, _ := http.NewRequest(http.MethodPut, indexSettingsURL, bytes.NewBuffer(indexSettingsJson))
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	resp, err := client.Do(req)
 

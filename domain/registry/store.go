@@ -15,10 +15,10 @@ package registry
 
 import (
 	"errors"
-	"github.com/control-center/serviced/datastore/elastic"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/datastore/elastic"
 )
 
 // NewStore creates a new image registry store

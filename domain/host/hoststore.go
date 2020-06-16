@@ -134,6 +134,9 @@ func (hs *storeImpl) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
 		return nil, err
 	}
 
+	size := int(int64(limit))
+	search.Size = &size
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err

@@ -18,13 +18,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 )
 
 func (s *storeImpl) Query(ctx datastore.Context, query Query) ([]ServiceDetails, error) {
@@ -122,7 +123,7 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"ids": map[string]interface{}{
-				"values": []string{fmt.Sprintf("%s-%s", id, kind)},
+				"values": []string{elastic.BuildID(id, kind)},
 			},
 		},
 	}, 1, serviceDetailsFields)
@@ -261,7 +262,7 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 					{"bool": map[string]interface{}{
 						"should": []map[string]interface{}{
 							{"regexp": map[string]interface{}{"Name": newquery}},
-							{"ids": map[string]interface{}{"values": []string{fmt.Sprintf("%s-%s", query, kind)}}},
+							{"ids": map[string]interface{}{"values": []string{elastic.BuildID(query, kind)}}},
 						},
 					}},
 				},

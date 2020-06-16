@@ -42,6 +42,10 @@ func init() {
 	traceLogger = logri.GetLogger(traceLoggerName)
 }
 
+func BuildID(id string, key string) string {
+	return fmt.Sprintf("%s-%s", id, key)
+}
+
 func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
 	logger := plog.WithFields(log.Fields{
 		"kind": key.Kind(),
@@ -52,7 +56,7 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 
 	//Because of document type depreciation in ES 7.x we combine id and key
 	args := []func(*esapi.IndexRequest){
-		ec.client.Index.WithDocumentID(fmt.Sprintf("%s-%s", key.ID(), key.Kind())),
+		ec.client.Index.WithDocumentID(BuildID(key.ID(), key.Kind())),
 		ec.client.Index.WithRefresh("true"),
 	}
 
@@ -91,7 +95,7 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 	traceLogger.Debug("Get")
 
 	//Because of document type depreciation in ES 7.x we combine id and key
-	response, err := ec.elasticGet(fmt.Sprintf("%s-%s", key.ID(), key.Kind()))
+	response, err := ec.elasticGet(BuildID(key.ID(), key.Kind()))
 	if err != nil {
 		logger.WithError(err).Error("Get failed")
 		return nil, err
@@ -117,7 +121,7 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 
 	//Because of document type depreciation in ES 7.x we combine id and key
 	res, err := ec.client.Delete(ec.index,
-		fmt.Sprintf("%s-%s", key.ID(), key.Kind()),
+		BuildID(key.ID(), key.Kind()),
 		ec.client.Delete.WithRefresh("true"))
 
 	traceLogger.WithField("response", res).Debug("Delete")
@@ -157,34 +161,34 @@ func (ec *elasticConnection) Query(query esapi.SearchRequest) ([]datastore.JSONM
 // convert search result of json host to dao.Host array
 func toJSONMessages(result *esapi.Response) ([]datastore.JSONMessage, error) {
 	// Deserialize the response into a map.
-	var r map[string]interface{}
+	var r elasticSearchResults
 	if err := json.NewDecoder(result.Body).Decode(&r); err != nil {
 		plog.WithError(err).Errorf("Error parsing the response body: %s", err)
 		return nil, err
 	}
 
-	var total = int(r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
+	var total = r.Hits.Total.Value
 	var msgs = make([]datastore.JSONMessage, total)
 
 	logger := plog.WithField("total", total)
 	if total > 0 {
 		// Note that while it's possible for queries to span types, the vast majority of CC use cases (all?)
 		//   only query a single type at a time, so it's sufficient to get the type of the first hit
-		logger.WithField("type", r["hits"].(map[string]interface{})["hits"].([]interface{})[0].(map[string]interface{})["_type"])
+		logger.WithField("id-type", r.Hits.Hits[0].Id)
 	}
 	logger.Debug("Query finished")
 
-	for i, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
+	for i, hit := range r.Hits.Hits {
 		var data bytes.Buffer
-		if err := json.NewEncoder(&data).Encode(hit.(map[string]interface{})["_source"]); err != nil {
+		if err := json.NewEncoder(&data).Encode(hit.Source); err != nil {
 			plog.WithError(err).Errorf("Error encoding query: %s", err)
 			return nil, err
 		}
 
 		msg := datastore.NewJSONMessage(data.Bytes(), map[string]int{
-			"version":     int(hit.(map[string]interface{})["_version"].(float64)),
-			"primaryTerm": int(hit.(map[string]interface{})["_primary_term"].(float64)),
-			"seqNo":       int(hit.(map[string]interface{})["_seq_no"].(float64)),
+			"version":     hit.Version,
+			"primaryTerm": hit.PrimaryTerm,
+			"seqNo":       hit.SeqNo,
 		})
 		msgs[i] = msg
 	}
@@ -248,4 +252,27 @@ type elasticResponse struct {
 	Exists      bool            `json:"exists,omitempty"`
 	PrimaryTerm int             `json:"_primary_term,omitempty"`
 	SeqNo       int             `json:"_seq_no,omitempty"`
+}
+
+type elasticSearchResults struct {
+	Took     int            `json:"took,omitempty"`
+	TimedOut bool           `json:"timed_out,omitempty"`
+	Shards   map[string]int `json:"_shards,omitempty"`
+	Hits     struct {
+		Total struct {
+			Value    int    `json:"value"`
+			Relation string `json:"relation"`
+		} `json:"total"`
+		MaxScore float64 `json:"max_score"`
+		Hits     []struct {
+			Index       string                 `json:"_index"`
+			Type        string                 `json:"_type"`
+			Id          string                 `json:"_id"`
+			Version     int                    `json:"_version,omitempty"`
+			PrimaryTerm int                    `json:"_primary_term,omitempty"`
+			SeqNo       int                    `json:"_seq_no,omitempty"`
+			Score       float64                `json:"_score"`
+			Source      map[string]interface{} `json:"_source"`
+		} `json:"hits,omitempty"`
+	} `json:"hits,omitempty"`
 }

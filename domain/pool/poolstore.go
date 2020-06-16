@@ -51,19 +51,14 @@ func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, er
 	req := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
-				"must": map[string]interface{}{
-					"exists": map[string]interface{}{
-						"field": "ID",
-					},
-				},
-				"filter": map[string]interface{}{
-					"match": map[string]interface{}{
-						"type": kind,
-					},
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "ID"}},
+					{"term": map[string]string{"type": kind}},
 				},
 			},
 		},
 	}
+
 	return query(ctx, req)
 }
 

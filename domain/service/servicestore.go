@@ -212,7 +212,6 @@ func (s *storeImpl) GetUpdatedServices(ctx datastore.Context, since time.Duratio
 	q := datastore.NewQuery(ctx)
 	t0 := time.Now().Add(-since)
 	t0s := t0.Format(time.RFC3339)
-	//elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0s)).Search("_exists_:ID")
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
