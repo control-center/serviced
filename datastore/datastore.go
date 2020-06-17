@@ -48,8 +48,6 @@ type EntityStore interface {
 //ValidEntity interface for entities that can be stored in the EntityStore
 type ValidEntity interface {
 	ValidEntity() error
-	GetDatabaseVersion() int
-	SetDatabaseVersion(int)
 	GetType() string
 	SetType(string)
 	GetSeqNo() int
@@ -64,18 +62,9 @@ func New() EntityStore {
 }
 
 type VersionedEntity struct {
-	DatabaseVersion int    `json:"_version,omitempty"`
-	IfSeqNo         int    `json:"_if_seq_no,omitempty"`
-	IfPrimaryTerm   int    `json:"_if_primary_term,omitempty"`
-	Type            string `json:"type,omitempty"`
-}
-
-func (e *VersionedEntity) GetDatabaseVersion() int {
-	return e.DatabaseVersion
-}
-
-func (e *VersionedEntity) SetDatabaseVersion(i int) {
-	e.DatabaseVersion = i
+	IfSeqNo       int    `json:"_if_seq_no,omitempty"`
+	IfPrimaryTerm int    `json:"_if_primary_term,omitempty"`
+	Type          string `json:"type,omitempty"`
 }
 
 func (e *VersionedEntity) GetType() string {
@@ -192,14 +181,11 @@ func (ds *DataStore) Delete(ctx Context, key Key) error {
 
 func (ds *DataStore) serialize(kind string, entity ValidEntity) (JSONMessage, error) {
 	entity.SetType(kind)
-	// The internal _version change was deprecated since 7.0, so we do sanitize the version value to 0 to omit serialization
-	entity.SetDatabaseVersion(0)
 	data, err := json.Marshal(entity)
 	if err != nil {
 		return nil, err
 	}
 	msg := NewJSONMessage(data, map[string]int{
-		"version":     entity.GetDatabaseVersion(),
 		"primaryTerm": entity.GetPrimaryTerm(),
 		"seqNo":       entity.GetSeqNo(),
 	})
@@ -211,7 +197,6 @@ func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity ValidE
 	if err := SafeUnmarshal(jsonMsg.Bytes(), entity); err != nil {
 		return err
 	}
-	entity.SetDatabaseVersion(jsonMsg.Version()["version"])
 	entity.SetPrimaryTerm(jsonMsg.Version()["primaryTerm"])
 	entity.SetSeqNo(jsonMsg.Version()["seqNo"])
 	return nil

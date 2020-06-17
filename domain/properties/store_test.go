@@ -62,7 +62,6 @@ func (s *S) Test_Put(c *C) {
 	actual, err := s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
 	// update version since it is incremented when stored
-	props.DatabaseVersion = 1
 	props.IfPrimaryTerm = 1
 	c.Assert(actual, DeepEquals, props)
 
@@ -72,7 +71,6 @@ func (s *S) Test_Put(c *C) {
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
-	props.DatabaseVersion = 2
 	props.IfSeqNo = 1
 	c.Assert(actual, DeepEquals, props)
 

@@ -233,7 +233,6 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 	// set service defaults
 	svc.DesiredState = int(service.SVCStop)         // new services must always be stopped
 	svc.CurrentState = string(service.SVCCSStopped) // new services are always stopped
-	svc.DatabaseVersion = 0                         // create service set database version to 0
 	// manage service configurations
 	if svc.OriginalConfigs == nil || len(svc.OriginalConfigs) == 0 {
 		if svc.ConfigFiles != nil {
@@ -680,7 +679,6 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 	traverse = func(parentID string) error {
 		for _, svc := range svcsmap[parentID] {
 			alog := f.auditLogger.Message(ctx, "Restore Service").WithField("servicename", svc.Name).Action(audit.Restore).Entity(&svc)
-			svc.DatabaseVersion = 0
 			svc.DesiredState = int(service.SVCStop)
 			if _, ok := poolsmap[svc.PoolID]; !ok {
 				glog.Warningf("Could not find pool %s for service %s (%s).  Setting pool to default.", svc.PoolID, svc.Name, svc.ID)

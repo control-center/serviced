@@ -52,7 +52,6 @@ func (s *S) Test_LogFilterCRUD(c *C) {
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 
 	err = s.store.Put(s.ctx, expected)
-	expected.DatabaseVersion = 1
 	expected.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 
@@ -61,7 +60,6 @@ func (s *S) Test_LogFilterCRUD(c *C) {
 	c.Assert(actual, DeepEquals, expected)
 
 	err = s.store.Put(s.ctx, expected)
-	expected.DatabaseVersion = 2
 	expected.IfSeqNo = 1
 	c.Assert(err, IsNil)
 
@@ -135,18 +133,14 @@ func (s *S) Test_GetLogFilters(c *C) {
 	err = s.store.Put(s.ctx, &filter2_2)
 	c.Assert(err, IsNil)
 
-	filter1_1.DatabaseVersion = 1
 	filter1_1.IfPrimaryTerm = 1
 
-	filter2_1.DatabaseVersion = 1
 	filter2_1.IfPrimaryTerm = 1
 	filter2_1.IfSeqNo = 1
 
-	filter1_2.DatabaseVersion = 1
 	filter1_2.IfPrimaryTerm = 1
 	filter1_2.IfSeqNo = 2
 
-	filter2_2.DatabaseVersion = 1
 	filter2_2.IfPrimaryTerm = 1
 	filter2_2.IfSeqNo = 3
 

@@ -30,7 +30,6 @@ func (ft *FacadeIntegrationTest) TestGetRegistryImage(c *C) {
 	}
 	err := ft.Facade.registryStore.Put(ft.CTX, expected)
 	c.Assert(err, IsNil)
-	expected.DatabaseVersion = 1
 	expected.IfPrimaryTerm = 1
 	actual, err := ft.Facade.GetRegistryImage(ft.CTX, "library/reponame:tagname")
 	c.Assert(err, IsNil)
@@ -53,7 +52,6 @@ func (ft *FacadeIntegrationTest) TestSetRegistryImage(c *C) {
 	}
 	err := ft.Facade.SetRegistryImage(ft.CTX, expected)
 	c.Assert(err, IsNil)
-	expected.DatabaseVersion = 1
 	expected.IfPrimaryTerm = 1
 	expected.IfSeqNo = 0
 	actual, err := ft.Facade.registryStore.Get(ft.CTX, "library/reponame:tagname")
@@ -62,7 +60,6 @@ func (ft *FacadeIntegrationTest) TestSetRegistryImage(c *C) {
 
 	err = ft.Facade.SetRegistryImage(ft.CTX, expected)
 	c.Assert(err, IsNil)
-	expected.DatabaseVersion = 2
 	expected.IfSeqNo = 1
 	actual, err = ft.Facade.registryStore.Get(ft.CTX, "library/reponame:tagname")
 	c.Assert(err, IsNil)
@@ -76,7 +73,6 @@ func (ft *FacadeIntegrationTest) TestSetRegistryImage(c *C) {
 	}
 	err = ft.Facade.SetRegistryImage(ft.CTX, expected)
 	c.Assert(err, IsNil)
-	expected.DatabaseVersion = 3
 	expected.IfSeqNo = 2
 	expected.IfPrimaryTerm = 1
 	actual, err = ft.Facade.registryStore.Get(ft.CTX, "library/reponame:tagname")
@@ -91,7 +87,6 @@ func (ft *FacadeIntegrationTest) TestSetRegistryImage(c *C) {
 	}
 	err = ft.Facade.SetRegistryImage(ft.CTX, expected2)
 	c.Assert(err, IsNil)
-	expected2.DatabaseVersion = 1
 	expected2.IfPrimaryTerm = 1
 	expected2.IfSeqNo = 3
 	actual, err = ft.Facade.registryStore.Get(ft.CTX, "library/reponame:tagname")
@@ -111,7 +106,6 @@ func (ft *FacadeIntegrationTest) TestDeleteRegistryImage(c *C) {
 	}
 	err := ft.Facade.registryStore.Put(ft.CTX, expected)
 	c.Assert(err, IsNil)
-	expected.DatabaseVersion = 1
 	expected.IfPrimaryTerm = 1
 	actual, err := ft.Facade.registryStore.Get(ft.CTX, "library/reponame:tagname")
 	c.Assert(err, IsNil)
@@ -153,7 +147,6 @@ func (ft *FacadeIntegrationTest) TestGetRegistryImages(c *C) {
 		err := ft.Facade.registryStore.Put(ft.CTX, &image)
 		c.Assert(err, IsNil)
 		expected[i].Type = image.GetType()
-		expected[i].DatabaseVersion = 1
 		expected[i].IfPrimaryTerm = 1
 		expected[i].IfSeqNo = i
 	}
@@ -179,7 +172,6 @@ func (ft *FacadeIntegrationTest) TestSearchRegistryLibraryByTag(c *C) {
 	for i := range expected1 {
 		err := ft.Facade.registryStore.Put(ft.CTX, &expected1[i])
 		c.Assert(err, IsNil)
-		expected1[i].DatabaseVersion = 1
 		expected1[i].IfPrimaryTerm = 1
 		expected1[i].IfSeqNo = i
 	}
@@ -194,7 +186,6 @@ func (ft *FacadeIntegrationTest) TestSearchRegistryLibraryByTag(c *C) {
 	for i := range expected2 {
 		err := ft.Facade.registryStore.Put(ft.CTX, &expected2[i])
 		c.Assert(err, IsNil)
-		expected2[i].DatabaseVersion = 1
 		expected2[i].IfPrimaryTerm = 1
 		expected2[i].IfSeqNo = i + 2
 	}
@@ -209,7 +200,6 @@ func (ft *FacadeIntegrationTest) TestSearchRegistryLibraryByTag(c *C) {
 	for i := range expected3 {
 		err := ft.Facade.registryStore.Put(ft.CTX, &expected3[i])
 		c.Assert(err, IsNil)
-		expected3[i].DatabaseVersion = 1
 		expected3[i].IfPrimaryTerm = 1
 		expected3[i].IfSeqNo = i + 3
 	}

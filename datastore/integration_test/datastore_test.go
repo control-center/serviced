@@ -101,7 +101,7 @@ func (s *S) TestVersionConflict(t *C) {
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
-	if storedtweet.DatabaseVersion != 1 {
+	if storedtweet.IfPrimaryTerm != 1 {
 		t.Fatalf("Version was not incremented")
 	}
 

@@ -124,7 +124,6 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	addrs, err = s.store.GetAllAddressAssignments(s.ctx)
 	t.Assert(err, IsNil)
 	t.Assert(len(addrs), Equals, 1)
-	assignment1.DatabaseVersion = 1
 	assignment1.IfPrimaryTerm = 1
 	t.Assert(addrs[0], Equals, assignment1)
 
@@ -146,14 +145,12 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	t.Assert(ok, Equals, true)
 	t.Assert(result, Equals, assignment1)
 
-	assignment2.DatabaseVersion = 1
 	assignment2.IfPrimaryTerm = 1
 	assignment2.IfSeqNo = 1
 	result, ok = addrMap[assignment2.ID]
 	t.Assert(ok, Equals, true)
 	t.Assert(result, Equals, assignment2)
 
-	assignment3.DatabaseVersion = 1
 	assignment3.IfPrimaryTerm = 1
 	assignment3.IfSeqNo = 2
 	result, ok = addrMap[assignment3.ID]

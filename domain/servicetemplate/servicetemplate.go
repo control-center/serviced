@@ -24,7 +24,6 @@ import (
 	"github.com/control-center/serviced/logging"
 )
 
-
 // initialize the package logger
 var plog = logging.PackageLogger()
 
@@ -72,7 +71,6 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 func (a *ServiceTemplate) Hash() (string, error) {
 	tpl := *a
 	tpl.ID = ""
-	tpl.DatabaseVersion = 0
 	if data, err := json.Marshal(&tpl); err != nil {
 		return "", err
 	} else {

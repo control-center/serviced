@@ -87,7 +87,6 @@ func (r *results) Get(idx int, entity ValidEntity) error {
 	if err := SafeUnmarshal(v.Bytes(), entity); err != nil {
 		return err
 	}
-	entity.SetDatabaseVersion(v.Version()["version"])
 	entity.SetPrimaryTerm(v.Version()["primaryTerm"])
 	entity.SetSeqNo(v.Version()["seqNo"])
 	return nil
@@ -102,7 +101,6 @@ func (r *results) Next(entity ValidEntity) error {
 	if err := SafeUnmarshal(v.Bytes(), entity); err != nil {
 		return err
 	}
-	entity.SetDatabaseVersion(v.Version()["version"])
 	entity.SetPrimaryTerm(v.Version()["primaryTerm"])
 	entity.SetSeqNo(v.Version()["seqNo"])
 	return nil
