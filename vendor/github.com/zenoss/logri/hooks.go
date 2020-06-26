@@ -14,7 +14,7 @@ func (hook LoggerHook) Levels() []logrus.Level {
 
 // Fire satisfies the logrus.Hook interface
 func (hook LoggerHook) Fire(entry *logrus.Entry) error {
-	entry.Data["logger"] = hook.loggerName
+	entry.SetField("logger", hook.loggerName)
 	return nil
 }
 

@@ -392,9 +392,9 @@ func (svc *IService) create() (*docker.Container, error) {
 
 			//TODO It's ugly but we need non-root user for running es bin and the data folder should be
 			//  also with non-root privileges
-			if strings.Contains(hostpath, "isvcs/elasticsearch-serviced/data") {
+			if strings.Contains(hostpath, "elasticsearch-serviced/data") {
 				log.Info("Set chown to es-serviced data directory")
-				os.Chown(hostpath, 1000, 1000)
+				os.Chown(hostpath, 1001, 1001)
 			}
 
 			cd.HostConfig.Binds = append(cd.HostConfig.Binds, fmt.Sprintf("%s:%s", hostpath, dest))
