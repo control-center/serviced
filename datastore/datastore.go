@@ -62,8 +62,8 @@ func New() EntityStore {
 }
 
 type VersionedEntity struct {
-	IfSeqNo       int    `json:"_if_seq_no,omitempty"`
-	IfPrimaryTerm int    `json:"_if_primary_term,omitempty"`
+	IfSeqNo       int    `json:"-"`
+	IfPrimaryTerm int    `json:"-"`
 	Type          string `json:"type,omitempty"`
 }
 
