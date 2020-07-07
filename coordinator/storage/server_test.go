@@ -104,11 +104,10 @@ func TestServer(t *testing.T) {
 		nfsMount = orig
 	}(nfsMount)
 
-	var local, remote string
+	var remote string
 	nfsMount = func(driver nfs.Driver, a, b string) error {
 		t.Logf("client is mounting %s to %s", a, b)
 		remote = a
-		local = b
 		return nil
 	}
 

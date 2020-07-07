@@ -17,7 +17,7 @@ import (
 	"fmt"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/search"
+	"github.com/control-center/serviced/datastore/elastic"
 )
 
 //NewStore creates a ResourcePool store
@@ -76,8 +76,23 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 // GetServiceTemplates returns all ServiceTemplates
 func (s *storeImpl) GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error) {
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Search("_exists_:ID")
-	search := search.Search("controlplane").Type(kind).Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "ID"}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err

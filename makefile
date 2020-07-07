@@ -154,8 +154,8 @@ mockAgent:
 
 .PHONY: govet
 govet:
-	@echo go tool vet -printf=false -composites=false DIRS...
-	@go tool vet -printf=false -composites=false $(GOVETTARGETS)
+	@echo go vet -printf=false -composites=false DIRS...
+	@go vet -printf=false -composites=false $(GOVETTARGETS)
 
 $(GOBIN):
 	@mkdir -p $@

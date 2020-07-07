@@ -17,69 +17,88 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 )
 
+//TODO Still can't understand the purpose of the below mapping in old ES
+//"Tags":{"type": "text", "index_name":"tag"},
+
 var (
 	mappingString = `
 {
-	"service": {
+  "properties": {
+	"ID" :             {"type": "keyword", "index":"true"},
+	"Name":            {"type": "keyword", "index":"true"},
+	"Startup":         {"type": "keyword", "index":"true"},
+	"Context":         {"type": "object", "enabled":"false"},
+	"Description":     {"type": "keyword", "index":"true"},
+	"DeploymentID":    {"type": "keyword", "index":"true"},
+	"Environment":     {"type": "keyword", "index":"true"},
+	"Tags":            {"type": "keyword"},
+	"Instances":       {"type": "long", "index":"true"},
+	"InstancesLimits":       {
 	  "properties": {
-		"ID" :             {"type": "string", "index":"not_analyzed"},
-		"Name":            {"type": "string", "index":"not_analyzed"},
-		"Startup":         {"type": "string", "index":"not_analyzed"},
-		"Context":         {"type": "object", "index":"not_analyzed"},
-		"Description":     {"type": "string", "index":"not_analyzed"},
-		"DeploymentID":    {"type": "string", "index":"not_analyzed"},
-		"Environment":     {"type": "string", "index":"not_analyzed"},
-		"Tags":            {"type": "string", "index_name": "tag"},
-		"Instances":       {"type": "long",   "index":"not_analyzed"},
-		"InstancesLimits":       {
-		  "properties": {
-			"Min": {"type": "long", "index":"not_analyzed"},
-			"Max": {"type": "long", "index":"not_analyzed"}
+		"Min": {"type": "long", "index":"true"},
+		"Max": {"type": "long", "index":"true"}
+	  }
+	},
+	"DesiredState":    {"type": "long", "index":"true"},
+	"ImageID":         {"type": "keyword", "index":"true"},
+	"PoolID":          {"type": "keyword", "index":"true"},
+	"Launch":          {"type": "keyword", "index":"true"},
+	"HostPolicy":      {"type": "keyword", "index":"true"},
+	"Hostname":        {"type": "keyword", "index":"true"},
+	"Privileged":      {"type": "keyword", "index":"true"},
+	"ParentServiceID": {"type": "keyword", "index":"true"},
+	"Volume":          {
+	  "properties":    {
+		"ResourcePath" : {"type": "keyword", "index":"true"},
+		"ContainerPath": {"type": "keyword", "index":"true"}
+	  }
+	},
+	"CreatedAt" :      {"type": "date", "format" : "date_optional_time"},
+	"UpdatedAt" :      {"type": "date", "format" : "date_optional_time"},
+	"EndPoints" :      {
+	  "properties":    {
+		"Protocol" :            {"type": "keyword", "index":"true"},
+		"Application" :         {"type": "keyword", "index":"true"},
+		"ApplicationTemplate" : {"type": "keyword", "index":"true"},
+		"Purpose" :             {"type": "keyword", "index":"true"},
+		"PortNumber" :          {"type": "long", "index":"true"},
+		"VirtualAddress" :      {"type": "keyword", "index":"true"},
+		"VHost" :               {"type": "keyword", "index":"true"}
+	  }
+	}
+  },
+  "dynamic_templates": [
+	  {
+		"ConfigFiles_strings_as_keywords": {
+		  "match_mapping_type": "string",
+		  "path_match":   "ConfigFiles.*",
+		  "mapping": {
+			"type": "keyword",
+			"ignore_above": 256
 		  }
-		},
-		"DesiredState":    {"type": "long", "index":"not_analyzed"},
-		"ImageID":         {"type": "string", "index":"not_analyzed"},
-		"PoolID":          {"type": "string", "index":"not_analyzed"},
-		"Launch":          {"type": "string", "index":"not_analyzed"},
-		"HostPolicy":      {"type": "string", "index":"not_analyzed"},
-		"Hostname":        {"type": "string", "index":"not_analyzed"},
-		"Privileged":      {"type": "string", "index":"not_analyzed"},
-		"ParentServiceID": {"type": "string", "index":"not_analyzed"},
-		"Volume":          {
-		  "properties":    {
-			"ResourcePath" : {"type": "string", "index":"not_analyzed"},
-			"ContainerPath": {"type": "string", "index":"not_analyzed"}
+		}
+	  },
+      {
+		"RAMCommitment_EngNotation_as_keyword": {
+		  "match_mapping_type": "long",
+		  "path_match":   "*RAMCommitment*",
+		  "mapping": {
+			"type": "keyword",
+			"index": "true"
 		  }
-		},
-		"CreatedAt" :      {"type": "date", "format" : "dateOptionalTime"},
-		"UpdatedAt" :      {"type": "date", "format" : "dateOptionalTime"},
-		"ConfigFiles":     {
-		  "properties": {
-			"": {"type": "string", "index": "not_analyzed"},
-			"": {"type": "string", "index": "not_analyzed"},
-			"": {"type": "string", "index": "not_analyzed"}
-		  }
-		},
-		"OriginalConfigs":     {
-		  "properties": {
-			"": {"type": "string", "index": "not_analyzed"},
-			"": {"type": "string", "index": "not_analyzed"},
-			"": {"type": "string", "index": "not_analyzed"}
-		  }
-		},
-		"EndPoints" :      {
-		  "properties":    {
-			"Protocol" :            {"type": "string", "index":"not_analyzed"},
-			"Application" :         {"type": "string", "index":"not_analyzed"},
-			"ApplicationTemplate" : {"type": "string", "index":"not_analyzed"},
-			"Purpose" :             {"type": "string", "index":"not_analyzed"},
-			"PortNumber" :          {"type": "long",   "index":"not_analyzed"},
-			"VirtualAddress" :      {"type": "string", "index":"not_analyzed"},
-			"VHost" :               {"type": "string", "index":"not_analyzed"}
+		}
+	  },
+	  {
+		"OriginalConfigs_strings_as_keywords": {
+		  "match_mapping_type": "string",
+		  "path_match":   "OriginalConfigs.*",
+		  "mapping": {
+			"type": "keyword",
+			"ignore_above": 256
 		  }
 		}
 	  }
-	}
+  ]
 }
 `
 	//MAPPING is the elastic mapping for a service

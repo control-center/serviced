@@ -33,7 +33,7 @@ func (t *jwtAuth0Claims) CheckAudience(expected string) bool {
 	}
 	// Array of strings - not likely to show up, but here for completeness
 	if audienceStringArray, ok := t.Audience.([]string); ok {
-	    return utils.StringInSlice(expected, audienceStringArray)
+		return utils.StringInSlice(expected, audienceStringArray)
 	}
 	// Array of interfaces (which is really an array of strings
 	if audienceIterfaceArray, ok := t.Audience.([]interface{}); ok {
@@ -205,14 +205,14 @@ func ParseAuth0Token(token string) (Auth0Token, error) {
 	parsed, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		// Validate the algorithm matches the key
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			log.Debugf("error getting RSA key from PEM: ", ErrInvalidSigningMethod.Error())
+			log.Debugf("error getting RSA key from PEM: %s", ErrInvalidSigningMethod.Error())
 			return nil, ErrInvalidSigningMethod
 		}
 
 		// extract public key from token
 		key, err := getRSAPublicKey(token)
 		if err != nil {
-			log.WithError(err).Debugf("error getting RSA key from PEM")
+			log.WithError(err).Debug("error getting RSA key from PEM")
 			return nil, fmt.Errorf("error getting RSA key from PEM: %v\n", err)
 		}
 		return key, nil

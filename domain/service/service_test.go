@@ -94,16 +94,16 @@ func (s *S) TestSetAddressConfig(t *C) {
 		Endpoints: []ServiceEndpoint{
 			BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
-					Name:		"server",
-					Purpose:	"export",
-					Application:	"server",
-					PortList:	nil,
+					Name:        "server",
+					Purpose:     "export",
+					Application: "server",
+					PortList:    nil,
 				}),
 		},
 	}
 
 	sa := servicedefinition.AddressResourceConfig{
-		Port: 8080,
+		Port:     8080,
 		Protocol: "tcp",
 	}
 
@@ -224,7 +224,7 @@ func (s *S) TestCloneService(t *C) {
 				},
 			},
 		},
-		StartLevel:    777,
+		StartLevel:             777,
 		EmergencyShutdownLevel: 999,
 	}
 

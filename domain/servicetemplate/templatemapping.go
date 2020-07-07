@@ -20,38 +20,37 @@ import (
 var (
 	mappingString = `
 {
-  "servicetemplatewrapper" : {
-    "properties" : {
-      "ID" : {
-        "type"  : "string",
-        "index" : "not_analyzed"
-      },
-      "Name" : {
-        "type"  : "string",
-        "index" : "not_analyzed"
-      },
-      "Version" : {
-        "type"  : "string",
-        "index" : "not_analyzed"
-      },
-      "Description" : {
-        "type"  : "string",
-        "index" : "not_analyzed"
-      },
-      "APIVersion" : {
-        "type"  : "long",
-        "index" : "not_analyzed"
-      },
-      "TemplateVersion" : {
-        "type"  : "long",
-        "index" : "not_analyzed"
-      },
-      "Data" : {
-        "type"  : "string",
-        "index" : "not_analyzed"
-      }
-    }
-  }
+	"properties" : {
+	  "ID" : {
+		"type"  : "keyword",
+		"index" : "true"
+	  },
+	  "Name" : {
+		"type"  : "keyword",
+		"index" : "true"
+	  },
+	  "Version" : {
+		"type"  : "keyword",
+		"index" : "true"
+	  },
+	  "Description" : {
+		"type"  : "keyword",
+		"index" : "true"
+	  },
+	  "APIVersion" : {
+		"type"  : "long",
+		"index" : "true"
+	  },
+	  "TemplateVersion" : {
+		"type"  : "long",
+		"index" : "true"
+	  },
+	  "Data" : {
+		"type"  : "keyword",
+		"index" : "true",
+		"ignore_above": 10000
+	  }
+	}
 }
 `
 	//MAPPING is the elastic mapping for a service template

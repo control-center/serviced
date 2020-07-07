@@ -364,7 +364,7 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	case result := <-done:
 		{
 			if result.err != nil {
-				logger.WithError(result.err).Warn("Could not run command: %s; %s", svc.Snapshot.Pause, ctrName)
+				logger.WithError(result.err).Warnf("Could not run command: %s; %s", svc.Snapshot.Pause, ctrName)
 				return result.err
 			}
 		}
@@ -375,7 +375,7 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 				return err
 			}
 
-			return fmt.Errorf("Timeout waiting for container to pause after %d seconds", commandTimeout.Seconds())
+			return fmt.Errorf("Timeout waiting for container to pause after %f seconds", commandTimeout.Seconds())
 		}
 
 	}

@@ -186,7 +186,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 				glog.Errorf("Could not find image %s: %s", node.Image.UUID, err)
 			}
 		}
-		glog.V(1).Infof("Waiting for image %s to update (imagepath=%s)", node.Image, imagepath)
+		glog.V(1).Infof("Waiting for image %v to update (imagepath=%s)", node.Image, imagepath)
 		select {
 		case <-evt:
 		case <-shutdown:

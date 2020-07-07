@@ -48,8 +48,12 @@ type EntityStore interface {
 //ValidEntity interface for entities that can be stored in the EntityStore
 type ValidEntity interface {
 	ValidEntity() error
-	GetDatabaseVersion() int
-	SetDatabaseVersion(int)
+	GetType() string
+	SetType(string)
+	GetSeqNo() int
+	SetSeqNo(int)
+	GetPrimaryTerm() int
+	SetPrimaryTerm(int)
 }
 
 //New returns a new EntityStore
@@ -58,15 +62,33 @@ func New() EntityStore {
 }
 
 type VersionedEntity struct {
-	DatabaseVersion int `json:",omitempty"`
+	IfSeqNo       int    `json:"-"`
+	IfPrimaryTerm int    `json:"-"`
+	Type          string `json:"type,omitempty"`
 }
 
-func (e *VersionedEntity) GetDatabaseVersion() int {
-	return e.DatabaseVersion
+func (e *VersionedEntity) GetType() string {
+	return e.Type
 }
 
-func (e *VersionedEntity) SetDatabaseVersion(i int) {
-	e.DatabaseVersion = i
+func (e *VersionedEntity) SetType(t string) {
+	e.Type = t
+}
+
+func (e *VersionedEntity) GetSeqNo() int {
+	return e.IfSeqNo
+}
+
+func (e *VersionedEntity) SetSeqNo(i int) {
+	e.IfSeqNo = i
+}
+
+func (e *VersionedEntity) GetPrimaryTerm() int {
+	return e.IfPrimaryTerm
+}
+
+func (e *VersionedEntity) SetPrimaryTerm(i int) {
+	e.IfPrimaryTerm = i
 }
 
 //DataStore EntityStore type
@@ -158,12 +180,15 @@ func (ds *DataStore) Delete(ctx Context, key Key) error {
 }
 
 func (ds *DataStore) serialize(kind string, entity ValidEntity) (JSONMessage, error) {
-	// hook for looking up serializers by kind; default json Marshal for now
+	entity.SetType(kind)
 	data, err := json.Marshal(entity)
 	if err != nil {
 		return nil, err
 	}
-	msg := NewJSONMessage(data, entity.GetDatabaseVersion())
+	msg := NewJSONMessage(data, map[string]int{
+		"primaryTerm": entity.GetPrimaryTerm(),
+		"seqNo":       entity.GetSeqNo(),
+	})
 	return msg, nil
 }
 
@@ -172,7 +197,8 @@ func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity ValidE
 	if err := SafeUnmarshal(jsonMsg.Bytes(), entity); err != nil {
 		return err
 	}
-	entity.SetDatabaseVersion(jsonMsg.Version())
+	entity.SetPrimaryTerm(jsonMsg.Version()["primaryTerm"])
+	entity.SetSeqNo(jsonMsg.Version()["seqNo"])
 	return nil
 }
 

@@ -27,6 +27,7 @@ import (
 )
 
 type errInvalidVhostUsedCCHostname struct{}
+
 func (e errInvalidVhostUsedCCHostname) Error() string {
 	return "cannot add a vhost using the Control Center host name"
 }
@@ -86,7 +87,7 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, ctx *request
 		return
 	}
 
-	glog.V(2).Info("Removing vhost %d from service (%s)", vhost, serviceid)
+	glog.V(2).Infof("Removing vhost %s from service (%s)", vhost, serviceid)
 
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
@@ -219,7 +220,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%s, protocol=%s",
+	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%t, protocol=%s",
 		port, request.ServiceName, request.UseTLS, request.Protocol)
 
 	restSuccess(w)
@@ -236,7 +237,7 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 		return
 	}
 
-	glog.V(2).Info("Removing port %d from service (%s)", port, serviceid)
+	glog.V(2).Infof("Removing port %s from service (%s)", port, serviceid)
 
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()

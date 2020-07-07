@@ -170,7 +170,8 @@ func (c *Server) GetDevice(path string) (uint64, error) {
 	if !ok {
 		return 0, fmt.Errorf("Unable to convert volume stats to Stat_t for %s: %s", path, err)
 	}
-	return sysStat1.Dev, nil
+	// In some platforms, this parameter may have shorter type
+	return uint64(sysStat1.Dev), nil
 }
 
 // Clients returns the IP Addresses of the current clients
@@ -192,7 +193,7 @@ func (c *Server) filterHostsWithoutDfsPerms(clients []string) []string {
 		if c.clientValidator.ValidateClient(client) {
 			filteredClients = append(filteredClients, client)
 		} else {
-			log.Debug("Filtered NFS client with ip %s", client)
+			log.Debugf("Filtered NFS client with ip %s", client)
 		}
 	}
 	return filteredClients

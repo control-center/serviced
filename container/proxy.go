@@ -207,7 +207,7 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	if p.allowDirectConn {
 		//check if the host for the container is running on the same host
 		isLocalContainer = isLocalAddress(address.host)
-		glog.V(4).Infof("Checking is local for %s %s in %#v", address.host, isLocalContainer, hostIPs)
+		glog.V(4).Infof("Checking is local for %s %t in %#v", address.host, isLocalContainer, hostIPs)
 		// don't proxy localhost addresses, we'll end up in a loop
 		if isLocalContainer {
 			switch {

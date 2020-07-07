@@ -25,7 +25,6 @@ import (
 	"time"
 )
 
-
 func TestMain(m *testing.M) {
 	docker.StartKernel()
 	os.Exit(m.Run())

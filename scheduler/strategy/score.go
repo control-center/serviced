@@ -97,7 +97,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 			memScore = 100
 		}
 
-		glog.V(2).Infof("Host %s CPU score: %s, memory score: %s", host.HostID(), cpuScore, memScore)
+		glog.V(2).Infof("Host %s CPU score: %d, memory score: %d", host.HostID(), cpuScore, memScore)
 		if cpuScore <= 100 && memScore <= 100 {
 			glog.V(2).Infof("Host %s can run service %s", host.HostID(), service.GetServiceID())
 			scoredHost.Score = cpuScore + memScore

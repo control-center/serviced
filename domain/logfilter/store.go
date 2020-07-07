@@ -14,13 +14,12 @@
 package logfilter
 
 import (
+	"github.com/control-center/serviced/datastore/elastic"
 	"strings"
 
-	"github.com/control-center/serviced/datastore"
 	"fmt"
-	"github.com/zenoss/elastigo/search"
+	"github.com/control-center/serviced/datastore"
 )
-
 
 // Store is the database for the LogFilters
 type Store interface {
@@ -71,8 +70,23 @@ func (s *storeImpl) Delete(ctx datastore.Context, name, version string) error {
 // GetLogFilters returns all LogFilters
 func (s *storeImpl) GetLogFilters(ctx datastore.Context) ([]*LogFilter, error) {
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Search("_exists_:Name")
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "Name"}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err

@@ -16,9 +16,9 @@
 package elastic_test
 
 import (
+	"fmt"
 	"github.com/control-center/serviced/datastore"
-	. "github.com/control-center/serviced/datastore/elastic"
-	"github.com/zenoss/elastigo/search"
+	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
 	"encoding/json"
@@ -31,10 +31,10 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-var _ = Suite(&S{ElasticTest{Index: "twitter"}})
+var _ = Suite(&S{elastic.ElasticTest{Index: "twitter"}})
 
 type S struct {
-	ElasticTest
+	elastic.ElasticTest
 }
 
 //func TestPutGetDelete(t *testing.T) {
@@ -44,6 +44,10 @@ func (s *S) TestPutGetDelete(t *C) {
 	//	if err != nil {
 	//		t.Fatalf("Error initializing driver: %v", err)
 	//	}
+
+	//Turn off read only mode
+	elasticUrl := fmt.Sprintf("http://localhost:%d", s.Port)
+	elastic.TurnOffIndexReadOnlyMode("twitter", elasticUrl)
 
 	conn, err := esdriver.GetConnection()
 	if err != nil {
@@ -55,9 +59,15 @@ func (s *S) TestPutGetDelete(t *C) {
 		"user":      "kimchy",
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
+		"type":      "tweet",
 	}
 	tweetJSON, err := json.Marshal(tweet)
-	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, 0))
+	versions := map[string]int{
+		"version":     0,
+		"primaryTerm": 0,
+		"seqNo":       0,
+	}
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, versions))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -109,9 +119,15 @@ func (s *S) TestQuery(t *C) {
 		"state":     "NY",
 		"post_date": "2009-11-15T14:12:12",
 		"message":   "trying out Elasticsearch",
+		"type":      "tweet",
 	}
 	tweetJSON, err := json.Marshal(tweet)
-	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, 0))
+	versions := map[string]int{
+		"version":     0,
+		"primaryTerm": 0,
+		"seqNo":       0,
+	}
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, versions))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -122,27 +138,56 @@ func (s *S) TestQuery(t *C) {
 		"state":     "NY",
 		"post_date": "2010-11-15T14:12:12",
 		"message":   "trying out Elasticsearch again",
+		"type":      "tweet",
 	}
 	tweetJSON, err = json.Marshal(tweet)
-	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, 0))
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, versions))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "state"}},
+					{"term": map[string]string{"type": "tweet"}},
+				},
+			},
+		},
+	}
 
-	query := search.Query().Search("_exists_:state")
-	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
+	testSearch, err := elastic.BuildSearchRequest(query, "twitter")
+
+	if err != nil {
+		t.Errorf("%s", err)
+	}
 
 	msgs, err := conn.Query(testSearch)
+
 	if err != nil {
-		t.Errorf("Unepected error %v", err)
+		t.Errorf("Unexpected error %v", err)
 	}
 	if len(msgs) != 2 {
 		t.Errorf("Expected 2 msgs, got  %v", len(msgs))
 	}
 
 	//query for non-existant entity
-	query = search.Query().Search("_exists_:blam")
-	testSearch = search.Search("twitter").Type("tweet").Size("10000").Query(query)
+	query = map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "blam"}},
+					{"term": map[string]string{"type": "tweet"}},
+				},
+			},
+		},
+	}
+
+	testSearch, err = elastic.BuildSearchRequest(query, "twitter")
+
+	if err != nil {
+		t.Errorf("%s", err)
+	}
 
 	msgs, err = conn.Query(testSearch)
 	if err != nil {

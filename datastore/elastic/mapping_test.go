@@ -42,8 +42,6 @@ func (s *mt) TestJSON(c *C) {
 	err = json.Unmarshal(bytes, &mapping)
 	c.Assert(err, IsNil)
 
-	c.Assert(mapping.Name, Equals, "testentity")
-
 	c.Assert(len(mapping.Entries), Equals, 1)
 
 	c.Assert(mapping.Entries["properties"], NotNil)

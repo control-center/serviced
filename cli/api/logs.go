@@ -850,7 +850,7 @@ type beatProps struct {
 // fieldProps are properties added to each message by our container controller; see container/logstash.go
 type fieldProps struct {
 	CCWorkerID  interface{} `json:"ccWorkerID"` // Note this is actually the host ID of the CC host
-	Type        interface{}	`json:"type"`       // This is the 'type' from the LogConfig in the service def
+	Type        interface{} `json:"type"`       // This is the 'type' from the LogConfig in the service def
 	Service     string      `json:"service"`    // This is the service id
 	Instance    interface{} `json:"instance"`   // This is the service instance id
 	HostIPs     string      `json:"hostips"`    // space-separated list of host-ips from the container
@@ -979,13 +979,13 @@ func convertWorkerID(id interface{}) (string, error) {
 	switch id.(type) {
 	case int:
 		num := id.(int)
-		return fmt.Sprintf("%v",num), nil
+		return fmt.Sprintf("%v", num), nil
 	case uint64:
 		num := id.(uint64)
-		return fmt.Sprintf("%v",num), nil
+		return fmt.Sprintf("%v", num), nil
 	case float64:
 		num := id.(float64)
-		return fmt.Sprintf("%.0f",num), nil
+		return fmt.Sprintf("%.0f", num), nil
 	case json.Number:
 		return string(id.(json.Number)), nil
 	case string:

@@ -20,19 +20,17 @@ import (
 var (
 	mappingString = `
 {
-    "resourcepool": {
-      "properties":{
-        "ID" :          {"type": "string", "index":"not_analyzed"},
-        "Realm":        {"type": "string", "index":"not_analyzed"},
-        "Description" : {"type": "string", "index":"not_analyzed"},
-        "CoreLimit":    {"type": "long", "index":"not_analyzed"},
-        "MemoryLimit":  {"type": "long", "index":"not_analyzed"},
-        "CreatedAt" :   {"type": "date", "format" : "dateOptionalTime"},
-        "UpdatedAt" :   {"type": "date", "format" : "dateOptionalTime"},
-        "CoreCapacity": {"type": "long", "format": "not_analyzed"},
-        "MemoryCapacity": {"type": "long", "format": "not_analyzed"}
-      }
-    }
+  "properties":{
+	"ID" :          {"type": "keyword", "index":"true"},
+	"Realm":        {"type": "keyword", "index":"true"},
+	"Description" : {"type": "keyword", "index":"true"},
+	"CoreLimit":    {"type": "long", "index":"true"},
+	"MemoryLimit":  {"type": "long", "index":"true"},
+	"CreatedAt" :   {"type": "date", "format" : "date_optional_time"},
+	"UpdatedAt" :   {"type": "date", "format" : "date_optional_time"},
+	"CoreCapacity": {"type": "long", "index":"true"},
+	"MemoryCapacity": {"type": "long", "index":"true"}
+  }
 }
 `
 	//MAPPING is the elastic mapping for a resource pool
@@ -41,6 +39,6 @@ var (
 
 func init() {
 	if mappingError != nil {
-          plog.WithError(mappingError).Fatal("error creating mapping for the pool object")
+		plog.WithError(mappingError).Fatal("error creating mapping for the pool object")
 	}
 }

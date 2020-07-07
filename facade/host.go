@@ -493,7 +493,7 @@ func (f *Facade) GetHostByIP(ctx datastore.Context, hostIP string) (*host.Host, 
 // GetReadHosts returns list of all hosts using a minimal representation of a host
 func (f *Facade) GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetReadHosts"))
-	hosts, err := f.hostStore.GetN(ctx, 20000)
+	hosts, err := f.hostStore.GetN(ctx, 10000)
 	if err != nil {
 		return nil, err
 	}
