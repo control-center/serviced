@@ -200,6 +200,8 @@ func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.Resour
 	var alog audit.Logger
 	for _, pool := range pools {
 		alog = f.auditLogger.Message(ctx, "Adding ResourcePool").Action(audit.Add).Entity(&pool)
+		pool.SetPrimaryTerm(0)
+		pool.SetSeqNo(0)
 		if err := f.addResourcePool(ctx, &pool); err != nil {
 			if err == ErrPoolExists {
 				if err := f.updateResourcePool(ctx, &pool); err != nil {

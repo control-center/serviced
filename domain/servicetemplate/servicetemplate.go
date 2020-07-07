@@ -71,6 +71,8 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 func (a *ServiceTemplate) Hash() (string, error) {
 	tpl := *a
 	tpl.ID = ""
+	tpl.SetPrimaryTerm(0)
+	tpl.SetSeqNo(0)
 	if data, err := json.Marshal(&tpl); err != nil {
 		return "", err
 	} else {

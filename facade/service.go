@@ -679,6 +679,8 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 	traverse = func(parentID string) error {
 		for _, svc := range svcsmap[parentID] {
 			alog := f.auditLogger.Message(ctx, "Restore Service").WithField("servicename", svc.Name).Action(audit.Restore).Entity(&svc)
+			svc.SetPrimaryTerm(0)
+			svc.SetSeqNo(0)
 			svc.DesiredState = int(service.SVCStop)
 			if _, ok := poolsmap[svc.PoolID]; !ok {
 				glog.Warningf("Could not find pool %s for service %s (%s).  Setting pool to default.", svc.PoolID, svc.Name, svc.ID)
