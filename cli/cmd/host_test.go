@@ -75,7 +75,9 @@ type HostAPITest struct {
 }
 
 func InitHostAPITest(args ...string) {
-	New(DefaultHostAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{}).Run(args)
+	c := New(DefaultHostAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
+	c.exitDisabled = true
+	c.Run(args)
 }
 
 func (t HostAPITest) GetHosts() ([]host.Host, error) {
