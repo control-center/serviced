@@ -187,17 +187,20 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 		serviceID := ctx.Args().First()
 		if snapshots, err = c.driver.GetSnapshotsByServiceID(serviceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 	} else {
 		if snapshots, err = c.driver.GetSnapshots(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 	}
 
 	if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
+		c.exit(1)
 	} else {
 		if showTags { //print a table of snapshot, description, tag list
 			t := NewTable("Snapshot,Description,Tags")
@@ -277,6 +280,7 @@ func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
 			snapshots, err := c.driver.GetSnapshots()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
+				c.exit(1)
 				return
 			}
 			for _, snapshot := range snapshots {
@@ -290,6 +294,7 @@ func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
 		//Find the snapshot with the given tag and service
 		if snapshot, err := c.driver.GetSnapshotByServiceIDAndTag(args[0], args[1]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		} else if snapshot != "" {
 			snapshotsToDelete = []string{snapshot}
@@ -305,6 +310,7 @@ func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
 	for _, id := range snapshotsToDelete {
 		if err := c.driver.RemoveSnapshot(id); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 		} else {
 			fmt.Println(id)
 		}
@@ -325,8 +331,10 @@ func (c *ServicedCli) cmdSnapshotCommit(ctx *cli.Context) {
 
 	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")
+		c.exit(1)
 	} else {
 		fmt.Println(snapshot)
 	}
@@ -365,6 +373,7 @@ func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 
 	if err = c.driver.TagSnapshot(args[0], args[1]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 }
@@ -387,6 +396,7 @@ func (c *ServicedCli) cmdSnapshotRemoveTag(ctx *cli.Context) {
 	//remove specified tag
 	if snapshotID, err = c.driver.RemoveSnapshotTag(args[0], args[1]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 	fmt.Printf("%s\n", snapshotID)

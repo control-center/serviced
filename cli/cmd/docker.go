@@ -106,5 +106,6 @@ func (c *ServicedCli) cmdDockerOverride(ctx *cli.Context) {
 
 	if err := c.driver.DockerOverride(newImage, oldImage); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
 }
