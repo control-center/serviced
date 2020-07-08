@@ -99,7 +99,6 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 			return
 		} else if peps == nil || len(peps) == 0 {
 			fmt.Fprintln(os.Stderr, "no services found")
-			c.exit(1)
 			return
 		}
 		publicEndpoints, err = c.convertPublicEndpoints(peps, showVHosts, showPorts)
@@ -119,7 +118,6 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	// Give a message if there are no endpoints, or no port/vhosts endpoints.
 	if len(publicEndpoints) == 0 {
 		fmt.Fprintln(os.Stderr, "No public endpoints found")
-		c.exit(1)
 		return
 	}
 

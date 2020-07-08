@@ -200,7 +200,6 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 
 	if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
-		c.exit(1)
 	} else {
 		if showTags { //print a table of snapshot, description, tag list
 			t := NewTable("Snapshot,Description,Tags")

@@ -176,7 +176,6 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 		return
 	} else if templates == nil || len(templates) == 0 {
 		fmt.Fprintln(os.Stderr, "no templates found")
-		c.exit(1)
 		return
 	}
 

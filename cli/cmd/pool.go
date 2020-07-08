@@ -196,7 +196,6 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		return
 	} else if pools == nil || len(pools) == 0 {
 		fmt.Fprintln(os.Stderr, "no resource pools found")
-		c.exit(1)
 		return
 	}
 
@@ -317,7 +316,6 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 		return
 	} else if poolIps.HostIPs == nil || (len(poolIps.HostIPs) == 0 && len(poolIps.VirtualIPs) == 0) {
 		fmt.Fprintln(os.Stderr, "no resource pool IPs found")
-		c.exit(1)
 		return
 	} else if ctx.Bool("verbose") {
 		if jsonPoolIP, err := json.MarshalIndent(poolIps.HostIPs, " ", "  "); err != nil {
