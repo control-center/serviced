@@ -72,11 +72,13 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 		svcDetails, _, err := c.searchForService(ctx.Args()[0],ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 		svc, err := c.driver.GetService(svcDetails.ID)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 		services := []service.Service{*svc}
@@ -85,6 +87,7 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 		// If there was an error getting the endpoints, show the error now.
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err)
+			c.exit(1)
 			return
 		}
 	} else {
@@ -92,6 +95,7 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 		peps, err := c.driver.GetAllPublicEndpoints()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to get public endpoints: %s\n", err)
+			c.exit(1)
 			return
 		} else if peps == nil || len(peps) == 0 {
 			fmt.Fprintln(os.Stderr, "no services found")
@@ -104,6 +108,7 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	if ctx.Bool("verbose") {
 		if jsonOutput, err := json.MarshalIndent(publicEndpoints, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal public endoints: %s\n", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonOutput))
 		}
@@ -262,6 +267,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 	isEnabled, err := strconv.ParseBool(ctx.Args()[4])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+		c.exit(1)
 		return
 	}
 
@@ -281,6 +287,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 		break
 	default:
 		fmt.Fprintln(os.Stderr, "The protocol must be one of: https, http, other-tls, other")
+		c.exit(1)
 		return
 	}
 
@@ -288,12 +295,14 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 	svc, _, err := c.searchForService(serviceid,ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	port, err := c.driver.AddPublicEndpointPort(svc.ID, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
+		c.exit(1)
 	} else {
 		fmt.Printf("%s\n", port.PortAddr)
 	}
@@ -317,12 +326,14 @@ func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context) {
 	svc, _, err := c.searchForService(serviceid,ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	err = c.driver.RemovePublicEndpointPort(svc.ID, endpointName, portAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
+		c.exit(1)
 	} else {
 		fmt.Printf("%s\n", portAddr)
 	}
@@ -350,6 +361,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
 	isEnabled, err := strconv.ParseBool(ctx.Args()[3])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+		c.exit(1)
 		return
 	}
 
@@ -357,12 +369,14 @@ func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
 	svc, _, err := c.searchForService(serviceid,ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	err = c.driver.EnablePublicEndpointPort(svc.ID, endpointName, portAddr, isEnabled)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
+		c.exit(1)
 	} else {
 		fmt.Printf("%s\n", portAddr)
 	}
@@ -385,6 +399,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostAdd(ctx *cli.Context) {
 	isEnabled, err := strconv.ParseBool(ctx.Args()[3])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+		c.exit(1)
 		return
 	}
 
@@ -392,12 +407,14 @@ func (c *ServicedCli) cmdPublicEndpointsVHostAdd(ctx *cli.Context) {
 	svc, _, err := c.searchForService(serviceid,ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	vhost, err := c.driver.AddPublicEndpointVHost(svc.ID, endpointName, vhostName, isEnabled, restart)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
+		c.exit(1)
 	} else {
 		fmt.Printf("%s\n", vhost.Name)
 	}
@@ -421,12 +438,14 @@ func (c *ServicedCli) cmdPublicEndpointsVHostRemove(ctx *cli.Context) {
 	svc, _, err := c.searchForService(serviceid,ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	err = c.driver.RemovePublicEndpointVHost(svc.ID, endpointName, vhostName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
+		c.exit(1)
 	} else {
 		fmt.Printf("%s\n", vhostName)
 	}
@@ -449,6 +468,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostEnable(ctx *cli.Context) {
 	isEnabled, err := strconv.ParseBool(ctx.Args()[3])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+		c.exit(1)
 		return
 	}
 
@@ -456,6 +476,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostEnable(ctx *cli.Context) {
 	svc, _, err := c.searchForService(serviceid,ctx.Bool("no-prefix-match"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 

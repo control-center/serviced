@@ -176,10 +176,13 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		poolID := ctx.Args()[0]
 		if pool, err := c.driver.GetResourcePool(poolID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 		} else if pool == nil {
 			fmt.Fprintln(os.Stderr, "pool not found")
+			c.exit(1)
 		} else if jsonPool, err := json.MarshalIndent(pool, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal resource pool: %s", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonPool))
 		}
@@ -189,6 +192,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 	pools, err := c.driver.GetResourcePools()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if pools == nil || len(pools) == 0 {
 		fmt.Fprintln(os.Stderr, "no resource pools found")
@@ -198,6 +202,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 	if ctx.Bool("verbose") {
 		if jsonPool, err := json.MarshalIndent(pools, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal resource pool list: %s", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonPool))
 		}
@@ -263,8 +268,10 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 
 	if pool, err := c.driver.AddResourcePool(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if pool == nil {
 		fmt.Fprintln(os.Stderr, "received nil resource pool")
+		c.exit(1)
 	} else {
 		fmt.Println(pool.ID)
 	}
@@ -281,10 +288,13 @@ func (c *ServicedCli) cmdPoolRemove(ctx *cli.Context) {
 	for _, id := range args {
 		if p, err := c.driver.GetResourcePool(id); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+			c.exit(1)
 		} else if p == nil {
 			fmt.Fprintf(os.Stderr, "%s: pool not found", id)
+			c.exit(1)
 		} else if err := c.driver.RemoveResourcePool(id); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+			c.exit(1)
 		} else {
 			fmt.Println(id)
 		}
@@ -302,6 +312,7 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 
 	if poolIps, err := c.driver.GetPoolIPs(args[0]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if poolIps.HostIPs == nil || (len(poolIps.HostIPs) == 0 && len(poolIps.VirtualIPs) == 0) {
 		fmt.Fprintln(os.Stderr, "no resource pool IPs found")
@@ -309,6 +320,7 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 	} else if ctx.Bool("verbose") {
 		if jsonPoolIP, err := json.MarshalIndent(poolIps.HostIPs, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal resource pool IPs: %s", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonPoolIP))
 		}
@@ -345,6 +357,7 @@ func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: args[2], BindInterface: args[3]}
 	if err := c.driver.AddVirtualIP(requestVirtualIP); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
@@ -363,6 +376,7 @@ func (c *ServicedCli) cmdRemoveVirtualIP(ctx *cli.Context) {
 	requestVirtualIP := pool.VirtualIP{PoolID: args[0], IP: args[1], Netmask: "", BindInterface: ""}
 	if err := c.driver.RemoveVirtualIP(requestVirtualIP); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else {
 		fmt.Printf("Removed virtual IP: %v from pool %v\n", args[1], args[0])
@@ -381,24 +395,29 @@ func (c *ServicedCli) cmdSetConnTimeout(ctx *cli.Context) {
 	connTimeout, err := time.ParseDuration(args[1])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "could not parse duration: %s\n", err)
+		c.exit(1)
 		return
 	} else if connTimeout < 0 {
 		fmt.Fprintln(os.Stderr, "duration cannot be negative")
+		c.exit(1)
 		return
 	}
 
 	pool, err := c.driver.GetResourcePool(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if pool == nil {
 		fmt.Fprintln(os.Stderr, "pool not found")
+		c.exit(1)
 		return
 	}
 
 	pool.ConnectionTimeout = int(connTimeout.Seconds() * 1000)
 	if err := c.driver.UpdateResourcePool(*pool); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 }
@@ -414,9 +433,11 @@ func (c *ServicedCli) cmdSetPermission(ctx *cli.Context) {
 	p, err := c.driver.GetResourcePool(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if p == nil {
 		fmt.Fprintln(os.Stderr, "pool not found")
+		c.exit(1)
 		return
 	}
 
@@ -441,6 +462,7 @@ func (c *ServicedCli) cmdSetPermission(ctx *cli.Context) {
 	// Update the pool
 	if err := c.driver.UpdateResourcePool(*p); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 }

@@ -73,6 +73,7 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		}
 		cli.ShowSubcommandHelp(ctx)
+		c.exit(1)
 		return
 	}
 
@@ -107,6 +108,7 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 		logdir := utils.ServicedLogDir()
 		if userrec, err := user.Current(); err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to retrieve userid to log output: %s", err)
+			c.exit(1)
 		} else {
 			logfile := time.Now().Format(fmt.Sprintf("%s/script-2006-01-02-150405-%s.log", logdir, userrec.Username))
 
@@ -121,6 +123,7 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 			if err := syscall.Exec(cmd[0], cmd[0:], os.Environ()); err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to log output with command:%+v err:%s\n", cmd, err)
 			}
+			c.exit(1)
 		}
 	}
 	log.WithFields(logrus.Fields{
@@ -134,6 +137,7 @@ func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) != 1 {
 		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		c.exit(1)
 		return
 	}
 	fileName := args[0]
@@ -141,6 +145,7 @@ func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) {
 	err := c.driver.ScriptParse(fileName, &config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
 	return
 }

@@ -192,10 +192,13 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 		hostID := ctx.Args()[0]
 		if host, err := c.driver.GetHostWithAuthInfo(hostID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 		} else if host == nil {
 			fmt.Fprintln(os.Stderr, "host not found")
+			c.exit(1)
 		} else if jsonHost, err := json.MarshalIndent(host, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal host: %s", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonHost))
 		}
@@ -205,6 +208,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	hosts, err := c.driver.GetHostsWithAuthInfo()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if hosts == nil || len(hosts) == 0 {
 		fmt.Fprintln(os.Stderr, "no hosts found")
@@ -214,6 +218,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	if ctx.Bool("verbose") {
 		if jsonHost, err := json.MarshalIndent(hosts, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal host list: %s", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonHost))
 		}
@@ -306,9 +311,11 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	host, privateKey, err := c.driver.AddHost(cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
+		c.exit(1)
 		return
 	}
 
@@ -399,6 +406,7 @@ func (c *ServicedCli) cmdHostRemove(ctx *cli.Context) {
 	for _, id := range args {
 		if err := c.driver.RemoveHost(id); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+			c.exit(1)
 		} else {
 			fmt.Println(id)
 		}
@@ -416,6 +424,7 @@ func (c *ServicedCli) cmdHostSetMemory(ctx *cli.Context) {
 
 	if err := c.driver.SetHostMemory(api.HostUpdateConfig{args[0], args[1]}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
 }
 

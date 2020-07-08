@@ -96,6 +96,7 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 		svc, _, err := c.searchForService(service,ctx.Bool("no-prefix-match"))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 		serviceIDs = append(serviceIDs, svc.ID)
@@ -106,6 +107,7 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 		fmt.Fprintf(os.Stderr,
 			"ERROR: --group-by value '%s' is invalid; only 'container', 'day' or 'service' allowed\n",
 			ctx.String("group-by"))
+		c.exit(1)
 		return
 	}
 
@@ -122,6 +124,7 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 
 	if err := c.driver.ExportLogs(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
 }
 

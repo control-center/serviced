@@ -62,7 +62,9 @@ type TemplateAPITest struct {
 }
 
 func InitTemplateAPITest(args ...string) {
-	New(DefaultTemplateAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{}).Run(args)
+	c := New(DefaultTemplateAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
+	c.exitDisabled = true
+	c.Run(args)
 }
 
 func (t TemplateAPITest) GetServiceTemplates() ([]template.ServiceTemplate, error) {
