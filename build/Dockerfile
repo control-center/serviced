@@ -27,7 +27,7 @@ RUN	apt-get update -qq && apt-get install -qqy iptables ca-certificates aufs-too
 RUN	apt-get update -qq && apt-get install -y -q wget curl git unzip
 
 # Install Go
-RUN	curl -s https://storage.googleapis.com/golang/go1.7.4.linux-amd64.tar.gz | tar -v -C /usr/local -xz
+RUN	curl -s https://dl.google.com/go/go1.14.4.linux-amd64.tar.gz | tar -v -C /usr/local -xz
 ENV	GOPATH  /go
 ENV	PATH $PATH:/go/bin:/usr/local/go/bin
 RUN	go get github.com/tools/godep
@@ -63,11 +63,11 @@ RUN apt-get update -qq && apt-get install -y -q --force-yes google-chrome-stable
 
 
 # Install nodejs, npm, gulp, etc
-RUN curl -sL https://deb.nodesource.com/setup_6.x | bash -
-RUN apt update -qq && apt install -y nodejs=6.12.3-1nodesource1
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
+RUN apt update -qq && apt install -y nodejs
 #RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
 # karma has dependencies that need to run native builds, so we need build-essential
-RUN apt-get update -qq && apt-get install -yq build-essential=12.1ubuntu2
+RUN apt-get update -qq && apt-get install -yq build-essential
 
 # Setup Xvfb - FF and chrome will connect to this DISPLAY
 # (https://github.com/keyvanfatehi/docker-chrome-xvfb)
