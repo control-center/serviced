@@ -64,10 +64,10 @@ RUN apt-get update -qq && apt-get install -y -q --force-yes google-chrome-stable
 
 # Install nodejs, npm, gulp, etc
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
-RUN apt update -qq && apt install -y nodejs
+RUN apt update -qq && apt install -y nodejs=12.18.2-1nodesource1
 #RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
 # karma has dependencies that need to run native builds, so we need build-essential
-RUN apt-get update -qq && apt-get install -yq build-essential
+RUN apt-get update -qq && apt-get install -yq build-essential=12.1ubuntu2
 
 # Setup Xvfb - FF and chrome will connect to this DISPLAY
 # (https://github.com/keyvanfatehi/docker-chrome-xvfb)
