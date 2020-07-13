@@ -63,8 +63,8 @@ RUN apt-get update -qq && apt-get install -y -q --force-yes google-chrome-stable
 
 
 # Install nodejs, npm, gulp, etc
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
-RUN apt update -qq && apt install -y nodejs=12.18.2-1nodesource1
+RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
+RUN apt update -qq && apt install -y nodejs=10.21.0-1nodesource1
 #RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
 # karma has dependencies that need to run native builds, so we need build-essential
 RUN apt-get update -qq && apt-get install -yq build-essential=12.1ubuntu2
@@ -76,12 +76,12 @@ ADD xvfb_init /etc/init.d/xvfb
 RUN chmod a+x /etc/init.d/xvfb
 
 # install and use yarn instead of npm
-RUN npm install -g yarn@0.16.1
+RUN npm install -g yarn@1.22.4
 
 # make a place for yarn globals to live
 RUN mkdir /yarn-global
 RUN chmod 755 /yarn-global
-RUN yarn global add gulp@3.8.8 jshint@2.9.2 babel@5.8.23 --global-folder /yarn-global
+RUN yarn global add gulp@3.9.1 jshint@2.11.1 babel@6.23.0 --global-folder /yarn-global
 
 # Cache the NPM packages within the docker image
 RUN mkdir -p /npm-cache/serviced/node_modules
