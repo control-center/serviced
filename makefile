@@ -185,7 +185,7 @@ go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
 # BUILD_VERSION is the version of the serviced-build docker image
 # If the build image version changes, then zenoss-deploy needs to be updated
 #
-BUILD_VERSION = v1.6.0-0
+BUILD_VERSION = v1.8.0-0
 export BUILD_VERSION
 
 #
