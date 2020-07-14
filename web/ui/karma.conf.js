@@ -68,13 +68,13 @@ module.exports = function(config) {
     customLaunchers: {
       chrome_no_sandbox: {
         base: 'Chrome',
-        flags: ['--no-sandbox']
+        flags: ['--no-sandbox', '--headless', '--disable-gpu', '--remote-debugging-port=9222']
       }
     },
 
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-    browsers: ['chrome_no_sandbox', 'Chrome'],
+    browsers: ['chrome_no_sandbox'],
 
 
     // Continuous Integration mode
