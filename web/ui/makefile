@@ -21,7 +21,8 @@ controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
 
 docker_working_DIR = /mnt
 
-GULP ?= /usr/bin/gulp
+GULP ?= gulp
+
 
 .PHONY: default
 default: build
