@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/control-center/serviced/datastore"
@@ -385,14 +384,14 @@ func (ed *elasticDriver) postIndex() error {
 
 	errResponse := true
 	if resp.StatusCode == 400 {
-		//ignore if 400 and IndexAlreadyExistsException
+		//ignore if 400 and resource_already_exists_exception
 		var result map[string]interface{}
 		err = json.Unmarshal(body, &result)
 		if err == nil {
-			if errString, found := result["error"]; found {
-				switch errString.(type) {
+			if errType, found := result["error"].(map[string]interface{})["type"]; found {
+				switch errType.(type) {
 				case string:
-					if strings.Contains(errString.(string), "IndexAlreadyExistsException") {
+					if errType.(string) == "resource_already_exists_exception" {
 						errResponse = false
 					}
 				}
