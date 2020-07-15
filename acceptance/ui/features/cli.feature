@@ -28,15 +28,10 @@ Feature: CLI Validation
     Then I should not see the port public endpoint "port0" in the service
 
   @port
-  Scenario: Disable a port public endpoint
-    Given that the "port0" port is added
-      And that the port public endpoint "port0" is disabled
-    Then the port public endpoint "port0" should be "disabled" in the service
-
-  @port
   Scenario: Disable and enable a port public endpoint
     Given that the "port0" port is added
       And that the port public endpoint "port0" is disabled
+    Then the port public endpoint "port0" should be "disabled" in the service
       And that the port public endpoint "port0" is enabled
     Then the port public endpoint "port0" should be "enabled" in the service
 
