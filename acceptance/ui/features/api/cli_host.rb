@@ -18,7 +18,11 @@ module CCApi
         end
 
         def remove_all_hosts()
-            result = CC.CLI.execute("%{serviced} host list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty %{serviced} host rm")
+            result = CC.CLI.execute(
+                "%{serviced} host list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty %{serviced} host rm",
+                stderr = true,
+                verify = false
+            )
 
             # verify all of the hosts were really removed
             result = CC.CLI.execute("%{serviced} host list")
