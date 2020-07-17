@@ -28,48 +28,60 @@ import (
 // initialize the package logger
 var plog = logging.PackageLogger()
 
-//ServiceDefinition is the definition of a service hierarchy.
+// ServiceDefinition is the definition of a node in a service hierarchy.
 type ServiceDefinition struct {
-	Name                   string                 // Name of the defined service
-	Title                  string                 // Title is a label used when describing this service in the context of a service tree
-	Version                string                 // Version of the defined service
-	Command                string                 // Command which runs the service
-	RunAs                  string                 // Run command as user
-	Description            string                 // Description of the service
-	Environment            []string               // Environment variables to be injected, of the form NAME="value"
-	Tags                   []string               // Searchable service tags
-	ImageID                string                 // Docker image hosting the service
-	Instances              domain.MinMax          // Constraints on the number of instances
-	ChangeOptions          []ChangeOption         // Control options for what happens when a running service is changed
-	Launch                 string                 // Must be "AUTO", the default, or "MANUAL"
-	HostPolicy             HostPolicy             // Policy for starting up instances
-	Hostname               string                 // Optional hostname which should be set on run
-	Privileged             bool                   // Whether to run the container with extended privileges
-	ConfigFiles            map[string]ConfigFile  // Config file templates
-	Context                map[string]interface{} // Context information for the service
-	Endpoints              []EndpointDefinition   // Comms endpoints used by the service
-	Services               []ServiceDefinition    // Supporting subservices
-	LogFilters             map[string]string      // map of log filter name to log filter definitions
-	Volumes                []Volume               // list of volumes to bind into containers
-	LogConfigs             []LogConfig
-	Snapshot               SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
-	RAMCommitment          utils.EngNotation             // expected RAM commitment to use for scheduling
-	RAMThreshold           uint                          // RAM Threshold
-	CPUCommitment          uint64                        // expected CPU commitment (#cores) to use for scheduling
-	DisableShell           bool                          // disables shell commands on the service
-	Runs                   map[string]string             // FIXME: This field is deprecated. Remove when possible.
-	Commands               map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
-	Actions                map[string]string             // Map of commands that can be executed with 'serviced action ...'
-	HealthChecks           map[string]health.HealthCheck // HealthChecks for a service.
-	Prereqs                []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
-	MonitoringProfile      domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
-	MemoryLimit            float64
-	CPUShares              int64
-	OomKillDisable         bool                   // Whether to disable OOM Killer for the container or not
-	OomScoreAdj            int64                  // Tune containers OOM preferences (-1000 to 1000)
-	PIDFile                string // An optional path or command to generate a path for a PID file to which signals are relayed.
-	StartLevel             uint   // Services start in the order implied by this field (low to high) and stopped in reverse order
-	EmergencyShutdownLevel uint   // In case of low storage, Services stopped in the order implied by this field (low to high)
+	Name        string // Name of the defined service
+	Title       string // Title is a label used when describing this service in the context of a service tree
+	Version     string // Version of the defined service
+	Command     string // Command which runs the service
+	RunAs       string // Run command as user
+	Description string // Description of the service
+
+	Environment []string // Environment variables to be injected, of the form NAME="value"
+	Tags        []string // Searchable service tags
+
+	ImageID       string         // Docker image hosting the service
+	Instances     domain.MinMax  // Constraints on the number of instances
+	ChangeOptions []ChangeOption // Control options for what happens when a running service is changed
+	Launch        string         // Must be "AUTO", the default, or "MANUAL"
+	HostPolicy    HostPolicy     // Policy for starting up instances
+	Hostname      string         // Optional hostname which should be set on run
+	Privileged    bool           // Whether to run the container with extended privileges
+
+	ConfigFiles map[string]ConfigFile  // Config file templates
+	Context     map[string]interface{} // Context information for the service
+	Endpoints   []EndpointDefinition   // Comms endpoints used by the service
+	Services    []ServiceDefinition    // Supporting subservices
+	LogFilters  map[string]string      // map of log filter name to log filter definitions
+
+	Volumes    []Volume // list of volumes to bind into containers
+	LogConfigs []LogConfig
+
+	Snapshot      SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
+	RAMCommitment utils.EngNotation // expected RAM commitment to use for scheduling
+	RAMThreshold  uint              // RAM Threshold
+	CPUCommitment uint64            // expected CPU commitment (#cores) to use for scheduling
+	DisableShell  bool              // disables shell commands on the service
+
+	Runs         map[string]string             // FIXME: This field is deprecated. Remove when possible.
+	Commands     map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
+	Actions      map[string]string             // Map of commands that can be executed with 'serviced action ...'
+	HealthChecks map[string]health.HealthCheck // HealthChecks for a service.
+
+	// Prereqs is a list of scripts that must run successfully before running the command in the Startup field.
+	Prereqs []domain.Prereq
+
+	MonitoringProfile domain.MonitorProfile // An optional list of queryable metrics, graphs, and thresholds
+	MemoryLimit       float64
+	CPUShares         int64
+	OomKillDisable    bool  // Whether to disable OOM Killer for the container or not
+	OomScoreAdj       int64 // Tune containers OOM preferences (-1000 to 1000)
+
+	PIDFile string // An optional path or command to generate a path for a PID file to which signals are relayed.
+
+	StartLevel uint // Services start in the order implied by this field (low to high) and stopped in reverse order
+
+	EmergencyShutdownLevel uint // Services are stopped in this order during an emergency (low to high).
 }
 
 // SnapshotCommands commands to be called during and after a snapshot
@@ -89,8 +101,11 @@ type EndpointDefinition struct {
 	Application         string
 	ApplicationTemplate string
 	AddressConfig       AddressResourceConfig
-	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
+
+	// VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
+	VHosts []string
+
 	VHostList []VHost // VHost is used to request named vhost(s) for this endpoint.
 	PortList  []Port
 }
@@ -188,20 +203,22 @@ func (p *HostPolicy) UnmarshalText(b []byte) error {
 	return nil
 }
 
-// ChangeOption is the policy for what happens in the scheduler Sync when the
-// running services change
+// ChangeOption is the policy for what happens in the scheduler Sync when the running services change
 type ChangeOption string
 
 const (
-	// The default change option (none).
+	// DefaultChangeOption is the default change option (none).
 	DefaultChangeOption = ChangeOption("")
-	// If the number of running instances doesn't match the requested number of
-	// instances in the service def, all instances will be restarted.  Note that
-	// this can happen due to an instance going down or by the service def being
-	// modified.
+
+	// RestartAllOnInstanceChanged option restarts all instances when the instance count changes.
+	// If the number of running instances doesn't match the requested number of instances in the service
+	// definition, all instances will be restarted.  Note that this can happen due to an instance going down
+	// or by the service def being modified.
 	RestartAllOnInstanceChanged = ChangeOption("restartAllOnInstanceChanged")
-	// If the running instances doesn't contain instance 0, all services will
-	// be shut down so that when they come back up we'll get a new instance 0.
+
+	// RestartAllOnInstanceZeroDown option will stop and restart all running instances if there is no instance 0.
+	// If the running instances doesn't contain instance 0, all services will be shut down so that when they come
+	// back up we'll get a new instance 0.
 	RestartAllOnInstanceZeroDown = ChangeOption("restartAllOnInstanceZeroDown")
 )
 
@@ -219,8 +236,10 @@ func (co *ChangeOption) UnmarshalText(b []byte) error {
 	return nil
 }
 
+// ChangeOptions is a list of ChangeOption objects.
 type ChangeOptions []ChangeOption
 
+// Contains returns true if the ChangeOptions object contains the ChangeOption object.
 func (options ChangeOptions) Contains(co ChangeOption) bool {
 	for _, option := range options {
 		if strings.ToLower(string(co)) == strings.ToLower(string(option)) {
@@ -232,6 +251,7 @@ func (options ChangeOptions) Contains(co ChangeOption) bool {
 
 type serviceDefinition ServiceDefinition
 
+// UnmarshalJSON loads a JSON byte stream into the ServiceDefinition object.
 func (s *ServiceDefinition) UnmarshalJSON(b []byte) error {
 	sd := serviceDefinition{}
 	if err := json.Unmarshal(b, &sd); err == nil {

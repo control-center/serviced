@@ -18,27 +18,29 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/servicedefinition"
+	svcdef "github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
 
+// NullRequest identifies a no-nothing (empty) request
 type NullRequest struct{}
 
+// User contains creditials for a user.
 type User struct {
 	Name     string // the unique identifier for a user
 	Password string // no requirements on passwords yet
 }
 
-// A request to deploy a service from a service definition
-//  Pool and deployment ids are derived from the parent
+// ServiceDeploymentRequest is a request to deploy a service from a service definition.
+// Pool and deployment ids are derived from the parent.
 type ServiceDeploymentRequest struct {
 	PoolID    string // PoolID to deploy the service to
 	ParentID  string // ID of parent service
 	Overwrite bool   // Overwrites any existing service
-	Service   servicedefinition.ServiceDefinition
+	Service   svcdef.ServiceDefinition
 }
 
-// This is created by selecting from service_state and joining to service
+// RunningService this is created by selecting from service_state and joining to service
 type RunningService struct {
 	ID                string
 	ServiceID         string
@@ -60,7 +62,7 @@ type RunningService struct {
 	RAMCommitment     utils.EngNotation
 	RAMThreshold      uint
 	CPUCommitment     uint64
-	HostPolicy        servicedefinition.HostPolicy
+	HostPolicy        svcdef.HostPolicy
 	MonitoringProfile domain.MonitorProfile
 }
 
@@ -74,6 +76,7 @@ type BackupFile struct {
 	ModTime    time.Time   `json:"mod_time"`
 }
 
+// SnapshotInfo describes a snapshot
 type SnapshotInfo struct {
 	SnapshotID  string
 	TenantID    string
@@ -91,17 +94,17 @@ func (s SnapshotInfo) String() string {
 
 	if s.Description == "" {
 		return snapshotID
-	} else {
-		return snapshotID + " " + s.Description
 	}
+	return snapshotID + " " + s.Description
 }
 
+// Equals returns true if the two SnapshotInfo objects have the same values.
 func (s *SnapshotInfo) Equals(s2 *SnapshotInfo) bool {
 	if len(s.Tags) != len(s2.Tags) {
 		return false
 	}
 
-	for i, _ := range s.Tags {
+	for i := range s.Tags {
 		if s.Tags[i] != s2.Tags[i] {
 			return false
 		}
@@ -114,13 +117,13 @@ func (s *SnapshotInfo) Equals(s2 *SnapshotInfo) bool {
 		s.Invalid == s2.Invalid
 }
 
-// ServiceInstanceRequest requests information about a service instance given
-// the service ID and instance ID.
+// ServiceInstanceRequest requests information about a service instance given the service ID and instance ID.
 type ServiceInstanceRequest struct {
 	ServiceID  string
 	InstanceID int
 }
 
+// BackupRequest is a request to create a backup.
 type BackupRequest struct {
 	Dirpath              string
 	SnapshotSpacePercent int
@@ -129,11 +132,13 @@ type BackupRequest struct {
 	Username             string
 }
 
+// RestoreRequest is a request to restore from a backup file.
 type RestoreRequest struct {
 	Filename string
 	Username string
 }
 
+// BackupEstimate is a set of fields that describe the estimated resource utilization of a backup.
 type BackupEstimate struct {
 	AvailableBytes  uint64
 	EstimatedBytes  uint64
