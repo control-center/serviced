@@ -65,7 +65,7 @@ type ServiceMigrationRequest struct {
 	ServiceID  string                         // The tenant service ID
 	Modified   []*service.Service             // Services modified by the migration
 	Added      []*service.Service             // Services added by the migration
-	Deploy     []*ServiceDeploymentRequest    // A services to be deployed by the migration
+	Deploy     []*ServiceDeploymentRequest    // ServiceDefinitions to be deployed by the migration
 	LogFilters map[string]logfilter.LogFilter // LogFilters to add/replace
 }
 
