@@ -97,21 +97,6 @@ class ImportUtil(BaseUtil):
             self.log.info("Created %d doc(s)", len(values))
             self.log.info("Finished adding data of %s type", current_type)
 
-    def restore_from_backup(self):
-        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_host_port'))
-        es = ES7x([self.config.get('DEFAULT', 'elastic_host_port')], use_ssl=False)
-        index = self.config.get('DEFAULT', 'index')
-        self.log.info("Restoring index '%s'" % index)
-        es.indices.freeze("%s_backup" % index)
-        self.log.info("Freeze index '%s_backup'" % index)
-        es.indices.clone("%s_backup" % index, index)
-        self.log.info("Clone index '%s_backup'" % index)
-        es.indices.unfreeze("%s_backup" % index)
-        self.log.info("Unfreeze index '%s_backup'" % index)
-        es.indices.delete("%s_backup" % index)
-        self.log.info("Delete index '%s_backup'" % index)
-        self.log.info("Restoring index '%s' completed" % index)
-
 
 def main():
     parser = OptionParser()
@@ -128,14 +113,9 @@ def main():
     parser.add_option("-i", "--import", action="store_false", dest="export",
                       help="make an import to new elastic")
 
-    parser.add_option("-r", "--restore", action="store_true", dest="restore",
-                      help="restore from backup")
-
     (options, _) = parser.parse_args()
 
-    if options.restore:
-        ImportUtil(options.filename, options.config_name).restore_from_backup()
-    elif options.export:
+    if options.export:
         ExportUtil(options.filename, options.config_name)()
     else:
         ImportUtil(options.filename, options.config_name)()
