@@ -1,28 +1,58 @@
 {
   "settings": {
-    "number_of_shards": 1
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "mapping.total_fields.limit": 2000
   },
 
   "mappings": {
     "properties":{
       "Id" :          {"type": "keyword", "index":"true"},
+      "ID" :          {"type": "keyword", "index":"true"},
+      "type" :        {"type": "keyword", "index":"true"},
+      "Password":     {"type": "keyword", "index":"true"},
+      "Privileged":   {"type": "keyword", "index":"true"},
+      "Hostname":     {"type": "keyword", "index":"true"},
+      "ServicePath":  {"type": "keyword", "index":"true"},
+      "ServiceTenantID": {"type": "keyword", "index":"true"},
+      "EndpointName":  {"type": "keyword", "index":"true"},
+      "Filter":        {"type": "keyword", "index":"true"},
+      "AssignmentType":{"type": "keyword", "index":"true"},
+      "ImageID":      {"type": "keyword", "index":"true"},
+      "Environment":  {"type": "keyword", "index":"true"},
+      "HostPolicy":   {"type": "keyword", "index":"true"},
+      "DeploymentID": {"type": "keyword", "index":"true"},
+      "Version":      {"type": "keyword", "index":"true"},
       "ParentId":     {"type": "keyword", "index":"true"},
+      "Realm":        {"type": "keyword", "index":"true"},
+      "CoreCapacity": {"type": "long", "index":"true"},
+      "MemoryCapacity": {"type": "long", "index":"true"},
       "CoreLimit":    {"type": "long", "index":"true"},
       "MemoryLimit":  {"type": "long", "index":"true"},
       "Priority":     {"type": "long", "index":"true"},
       "CreatedAt" :   {"type": "date", "format" : "date_optional_time"},
       "UpdatedAt" :   {"type": "date", "format" : "date_optional_time"},
       "Name":           {"type": "keyword", "index":"true"},
+      "KernelVersion":  {"type": "keyword", "index":"true"},
+      "KernelRelease":  {"type": "keyword", "index":"true"},
       "PoolID":         {"type": "keyword", "index":"true"},
       "IpAddr":         {"type": "keyword", "index":"true"},
+      "IPAddr":         {"type": "keyword", "index":"true"},
       "Cores":          {"type": "long", "index":"true"},
       "Memory":         {"type": "long", "index":"true"},
       "PrivateNetwork": {"type": "keyword", "index":"true"},
       "Startup":         {"type": "keyword", "index":"true"},
-      "Context":         {"type": "object", "index":"true"},
+      "Context":         {"type": "object", "enabled": false},
       "Description":     {"type": "keyword", "index":"true"},
-      "Tags":            {"type": "string", "index_name": "tag"},
+      "Tags":            {"type": "keyword", "index":"true"},
       "Instances":       {"type": "long", "index":"true"},
+      "IPs" :{
+        "properties":{
+          "IP" : {"type": "keyword", "index":"true"},
+          "InterfaceName" : {"type": "keyword", "index":"true"},
+          "State" : {"type": "keyword", "index":"true"}
+        }
+      },
       "InstanceLimits":  {
         "properties": {
           "Min": {"type": "long", "index":"true"},
@@ -59,7 +89,7 @@
       },
       "ApiVersion":      {"type": "long", "index":"true"},
       "TemplateVersion": {"type": "long", "index":"true"},
-      "Data":            {"type": "keyword", "index":"true"},
+      "Data":            {"type": "keyword", "index":"true", "ignore_above": 10000},
       "HostID":          {"type": "keyword", "index":"true"},
       "ServiceID":       {"type": "keyword", "index":"true"},
       "DockerID":        {"type": "keyword", "index":"true"},
@@ -77,6 +107,16 @@
           "path_match":   "ConfigFiles.*",
           "mapping": {
             "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      {
+        "RAMCommitment_EngNotation_as_keyword": {
+          "match_mapping_type": "long",
+          "path_match":   "*RAMCommitment*",
+          "mapping": {
+            "type": "keyword",
             "index": "true"
           }
         }
@@ -87,7 +127,7 @@
           "path_match":   "OriginalConfigs.*",
           "mapping": {
             "type": "keyword",
-            "index": "true"
+            "ignore_above": 256
           }
         }
       }

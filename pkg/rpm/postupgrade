@@ -53,3 +53,79 @@ if [ -f /etc/cron.d/cron_zenossdbpack.backup ]; then
 fi
 
 touch /etc/cron.d/cron_zenossdbpack
+
+HOME_SERVICED=/opt/serviced
+HOST_ES_DIR=$HOME_SERVICED/var/isvcs
+CONTAINER_ES_DIR=/opt/elasticsearch-serviced
+SVC_NAME=/serviced-isvcs_elasticsearch-serviced
+NODE_NAME=elasticsearch-serviced
+CLUSTER_NAME=$(cat $HOST_ES_DIR/elasticsearch-serviced.clustername)
+HOST_ES_DATA_DIR=$HOST_ES_DIR/elasticsearch-serviced/data
+CONTAINER_ES_DATA_DIR=$CONTAINER_ES_DIR/data
+ELASTIC_BIN=$CONTAINER_ES_DIR/bin/elasticsearch
+
+succeed() {
+    echo ===== SUCCESS =====
+    echo $@
+    echo ===================
+}
+
+fail() {
+    echo ====== FAIL ======
+    echo $@
+    echo ==================
+    exit 1
+}
+
+retry() {
+    TIMEOUT=$1
+    shift
+    COMMAND="$@"
+    DURATION=0
+    until [ ${DURATION} -ge ${TIMEOUT} ]; do
+        TRY_COUNTDOWN=$[${TIMEOUT} - ${DURATION}]
+        ${COMMAND}; RESULT=$?; [ ${RESULT} = 0 ] && break
+        DURATION=$[$DURATION+1]
+        sleep 1
+    done
+    return ${RESULT}
+}
+
+check_elasticsearch() {
+    echo "Waiting 120 seconds for elasticsearch to start ..."
+    retry 120 curl http://localhost:9200/_cluster/health &>/dev/null
+    err=$?
+    return $err
+}
+
+echo "Starting docker container elasticsearch-serviced ..."
+docker run --rm -d --name $SVC_NAME -p 9200:9200 -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v63 sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME  -Des.cluster.name=$CLUSTER_NAME"
+check_elasticsearch && succeed "Container started within timeout"    || fail "Container failed to start within 120 seconds."
+
+echo "Starting export for old elasticsearch storage"
+$HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini -f $HOST_ES_DIR/elasticsearch_data.json
+
+echo "Stopping the container with old elasticsearch"
+docker stop $SVC_NAME
+
+echo "Setting vm.max_map_count to 262144 as a requirement for new elastic"
+sysctl -w vm.max_map_count=262144
+
+echo "Copying stub snapshot.0 file to zookeeper storage dir for migration from 3.4.x to 3.5.5 version according to the issue ZOOKEEPER-3056"
+mv $HOME_SERVICED/isvcs/resources/zookeeper/snapshot.0 $HOST_ES_DIR/zookeeper/data/version-2/
+
+echo "Preparing the host for data import to new elasticsearch storage"
+rm -rf $HOST_ES_DATA_DIR/*
+groupadd -f elastic -g 1001
+id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
+chown 1001:1001 -R $HOST_ES_DATA_DIR
+
+echo "Starting container with new elasticsearch"
+docker run --rm -d --name $SVC_NAME -p 9200:9200 -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v66 su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
+check_elasticsearch && succeed "Container started within timeout"    || fail "Container failed to start within 120 seconds."
+
+echo "Importing data to new elasticsearch"
+$HOME_SERVICED/bin/elastic -i -c $HOME_SERVICED/etc/es_cluster.ini -f $HOST_ES_DIR/elasticsearch_data.json
+
+echo "Stopping the container with new elasticsearch"
+docker stop $SVC_NAME
