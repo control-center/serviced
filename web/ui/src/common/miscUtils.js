@@ -102,7 +102,7 @@
             },
 
             // TODO - use angular $location object to make this testable
-            unauthorized: function() {
+            unauthorized: function($scope) {
                 log.error('You don\'t appear to be logged in.');
 
                 if (utils.useAuth0()) {
@@ -124,6 +124,10 @@
                                 window.sessionStorage.setItem("auth0AccessToken", result.accessToken);
                                 window.sessionStorage.setItem("auth0IDToken", result.idToken);
                                 AUTH_IN_PROGRESS = false;
+                                $scope.loggedIn = true;
+                                $scope.user = {
+                                    username: "successful auth0 login"
+                                };
                             } else {
                                 // refresh worked, but didn't have tokens. Kick back to login screen.
                                 AUTH_IN_PROGRESS = false;
