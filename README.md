@@ -60,6 +60,10 @@ Serviced is written in Go. To install Go, download `go v1.14.4` from http://gola
 Untar the distribution to `/usr/local/go`. If you use a different location for go, you
 must set GOROOT. See the http://www.golang.org for more information. Ensure that
 `$GOROOT/bin` is in you path.
+There's an easier way to install in Ubuntu
+```bash
+sudo snap install --classic --channel=1.14/stable go
+```
 
 Add your development user to the "docker" group.
 ```bash
