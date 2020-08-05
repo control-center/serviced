@@ -16,8 +16,7 @@ The minimum supported versions of Linux distributions are Ubuntu is 18.04 and Ce
 2.  Install a generated package
       ```bash 
           sudo apt-key adv --keyserver keys.gnupg.net --recv-keys AA5A1AD7
-    ￼     REPO=http://get.zenoss.io/apt/ubuntu
-          sudo sh -c 'echo "deb [ arch=amd64 ] '${REPO}' trusty universe" > /etc/apt/sources.list.d/zenoss.list'
+          sudo sh -c 'echo "deb [ arch=amd64 ] http://get.zenoss.io/apt/ubuntu trusty universe" > /etc/apt/sources.list.d/zenoss.list'
           sudo apt-get update
           sudo apt-get install -y serviced
       ```
