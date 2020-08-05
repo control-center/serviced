@@ -8,7 +8,7 @@ Installation
 ------------
 Serviced can run on a single host or across multiple hosts. First, serviced
 depends on docker. The minimal version of docker should be **19.03.11** for running serviced **1.8.x**.
-The ubuntu version should be **18.04** or newer
+The minimum supported versions of Linux distributions are Ubuntu is 18.04 and CentOS 7.6.
 
 1.  Follow the instruction at http://www.docker.io/ , to install
    it on every host that serviced will run on. Ensure docker is running.
@@ -49,14 +49,14 @@ Usage
 -----
 Serviced is a platform for running services. Serviced is composed of a master
 serviced process and agent processes running on each host. Each host must be registered
-with the master process. To register a agent process:
+with the master process. To register an agent process:
 ```bash
 serviced host add HOST:PORT RESOURCE_POOL
 ```
 
 Dev Environment
 ---------------
-Serviced is written in go. To install go, download `go v1.14.4` from http://golang.org.
+Serviced is written in Go. To install Go, download `go v1.14.4` from http://golang.org.
 Untar the distribution to `/usr/local/go`. If you use a different location for go, you
 must set GOROOT. See the http://www.golang.org for more information. Ensure that
 `$GOROOT/bin` is in you path.
