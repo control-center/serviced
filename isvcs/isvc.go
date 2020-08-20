@@ -35,7 +35,7 @@ var (
 
 const (
 	IMAGE_REPO         = "zenoss/serviced-isvcs"
-	IMAGE_TAG          = "v66"
+	IMAGE_TAG          = "v67"
 	ZK_IMAGE_REPO      = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG       = "v12"
 	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"

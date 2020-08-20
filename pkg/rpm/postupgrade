@@ -121,7 +121,7 @@ id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
 chown 1001:1001 -R $HOST_ES_DATA_DIR
 
 echo "Starting container with new elasticsearch"
-docker run --rm -d --name $SVC_NAME -p 9200:9200 -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v66 su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
+docker run --rm -d --name $SVC_NAME -p 9200:9200 -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
 check_elasticsearch && succeed "Container started within timeout"    || fail "Container failed to start within 120 seconds."
 
 echo "Importing data to new elasticsearch"
