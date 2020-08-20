@@ -91,6 +91,7 @@ func restSuccess(w *rest.ResponseWriter) {
 // WriteJSON struct as JSON with specified HTTP status code
 func writeJSON(w *rest.ResponseWriter, v interface{}, code int) {
 	w.Header().Set("content-type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	err := w.WriteJson(v)
 	if err != nil {
