@@ -14,7 +14,9 @@
 package zookeeper
 
 import (
+	"crypto/tls"
 	"encoding/json"
+	"net"
 	"time"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
@@ -83,6 +85,25 @@ func ParseDSN(dsn string) (val DSN, err error) {
 	return val, err
 }
 
+func customTLSDial(network, addr string, timeout time.Duration) (net.Conn, error) {
+	tlsClientConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
+	tcpConn, err := net.DialTimeout("tcp", addr, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	conn := tls.Client(tcpConn, tlsClientConfig)
+	if err := conn.Handshake(); err != nil {
+		plog.Error("Handshake failed with Zookeeper", err)
+		return nil, err
+	}
+
+	return conn, nil
+}
+
 // GetConnection returns a Zookeeper connection given the dsn. The caller is
 // responsible for closing the returned connection.
 func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, error) {
@@ -91,7 +112,7 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 	if err != nil {
 		return nil, err
 	}
-
+	tlsOptions := zklib.WithDialer(customTLSDial)
 	conn, event, err := zklib.Connect(dsnVal.Servers,
 		dsnVal.SessionTimeout,
 		zklib.WithConnectTimeout(dsnVal.ConnectTimeout),
@@ -100,7 +121,8 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 		zklib.WithBackoff(&client.Backoff{
 			InitialDelay: dsnVal.ReconnectStartDelay,
 			MaxDelay:     dsnVal.ReconnectMaxDelay,
-		}))
+		}),
+		tlsOptions)
 	if err != nil {
 		return nil, err
 	}

@@ -14,6 +14,7 @@
 package isvcs
 
 import (
+	"crypto/tls"
 	"github.com/Sirupsen/logrus"
 
 	"github.com/control-center/serviced/config"
@@ -224,16 +225,20 @@ func zkFourLetterWord(server, command string, timeout time.Duration) ([]byte, er
 
 	defer conn.Close()
 
-	conn.SetWriteDeadline(time.Now().Add(timeout))
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	tlsConn := tls.Client(conn, tlsConfig)
+	defer tlsConn.Close()
 
-	_, err = conn.Write([]byte(command))
+	tlsConn.SetWriteDeadline(time.Now().Add(timeout))
+
+	_, err = tlsConn.Write([]byte(command))
 	if err != nil {
 		return nil, err
 	}
 
-	conn.SetReadDeadline(time.Now().Add(timeout))
+	tlsConn.SetReadDeadline(time.Now().Add(timeout))
 
-	resp, err := ioutil.ReadAll(conn)
+	resp, err := ioutil.ReadAll(tlsConn)
 	if err != nil {
 		return nil, err
 	}

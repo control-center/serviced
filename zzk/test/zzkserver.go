@@ -19,7 +19,7 @@ package zzktest
 import (
 	"fmt"
 	"strconv"
-
+	"os"
 	"github.com/control-center/serviced/dfs/docker"
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
@@ -33,7 +33,7 @@ type ZZKServer struct {
 
 const (
 	DEFAULT_PORT = 2181
-	zzkVersion   = "3.4.5"
+	zzkVersion   = "3.5.8"
 )
 
 // Start will start an instance of Zookeeper using a docker container.
@@ -67,7 +67,7 @@ func (s *ZZKServer) Start() error {
 		return fmt.Errorf("ERROR: unable to inspect container %s: %s", containerName, err)
 	} else {
 		opts := dockerclient.PullImageOptions{
-			Repository: "jplock/zookeeper",
+			Repository: "zookeeper",
 			Tag:        zzkVersion,
 		}
 		auth := dockerclient.AuthConfiguration{}
@@ -81,7 +81,7 @@ func (s *ZZKServer) Start() error {
 
 	// Start zookeeper
 	opts := dockerclient.CreateContainerOptions{Name: containerName}
-	opts.Config = &dockerclient.Config{Image: fmt.Sprintf("jplock/zookeeper:%s", zzkVersion)}
+	opts.Config = &dockerclient.Config{Image: fmt.Sprintf("zookeeper:%s", zzkVersion)}
 
 	if s.Port == 0 {
 		s.Port = DEFAULT_PORT
@@ -93,7 +93,23 @@ func (s *ZZKServer) Start() error {
 				{HostIP: "localhost", HostPort: strconv.Itoa(s.Port)},
 			},
 		},
+		Binds: []string{
+			os.Getenv("SERVICED_HOME") + "/zzk/test/ssl:/tmp/ssl",
+		},
 	}
+
+	opts.Config.Env = []string{
+		"SERVER_JVMFLAGS=\n" +
+			"-Dzookeeper.4lw.commands.whitelist=*\n" +
+			"-Dzookeeper.serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory\n" +
+			"-Dzookeeper.ssl.keyStore.location=/tmp/ssl/testKeyStore.jks\n" +
+			"-Dzookeeper.ssl.keyStore.password=testpass\n" +
+			"-Dzookeeper.ssl.trustStore.location=/tmp/ssl/testTrustStore.jks\n" +
+			"-Dzookeeper.ssl.trustStore.password=testpass\n" +
+			"-Dzookeeper.ssl.clientAuth=none",
+		"ZOO_CFG_EXTRA=client.portUnification=true",
+	}
+
 	ctr, err := s.dc.CreateContainer(opts)
 	if err != nil {
 		return fmt.Errorf("Could not initialize zookeeper: %s", err)
