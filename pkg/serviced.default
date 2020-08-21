@@ -22,6 +22,9 @@
 # Set the the zookeeper ensemble, multiple masters should be comma separated
 # SERVICED_ZK={{SERVICED_MASTER_IP}}:2181
 
+# Enable ACL for zookeeper nodes and add specified IPs to it. IPs must be comma separated.
+# SERVICED_ZK_ACL_ALLOWED_IPS=
+
 # Set the local docker registry
 # SERVICED_DOCKER_REGISTRY=localhost:5000
 

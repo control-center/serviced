@@ -62,6 +62,7 @@ type Options struct {
 	ResourcePath               string
 	LogPath                    string // Serviced logs directory
 	Zookeepers                 []string
+	ZkAclAllowedIPs            []string // List of allowed IPs for zookeeper ACL
 	ReportStats                bool
 	HostStats                  string
 	StatsPeriod                int

@@ -186,7 +186,7 @@ func setIsvcsEnv() error {
 	// Configure api key proxy isvc only if indicated in configuration.
 	if options.StartAPIKeyProxy {
 		// Add variables for api proxy
-		apiIp := getDockerIP()
+		apiIp := utils.GetDockerIP()
 		if apiIp == "" {
 			return ErrNoDockerIP
 		}

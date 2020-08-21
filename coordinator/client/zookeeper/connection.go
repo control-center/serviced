@@ -15,10 +15,12 @@ package zookeeper
 
 import (
 	"encoding/json"
+	"github.com/control-center/serviced/utils"
 	"path"
 	"sync"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/coordinator/client"
 )
 
@@ -136,13 +138,38 @@ func (c *Connection) CreateIfExists(path string, node client.Node) error {
 	return c.create(path, node)
 }
 
+func getAclList() []zklib.ACL {
+	var aclList []zklib.ACL
+	options := config.GetOptions()
+
+	if len(options.ZkAclAllowedIPs) > 0 {
+		allowedIPs := []string{"127.0.0.1"}
+		allowedIPs = append(allowedIPs, options.ZkAclAllowedIPs...)
+
+		// add docker0 IP to allow make requests from host to container
+		if dockerIp := utils.GetDockerIP(); dockerIp != "" {
+			allowedIPs = append(allowedIPs, dockerIp)
+		}
+
+		for _, ip := range allowedIPs {
+			aclList = append(aclList, zklib.ACL{Perms: zklib.PermAll, Scheme: "ip", ID: ip})
+		}
+
+		return aclList
+
+	} else {
+		return zklib.WorldACL(zklib.PermAll)
+	}
+}
+
 func (c *Connection) create(p string, node client.Node) error {
 	bytes, err := json.Marshal(node)
 	if err != nil {
 		return client.ErrSerialization
 	}
 	pth := path.Join(c.basePath, p)
-	if _, err := c.conn.Create(pth, bytes, 0, zklib.WorldACL(zklib.PermAll)); err != nil {
+	expectedIPs := getAclList()
+	if _, err := c.conn.Create(pth, bytes, 0, expectedIPs); err != nil {
 		return xlateError(err)
 	}
 	node.SetVersion(&zklib.Stat{})
@@ -164,7 +191,8 @@ func (c *Connection) CreateDir(path string) error {
 
 func (c *Connection) createDir(p string) error {
 	pth := path.Join(c.basePath, p)
-	_, err := c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+	expectedIPs := getAclList()
+	_, err := c.conn.Create(pth, []byte{}, 0, expectedIPs)
 	return xlateError(err)
 }
 

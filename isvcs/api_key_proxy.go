@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/config"
+	"github.com/control-center/serviced/utils"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -116,7 +117,7 @@ func SetKeyServerReachableHealthCheck() HealthCheckFunction {
 }
 
 func getProxyURL() string {
-	servicedIP := getDockerIP()
+	servicedIP := utils.GetDockerIP()
 	port := strings.TrimLeft(config.GetOptions().KeyProxyListenPort, ":")
 	proxyURL := fmt.Sprintf("https://%s:%s", servicedIP, port)
 	return proxyURL

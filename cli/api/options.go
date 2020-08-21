@@ -138,6 +138,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		KeyPEMFile:                 cfg.StringVal("KEY_FILE", ""),
 		CertPEMFile:                cfg.StringVal("CERT_FILE", ""),
 		Zookeepers:                 cfg.StringSlice("ZK", []string{}),
+		ZkAclAllowedIPs:            cfg.StringSlice("ZK_ACL_ALLOWED_IPS", []string{}),
 		HostStats:                  cfg.StringVal("STATS_PORT", fmt.Sprintf("%s:8443", masterIP)),
 		StatsPeriod:                cfg.IntVal("STATS_PERIOD", 10),
 		SvcStatsCacheTimeout:       cfg.IntVal("SVCSTATS_CACHE_TIMEOUT", 5),
