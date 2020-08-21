@@ -107,6 +107,8 @@ type Options struct {
 	IsvcsZKQuorum              []string          // Members of the zookeeper quorum
 	IsvcsZKUsername            string            // Zookeeper username required for quorum authentication
 	IsvcsZKPasswd              string            // Zookeeper password required for quorum authentication
+	IsvcsZkAclUser             string            // Zookeeper username required for digest ACL scheme
+	IsvcsZkAclPasswd           string            // Zookeeper password required for digest ACL scheme
 	TLSCiphers                 []string          // List of tls ciphers supported for http
 	TLSMinVersion              string            // Minimum TLS version supported for http
 	DockerLogDriver            string            // Which log driver to use with containers

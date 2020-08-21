@@ -177,6 +177,8 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		IsvcsZKQuorum:              cfg.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
 		IsvcsZKUsername:            cfg.StringVal("ISVCS_ZOOKEEPER_USERNAME", ""),
 		IsvcsZKPasswd:              cfg.StringVal("ISVCS_ZOOKEEPER_PASSWD", ""),
+		IsvcsZkAclUser:             cfg.StringVal("ISVCS_ZOOKEEPER_ACL_USER", ""),
+		IsvcsZkAclPasswd:           cfg.StringVal("ISVCS_ZOOKEEPER_ACL_PASSWD", ""),
 		TLSCiphers:                 cfg.StringSlice("TLS_CIPHERS", utils.GetDefaultCiphers("http")),
 		TLSMinVersion:              cfg.StringVal("TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
 		DockerLogDriver:            cfg.StringVal("DOCKER_LOG_DRIVER", "json-file"),

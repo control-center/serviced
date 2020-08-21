@@ -210,6 +210,12 @@
 # Specify zk password for md5 authentication for zookeeper quorum
 # SERVICED_ISVCS_ZOOKEEPER_PASSWD=
 
+# Specify zk username for acl digest scheme
+# SERVICED_ISVCS_ZOOKEEPER_ACL_USER=
+
+# Specify zk password for acl digest scheme
+# SERVICED_ISVCS_ZOOKEEPER_ACL_PASSWD=
+
 # Specify the log driver for all docker containers logs, including isvc containers on the master node.
 # Direct port of Docker --log-driver option. Values include json-file, syslog, journald, gelf, fluentd, and none.
 # SERVICED_DOCKER_LOG_DRIVER=json-file
