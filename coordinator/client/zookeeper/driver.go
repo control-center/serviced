@@ -16,6 +16,7 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
@@ -41,7 +42,7 @@ func init() {
 // DSN is a Zookeeper specific struct used for connections. It can be
 // serialized.
 type DSN struct {
-	Servers             []string
+	Servers []string
 	SessionTimeout      time.Duration
 	ConnectTimeout      time.Duration
 	PerHostConnectDelay time.Duration
@@ -52,17 +53,17 @@ type DSN struct {
 // NewDSN returns a new DSN object from servers and timeout.
 func NewDSN(servers []string,
 	sessionTimeout time.Duration,
-	connectTimeout time.Duration,
+	connectTimeout      time.Duration,
 	perHostConnectDelay time.Duration,
 	reconnectStartDelay time.Duration,
-	reconnectMaxDelay time.Duration) DSN {
+	reconnectMaxDelay   time.Duration) DSN {
 	dsn := DSN{
-		Servers:             servers,
-		SessionTimeout:      sessionTimeout,
-		ConnectTimeout:      connectTimeout,
+		Servers: servers,
+		SessionTimeout: sessionTimeout,
+		ConnectTimeout: connectTimeout,
 		PerHostConnectDelay: perHostConnectDelay,
 		ReconnectStartDelay: reconnectStartDelay,
-		ReconnectMaxDelay:   reconnectMaxDelay,
+		ReconnectMaxDelay: reconnectMaxDelay,
 	}
 	if dsn.Servers == nil || len(dsn.Servers) == 0 {
 		dsn.Servers = []string{"127.0.0.1:2181"}
@@ -135,20 +136,30 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 	}()
 
 	options := config.GetOptions()
-	user := options.IsvcsZkAclUser
-	passwd := options.IsvcsZkAclPasswd
+	user := options.ZkAclUser
+	passwd := options.ZkAclPasswd
 	var acl []zklib.ACL
 
-	if user != "" && passwd != "" {
-		acl = zklib.DigestACL(zklib.PermAll, user, passwd)
+	if user == "" || passwd == "" {
 
+		user = os.Getenv("SERVICED_ZOOKEEPER_ACL_USER")
+		passwd = os.Getenv("SERVICED_ZOOKEEPER_ACL_PASSWD")
+
+		if user != "" && passwd != "" {
+			acl = zklib.DigestACL(zklib.PermAll, user, passwd)
+			if err := conn.AddAuth("digest", []byte(fmt.Sprintf("%s:%s", user, passwd))); err != nil {
+				plog.Errorf("AddAuth returned error %+v", err)
+				return nil, err
+			}
+		} else {
+			acl = zklib.WorldACL(zklib.PermAll)
+		}
+	} else {
+		acl = zklib.DigestACL(zklib.PermAll, user, passwd)
 		if err := conn.AddAuth("digest", []byte(fmt.Sprintf("%s:%s", user, passwd))); err != nil {
 			plog.Errorf("AddAuth returned error %+v", err)
 			return nil, err
 		}
-
-	} else {
-		acl = zklib.WorldACL(zklib.PermAll)
 	}
 
 	return &Connection{

@@ -331,7 +331,6 @@ func (c *Connection) Get(path string, node client.Node) error {
 
 func (c *Connection) get(p string, node client.Node) (err error) {
 	p = path.Join(c.basePath, p)
-	//c.conn.AddAuth("digest", []byte("user:password"))
 	bytes, stat, err := c.conn.Get(p)
 	if err != nil {
 		return xlateError(err)
@@ -360,7 +359,6 @@ func (c *Connection) GetW(path string, node client.Node, cancel <-chan struct{})
 
 func (c *Connection) getW(p string, node client.Node, cancel <-chan struct{}) (<-chan client.Event, error) {
 	p = path.Join(c.basePath, p)
-	//c.conn.AddAuth("digest", []byte("user:password"))
 	bytes, stat, ch, err := c.conn.GetW(p)
 	if err != nil {
 		return nil, xlateError(err)
