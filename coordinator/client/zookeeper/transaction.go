@@ -73,7 +73,7 @@ func (t *Transaction) Commit() error {
 			ops = append(ops, &zklib.CreateRequest{
 				Path:  path,
 				Data:  data,
-				Acl:   zklib.WorldACL(zklib.PermAll),
+				Acl:   t.conn.acl,
 				Flags: 0,
 			})
 			op.Node.SetVersion(&zklib.Stat{})

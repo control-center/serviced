@@ -788,6 +788,8 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		fmt.Sprintf("SERVICED_MUX_PORT=%s", a.muxport),
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
+		fmt.Sprintf("SERVICED_ZOOKEEPER_ACL_USER=%s", config.GetOptions().ZkAclUser),
+		fmt.Sprintf("SERVICED_ZOOKEEPER_ACL_PASSWD=%s", config.GetOptions().ZkAclPasswd),
 		//The SERVICED_UI_PORT environment variable is deprecated and services should always use port 443 to contact serviced from inside a container
 		"SERVICED_UI_PORT=443",
 		fmt.Sprintf("SERVICED_MASTER_IP=%s", strings.Split(a.master, ":")[0]),

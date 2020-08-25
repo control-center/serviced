@@ -29,6 +29,7 @@ type Connection struct {
 	basePath string
 	onClose  func(int)
 	id       int
+	acl      []zklib.ACL
 }
 
 // Assert that Connection implements client.Connection.
@@ -96,7 +97,7 @@ func (c *Connection) NewLock(p string) (client.Lock, error) {
 		return nil, err
 	}
 	lock := &Lock{
-		lock: zklib.NewLock(c.conn, path.Join(c.basePath, p), zklib.WorldACL(zklib.PermAll)),
+		lock: zklib.NewLock(c.conn, path.Join(c.basePath, p), c.acl),
 	}
 	return lock, nil
 }
@@ -109,7 +110,7 @@ func (c *Connection) NewLeader(p string) (client.Leader, error) {
 	if err := c.isClosed(); err != nil {
 		return nil, err
 	}
-	return NewLeader(c.conn, path.Join(path.Join(c.basePath, p))), nil
+	return NewLeader(c.conn, path.Join(path.Join(c.basePath, p)), c.acl), nil
 }
 
 // Create adds a node at the specified path
@@ -142,7 +143,7 @@ func (c *Connection) create(p string, node client.Node) error {
 		return client.ErrSerialization
 	}
 	pth := path.Join(c.basePath, p)
-	if _, err := c.conn.Create(pth, bytes, 0, zklib.WorldACL(zklib.PermAll)); err != nil {
+	if _, err := c.conn.Create(pth, bytes, 0, c.acl); err != nil {
 		return xlateError(err)
 	}
 	node.SetVersion(&zklib.Stat{})
@@ -164,7 +165,7 @@ func (c *Connection) CreateDir(path string) error {
 
 func (c *Connection) createDir(p string) error {
 	pth := path.Join(c.basePath, p)
-	_, err := c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+	_, err := c.conn.Create(pth, []byte{}, 0, c.acl)
 	return xlateError(err)
 }
 
@@ -220,7 +221,7 @@ func (c *Connection) createEphemeral(p string, node client.Node) (string, error)
 		return "", client.ErrSerialization
 	}
 	pth := path.Join(c.basePath, p)
-	epth, err := c.conn.CreateProtectedEphemeralSequential(pth, bytes, zklib.WorldACL(zklib.PermAll))
+	epth, err := c.conn.CreateProtectedEphemeralSequential(pth, bytes, c.acl)
 	return epth, xlateError(err)
 }
 
