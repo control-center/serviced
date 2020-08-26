@@ -142,7 +142,6 @@ type Options struct {
 	Auth0Scope                 string            // Auth0 Scope for request.
 	KeyProxyJsonServer         string            // Address of api-key-server endpoint for getting CC Access tokens
 	KeyProxyListenPort         string            // Port where api-key-proxy will listen
-	ESRequestTimeout           int               // The http request connect timeout, in seconds, for an elasticsearch client connection.
 }
 
 // GetOptions returns a COPY of the global options struct

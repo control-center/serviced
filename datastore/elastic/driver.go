@@ -37,11 +37,11 @@ type ElasticDriver interface {
 }
 
 // New creates a new ElasticDriver
-func New(host string, port uint16, index string, requestTimeout time.Duration) ElasticDriver {
-	return newDriver(host, port, index, requestTimeout)
+func New(host string, port uint16, index string) ElasticDriver {
+	return newDriver(host, port, index)
 }
 
-func newDriver(host string, port uint16, index string, requestTimeout time.Duration) *elasticDriver {
+func newDriver(host string, port uint16, index string) *elasticDriver {
 	driver := &elasticDriver{}
 	driver.host = host
 	driver.port = port
@@ -52,7 +52,6 @@ func newDriver(host string, port uint16, index string, requestTimeout time.Durat
 		"mapping.total_fields.limit": 2000,
 	}
 	driver.mappings = make([]Mapping, 0)
-	driver.requestTimeout = requestTimeout
 	return driver
 }
 
@@ -65,7 +64,6 @@ type elasticDriver struct {
 	settings       map[string]interface{}
 	mappings       []Mapping
 	index          string
-	requestTimeout time.Duration
 }
 
 func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {

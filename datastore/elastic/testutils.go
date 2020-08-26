@@ -69,7 +69,7 @@ func (et *ElasticTest) setDefaults(c *gocheck.C) {
 func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 	log.Printf("ElasticTest SetUpSuite called.\n")
 	et.setDefaults(c)
-	driver := newDriver("localhost", et.Port, et.Index, time.Duration(0))
+	driver := newDriver("localhost", et.Port, et.Index)
 	et.driver = driver
 
 	existingServer := true
