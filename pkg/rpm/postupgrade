@@ -64,68 +64,114 @@ HOST_ES_DATA_DIR=$HOST_ES_DIR/elasticsearch-serviced/data
 CONTAINER_ES_DATA_DIR=$CONTAINER_ES_DIR/data
 ELASTIC_BIN=$CONTAINER_ES_DIR/bin/elasticsearch
 
+################################################################################
 succeed() {
     echo ===== SUCCESS =====
-    echo $@
+    echo "$@"
     echo ===================
 }
 
 fail() {
-    echo ====== FAIL ======
-    echo $@
+    echo ====== FAILURE ======
+    echo "$@"
     echo ==================
     exit 1
 }
 
 retry() {
-    TIMEOUT=$1
+    local command
+    local duration
+    local result
+    local timeout
+    timeout=$1
     shift
-    COMMAND="$@"
-    DURATION=0
-    until [ ${DURATION} -ge ${TIMEOUT} ]; do
-        TRY_COUNTDOWN=$[${TIMEOUT} - ${DURATION}]
-        ${COMMAND}; RESULT=$?; [ ${RESULT} = 0 ] && break
-        DURATION=$[$DURATION+1]
+    command="$*"
+    duration=0
+    until [[ ${duration} -ge ${timeout} ]]; do
+        ${command}; result=$?; [ ${result} = 0 ] && break
+        duration=$((duration + 1))
         sleep 1
     done
-    return ${RESULT}
+    return ${result}
 }
 
 check_elasticsearch() {
+    local err
     echo "Waiting 120 seconds for elasticsearch to start ..."
     retry 120 curl http://localhost:9200/_cluster/health &>/dev/null
     err=$?
     return $err
 }
 
-echo "Starting docker container elasticsearch-serviced ..."
-docker run --rm -d --name $SVC_NAME -p 9200:9200 -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v63 sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME  -Des.cluster.name=$CLUSTER_NAME"
-check_elasticsearch && succeed "Container started within timeout"    || fail "Container failed to start within 120 seconds."
+migrate_elasticsearch() {
+    local err
+    echo "Starting export for old elasticsearch storage"
+    retry 120 $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini \
+	  -f $HOST_ES_DIR/elasticsearch_data.json &>/dev/null
+    err=$?
+    return $err
+}
+################################################################################
 
-echo "Starting export for old elasticsearch storage"
-$HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini -f $HOST_ES_DIR/elasticsearch_data.json
+if [[ "$EUID" -ne 0 ]]; then
+  echo "Running this script requires root privileges"
+  exit 1
+fi
+
+test "$(systemctl is-active serviced)" = "active" && systemctl stop serviced
+
+echo "Starting docker container elasticsearch-serviced ..."
+docker run --rm -d --name $SVC_NAME -p 9200:9200 \
+  -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v63 \
+  sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME \
+  -Des.cluster.name=$CLUSTER_NAME"
+if check_elasticsearch; then
+    succeed "Container started within timeout"
+else
+    fail "Container failed to start within 120 seconds"
+fi
+
+if migrate_elasticsearch; then
+    succeed "Export completed"
+else
+    fail "Export failed try make the export manual"
+fi
 
 echo "Stopping the container with old elasticsearch"
 docker stop $SVC_NAME
 
-echo "Setting vm.max_map_count to 262144 as a requirement for new elastic"
-sysctl -w vm.max_map_count=262144
-
-echo "Copying stub snapshot.0 file to zookeeper storage dir for migration from 3.4.x to 3.5.5 version according to the issue ZOOKEEPER-3056"
-mv $HOME_SERVICED/isvcs/resources/zookeeper/snapshot.0 $HOST_ES_DIR/zookeeper/data/version-2/
+echo "Copying stub snapshot.0 file to zookeeper storage dir for migration"
+echo "from 3.4.x to 3.5.5 version according to the issue ZOOKEEPER-3056"
+mv $HOME_SERVICED/isvcs/resources/zookeeper/snapshot.0 \
+  $HOST_ES_DIR/zookeeper/data/version-2/
 
 echo "Preparing the host for data import to new elasticsearch storage"
-rm -rf $HOST_ES_DATA_DIR/*
+rm -rf ${HOST_ES_DATA_DIR:?}/*
 groupadd -f elastic -g 1001
 id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
 chown 1001:1001 -R $HOST_ES_DATA_DIR
 
 echo "Starting container with new elasticsearch"
-docker run --rm -d --name $SVC_NAME -p 9200:9200 -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
-check_elasticsearch && succeed "Container started within timeout"    || fail "Container failed to start within 120 seconds."
+docker run --rm -d --name $SVC_NAME -p 9200:9200 \
+  -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v66 \
+  su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME \
+  -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
+if check_elasticsearch; then
+    succeed "Container started within timeout"
+else
+    fail "Container failed to start within 120 seconds"
+fi
 
 echo "Importing data to new elasticsearch"
-$HOME_SERVICED/bin/elastic -i -c $HOME_SERVICED/etc/es_cluster.ini -f $HOST_ES_DIR/elasticsearch_data.json
+$HOME_SERVICED/bin/elastic -i -c $HOME_SERVICED/etc/es_cluster.ini \
+  -f $HOST_ES_DIR/elasticsearch_data.json
 
 echo "Stopping the container with new elasticsearch"
 docker stop $SVC_NAME
+
+echo "Removing data from old Hbase version"
+rm -rf /opt/serviced/var/isvcs/opentsdb/*
+
+echo "Setting persistent vm.max_map_count in the sysctl.conf"
+echo vm.max_map_count=262144 >> /etc/sysctl.conf
+sysctl --system
