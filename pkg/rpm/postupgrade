@@ -153,7 +153,7 @@ chown 1001:1001 -R $HOST_ES_DATA_DIR
 
 echo "Starting container with new elasticsearch"
 docker run --rm -d --name $SVC_NAME -p 9200:9200 \
-  -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v66 \
+  -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 \
   su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME \
   -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
 if check_elasticsearch; then
