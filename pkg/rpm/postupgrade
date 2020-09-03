@@ -151,6 +151,10 @@ groupadd -f elastic -g 1001
 id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
 chown 1001:1001 -R $HOST_ES_DATA_DIR
 
+echo "Setting persistent vm.max_map_count in the sysctl.conf"
+echo vm.max_map_count=262144 >> /etc/sysctl.conf
+sysctl --system
+
 echo "Starting container with new elasticsearch"
 docker run --rm -d --name $SVC_NAME -p 9200:9200 \
   -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 \
@@ -171,7 +175,3 @@ docker stop $SVC_NAME
 
 echo "Removing data from old Hbase version"
 rm -rf /opt/serviced/var/isvcs/opentsdb/*
-
-echo "Setting persistent vm.max_map_count in the sysctl.conf"
-echo vm.max_map_count=262144 >> /etc/sysctl.conf
-sysctl --system
