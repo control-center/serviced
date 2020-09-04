@@ -1,58 +1,8 @@
-mkdir -p /var/log/serviced
-chgrp root /var/log/serviced
-chmod 1750 /var/log/serviced
-
+################################################################################
 #
-# CC-3482: preserve the existing access log
+# Copyright (C) Zenoss, Inc. 2005-2020, all rights reserved.
 #
-if [ -f /var/log/serviced.access.log ]; then
-    echo "Moving /var/log/serviced.access.log to /var/log/serviced/serviced.access.log"
-    mv /var/log/serviced.access.log /var/log/serviced
-fi
-
-#
-# CC-3482: If the current logrotate configuration file uses the old location, then
-#      replace it with the new configuration file. Otherwise, the log files might grow
-#      without bounds, potentially bringing down the system.
-#
-grep /var/log/serviced.access.log /opt/serviced/etc/logrotate.conf 2>/dev/null >/dev/null
-if [ $? -eq 0 ]; then
-    echo "Saving /opt/serviced/etc/logrotate.conf as /opt/serviced/etc/logrotate.conf.bak"
-    mv /opt/serviced/etc/logrotate.conf /opt/serviced/etc/logrotate.conf.bak
-
-    echo "Replacing /opt/serviced/etc/logrotate.conf with /opt/serviced/etc/logrotate.conf.rpmnew"
-    cp /opt/serviced/etc/logrotate.conf.rpmnew /opt/serviced/etc/logrotate.conf
-
-    echo " "
-    echo "WARNING: The location of serviced.access.log has moved to /var/log/serviced."
-    echo "         /opt/serviced/etc/logrotate.conf has been updated to reflect the new location."
-    echo "         Your original settings were saved in /opt/serviced/etc/logrotate.conf.bak"
-    echo "         Review both files to see if any settings from /opt/serviced/etc/logrotate.conf.bak"
-    echo "         need to be applied to /opt/serviced/etc/logrotate.conf"
-    echo "         See the Control Center Release Notes for more information."
-fi
-
-#
-# NOTE: changing ownership/permissions here has the side-effect of causing
-#       "rpm -V serviced" to complain, but we could not get fpm to assign
-#       the ownership/permissions at build time.
-#
-chgrp serviced /etc/default/serviced
-chmod 640 /etc/default/serviced
-
-chgrp serviced /opt/serviced
-chmod 750 /opt/serviced
-
-#
-# if we have a modified cron_zenossdbpack, then keep it in place (preserve customer changes)
-#
-
-if [ -f /etc/cron.d/cron_zenossdbpack.backup ]; then
-    echo "Preserving customer modified cron_zenossdbpack."
-    mv /etc/cron.d/cron_zenossdbpack.backup /etc/cron.d/cron_zenossdbpack
-fi
-
-touch /etc/cron.d/cron_zenossdbpack
+################################################################################
 
 HOME_SERVICED=/opt/serviced
 HOST_ISVCS_DIR=$HOME_SERVICED/var/isvcs
@@ -63,19 +13,16 @@ CLUSTER_NAME=$(cat $HOST_ISVCS_DIR/elasticsearch-serviced.clustername)
 HOST_ES_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-serviced/data
 CONTAINER_ES_DATA_DIR=$CONTAINER_ES_DIR/data
 ELASTIC_BIN=$CONTAINER_ES_DIR/bin/elasticsearch
+SERVICED_LOG_DIR=/var/log/serviced
 
 ################################################################################
-succeed() {
-    echo ===== SUCCESS =====
-    echo "$@"
+report() {
+    local msg
+    msg=$1
+    shift
+    echo ===== "$msg" =====
+    echo "$*"
     echo ===================
-}
-
-fail() {
-    echo ====== FAILURE ======
-    echo "$@"
-    echo ==================
-    exit 1
 }
 
 retry() {
@@ -107,7 +54,7 @@ migrate_elasticsearch() {
     local err
     echo "Starting export for old elasticsearch storage"
     retry 120 $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini \
-	  -f $HOST_ISVCS_DIR/elasticsearch_data.json &>/dev/null
+        -f $HOST_ISVCS_DIR/elasticsearch_data.json &>/dev/null
     err=$?
     return $err
 }
@@ -118,7 +65,67 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
-test "$(systemctl is-active serviced)" = "active" && systemctl stop serviced
+if [[ "$(systemctl is-active serviced)" = "active" ]]; then
+    systemctl stop serviced
+fi
+
+if [[ ! -d $SERVICED_LOG_DIR ]]; then
+    mkdir -p $SERVICED_LOG_DIR
+    chgrp root $SERVICED_LOG_DIR
+    chmod 1750 $SERVICED_LOG_DIR
+fi
+
+#
+# CC-3482: preserve the existing access log
+#
+if [[ -f /var/log/serviced.access.log ]]; then
+    echo "Moving /var/log/serviced.access.log to $SERVICED_LOG_DIR/serviced.access.log"
+    mv /var/log/serviced.access.log $SERVICED_LOG_DIR
+fi
+
+#
+# CC-3482: If the current logrotate configuration file uses the old location, then
+#      replace it with the new configuration file. Otherwise, the log files might grow
+#      without bounds, potentially bringing down the system.
+#
+
+if grep /var/log/serviced.access.log /opt/serviced/etc/logrotate.conf 2>/dev/null >/dev/null; then
+    echo "Saving /opt/serviced/etc/logrotate.conf as /opt/serviced/etc/logrotate.conf.bak"
+    mv /opt/serviced/etc/logrotate.conf /opt/serviced/etc/logrotate.conf.bak
+
+    echo "Replacing /opt/serviced/etc/logrotate.conf with /opt/serviced/etc/logrotate.conf.rpmnew"
+    cp /opt/serviced/etc/logrotate.conf.rpmnew /opt/serviced/etc/logrotate.conf
+
+    echo " "
+    echo "WARNING: The location of serviced.access.log has moved to /var/log/serviced."
+    echo "         /opt/serviced/etc/logrotate.conf has been updated to reflect the new location."
+    echo "         Your original settings were saved in /opt/serviced/etc/logrotate.conf.bak"
+    echo "         Review both files to see if any settings from /opt/serviced/etc/logrotate.conf.bak"
+    echo "         need to be applied to /opt/serviced/etc/logrotate.conf"
+    echo "         See the Control Center Release Notes for more information."
+fi
+
+#
+# NOTE: changing ownership/permissions here has the side-effect of causing
+#       "rpm -V serviced" to complain, but we could not get fpm to assign
+#       the ownership/permissions at build time.
+#
+chgrp serviced /etc/default/serviced
+chmod 640 /etc/default/serviced
+
+chgrp serviced /opt/serviced
+chmod 750 /opt/serviced
+
+#
+# if we have a modified cron_zenossdbpack, then keep it in place (preserve customer changes)
+#
+
+if [[ -f /etc/cron.d/cron_zenossdbpack.backup ]]; then
+    echo "Preserving customer modified cron_zenossdbpack."
+    mv /etc/cron.d/cron_zenossdbpack.backup /etc/cron.d/cron_zenossdbpack
+fi
+
+touch /etc/cron.d/cron_zenossdbpack
 
 echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
 cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_ISVCS_DIR/elasticsearch-serviced.backup
@@ -131,16 +138,17 @@ docker run --rm -d --name $SVC_NAME -p 9200:9200 \
   -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v63 \
   sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME \
   -Des.cluster.name=$CLUSTER_NAME"
+
 if check_elasticsearch; then
-    succeed "Container started within timeout"
+    report "SUCCESS" "Container started within timeout"
 else
-    fail "Container failed to start within 120 seconds"
+    report "FAILURE" "Container failed to start within 120 seconds"
 fi
 
 if migrate_elasticsearch; then
-    succeed "Export completed"
+    report "SUCCESS" "Export completed"
 else
-    fail "Export failed try make the export manual"
+    report "FAILURE" "Export failed try make the export manual"
 fi
 
 echo "Stopping the container with old elasticsearch"
@@ -166,10 +174,11 @@ docker run --rm -d --name $SVC_NAME -p 9200:9200 \
   -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 \
   su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME \
   -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
+
 if check_elasticsearch; then
-    succeed "Container started within timeout"
+    report "SUCCESS" "Container started within timeout"
 else
-    fail "Container failed to start within 120 seconds"
+    report "FAILURE" "Container failed to start within 120 seconds"
 fi
 
 echo "Importing data to new elasticsearch"
