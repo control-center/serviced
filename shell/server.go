@@ -16,6 +16,7 @@ package shell
 import (
 	"errors"
 	"fmt"
+	"github.com/control-center/serviced/config"
 	"net/http"
 	"net/url"
 	"os"
@@ -445,6 +446,8 @@ func buildDockerArgs(wrap osWrap, svc *service.Service, cfg *ProcessConfig, cont
 		//The SERVICED_UI_PORT environment variable is deprecated and services
 		//should always use port 443 to contact serviced from inside a container
 		"-e", "SERVICED_UI_PORT=443",
+		"-e", fmt.Sprintf("SERVICED_ZOOKEEPER_ACL_USER=%s", config.GetOptions().ZkAclUser),
+		"-e", fmt.Sprintf("SERVICED_ZOOKEEPER_ACL_PASSWD=%s", config.GetOptions().ZkAclPasswd),
 	)
 	tz := wrap.Getenv("TZ")
 	if len(tz) > 0 {
