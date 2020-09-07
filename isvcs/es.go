@@ -29,6 +29,7 @@ const (
 	ESRed ESHealth = iota
 	ESYellow
 	ESGreen
+	NODES_HEALTH_CHECK_NAME = "ESNodesHealth"
 )
 
 type ESHealth int
@@ -81,9 +82,16 @@ func initElasticSearch() {
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 
+	nodesHealthCheck := healthCheckDefinition{
+		healthCheck: esNodesHealthCheck(getHostIp(elasticsearch_servicedPortBinding), 9200, ESYellow),
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+
 	healthChecks := []map[string]healthCheckDefinition{
 		{
 			DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+			NODES_HEALTH_CHECK_NAME: nodesHealthCheck,
 		},
 	}
 
@@ -239,6 +247,47 @@ func getESHealth(url string) <-chan esres {
 
 	}()
 	return esresC
+}
+
+
+func esNodesHealthCheck(host string, port int, minHealth ESHealth) HealthCheckFunction {
+	return func(cancel <-chan struct{}) error {
+		url := fmt.Sprintf("http://%s:%d/_cluster/health", host, port)
+		log := log.WithFields(logrus.Fields{
+			"url":       url,
+			"minhealth": minHealth,
+		})
+		var r esres
+		for {
+			select {
+			case r = <-getESHealth(url):
+				if r.err != nil {
+					log.WithError(r.err).Debugf("Unable to check Elastic health: %s", r.err)
+					break
+				}
+				if status := GetHealth(r.response["status"].(string)); status < minHealth {
+					log.WithFields(logrus.Fields{
+						"reported":              r.response["status"],
+						"cluster_name":          r.response["cluster_name"],
+						"timed_out":             r.response["timed_out"],
+						"number_of_nodes":       r.response["number_of_nodes"],
+						"number_of_data_nodes":  r.response["number_of_data_nodes"],
+						"active_primary_shards": r.response["active_primary_shards"],
+						"active_shards":         r.response["active_shards"],
+						"relocating_shards":     r.response["relocating_shards"],
+						"initializing_shards":   r.response["initializing_shards"],
+						"unassigned_shards":     r.response["unassigned_shards"],
+					}).Warn("Elastic health reported below minimum")
+					break
+				}
+				return nil
+			case <-cancel:
+				log.Debug("Canceled health check for Elastic")
+				return nil
+			}
+			time.Sleep(time.Second)
+		}
+	}
 }
 
 func esHealthCheck(host string, port int, minHealth ESHealth) HealthCheckFunction {
