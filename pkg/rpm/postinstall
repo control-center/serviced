@@ -27,3 +27,5 @@ if ! (python -c "import sys; sys.exit(0 if \"${LIBDEVMAPPER}\".endswith('.1') el
     [ -f "${LIBDEVMAPPER}.1" -o -h "${LIBDEVMAPPER}.1" ] || ln -sf ${LIBDEVMAPPER} ${LIBDEVMAPPER}.1
     ldconfig
 fi
+echo vm.max_map_count=262144 >> /etc/sysctl.conf
+sysctl --system

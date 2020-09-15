@@ -28,12 +28,12 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/logfilter"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/domain/logfilter"
 )
 
-// A generic ControlPlane error
+// ControlPlaneError is a generic ControlPlane error
 type ControlPlaneError struct {
 	Msg string
 }
@@ -43,9 +43,10 @@ func (s ControlPlaneError) Error() string {
 	return s.Msg
 }
 
-// An request for a control center object.
+// EntityRequest is a request for a control center object.
 type EntityRequest interface{}
 
+// ServiceRequest identifies a service plus some query parameters.
 type ServiceRequest struct {
 	Tags         []string
 	TenantID     string
@@ -53,30 +54,35 @@ type ServiceRequest struct {
 	NameRegex    string
 }
 
+// ServiceCloneRequest specifies a service to clone and how to modify the clone's name.
 type ServiceCloneRequest struct {
 	ServiceID string
 	Suffix    string
 }
 
+// ServiceMigrationRequest is request to modify one or more services.
 type ServiceMigrationRequest struct {
-	ServiceID string				// The tenant service ID
-	Modified  []*service.Service			// Services modified by the migration
-	Added     []*service.Service			// Services added by the migration
-	Deploy    []*ServiceDeploymentRequest		// A services to be deployed by the migration
-	LogFilters map[string]logfilter.LogFilter	// LogFilters to add/replace
+	ServiceID  string                         // The tenant service ID
+	Modified   []*service.Service             // Services modified by the migration
+	Added      []*service.Service             // Services added by the migration
+	Deploy     []*ServiceDeploymentRequest    // ServiceDefinitions to be deployed by the migration
+	LogFilters map[string]logfilter.LogFilter // LogFilters to add/replace
 }
 
+// ServiceStateRequest specifies a request for a service's service state.
 type ServiceStateRequest struct {
 	ServiceID      string
 	ServiceStateID string
 }
 
+// ScheduleServiceRequest specifies a request to schedule a service to run.
 type ScheduleServiceRequest struct {
 	ServiceIDs  []string
 	AutoLaunch  bool
 	Synchronous bool
 }
 
+// WaitServiceRequest is a request to wait for a set of services to gain the requested status.
 type WaitServiceRequest struct {
 	ServiceIDs   []string             // List of service IDs to monitor
 	DesiredState service.DesiredState // State which to monitor for
@@ -84,22 +90,26 @@ type WaitServiceRequest struct {
 	Recursive    bool                 // Recursively wait for the desired state
 }
 
+// HostServiceRequest is a request for the service state of a host.
 type HostServiceRequest struct {
 	HostID         string
 	ServiceStateID string
 }
 
+// AttachRequest is a request to run a command in the container of a running service.
 type AttachRequest struct {
 	Running *RunningService
 	Command string
 	Args    []string
 }
 
+// FindChildRequest is a request to locate a service's child by name.
 type FindChildRequest struct {
 	ServiceID string
 	ChildName string
 }
 
+// SnapshotRequest is a request to create a snapshot.
 type SnapshotRequest struct {
 	ServiceID            string
 	Message              string
@@ -108,21 +118,25 @@ type SnapshotRequest struct {
 	SnapshotSpacePercent int
 }
 
+// TagSnapshotRequest is a request to add a tag (label) to the specified snapshot.
 type TagSnapshotRequest struct {
 	SnapshotID string
 	TagName    string
 }
 
+// SnapshotByTagRequest is request for the snapshot idenfified by the tag name.
 type SnapshotByTagRequest struct {
 	ServiceID string
 	TagName   string
 }
 
+// RollbackRequest is a request to apply a snapshot to the current system.
 type RollbackRequest struct {
 	SnapshotID   string
 	ForceRestart bool
 }
 
+// MetricRequest is a request for the metrics of the instances of a service.
 type MetricRequest struct {
 	StartTime time.Time
 	HostID    string
@@ -137,34 +151,34 @@ type ControlPlane interface {
 	// Service CRUD
 
 	// Add a new service
-	AddService(svc service.Service, serviceId *string) error
+	AddService(svc service.Service, serviceID *string) error
 
 	// Clones a new service
-	CloneService(request ServiceCloneRequest, serviceId *string) error
+	CloneService(request ServiceCloneRequest, serviceID *string) error
 
 	// Deploy a new service
-	DeployService(svc ServiceDeploymentRequest, serviceId *string) error
+	DeployService(svc ServiceDeploymentRequest, serviceID *string) error
 
 	// Update an existing service
-	UpdateService(svc service.Service, unused *int) error
+	UpdateService(svc service.Service, _ *int) error
 
 	// Migrate a service definition
-	MigrateServices(request ServiceMigrationRequest, unused *int) error
+	MigrateServices(request ServiceMigrationRequest, _ *int) error
 
 	// Remove a service definition
-	RemoveService(serviceId string, unused *int) error
+	RemoveService(serviceID string, _ *int) error
 
 	// Get a service from serviced
-	GetService(serviceId string, svc *service.Service) error
+	GetService(serviceID string, svc *service.Service) error
 
 	// Find a child service with the given name
 	FindChildService(request FindChildRequest, svc *service.Service) error
 
 	// Assign IP addresses to all services at and below the provided service
-	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) (err error)
+	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, _ *int) (err error)
 
 	// Get a list of tenant IDs
-	GetTenantIDs(unused struct{}, tenantIDs *[]string) error
+	GetTenantIDs(_ struct{}, tenantIDs *[]string) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
@@ -185,16 +199,16 @@ type ControlPlane interface {
 	PauseService(request ScheduleServiceRequest, affected *int) error
 
 	// Stop a running instance of a service
-	StopRunningInstance(request HostServiceRequest, unused *int) error
+	StopRunningInstance(request HostServiceRequest, _ *int) error
 
 	// Wait for a particular service state
-	WaitService(request WaitServiceRequest, unused *int) error
+	WaitService(request WaitServiceRequest, _ *int) error
 
 	// Computes the status of the service based on its service instances
 	GetServiceStatus(serviceID string, status *[]service.Instance) error
 
 	// Get logs for the given app
-	GetServiceLogs(serviceId string, logs *string) error
+	GetServiceLogs(serviceID string, logs *string) error
 
 	// Get logs for the given app
 	GetServiceStateLogs(request ServiceStateRequest, logs *string) error
@@ -203,13 +217,13 @@ type ControlPlane interface {
 	GetRunningServices(request EntityRequest, runningServices *[]RunningService) error
 
 	// Get the services instances for a given service
-	GetRunningServicesForHost(hostId string, runningServices *[]RunningService) error
+	GetRunningServicesForHost(hostID string, runningServices *[]RunningService) error
 
 	// Get the service instances for a given service
-	GetRunningServicesForService(serviceId string, runningServices *[]RunningService) error
+	GetRunningServicesForService(serviceID string, runningServices *[]RunningService) error
 
 	// Attach to a running container with a predefined action
-	Action(request AttachRequest, unused *int) error
+	Action(request AttachRequest, _ *int) error
 
 	// ------------------------------------------------------------------------
 	// Metrics
@@ -237,13 +251,13 @@ type ControlPlane interface {
 	AsyncBackup(backupRequest BackupRequest, filename *string) (err error)
 
 	// Restore reverts the full application stack from a backup file
-	Restore(restoreRequest RestoreRequest, unused *int) (err error)
+	Restore(restoreRequest RestoreRequest, _ *int) (err error)
 
 	// AsyncRestore is the same as restore but asynchronous
-	AsyncRestore(restoreRequest RestoreRequest, unused *int) (err error)
+	AsyncRestore(restoreRequest RestoreRequest, _ *int) (err error)
 
 	// Adds 1 or more tags to an existing snapshot
-	TagSnapshot(request TagSnapshotRequest, unused *int) error
+	TagSnapshot(request TagSnapshotRequest, _ *int) error
 
 	// Removes a specific tag from an existing snapshot
 	RemoveSnapshotTag(request SnapshotByTagRequest, snapshotID *string) error
@@ -255,31 +269,31 @@ type ControlPlane interface {
 	ListBackups(dirpath string, files *[]BackupFile) (err error)
 
 	// BackupStatus returns the current status of a running backup or restore
-	BackupStatus(unused EntityRequest, status *string) (err error)
+	BackupStatus(_ EntityRequest, status *string) (err error)
 
 	// Snapshot captures the state of a single application
 	Snapshot(req SnapshotRequest, snapshotID *string) (err error)
 
 	// Rollback reverts a single application to the state of a snapshot
-	Rollback(req RollbackRequest, unused *int) (err error)
+	Rollback(req RollbackRequest, _ *int) (err error)
 
 	// DeleteSnapshot deletes a single snapshot
-	DeleteSnapshot(snapshotID string, unused *int) (err error)
+	DeleteSnapshot(snapshotID string, _ *int) (err error)
 
 	// DeleteSnapshots deletes all snapshots for a service
-	DeleteSnapshots(serviceID string, unused *int) (err error)
+	DeleteSnapshots(serviceID string, _ *int) (err error)
 
 	// ListSnapshots returns a list of all snapshots for a service
 	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) (err error)
 
 	// ResetRegistry prompts all images to be re-pushed into the docker
 	// registry.
-	ResetRegistry(unused EntityRequest, unused_ *int) (err error)
+	ResetRegistry(_ EntityRequest, _ *int) (err error)
 
 	// RepairRegistry will try to recover the latest image of all service
 	// images from the docker registry and save it to the index.
-	RepairRegistry(unused EntityRequest, unused_ *int) (err error)
+	RepairRegistry(_ EntityRequest, _ *int) (err error)
 
 	// ReadyDFS waits for the DFS to be idle when creating a service shell.
-	ReadyDFS(serviceID string, unused *int) (err error)
+	ReadyDFS(serviceID string, _ *int) (err error)
 }

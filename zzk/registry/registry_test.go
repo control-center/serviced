@@ -107,7 +107,7 @@ func (t *ZZKTest) TestSyncRegistry_ForVHosts(c *C) {
 		ServiceID:   "serviceid1",
 	}
 	request := ServiceRegistrySyncRequest{
-		ServiceID:      "serviceid1",
+		ServiceID:       "serviceid1",
 		VHostsToPublish: map[VHostKey]VHost{vhostKey: vhost},
 	}
 

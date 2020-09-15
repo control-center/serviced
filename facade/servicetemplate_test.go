@@ -34,17 +34,17 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(c *C) {
 	defer glog.V(0).Infof("TestFacadeServiceTemplate finished")
 
 	var (
-		e error
-		templateId string
+		e             error
+		templateId    string
 		newTemplateId string
-		templates  map[string]servicetemplate.ServiceTemplate
+		templates     map[string]servicetemplate.ServiceTemplate
 	)
 
 	// Clean up old templates...
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
 	c.Assert(e, IsNil)
 	for id, _ := range templates {
-		e := ft.Facade.RemoveServiceTemplate(ft.CTX, id);
+		e := ft.Facade.RemoveServiceTemplate(ft.CTX, id)
 		c.Assert(e, IsNil)
 	}
 
@@ -101,7 +101,7 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(c *C) {
 
 func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(c *C) {
 	testService := service.Service{
-		ID: "TestFacadeValidServiceForStart_ServiceID",
+		ID:     "TestFacadeValidServiceForStart_ServiceID",
 		PoolID: "default",
 		Endpoints: []service.ServiceEndpoint{
 			service.BuildServiceEndpoint(
@@ -126,7 +126,7 @@ func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(c *C) {
 
 func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(c *C) {
 	testService := service.Service{
-		ID: "TestFacadeInvalidServiceForStart_ServiceID",
+		ID:     "TestFacadeInvalidServiceForStart_ServiceID",
 		PoolID: "default",
 		Endpoints: []service.ServiceEndpoint{
 			service.BuildServiceEndpoint(
@@ -155,10 +155,10 @@ func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(c *C) {
 
 func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate_WithLogFilters(c *C) {
 	var (
-		err error
-		ok bool
+		err        error
+		ok         bool
 		templateId string
-		logFilter *logfilter.LogFilter
+		logFilter  *logfilter.LogFilter
 	)
 
 	template := servicetemplate.ServiceTemplate{
@@ -167,8 +167,8 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate_WithLogFilters(c *C) 
 		Description: "test template1",
 		Version:     "1.0",
 		Services: []servicedefinition.ServiceDefinition{
-			servicedefinition.ServiceDefinition {
-				Name: "service1",
+			servicedefinition.ServiceDefinition{
+				Name:   "service1",
 				Launch: "manual",
 				LogFilters: map[string]string{
 					"filter1": "original filter",
@@ -217,20 +217,20 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate_WithLogFilters(c *C) 
 	ft.verifyLogFilters(c, "2.0")
 
 	// Verify that the filters remain after the template is removed
-	logFilter, err2 := ft.Facade.logFilterStore.Get(ft.CTX,  "filter1", "1.0")
+	logFilter, err2 := ft.Facade.logFilterStore.Get(ft.CTX, "filter1", "1.0")
 	c.Assert(err2, IsNil)
 	c.Assert(logFilter, NotNil)
 
-	logFilter, err2 = ft.Facade.logFilterStore.Get(ft.CTX,  "filter2", "1.0")
+	logFilter, err2 = ft.Facade.logFilterStore.Get(ft.CTX, "filter2", "1.0")
 	c.Assert(err2, IsNil)
 	c.Assert(logFilter, NotNil)
 }
 
 func (ft *FacadeIntegrationTest) verifyLogFilters(c *C, version string) {
 
-	name1   := "filter1"
+	name1 := "filter1"
 	filter1 := "updated filter"
-	name2   := "filter2"
+	name2 := "filter2"
 	filter2 := "second filter"
 	if version == "2.0" {
 		filter1 = "filter1 v2"
@@ -251,4 +251,3 @@ func (ft *FacadeIntegrationTest) verifyLogFilters(c *C, version string) {
 	c.Assert(logFilter.Version, Equals, version)
 	c.Assert(logFilter.Filter, Equals, filter2)
 }
-

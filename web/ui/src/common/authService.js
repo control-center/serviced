@@ -92,7 +92,7 @@
                         return;
                     }
                 }
-                utils.unauthorized($location);
+                utils.unauthorized($scope, $location);
             }
         };
     }]).config(config);

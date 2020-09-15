@@ -123,7 +123,7 @@ done
 						Type:              "",
 					},
 				},
-				StartLevel:    0,
+				StartLevel:             0,
 				EmergencyShutdownLevel: 0,
 			},
 			ServiceDefinition{
@@ -158,7 +158,7 @@ done
 					Pause:  "echo pause",
 					Resume: "echo resume",
 				},
-				StartLevel:    123,
+				StartLevel:             123,
 				EmergencyShutdownLevel: 321,
 			},
 		},

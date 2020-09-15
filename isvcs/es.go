@@ -18,7 +18,6 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/zenoss/elastigo/cluster"
 
 	"encoding/json"
 	"fmt"
@@ -71,21 +70,20 @@ func initElasticSearch() {
 
 	serviceName = "elasticsearch-serviced"
 
-        elasticsearch_servicedPortBinding := portBinding{
-                HostIp:         "127.0.0.1",
-                HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
-                HostPort:       9200,
-        }
-
+	elasticsearch_servicedPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
+		HostPort:       9200,
+	}
 
 	defaultHealthCheck := healthCheckDefinition{
-		healthCheck: esHealthCheck(getHostIp(elasticsearch_servicedPortBinding) , 9200, ESYellow),
+		healthCheck: esHealthCheck(getHostIp(elasticsearch_servicedPortBinding), 9200, ESYellow),
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 
 	healthChecks := []map[string]healthCheckDefinition{
-		map[string]healthCheckDefinition{
+		{
 			DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 		},
 	}
@@ -113,24 +111,27 @@ func initElasticSearch() {
 	elasticsearch_serviced.Command = func() string {
 		clusterArg := ""
 		if clusterName, ok := elasticsearch_serviced.Configuration["cluster"]; ok {
-			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
+			clusterArg = fmt.Sprintf(`-Ecluster.name="%s" `, clusterName)
 		}
-		return fmt.Sprintf(`exec /opt/elasticsearch-serviced/bin/elasticsearch -f -Des.node.name=%s %s`, elasticsearch_serviced.Name, clusterArg)
+		cmd := fmt.Sprintf(`su elastic -c 'exec /opt/elasticsearch-serviced/bin/elasticsearch -Ecluster.initial_master_nodes="%s" -Enode.name="%s" %s'`,
+			elasticsearch_serviced.Name, elasticsearch_serviced.Name, clusterArg)
+		log.Infof("Build the command for running es-serviced: %s", cmd)
+		return cmd
 	}
 
 	serviceName = "elasticsearch-logstash"
 
-        elasticsearch_logstashPortBinding := portBinding{
-                HostIp:         "127.0.0.1",
-                HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",
-                HostPort:       9100,
-        }
+	elasticsearch_logstashPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",
+		HostPort:       9100,
+	}
 
 	logStashHealthCheck := defaultHealthCheck
-	logStashHealthCheck.healthCheck = esHealthCheck(getHostIp(elasticsearch_logstashPortBinding) , 9100, ESYellow)
+	logStashHealthCheck.healthCheck = esHealthCheck(getHostIp(elasticsearch_logstashPortBinding), 9100, ESYellow)
 
 	healthChecks = []map[string]healthCheckDefinition{
-		map[string]healthCheckDefinition{
+		{
 			DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
 		},
 	}
@@ -192,7 +193,7 @@ func recoverES(path string) error {
 
 type esres struct {
 	url      string
-	response *cluster.ClusterHealthResponse
+	response map[string]interface{}
 	err      error
 }
 
@@ -232,12 +233,13 @@ func getESHealth(url string) <-chan esres {
 			esresC <- esres{url, nil, fmt.Errorf("received %d status code", resp.StatusCode)}
 			return
 		}
-		var health cluster.ClusterHealthResponse
+
+		var health map[string]interface{}
 		if err := json.NewDecoder(resp.Body).Decode(&health); err != nil {
 			esresC <- esres{url, nil, err}
 			return
 		}
-		esresC <- esres{url, &health, nil}
+		esresC <- esres{url, health, nil}
 
 	}()
 	return esresC
@@ -255,21 +257,21 @@ func esHealthCheck(host string, port int, minHealth ESHealth) HealthCheckFunctio
 			select {
 			case r = <-getESHealth(url):
 				if r.err != nil {
-					log.WithError(r.err).Debug("Unable to check Elastic health")
+					log.WithError(r.err).Debugf("Unable to check Elastic health: %s", r.err)
 					break
 				}
-				if status := GetHealth(r.response.Status); status < minHealth {
+				if status := GetHealth(r.response["status"].(string)); status < minHealth {
 					log.WithFields(logrus.Fields{
-						"reported": r.response.Status,
-						"cluster_name": r.response.ClusterName,
-						"timed_out": r.response.TimedOut,
-						"number_of_nodes": r.response.NumberOfNodes,
-						"number_of_data_nodes": r.response.NumberOfDataNodes,
-						"active_primary_shards": r.response.ActivePrimaryShards,
-						"active_shards": r.response.ActiveShards,
-						"relocating_shards": r.response.RelocatingShards,
-						"initializing_shards": r.response.InitializingShards,
-						"unassigned_shards": r.response.UnassignedShards,
+						"reported":              r.response["status"],
+						"cluster_name":          r.response["cluster_name"],
+						"timed_out":             r.response["timed_out"],
+						"number_of_nodes":       r.response["number_of_nodes"],
+						"number_of_data_nodes":  r.response["number_of_data_nodes"],
+						"active_primary_shards": r.response["active_primary_shards"],
+						"active_shards":         r.response["active_shards"],
+						"relocating_shards":     r.response["relocating_shards"],
+						"initializing_shards":   r.response["initializing_shards"],
+						"unassigned_shards":     r.response["unassigned_shards"],
 					}).Warn("Elastic health reported below minimum")
 					break
 				}

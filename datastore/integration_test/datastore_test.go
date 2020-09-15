@@ -18,8 +18,6 @@ package integration_test
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
-	"github.com/zenoss/elastigo/search"
-
 	. "gopkg.in/check.v1"
 
 	"reflect"
@@ -103,7 +101,7 @@ func (s *S) TestVersionConflict(t *C) {
 	if err != nil {
 		t.Fatalf("Unexpected: %v", err)
 	}
-	if storedtweet.DatabaseVersion != 1 {
+	if storedtweet.IfPrimaryTerm != 1 {
 		t.Fatalf("Version was not incremented")
 	}
 
@@ -116,7 +114,7 @@ func (s *S) TestVersionConflict(t *C) {
 
 	// Make a new tweet with a 1 version, which should conflict (since version
 	// in the database is now 2)
-	tweet.DatabaseVersion = 1
+	tweet.IfPrimaryTerm = 1
 	err = ds.Put(ctx, key, &tweet)
 	if err == nil {
 		t.Errorf("Did not get a conflict")
@@ -143,9 +141,20 @@ func (s *S) TestQuery(t *C) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
-
-	query := search.Query().Search("_exists_:State")
-	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "State"}},
+					{"term": map[string]string{"type": "tweet"}},
+				},
+			},
+		},
+	}
+	testSearch, err := elastic.BuildSearchRequest(query, "twitter")
+	if err != nil {
+		t.Errorf("Error encoding query: %s", err)
+	}
 
 	q := datastore.NewQuery(ctx)
 	msgs, err := q.Execute(testSearch)
@@ -157,9 +166,21 @@ func (s *S) TestQuery(t *C) {
 		t.Errorf("Expected 2 msgs, got  %v", msgs.Len())
 	}
 
-	//query for non-existant entity
-	query = search.Query().Search("_exists_:blam")
-	testSearch = search.Search("twitter").Type("tweet").Size("10000").Query(query)
+	query = map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "blam"}},
+					{"term": map[string]string{"type": "tweet"}},
+				},
+			},
+		},
+	}
+
+	testSearch, err = elastic.BuildSearchRequest(query, "twitter")
+	if err != nil {
+		t.Errorf("Error encoding query: %s", err)
+	}
 
 	q = datastore.NewQuery(ctx)
 	msgs, err = q.Execute(testSearch)

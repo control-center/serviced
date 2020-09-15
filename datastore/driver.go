@@ -13,6 +13,8 @@
 
 package datastore
 
+import "github.com/elastic/go-elasticsearch/v7/esapi"
+
 // Driver is the interface for a driver to a datastore
 type Driver interface {
 	// GetConnection returns a connection to the datastore.
@@ -32,5 +34,5 @@ type Connection interface {
 	Delete(key Key) error
 
 	// Query evaluates the query and returns a list of entities form the datastore
-	Query(query interface{}) ([]JSONMessage, error)
+	Query(query esapi.SearchRequest) ([]JSONMessage, error)
 }

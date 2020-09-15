@@ -37,7 +37,9 @@ type DockerAPITest struct {
 }
 
 func InitDockerAPITest(args ...string) {
-	New(DefaultDockerAPITest, utils.TestConfigReader{}, MockLogControl{}).Run(args)
+	c := New(DefaultDockerAPITest, utils.TestConfigReader{}, MockLogControl{})
+	c.exitDisabled = true
+	c.Run(args)
 }
 
 func (t DockerAPITest) DockerOverride(newImage, oldImage string) error {

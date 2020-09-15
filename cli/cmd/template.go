@@ -156,10 +156,13 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 		templateID := ctx.Args()[0]
 		if template, err := c.driver.GetServiceTemplate(templateID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 		} else if template == nil {
 			fmt.Fprintln(os.Stderr, "template not found")
+			c.exit(1)
 		} else if jsonTemplate, err := json.MarshalIndent(template, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal template: %s\n", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonTemplate))
 		}
@@ -169,6 +172,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	templates, err := c.driver.GetServiceTemplates()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	} else if templates == nil || len(templates) == 0 {
 		fmt.Fprintln(os.Stderr, "no templates found")
@@ -178,6 +182,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 	if ctx.Bool("verbose") {
 		if jsonTemplate, err := json.MarshalIndent(templates, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal template list: %s\n", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonTemplate))
 		}
@@ -203,6 +208,7 @@ func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 		var err error
 		if input, err = os.Open(filepath); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
 			return
 		}
 		defer input.Close()
@@ -212,8 +218,10 @@ func (c *ServicedCli) cmdTemplateAdd(ctx *cli.Context) {
 
 	if template, err := c.driver.AddServiceTemplate(input); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if template == nil {
 		fmt.Fprintln(os.Stderr, "received nil template")
+		c.exit(1)
 	} else {
 		fmt.Println(template.ID)
 	}
@@ -231,6 +239,7 @@ func (c *ServicedCli) cmdTemplateRemove(ctx *cli.Context) {
 	for _, id := range args {
 		if err := c.driver.RemoveServiceTemplate(id); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+			c.exit(1)
 		} else {
 			fmt.Println(id)
 		}
@@ -256,8 +265,10 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 	fmt.Fprintln(os.Stderr, "Deploying template - please wait...")
 	if svcs, err := c.driver.DeployServiceTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if svcs == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
+		c.exit(1)
 	} else {
 		for _, svc := range svcs {
 			fmt.Println(svc.ID)
@@ -287,8 +298,10 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 
 	if template, err := c.driver.CompileServiceTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if template == nil {
 		fmt.Fprintln(os.Stderr, "received nil template")
+		c.exit(1)
 	} else {
 		cmd := fmt.Sprintf("cd %s && git rev-parse HEAD", args[0])
 		commit, err := exec.Command("sh", "-c", cmd).Output()
@@ -320,6 +333,7 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 		jsonTemplate, err := json.MarshalIndent(mTemplate, " ", "  ")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal template: %s\n", err)
+			c.exit(1)
 		} else {
 			fmt.Println(string(jsonTemplate))
 		}

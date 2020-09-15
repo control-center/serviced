@@ -24,17 +24,17 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/servicedefinition"
+	svcdef "github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 )
 
-// Desired states of services.
+// DesiredState is the desired state of a service.
 type DesiredState int
 
 var protocolPrefixRegex = regexp.MustCompile("^(.+://)")
 
+// ToAuditAction returns the audit name of a DesiredState value.
 func (state DesiredState) ToAuditAction() string {
 	switch state {
 	case SVCRestart:
@@ -50,6 +50,7 @@ func (state DesiredState) ToAuditAction() string {
 	}
 }
 
+// String returns the text representation of a DesiredState value.
 func (state DesiredState) String() string {
 	switch state {
 	case SVCRestart:
@@ -66,34 +67,71 @@ func (state DesiredState) String() string {
 }
 
 const (
+	// SVCRestart is the 'restart' DesiredState value.
 	SVCRestart = DesiredState(-1)
-	SVCStop    = DesiredState(0)
-	SVCRun     = DesiredState(1)
-	SVCPause   = DesiredState(2)
+
+	// SVCStop is the 'stop' DesiredState value.
+	SVCStop = DesiredState(0)
+
+	// SVCRun is the 'run' DesiredState value.
+	SVCRun = DesiredState(1)
+
+	// SVCPause is the 'pause' DesiredState value.
+	SVCPause = DesiredState(2)
 )
 
+// ServiceCurrentState is the current state of a service.
 type ServiceCurrentState string
 
 const (
-	SVCCSUnknown              = ServiceCurrentState("unknown")
-	SVCCSStopped              = ServiceCurrentState("stopped")
-	SVCCSPendingStart         = ServiceCurrentState("pending_start")
-	SVCCSStarting             = ServiceCurrentState("starting")
-	SVCCSRunning              = ServiceCurrentState("started")
-	SVCCSPendingRestart       = ServiceCurrentState("pending_restart")
-	SVCCSRestarting           = ServiceCurrentState("restarting")
-	SVCCSPendingStop          = ServiceCurrentState("pending_stop")
-	SVCCSStopping             = ServiceCurrentState("stopping")
-	SVCCSPendingPause         = ServiceCurrentState("pending_pause")
-	SVCCSPausing              = ServiceCurrentState("pausing")
-	SVCCSPaused               = ServiceCurrentState("paused")
+	// SVCCSUnknown is the 'unknown' current state.
+	SVCCSUnknown = ServiceCurrentState("unknown")
+
+	// SVCCSStopped is the 'stopped' current state.
+	SVCCSStopped = ServiceCurrentState("stopped")
+
+	// SVCCSPendingStart is the 'pending start' current state.
+	SVCCSPendingStart = ServiceCurrentState("pending_start")
+
+	// SVCCSStarting is the 'starting' current state.
+	SVCCSStarting = ServiceCurrentState("starting")
+
+	// SVCCSRunning is the 'started' current state.
+	SVCCSRunning = ServiceCurrentState("started")
+
+	// SVCCSPendingRestart is the 'pending restart' current state.
+	SVCCSPendingRestart = ServiceCurrentState("pending_restart")
+
+	// SVCCSRestarting is the 'restarting' current state.
+	SVCCSRestarting = ServiceCurrentState("restarting")
+
+	// SVCCSPendingStop is the 'pending stop' current state.
+	SVCCSPendingStop = ServiceCurrentState("pending_stop")
+
+	// SVCCSStopping is the 'stopping' current state.
+	SVCCSStopping = ServiceCurrentState("stopping")
+
+	// SVCCSPendingPause is the 'pending pause' current state.
+	SVCCSPendingPause = ServiceCurrentState("pending_pause")
+
+	// SVCCSPausing is the 'pausing' current state.
+	SVCCSPausing = ServiceCurrentState("pausing")
+
+	// SVCCSPaused is the 'paused' current state.
+	SVCCSPaused = ServiceCurrentState("paused")
+
+	// SVCCSPendingEmergencyStop is the 'pending emergency stop' current state.
 	SVCCSPendingEmergencyStop = ServiceCurrentState("pending_emergency_stop")
-	SVCCSEmergencyStopping    = ServiceCurrentState("emergency_stopping")
-	SVCCSEmergencyStopped     = ServiceCurrentState("emergency_stopped")
+
+	// SVCCSEmergencyStopping is the 'emergency stopping' current state.
+	SVCCSEmergencyStopping = ServiceCurrentState("emergency_stopping")
+
+	// SVCCSEmergencyStopped is the 'emergency stopped' current state.
+	SVCCSEmergencyStopped = ServiceCurrentState("emergency_stopped")
 )
 
-func (state ServiceCurrentState) Validate() error {
-	serviceCurrentStates := map[ServiceCurrentState]struct{}{
+var (
+	serviceCurrentStates = map[ServiceCurrentState]struct{}{
 		SVCCSUnknown:              struct{}{},
 		SVCCSStopped:              struct{}{},
 		SVCCSPendingStart:         struct{}{},
@@ -110,14 +148,17 @@ func (state ServiceCurrentState) Validate() error {
 		SVCCSEmergencyStopping:    struct{}{},
 		SVCCSEmergencyStopped:     struct{}{},
 	}
+)
 
+// Validate verifies that a ServiceCurrentState has a valid value.
+func (state ServiceCurrentState) Validate() error {
 	if _, ok := serviceCurrentStates[state]; !ok {
 		return errors.New("invalid current state")
 	}
-
 	return nil
 }
 
+// DesiredToCurrentPendingState converts a DesiredState value to a ServiceCurrentState 'pending' value.
 func DesiredToCurrentPendingState(state DesiredState, emergency bool) ServiceCurrentState {
 	switch state {
 	case SVCRestart:
@@ -125,9 +166,8 @@ func DesiredToCurrentPendingState(state DesiredState, emergency bool) ServiceCur
 	case SVCStop:
 		if emergency {
 			return SVCCSPendingEmergencyStop
-		} else {
-			return SVCCSPendingStop
 		}
+		return SVCCSPendingStop
 	case SVCRun:
 		return SVCCSPendingStart
 	case SVCPause:
@@ -137,6 +177,7 @@ func DesiredToCurrentPendingState(state DesiredState, emergency bool) ServiceCur
 	}
 }
 
+// DesiredToCurrentTransitionState converts a DesiredState value to a ServiceCurrentState 'transition' value.
 func DesiredToCurrentTransitionState(state DesiredState, emergency bool) ServiceCurrentState {
 	switch state {
 	case SVCRestart:
@@ -144,9 +185,8 @@ func DesiredToCurrentTransitionState(state DesiredState, emergency bool) Service
 	case SVCStop:
 		if emergency {
 			return SVCCSEmergencyStopping
-		} else {
-			return SVCCSStopping
 		}
+		return SVCCSStopping
 	case SVCRun:
 		return SVCCSStarting
 	case SVCPause:
@@ -156,6 +196,7 @@ func DesiredToCurrentTransitionState(state DesiredState, emergency bool) Service
 	}
 }
 
+// DesiredToCurrentFinalState converts a DesiredState value to a ServiceCurrentState 'final' value.
 func DesiredToCurrentFinalState(state DesiredState, emergency bool) ServiceCurrentState {
 	switch state {
 	case SVCRestart:
@@ -163,9 +204,8 @@ func DesiredToCurrentFinalState(state DesiredState, emergency bool) ServiceCurre
 	case SVCStop:
 		if emergency {
 			return SVCCSEmergencyStopped
-		} else {
-			return SVCCSStopped
 		}
+		return SVCCSStopped
 	case SVCRun:
 		return SVCCSRunning
 	case SVCPause:
@@ -175,7 +215,7 @@ func DesiredToCurrentFinalState(state DesiredState, emergency bool) ServiceCurre
 	}
 }
 
-// Determines whether the desiredState acts as a "cancel" to a pending state.
+// DesiredCancelsPending returns true if the desired state acts as a "cancel" to a pending current state.
 func DesiredCancelsPending(pendingState ServiceCurrentState, desiredState DesiredState) bool {
 	switch pendingState {
 	case SVCCSPendingStart, SVCCSPendingRestart:
@@ -186,7 +226,7 @@ func DesiredCancelsPending(pendingState ServiceCurrentState, desiredState Desire
 	return false
 }
 
-// Determines whether setting the desired state would be unnecessary
+// DesiredStateIsRedundant returns true if setting the desired state would be unnecessary.
 func DesiredStateIsRedundant(desiredState DesiredState, emergency bool, currentState ServiceCurrentState) bool {
 	switch desiredState {
 	case SVCRun:
@@ -196,9 +236,8 @@ func DesiredStateIsRedundant(desiredState DesiredState, emergency bool, currentS
 	case SVCStop:
 		if emergency {
 			return currentState == SVCCSEmergencyStopped || currentState == SVCCSEmergencyStopping || currentState == SVCCSPendingEmergencyStop
-		} else {
-			return currentState == SVCCSStopped || currentState == SVCCSStopping || currentState == SVCCSPendingStop
 		}
+		return currentState == SVCCSStopped || currentState == SVCCSStopping || currentState == SVCCSPendingStop
 	case SVCPause:
 		return currentState == SVCCSPaused || currentState == SVCCSPausing || currentState == SVCCSPendingPause
 	}
@@ -206,61 +245,67 @@ func DesiredStateIsRedundant(desiredState DesiredState, emergency bool, currentS
 	return false
 }
 
-// Service A Service that can run in serviced.
+// Service is a service that can run in serviced.
+// A Service is created when a ServiceDefinition is deployed.
 type Service struct {
-	ID                string
-	Name              string
-	Title             string // Title is a label used when describing this service in the context of a service tree
-	Version           string
-	Context           map[string]interface{}
-	Environment       []string
-	Startup           string
-	RunAs             string
-	Description       string
-	Tags              []string
-	OriginalConfigs   map[string]servicedefinition.ConfigFile
-	ConfigFiles       map[string]servicedefinition.ConfigFile
-	Instances         int
-	InstanceLimits    domain.MinMax
-	ChangeOptions     []servicedefinition.ChangeOption
-	ImageID           string
-	PoolID            string
-	DesiredState      int
-	CurrentState      string
-	HostPolicy        servicedefinition.HostPolicy
-	Hostname          string
-	Privileged        bool
-	Launch            string
-	Endpoints         []ServiceEndpoint
-	ParentServiceID   string
-	Volumes           []servicedefinition.Volume
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	DeploymentID      string
-	DisableImage      bool
-	LogConfigs        []servicedefinition.LogConfig
-	Snapshot          servicedefinition.SnapshotCommands
-	DisableShell      bool
-	Runs              map[string]string // FIXME: This field is deprecated. Remove when possible.
-	Commands          map[string]domain.Command
-	RAMCommitment     utils.EngNotation
-	RAMThreshold      uint
-	CPUCommitment     uint64
-	Actions           map[string]string
-	HealthChecks      map[string]health.HealthCheck // A health check for the service.
-	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
+	ID              string
+	Name            string
+	Title           string // Title is a label used when describing this service in the context of a service tree
+	Version         string
+	Context         map[string]interface{}
+	Environment     []string
+	Startup         string
+	RunAs           string
+	Description     string
+	Tags            []string
+	OriginalConfigs map[string]svcdef.ConfigFile
+	ConfigFiles     map[string]svcdef.ConfigFile
+	Instances       int
+	InstanceLimits  domain.MinMax
+	ChangeOptions   []svcdef.ChangeOption
+	ImageID         string
+	PoolID          string
+	DesiredState    int
+	CurrentState    string
+	HostPolicy      svcdef.HostPolicy
+	Hostname        string
+	Privileged      bool
+	Launch          string
+	Endpoints       []ServiceEndpoint
+	ParentServiceID string
+	Volumes         []svcdef.Volume
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeploymentID    string
+	DisableImage    bool
+	LogConfigs      []svcdef.LogConfig
+	Snapshot        svcdef.SnapshotCommands
+	DisableShell    bool
+	Runs            map[string]string // FIXME: This field is deprecated. Remove when possible.
+	Commands        map[string]domain.Command
+	RAMCommitment   utils.EngNotation
+	RAMThreshold    uint
+	CPUCommitment   uint64
+	Actions         map[string]string
+	HealthChecks    map[string]health.HealthCheck // A health check for the service.
+
+	// Prereqs is a list of scripts that must run successfully before running the command in the Startup field.
+	Prereqs []domain.Prereq
+
 	MonitoringProfile domain.MonitorProfile
 	MemoryLimit       float64
 	CPUShares         int64
 	OomKillDisable    bool
 	OomScoreAdj       int64
 	PIDFile           string
+
 	// StartLevel represents the order in which services are started and stopped
 	// in normal operations.  All services of a given level start before any services
 	// at higher levels.  Stopping services occurs in the reverse order.  Services
 	// with StartLevel 0 (representing undefined) start after and stop before services
 	// with a defined StartLevel.
 	StartLevel uint
+
 	// EmergencyShutdownLevel represents the order in which services are stopped in an
 	// emergency low-storage situation.  All services of a given EmergencyShutdownLevel are
 	// stopped before any services of a higher EmergencyShutdownLevel.  In an emergency
@@ -268,33 +313,11 @@ type Service struct {
 	// are stopped after services with a defined EmergencyShutdownLevel, in the normal order
 	// dictated by their StartLevel.
 	EmergencyShutdownLevel uint
+
 	// EmergencyShutdown is a flag that indicates whether this service has been shutdown due
 	// to an emergency (low-storage) situation.  Services with this flag set can not be started
 	EmergencyShutdown bool
 	datastore.VersionedEntity
-}
-
-//ServiceEndpoint endpoint exported or imported by a service
-type ServiceEndpoint struct {
-	Name                string // Human readable name of the endpoint. Unique per service definition
-	Purpose             string
-	Protocol            string
-	PortNumber          uint16
-	PortTemplate        string // A template which, if specified, is used to calculate the port number
-	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
-	Application         string
-	ApplicationTemplate string
-	AddressConfig       servicedefinition.AddressResourceConfig
-	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
-	// subdomain, i.e "myapplication"  not "myapplication.host.com"
-	VHostList         []servicedefinition.VHost // VHost is used to request named vhost(s) for this endpoint.
-	AddressAssignment addressassignment.AddressAssignment
-	PortList          []servicedefinition.Port // The list of enabled/disabled ports to assign to this endpoint.
-}
-
-// IsConfigurable returns true if the endpoint is configurable
-func (endpoint ServiceEndpoint) IsConfigurable() bool {
-	return endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol != ""
 }
 
 // NewService Create a new Service.
@@ -319,31 +342,10 @@ func (s *Service) HasEndpointsFor(purpose string) bool {
 	return false
 }
 
-//BuildServiceEndpoint build a ServiceEndpoint from a EndpointDefinition
-func BuildServiceEndpoint(epd servicedefinition.EndpointDefinition) ServiceEndpoint {
-	sep := ServiceEndpoint{}
-	sep.Name = epd.Name
-	sep.Purpose = epd.Purpose
-	sep.Protocol = epd.Protocol
-	sep.PortNumber = epd.PortNumber
-	sep.PortTemplate = epd.PortTemplate
-	sep.VirtualAddress = epd.VirtualAddress
-	sep.Application = epd.Application
-	sep.ApplicationTemplate = epd.ApplicationTemplate
-	sep.AddressConfig = epd.AddressConfig
-	sep.VHosts = epd.VHosts
-	sep.VHostList = epd.VHostList
-	sep.PortList = epd.PortList
-
-	// run public ports through scrubber to allow for "almost correct" port addresses
-	for index, port := range sep.PortList {
-		sep.PortList[index].PortAddr = ScrubPortString(port.PortAddr)
-	}
-	return sep
-}
-
-//BuildService build a service from a ServiceDefinition.
-func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string, poolID string, desiredState int, deploymentID string) (*Service, error) {
+// BuildService build a service from a ServiceDefinition.
+func BuildService(
+	sd svcdef.ServiceDefinition, parentServiceID string, poolID string, desiredState int, deploymentID string,
+) (*Service, error) {
 	svcuuid, err := utils.NewUUID36()
 	if err != nil {
 		return nil, err
@@ -419,7 +421,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	return &svc, nil
 }
 
-//CloneService copies a service and mutates id and names
+// CloneService copies a service and mutates id and names
 func CloneService(fromSvc *Service, suffix string) (*Service, error) {
 	svcuuid, err := utils.NewUUID36()
 	if err != nil {
@@ -541,7 +543,7 @@ func (s *Service) GetServicePorts() []ServiceEndpoint {
 }
 
 // AddVirtualHost Add a virtual host for given service, this method avoids duplicates vhosts
-func (s *Service) AddVirtualHost(application, vhostName string, isEnabled bool) (*servicedefinition.VHost, error) {
+func (s *Service) AddVirtualHost(application, vhostName string, isEnabled bool) (*svcdef.VHost, error) {
 	if s.Endpoints != nil {
 
 		//find the matching endpoint
@@ -550,13 +552,13 @@ func (s *Service) AddVirtualHost(application, vhostName string, isEnabled bool) 
 
 			if ep.Application == application && ep.Purpose == "export" {
 				_vhostName := strings.ToLower(vhostName)
-				vhosts := make([]servicedefinition.VHost, 0)
+				vhosts := make([]svcdef.VHost, 0)
 				for _, vhost := range ep.VHostList {
 					if strings.ToLower(vhost.Name) != _vhostName {
 						vhosts = append(vhosts, vhost)
 					}
 				}
-				vhost := &servicedefinition.VHost{Name: _vhostName, Enabled: isEnabled}
+				vhost := &svcdef.VHost{Name: _vhostName, Enabled: isEnabled}
 				ep.VHostList = append(vhosts, *vhost)
 				return vhost, nil
 			}
@@ -566,8 +568,8 @@ func (s *Service) AddVirtualHost(application, vhostName string, isEnabled bool) 
 	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
-// Returns the matching VHost entry or nil if not found.
-func (s *Service) GetVirtualHost(application, vhostName string) *servicedefinition.VHost {
+// GetVirtualHost returns the matching VHost entry or nil if not found.
+func (s *Service) GetVirtualHost(application, vhostName string) *svcdef.VHost {
 	if s.Endpoints != nil {
 		//find the matching endpoint
 		for i := range s.Endpoints {
@@ -588,7 +590,9 @@ func (s *Service) GetVirtualHost(application, vhostName string) *servicedefiniti
 }
 
 // AddPort Add a port for given service, this method avoids duplicate ports
-func (s *Service) AddPort(application string, portAddr string, usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error) {
+func (s *Service) AddPort(
+	application string, portAddr string, usetls bool, protocol string, isEnabled bool,
+) (*svcdef.Port, error) {
 	portAddr = ScrubPortString(portAddr)
 	if s.Endpoints != nil {
 		//find the matching endpoint
@@ -596,14 +600,14 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 			ep := &s.Endpoints[i]
 
 			if ep.Application == application && ep.Purpose == "export" {
-				var ports = make([]servicedefinition.Port, 0)
+				var ports = make([]svcdef.Port, 0)
 				portAddrLower := strings.ToLower(portAddr)
 				for _, port := range ep.PortList {
 					if strings.ToLower(port.PortAddr) != portAddrLower {
 						ports = append(ports, port)
 					}
 				}
-				port := &servicedefinition.Port{PortAddr: portAddr, Enabled: isEnabled, UseTLS: usetls, Protocol: protocol}
+				port := &svcdef.Port{PortAddr: portAddr, Enabled: isEnabled, UseTLS: usetls, Protocol: protocol}
 				ep.PortList = append(ports, *port)
 				return port, nil
 			}
@@ -613,8 +617,8 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
-// Returns the matching Port entry or nil if not found.
-func (s *Service) GetPort(application, portAddr string) *servicedefinition.Port {
+// GetPort returns the matching Port entry or nil if not found.
+func (s *Service) GetPort(application, portAddr string) *svcdef.Port {
 	if s.Endpoints != nil {
 		//find the matching endpoint
 		for i := range s.Endpoints {
@@ -650,7 +654,7 @@ func (s *Service) RemovePort(application string, portAddr string) error {
 			}
 
 			portFound := false
-			var ports = make([]servicedefinition.Port, 0)
+			var ports = make([]svcdef.Port, 0)
 			for _, port := range ep.PortList {
 				if port.PortAddr != portAddr {
 					ports = append(ports, port)
@@ -694,7 +698,9 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 		}
 	}
 	if !appFound {
-		return fmt.Errorf("port %s not found; application %s not found in service %s:%s", portAddr, application, s.ID, s.Name)
+		return fmt.Errorf(
+			"port %s not found; application %s not found in service %s:%s", portAddr, application, s.ID, s.Name,
+		)
 	}
 	if !portFound {
 		return fmt.Errorf("port %s not found in service %s:%s", portAddr, s.ID, s.Name)
@@ -703,7 +709,7 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 	return nil
 }
 
-// Make best effort to make a port address valid
+// ScrubPortString makes a best effort to produce a valid port address.
 func ScrubPortString(port string) string {
 	// remove possible protocol at string beginning
 	scrubbed := protocolPrefixRegex.ReplaceAllString(port, "")
@@ -738,7 +744,10 @@ func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) 
 		}
 	}
 	if !appFound {
-		return fmt.Errorf("vhost %s not found; application %s not found in service %s:%s", vhostName, application, s.ID, s.Name)
+		return fmt.Errorf(
+			"vhost %s not found; application %s not found in service %s:%s",
+			vhostName, application, s.ID, s.Name,
+		)
 	}
 	if !vhostFound {
 		return fmt.Errorf("vhost %s not found in service %s:%s", vhostName, s.ID, s.Name)
@@ -762,7 +771,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 
 				_vhostName := strings.ToLower(vhostName)
 				found := false
-				var vhosts = make([]servicedefinition.VHost, 0)
+				var vhosts = make([]svcdef.VHost, 0)
 				for _, vhost := range ep.VHostList {
 					if vhost.Name != _vhostName {
 						vhosts = append(vhosts, vhost)
@@ -799,17 +808,8 @@ func (s Service) GetPath(gs GetService) (string, error) {
 	return path, nil
 }
 
-//SetAssignment sets the AddressAssignment for the endpoint
-func (se *ServiceEndpoint) SetAssignment(aa addressassignment.AddressAssignment) error {
-	if se.AddressConfig.Port == 0 {
-		return errors.New("cannot assign address to endpoint without AddressResourceConfig")
-	}
-	se.AddressAssignment = aa
-	return nil
-}
-
-//SetAddressConfig sets the AddressConfig for the endpoint
-func (s Service) SetAddressConfig(endpointName string, sa servicedefinition.AddressResourceConfig) error {
+// SetAddressConfig sets the AddressConfig for the endpoint
+func (s Service) SetAddressConfig(endpointName string, sa svcdef.AddressResourceConfig) error {
 	if s.Endpoints == nil {
 		return errors.New("service has no endpoints: " + s.Name)
 	}
@@ -826,42 +826,19 @@ func (s Service) SetAddressConfig(endpointName string, sa servicedefinition.Addr
 	return errors.New("endpoint not found: " + endpointName)
 }
 
-//RemoveAssignment resets a service endpoints to nothing
-func (se *ServiceEndpoint) RemoveAssignment() error {
-	se.AddressAssignment = addressassignment.AddressAssignment{}
-	return nil
-}
-
-//GetAssignment Returns nil if no assignment set
-func (se *ServiceEndpoint) GetAssignment() *addressassignment.AddressAssignment {
-	if se.AddressAssignment.ID == "" {
-		return nil
-	}
-	//return reference to copy
-	result := se.AddressAssignment
-	return &result
-}
-
-// GetType returns a Services's type or kind, can be used to get
-// the string value of Service's type without a Service instance.
-// It returns the kind as a string.
-func GetType() string {
-	return kind
-}
-
 // GetID returns its Service ID.
 // It return the ID as a string
-func (a *Service) GetID() string {
-	return a.ID
+func (s *Service) GetID() string {
+	return s.ID
 }
 
 // GetType return a service Entity type or kind.
 // It returns the Kind as a string.
-func (a *Service) GetType() string {
+func (s *Service) GetType() string {
 	return GetType()
 }
 
-//Equals are they the same
+// Equals are they the same
 func (s *Service) Equals(b *Service) bool {
 	if s.ID != b.ID {
 		return false
@@ -915,4 +892,11 @@ func (s *Service) Equals(b *Service) bool {
 		return false
 	}
 	return true
+}
+
+// GetType returns a Services's type or kind, can be used to get
+// the string value of Service's type without a Service instance.
+// It returns the kind as a string.
+func GetType() string {
+	return kind
 }

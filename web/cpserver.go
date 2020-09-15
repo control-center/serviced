@@ -15,6 +15,7 @@ package web
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
 	"mime"
@@ -191,6 +192,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 		logger.Debug("Calling CC uiHandler")
 		w.Header().Add("Strict-Transport-Security", "max-age=31536000")
+		w.Header().Add("X-Content-Type-Options", "nosniff")
 
 		if r.TLS == nil {
 			// bindPort has already been validated, so the Split/access below won't break.
@@ -525,7 +527,13 @@ func restGetAuth0Config(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		Auth0Audience: opts.Auth0Audience,
 		Auth0Domain:   opts.Auth0Domain,
 	}
+	auth0ConfigJson, err := json.MarshalIndent(auth0Config, "", "  ")
+	if err != nil {
+		plog.WithError(err).Error("Could not create auth0 config")
+	}
+
+	w.Header().Set("content-type", "application/javascript")
 	w.Write([]byte("var Auth0Config = "))
-	w.WriteJson(auth0Config)
+	w.Write(auth0ConfigJson)
 	w.Write([]byte(";\n"))
 }

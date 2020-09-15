@@ -16,6 +16,7 @@
 package datastore
 
 import (
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"testing"
 )
 
@@ -39,7 +40,7 @@ func (c testConn) Delete(key Key) error {
 	return nil
 }
 
-func (c testConn) Query(interface{}) ([]JSONMessage, error) {
+func (c testConn) Query(esapi.SearchRequest) ([]JSONMessage, error) {
 	return nil, nil
 }
 

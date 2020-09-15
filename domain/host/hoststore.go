@@ -15,11 +15,10 @@ package host
 
 import (
 	"errors"
-	"strconv"
+	"github.com/control-center/serviced/datastore/elastic"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/search"
 )
 
 //NewStore creates a HostStore
@@ -53,8 +52,23 @@ func (hs *storeImpl) FindHostsWithPoolID(ctx datastore.Context, poolID string) (
 		return nil, errors.New("empty poolId not allowed")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("PoolID", id)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"PoolID": id}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -69,8 +83,22 @@ func (hs *storeImpl) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, e
 		return nil, errors.New("empty hostIP not allowed")
 	}
 
-	query := search.Query().Term("IPs.IPAddress", hostIP)
-	search := search.Search("controlplane").Type(kind).Query(query)
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"IPs.IPAddress": hostIP}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := datastore.NewQuery(ctx).Execute(search)
 	if err != nil {
 		return nil, err
@@ -89,8 +117,26 @@ func (hs *storeImpl) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, e
 func (hs *storeImpl) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("HostStore.GetN"))
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Search("_exists_:ID")
-	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"exists": map[string]string{"field": "ID"}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
+
+	size := int(int64(limit))
+	search.Size = &size
+
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err

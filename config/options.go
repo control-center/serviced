@@ -107,6 +107,8 @@ type Options struct {
 	IsvcsZKQuorum              []string          // Members of the zookeeper quorum
 	IsvcsZKUsername            string            // Zookeeper username required for quorum authentication
 	IsvcsZKPasswd              string            // Zookeeper password required for quorum authentication
+	ZkAclUser                  string            // Zookeeper username required for digest ACL scheme
+	ZkAclPasswd                string            // Zookeeper password required for digest ACL scheme
 	TLSCiphers                 []string          // List of tls ciphers supported for http
 	TLSMinVersion              string            // Minimum TLS version supported for http
 	DockerLogDriver            string            // Which log driver to use with containers
@@ -140,7 +142,6 @@ type Options struct {
 	Auth0Scope                 string            // Auth0 Scope for request.
 	KeyProxyJsonServer         string            // Address of api-key-server endpoint for getting CC Access tokens
 	KeyProxyListenPort         string            // Port where api-key-proxy will listen
-	ESRequestTimeout           int               // The http request connect timeout, in seconds, for an elasticsearch client connection.
 }
 
 // GetOptions returns a COPY of the global options struct

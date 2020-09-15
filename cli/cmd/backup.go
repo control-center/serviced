@@ -106,5 +106,6 @@ func (c *ServicedCli) cmdRestore(ctx *cli.Context) {
 	err := c.driver.Restore(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	}
 }

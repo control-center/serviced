@@ -129,7 +129,7 @@ start_serviced() {
         --allow-loop-back=true server &
 
     echo "Waiting $START_TIMEOUT seconds for serviced to start ..."
-    retry $START_TIMEOUT  wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
+    retry $START_TIMEOUT  wget --no-check-certificate https://${HOSTNAME}:443 -O- &>/dev/null
     err=$?
     # Check the output of serviced healthcheck
     sudo GOPATH=${GOPATH} PATH=${PATH} \

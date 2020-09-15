@@ -18,11 +18,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/servicedefinition"
+	svcdef "github.com/control-center/serviced/domain/servicedefinition"
 )
 
 type service Service
 
+// UnmarshalJSON loads a JSON byte stream into the Service object.
 func (s *Service) UnmarshalJSON(b []byte) error {
 	svc := service{}
 	if err := json.Unmarshal(b, &svc); err == nil {
@@ -50,7 +51,7 @@ func (s *Service) UnmarshalJSON(b []byte) error {
 // private for dealing with unmarshal recursion
 type serviceEndpoint ServiceEndpoint
 
-// UnmarshalJSON implements the encoding/json/Unmarshaler interface used to convert deprecated vhosts list to VHostList
+// UnmarshalJSON loads a JSON byte stream into a ServiceEndpoint object.
 func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	se := serviceEndpoint{}
 	if err := json.Unmarshal(b, &se); err == nil {
@@ -60,21 +61,23 @@ func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	}
 	logger := plog.WithField("endpointname", e.Name)
 	if len(e.VHostList) > 0 {
-		//VHostList is defined, keep it and unset deprecated field if set
+		// VHostList is defined, keep it and unset deprecated field if set
 		e.VHosts = nil
 		return nil
 	}
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
 		if log.GetLevel() == log.DebugLevel {
-			logger.WithField("vhosts", e.VHosts).Warning("The field named VHosts in ServiceEndpoint is deprecated, see VHostList")
+			logger.
+				WithField("vhosts", e.VHosts).
+				Warning("The field named VHosts in ServiceEndpoint is deprecated, see VHostList")
 		}
 		for _, vhost := range e.VHosts {
-			e.VHostList = append(e.VHostList, servicedefinition.VHost{Name: vhost, Enabled: true})
+			e.VHostList = append(e.VHostList, svcdef.VHost{Name: vhost, Enabled: true})
 		}
 		logger.WithFields(log.Fields{
 			"vhostlist": e.VHostList,
-			"vhosts": e.VHosts,
+			"vhosts":    e.VHosts,
 		}).Debug("VHostList created from VHosts")
 		e.VHosts = nil
 	}

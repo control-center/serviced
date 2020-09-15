@@ -17,6 +17,7 @@ package elastic
 
 import (
 	gocheck "gopkg.in/check.v1"
+	"runtime"
 
 	"fmt"
 	"io/ioutil"
@@ -30,7 +31,7 @@ import (
 )
 
 const (
-	esVersion = "0.90.13"
+	esVersion = "7.7.1"
 )
 
 // ElasticTest for running tests that need elasticsearch. Type is to be used a a gocheck Suite. When writing a test,
@@ -68,7 +69,7 @@ func (et *ElasticTest) setDefaults(c *gocheck.C) {
 func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 	log.Printf("ElasticTest SetUpSuite called.\n")
 	et.setDefaults(c)
-	driver := newDriver("localhost", et.Port, et.Index, time.Duration(0))
+	driver := newDriver("localhost", et.Port, et.Index)
 	et.driver = driver
 
 	existingServer := true
@@ -103,10 +104,14 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 			c.Fatalf("error in SetUpSuite: %v", err)
 		}
 	}
+	et.driver.deleteIndex()
 	err := driver.Initialize(time.Second * et.InitTimeout)
 	if err != nil {
 		c.Fatalf("error in SetUpSuite: %v", err)
 	}
+	//In case the instance will have less the 10% free disk space
+	SetDiscSpaceThresholds(et.driver.elasticURL())
+	TurnOffIndexReadOnlyMode(et.driver.index, et.driver.elasticURL())
 	if !existingServer {
 		//give it some time if we started it
 		time.Sleep(time.Second * 1)
@@ -117,7 +122,6 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 //TearDownSuite Run once after all tests or benchmarks have finished running.
 func (et *ElasticTest) TearDownSuite(c *gocheck.C) {
 	log.Print("ElasticTest TearDownSuite called")
-
 	et.stop()
 }
 
@@ -168,13 +172,11 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 
 	command := []string{
 		elasticDir + "/bin/elasticsearch",
-		"-f",
-		fmt.Sprintf("-Des.http.port=%v", port),
+		"-E",
+		fmt.Sprintf("http.port=%v", port),
 	}
 
-	conf := fmt.Sprintf(`multicast.enabled: false
-discovery.zen.ping.multicast.ping.enabled: false
-cluster.name: %v`, rand.Int())
+	conf := fmt.Sprintf(`cluster.name: %v`, rand.Int())
 	err := ioutil.WriteFile(elasticDir+"/config/elasticsearch.yml", []byte(conf), 0644)
 	if err != nil {
 		return nil, err
@@ -223,7 +225,11 @@ func ensureElasticJar(runDir string) string {
 	if err != nil {
 		log.Fatal("Can't find java in path")
 	}
-	gz := fmt.Sprintf("elasticsearch-%s.tar.gz", esVersion)
+	distro := "linux"
+	if strings.Contains(runtime.GOOS, "darwin") {
+		distro = "darwin"
+	}
+	gz := fmt.Sprintf("elasticsearch-%s-%s-x86_64.tar.gz", esVersion, distro)
 	gzPath := fmt.Sprintf("/tmp/%s", gz)
 
 	path := fmt.Sprintf("%s/elasticsearch-%s", runDir, esVersion)
@@ -232,7 +238,7 @@ func ensureElasticJar(runDir string) string {
 
 	log.Printf("checking tar %s exists", gzPath)
 	if _, err = os.Stat(gzPath); err != nil {
-		url := fmt.Sprintf("https://download.elasticsearch.org/elasticsearch/elasticsearch/%s", gz)
+		url := fmt.Sprintf("https://artifacts.elastic.co/downloads/elasticsearch/%s", gz)
 		commands = append(commands, []string{"curl", "-O", url})
 		commands = append(commands, []string{"mv", gz, gzPath})
 	}

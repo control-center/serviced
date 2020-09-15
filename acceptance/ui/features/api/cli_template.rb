@@ -39,7 +39,11 @@ module CCApi
         end
 
         def remove_all_templates()
-            CC.CLI.execute("%{serviced} template list --show-fields TemplateID 2>&1 | grep -v TemplateID | xargs --no-run-if-empty %{serviced} template rm")
+            CC.CLI.execute(
+                "%{serviced} template list --show-fields TemplateID 2>&1 | grep -v TemplateID | xargs --no-run-if-empty %{serviced} template rm",
+                stderr = true,
+                verify = false
+            )
         end
     end
 end

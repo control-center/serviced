@@ -20,28 +20,26 @@ import (
 var (
 	mappingString = `
 {
-    "host": {
-      "properties":{
-        "ID" :            {"type": "string", "index":"not_analyzed"},
-        "Name":           {"type": "string", "index":"not_analyzed"},
-        "KernelVersion":  {"type": "string", "index":"not_analyzed"},
-        "KernelRelease":  {"type": "string", "index":"not_analyzed"},
-        "PoolID":         {"type": "string", "index":"not_analyzed"},
-        "IpAddr":         {"type": "string", "index":"not_analyzed"},
-        "Cores":          {"type": "long", "index":"not_analyzed"},
-        "Memory":         {"type": "long", "index":"not_analyzed"},
-        "PrivateNetwork": {"type": "string", "index":"not_analyzed"},
-        "CreatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
-        "UpdatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
-        "IPs" :{
-          "properties":{
-            "IP" : {"type": "string", "index":"not_analyzed"},
-            "InterfaceName" : {"type": "string", "index":"not_analyzed"},
-            "State" : {"type": "string", "index":"not_analyzed"}
-          }
-        }
-      }
-    }
+  "properties":{
+	"ID" :            {"type": "keyword", "index":"true"},
+	"Name":           {"type": "keyword", "index":"true"},
+	"KernelVersion":  {"type": "keyword", "index":"true"},
+	"KernelRelease":  {"type": "keyword", "index":"true"},
+	"PoolID":         {"type": "keyword", "index":"true"},
+	"IpAddr":         {"type": "keyword", "index":"true"},
+	"Cores":          {"type": "long", "index":"true"},
+	"Memory":         {"type": "long", "index":"true"},
+	"PrivateNetwork": {"type": "keyword", "index":"true"},
+	"CreatedAt" :     {"type": "date", "format" : "date_optional_time"},
+	"UpdatedAt" :     {"type": "date", "format" : "date_optional_time"},
+	"IPs" :{
+	  "properties":{
+		"IP" : {"type": "keyword", "index":"true"},
+		"InterfaceName" : {"type": "keyword", "index":"true"},
+		"State" : {"type": "keyword", "index":"true"}
+	  }
+	}
+  }
 }
 `
 	//MAPPING is the elastic mapping for a host
@@ -50,6 +48,6 @@ var (
 
 func init() {
 	if mappingError != nil {
-          plog.WithError(mappingError).Fatal("error creating mapping for the host object")
+		plog.WithError(mappingError).Fatal("error creating mapping for the host object")
 	}
 }

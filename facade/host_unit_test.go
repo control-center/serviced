@@ -77,7 +77,7 @@ func (ft *FacadeUnitTest) TestGetReadHostsShouldReturnCorrectValuesForHost(c *C)
 
 	expectedHost := getTestHost()
 
-	ft.hostStore.On("GetN", ft.ctx, uint64(20000)).
+	ft.hostStore.On("GetN", ft.ctx, uint64(10000)).
 		Return([]host.Host{expectedHost}, nil)
 
 	hosts, err := ft.Facade.GetReadHosts(ft.ctx)

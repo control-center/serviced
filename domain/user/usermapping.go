@@ -20,12 +20,10 @@ import (
 var (
 	mappingString = `
 {
-     "user": {
-      "properties":{
-        "Name":           {"type": "string", "index":"not_analyzed"},
-        "Password":       {"type": "string", "index":"not_analyzed"}
-      }
-    }
+  "properties":{
+	"Name":           {"type": "keyword", "index":"true"},
+	"Password":       {"type": "keyword", "index":"true"}
+  }
 }
 `
 	//MAPPING is the elastic mapping for a host

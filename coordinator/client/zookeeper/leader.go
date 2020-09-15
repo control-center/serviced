@@ -42,14 +42,16 @@ type Leader struct {
 	c        *zklib.Conn
 	path     string
 	lockPath string
+	acl      []zklib.ACL
 }
 
 // NewLeader instantiates a new leader for a given path
-func NewLeader(conn *zklib.Conn, path string) *Leader {
+func NewLeader(conn *zklib.Conn, path string, acl []zklib.ACL) *Leader {
 	return &Leader{
 		c:        conn,
 		path:     path,
 		lockPath: "",
+		acl:      acl,
 	}
 }
 
@@ -88,7 +90,7 @@ func (l *Leader) TakeLead(node client.Node, cancel <-chan struct{}) (<-chan clie
 	if err := l.ensurePath(prefix); err != nil {
 		return nil, err
 	}
-	l.lockPath, err = l.c.CreateProtectedEphemeralSequential(prefix, bytes, zklib.WorldACL(zklib.PermAll))
+	l.lockPath, err = l.c.CreateProtectedEphemeralSequential(prefix, bytes, l.acl)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +194,7 @@ func (l *Leader) ensurePath(p string) error {
 		if err := l.ensurePath(dp); err != nil {
 			return err
 		}
-		if _, err := l.c.Create(dp, []byte{}, 0, zklib.WorldACL(zklib.PermAll)); err != nil && err != zklib.ErrNodeExists {
+		if _, err := l.c.Create(dp, []byte{}, 0, l.acl); err != nil && err != zklib.ErrNodeExists {
 			return xlateError(err)
 		}
 	}

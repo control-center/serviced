@@ -154,8 +154,8 @@ mockAgent:
 
 .PHONY: govet
 govet:
-	@echo go tool vet -printf=false -composites=false DIRS...
-	@go tool vet -printf=false -composites=false $(GOVETTARGETS)
+	@echo go vet -printf=false -composites=false DIRS...
+	@go vet -printf=false -composites=false $(GOVETTARGETS)
 
 $(GOBIN):
 	@mkdir -p $@
@@ -185,7 +185,7 @@ go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
 # BUILD_VERSION is the version of the serviced-build docker image
 # If the build image version changes, then zenoss-deploy needs to be updated
 #
-BUILD_VERSION = v1.6.0-0
+BUILD_VERSION = v1.8.0-0
 export BUILD_VERSION
 
 #
@@ -277,6 +277,7 @@ $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logr
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-cli.yaml:logconfig-cli.yaml
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-controller.yaml:logconfig-controller.yaml
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-server.yaml:logconfig-server.yaml
+$(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/elastic-migration/es_cluster.ini:es_cluster.ini
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = $(GOBIN)/serviced:serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += $(GOBIN)/serviced-controller:serviced-controller
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += $(GOBIN)/serviced-storage:serviced-storage
@@ -285,6 +286,7 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-clea
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usage:serviced-container-usage
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-fstrim:serviced-fstrim
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/elastic-migration/elastic:elastic
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced-storage:$(_DESTDIR)/usr/bin/serviced-storage
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/ui/build:static

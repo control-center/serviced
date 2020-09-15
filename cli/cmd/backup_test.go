@@ -178,7 +178,7 @@ func ExampleServicedCLI_CmdBackup_check() {
 }
 
 func ExampleServicedCli_cmdRestore() {
-	InitBackupAPITest("serviced", "restore", PathNotFound)
+	InitBackupAPITestNoExit("serviced", "restore", PathNotFound)
 	InitBackupAPITest("serviced", "restore", "path/to/file")
 
 	// Output:

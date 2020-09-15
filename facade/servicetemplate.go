@@ -150,7 +150,8 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 			"templateid": template.ID,
 			"template":   template.Name,
 		})
-		template.DatabaseVersion = 0
+		template.SetPrimaryTerm(0)
+		template.SetSeqNo(0)
 		alog = f.auditLogger.Entity(&template)
 		if _, ok := curtemplates[template.ID]; ok {
 			alog = alog.Message(ctx, "Updating Service Template").Action(audit.Update)

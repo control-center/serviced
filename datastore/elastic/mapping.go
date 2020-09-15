@@ -19,40 +19,34 @@ import (
 )
 
 type Mapping struct {
-	Name    string
 	Entries map[string]interface{}
 }
 
 // MarshalJSON returns *m as the JSON encoding of m.
 func (m Mapping) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{m.Name: m.Entries}
-	return json.Marshal(data)
+	return json.Marshal(m.Entries)
 }
 
 // UnmarshalJSON sets *m to a copy of data.
 func (m *Mapping) UnmarshalJSON(data []byte) error {
-	var rawmapping map[string]map[string]interface{}
+	var rawmapping map[string]interface{}
 	if err := json.Unmarshal(data, &rawmapping); err != nil {
 		return err
 	}
 	if mapping, err := newMapping(rawmapping); err != nil {
 		return err
 	} else {
-		m.Name = mapping.Name
 		m.Entries = mapping.Entries
 	}
 	return nil
 }
 
-func newMapping(rawmapping map[string]map[string]interface{}) (Mapping, error) {
-	if len(rawmapping) > 1 {
+func newMapping(rawmapping map[string]interface{}) (Mapping, error) {
+	if len(rawmapping) > 2 {
 		return Mapping{}, fmt.Errorf("unexpected number of top level entries: %v", len(rawmapping))
 	}
 	mapping := Mapping{}
-	for key, val := range rawmapping {
-		mapping.Name = key
-		mapping.Entries = val
-	}
+	mapping.Entries = rawmapping
 	return mapping, nil
 }
 

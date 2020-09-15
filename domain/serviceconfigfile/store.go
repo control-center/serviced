@@ -14,10 +14,9 @@
 package serviceconfigfile
 
 import (
-	"strconv"
-
 	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/search"
+	"github.com/control-center/serviced/datastore/elastic"
+	"strconv"
 )
 
 //NewStore creates a Service Config File store
@@ -47,12 +46,24 @@ func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPa
 	var confs []*SvcConfigFile
 
 	for {
-		search := search.Search("controlplane").Type(kind).Filter(
-			"and",
-			search.Filter().Terms("ServiceTenantID", tenantID),
-			search.Filter().Terms("ServicePath", svcPath),
-		).From(strconv.Itoa(from)).Size(strconv.Itoa(size))
+		query := map[string]interface{}{
+			"query": map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": []map[string]interface{}{
+						{"term": map[string]string{"type": kind}},
+						{"term": map[string]string{"ServiceTenantID": tenantID}},
+						{"term": map[string]string{"ServicePath": svcPath}},
+					},
+				},
+			},
+			"from": from,
+			"size": strconv.Itoa(size),
+		}
 
+		search, err := elastic.BuildSearchRequest(query, "controlplane")
+		if err != nil {
+			return nil, err
+		}
 		q := datastore.NewQuery(ctx)
 
 		results, err := q.Execute(search)
@@ -61,25 +72,36 @@ func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPa
 		}
 
 		conv, err := convert(results)
+		confs = append(confs, conv...)
 		if err != nil {
 			return nil, err
-		} else if len(conv) == 0 {
+		} else if len(conv) == 0 || len(conv) < size {
 			return confs, nil
 		}
 
 		from += size
-		confs = append(confs, conv...)
 	}
 }
 
 func (s *storeImpl) GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceConfigFileStore.GetConfigFile"))
-	search := search.Search("controlplane").Type(kind).Filter(
-		"and",
-		search.Filter().Terms("ServiceTenantID", tenantID),
-		search.Filter().Terms("ServicePath", svcPath),
-		search.Filter().Terms("ConfFile.Filename", filename),
-	)
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]string{"ServiceTenantID": tenantID}},
+					{"term": map[string]string{"ServicePath": svcPath}},
+					{"term": map[string]string{"ConfFile.Filename": filename}},
+					{"term": map[string]string{"type": kind}},
+				},
+			},
+		},
+	}
+
+	search, err := elastic.BuildSearchRequest(query, "controlplane")
+	if err != nil {
+		return nil, err
+	}
 
 	q := datastore.NewQuery(ctx)
 	results, err := q.Execute(search)

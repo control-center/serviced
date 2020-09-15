@@ -15,9 +15,12 @@ package zookeeper
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"time"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/logging"
 )
@@ -131,8 +134,28 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 			}
 		}
 	}()
+
+	options := config.GetOptions()
+	user := options.ZkAclUser
+	passwd := options.ZkAclPasswd
+	acl := zklib.WorldACL(zklib.PermAll)
+
+	if user == "" || passwd == "" {
+		user = os.Getenv("SERVICED_ZOOKEEPER_ACL_USER")
+		passwd = os.Getenv("SERVICED_ZOOKEEPER_ACL_PASSWD")
+	}
+
+	if user != "" && passwd != "" {
+		acl = zklib.DigestACL(zklib.PermAll, user, passwd)
+		if err := conn.AddAuth("digest", []byte(fmt.Sprintf("%s:%s", user, passwd))); err != nil {
+			plog.Errorf("AddAuth returned error %+v", err)
+			return nil, err
+		}
+	}
+
 	return &Connection{
 		basePath: basePath,
 		conn:     conn,
+		acl:      acl,
 	}, nil
 }

@@ -87,7 +87,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 				Application: "ep2a",
 				Purpose:     "export",
 				Protocol:    "tcp",
-				PortNumber:   2123,
+				PortNumber:  2123,
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     2123,
 					Protocol: "tcp",
@@ -98,7 +98,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 				Application: "ep2b",
 				Purpose:     "export",
 				Protocol:    "tcp",
-				PortNumber:   2124,
+				PortNumber:  2124,
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     2124,
 					Protocol: "tcp",
@@ -141,10 +141,10 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 				Application:     "ep1",
 				EndpointName:    "ep1",
 			},
-			Type:        "static",
-			HostID:      "deadb11f",
-			HostName:    "h1",
-			IPAddress:   "12.27.36.45",
+			Type:      "static",
+			HostID:    "deadb11f",
+			HostName:  "h1",
+			IPAddress: "12.27.36.45",
 		},
 	}
 	c.Assert(addrs, DeepEquals, expected)
@@ -162,10 +162,10 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 			Application:     "ep2a",
 			EndpointName:    "ep2a",
 		},
-		Type:        "static",
-		HostID:      "deadb11f",
-		HostName:    "h1",
-		IPAddress:   "12.27.36.45",
+		Type:      "static",
+		HostID:    "deadb11f",
+		HostName:  "h1",
+		IPAddress: "12.27.36.45",
 	})
 	expected = append(expected, service.IPAssignment{
 		BaseIPAssignment: service.BaseIPAssignment{
@@ -177,14 +177,14 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 			Application:     "ep2b",
 			EndpointName:    "ep2b",
 		},
-		Type:        "static",
-		HostID:      "deadb11f",
-		HostName:    "h1",
-		IPAddress:   "12.27.36.45",
+		Type:      "static",
+		HostID:    "deadb11f",
+		HostName:  "h1",
+		IPAddress: "12.27.36.45",
 	})
-	for _, assign := range (addrs) {
+	for _, assign := range addrs {
 		verified := false
-		for _, exp := range (expected) {
+		for _, exp := range expected {
 			if assign.ServiceID == exp.ServiceID && assign.Application == exp.Application {
 				verified = true
 				c.Assert(assign, Equals, exp)
@@ -218,7 +218,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 	c.Assert(addrs, HasLen, 2)
 
 	verified := false
-	for _, addr := range(addrs) {
+	for _, addr := range addrs {
 		if addr.EndpointName == "ep2a" {
 			verified = true
 			c.Assert(addr.Type, Equals, "")
@@ -233,4 +233,3 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 		c.Errorf("Results did not have empty assignment for serviceid2-ep2b ")
 	}
 }
-

@@ -16,25 +16,25 @@ package isvcs
 import (
 	"github.com/Sirupsen/logrus"
 
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
 	"strconv"
+	"sync"
 	"time"
 )
 
 var esStore = NewElasticSearchStatsStore()
 
 type ElasticSearchStats struct {
-	Address           string
-	gc_young_count    int
-	gc_young_time     float64
-	gc_old_count      int
-	gc_old_time       float64
-	threads           int
+	Address        string
+	gc_young_count int
+	gc_young_time  float64
+	gc_old_count   int
+	gc_old_time    float64
+	threads        int
 }
 
 type ElasticSearchStatsCache struct {
@@ -117,7 +117,7 @@ func (ss *elasticSearchStatsStore) WriteAll(stats []ElasticSearchStats) {
 
 func newElasticSearchMetric(name string, value string, timestamp int64, address string) metric {
 	tags := map[string]string{
-		"isvc":    "true",
+		"isvc": "true",
 	}
 	if address == "http://127.0.0.1:9200" {
 		tags["controlplane_service_id"] = elasticsearch_serviced.ID
@@ -192,7 +192,7 @@ func queryElasticSearchStats(address string) ElasticSearchStats {
 	logger := log.WithField("elasticsearch_address", address)
 	stats := ElasticSearchStats{Address: address}
 
-	resp, err := http.Get(address + "/_nodes/stats?jvm=true")
+	resp, err := http.Get(address + "/_nodes/stats/jvm")
 	if err != nil {
 		logger.WithError(err).Warn("Unable to get ElasticSearch stats")
 		return stats

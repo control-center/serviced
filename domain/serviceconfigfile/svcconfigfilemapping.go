@@ -20,13 +20,11 @@ import (
 var (
 	mappingString = `
 {
-	"svcconfigfile": {
-	  "properties": {
-		"ID" :             {"type": "string", "index":"not_analyzed"},
-		"ServiceTenantID": {"type": "string", "index":"not_analyzed"},
-		"ServicePath":     {"type": "string", "index":"not_analyzed"}
-	  }
-	}
+  "properties": {
+	"ID" :             {"type": "keyword", "index":"true"},
+	"ServiceTenantID": {"type": "keyword", "index":"true"},
+	"ServicePath":     {"type": "keyword", "index":"true"}
+  }
 }
 `
 	//MAPPING is the elastic mapping for a service

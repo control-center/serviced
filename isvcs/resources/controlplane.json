@@ -1,125 +1,136 @@
 {
   "settings": {
-    "number_of_shards": 1
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "mapping.total_fields.limit": 2000
   },
 
   "mappings": {
-    "resourcepool": {
-      "properties":{
-        "Id" :          {"type": "string", "index":"not_analyzed"},
-        "ParentId":     {"type": "string", "index":"not_analyzed"},
-        "CoreLimit":    {"type": "long", "index":"not_analyzed"},
-        "MemoryLimit":  {"type": "long", "index":"not_analyzed"},
-        "Priority":     {"type": "long", "index":"not_analyzed"},
-        "CreatedAt" :   {"type": "date", "format" : "dateOptionalTime"},
-        "UpdatedAt" :   {"type": "date", "format" : "dateOptionalTime"}
-      }
+    "properties":{
+      "Id" :          {"type": "keyword", "index":"true"},
+      "ID" :          {"type": "keyword", "index":"true"},
+      "type" :        {"type": "keyword", "index":"true"},
+      "Password":     {"type": "keyword", "index":"true"},
+      "Privileged":   {"type": "keyword", "index":"true"},
+      "Hostname":     {"type": "keyword", "index":"true"},
+      "ServicePath":  {"type": "keyword", "index":"true"},
+      "ServiceTenantID": {"type": "keyword", "index":"true"},
+      "EndpointName":  {"type": "keyword", "index":"true"},
+      "Filter":        {"type": "keyword", "index":"true"},
+      "AssignmentType":{"type": "keyword", "index":"true"},
+      "ImageID":      {"type": "keyword", "index":"true"},
+      "Environment":  {"type": "keyword", "index":"true"},
+      "HostPolicy":   {"type": "keyword", "index":"true"},
+      "DeploymentID": {"type": "keyword", "index":"true"},
+      "Version":      {"type": "keyword", "index":"true"},
+      "ParentId":     {"type": "keyword", "index":"true"},
+      "Realm":        {"type": "keyword", "index":"true"},
+      "CoreCapacity": {"type": "long", "index":"true"},
+      "MemoryCapacity": {"type": "long", "index":"true"},
+      "CoreLimit":    {"type": "long", "index":"true"},
+      "MemoryLimit":  {"type": "long", "index":"true"},
+      "Priority":     {"type": "long", "index":"true"},
+      "CreatedAt" :   {"type": "date", "format" : "date_optional_time"},
+      "UpdatedAt" :   {"type": "date", "format" : "date_optional_time"},
+      "Name":           {"type": "keyword", "index":"true"},
+      "KernelVersion":  {"type": "keyword", "index":"true"},
+      "KernelRelease":  {"type": "keyword", "index":"true"},
+      "PoolID":         {"type": "keyword", "index":"true"},
+      "IpAddr":         {"type": "keyword", "index":"true"},
+      "IPAddr":         {"type": "keyword", "index":"true"},
+      "Cores":          {"type": "long", "index":"true"},
+      "Memory":         {"type": "long", "index":"true"},
+      "PrivateNetwork": {"type": "keyword", "index":"true"},
+      "Startup":         {"type": "keyword", "index":"true"},
+      "Context":         {"type": "object", "enabled": false},
+      "Description":     {"type": "keyword", "index":"true"},
+      "Tags":            {"type": "keyword", "index":"true"},
+      "Instances":       {"type": "long", "index":"true"},
+      "IPs" :{
+        "properties":{
+          "IP" : {"type": "keyword", "index":"true"},
+          "InterfaceName" : {"type": "keyword", "index":"true"},
+          "State" : {"type": "keyword", "index":"true"}
+        }
+      },
+      "InstanceLimits":  {
+        "properties": {
+          "Min": {"type": "long", "index":"true"},
+          "Max": {"type": "long", "index":"true"}
+        }
+      },
+      "DesiredState":    {"type": "long", "index":"true"},
+      "Image":           {"type": "keyword", "index":"true"},
+      "Launch":          {"type": "keyword", "index":"true"},
+      "ParentServiceID": {"type": "keyword", "index":"true"},
+      "Volume":          {
+        "properties":    {
+          "ResourcePath" : {"type": "keyword", "index":"true"},
+          "ContainerPath": {"type": "keyword", "index":"true"}
+        }
+      },
+      "EndPoints" :      {
+        "properties":    {
+          "Protocol" :            {"type": "keyword", "index":"true"},
+          "Application" :         {"type": "keyword", "index":"true"},
+          "ApplicationTemplate" : {"type": "keyword", "index":"true"},
+          "Purpose" :             {"type": "keyword", "index":"true"},
+          "PortNumber" :          {"type": "long", "index":"true"}
+        }
+      },
+      "Tasks": {
+        "properties": {
+          "Name" :           {"type": "keyword", "index":"true"},
+          "Schedule" :       {"type": "keyword", "index":"true"},
+          "Command" :        {"type": "keyword", "index":"true"},
+          "LastRunAt" :      {"type": "date", "format" : "date_optional_time"},
+          "TotalRunCount" :  {"type": "long", "index":"true"}
+        }
+      },
+      "ApiVersion":      {"type": "long", "index":"true"},
+      "TemplateVersion": {"type": "long", "index":"true"},
+      "Data":            {"type": "keyword", "index":"true", "ignore_above": 10000},
+      "HostID":          {"type": "keyword", "index":"true"},
+      "ServiceID":       {"type": "keyword", "index":"true"},
+      "DockerID":        {"type": "keyword", "index":"true"},
+      "PrivateIP":       {"type": "keyword", "index":"true"},
+      "Scheduled" :      {"type": "date", "format" : "date_optional_time"},
+      "Terminate" :      {"type": "date", "format" : "date_optional_time"},
+      "Started" :        {"type": "date", "format" : "date_optional_time"},
+      "TemplateID":      {"type": "keyword", "index":"true"},
+      "DeployedAt" :     {"type": "date", "format" : "date_optional_time"}
     },
-    "host": {
-      "properties":{
-        "Id" :            {"type": "string", "index":"not_analyzed"},
-        "Name":           {"type": "string", "index":"not_analyzed"},
-        "PoolID":         {"type": "string", "index":"not_analyzed"},
-        "IpAddr":         {"type": "string", "index":"not_analyzed"},
-        "Cores":          {"type": "long", "index":"not_analyzed"},
-        "Memory":         {"type": "long", "index":"not_analyzed"},
-        "PrivateNetwork": {"type": "string", "index":"not_analyzed"},
-        "CreatedAt" :     {"type": "date", "format" : "dateOptionalTime"},
-        "UpdatedAt" :     {"type": "date", "format" : "dateOptionalTime"}
-      }
-    },
-    "service": {
-      "properties": {
-        "Id" :             {"type": "string", "index":"not_analyzed"},
-        "Name":            {"type": "string", "index":"not_analyzed"},
-        "Startup":         {"type": "string", "index":"not_analyzed"},
-        "Context":         {"type": "object", "index":"not_analyzed"},
-        "Description":     {"type": "string", "index":"not_analyzed"},
-        "Tags":            {"type": "string", "index_name": "tag"},
-        "Instances":       {"type": "long", "index":"not_analyzed"},
-        "InstanceLimits":  {
-          "properties": {
-            "Min": {"type": "long", "index":"not_analyzed"},
-            "Max": {"type": "long", "index":"not_analyzed"}
+    "dynamic_templates": [
+      {
+        "ConfigFiles_strings_as_keywords": {
+          "match_mapping_type": "string",
+          "path_match":   "ConfigFiles.*",
+          "mapping": {
+            "type": "keyword",
+            "ignore_above": 256
           }
-        },
-        "DesiredState":    {"type": "long", "index":"not_analyzed"},
-        "Image":           {"type": "string", "index":"not_analyzed"},
-        "PoolID":          {"type": "string", "index":"not_analyzed"},
-        "Launch":          {"type": "string", "index":"not_analyzed"},
-        "ParentServiceID": {"type": "string", "index":"not_analyzed"},
-        "Volume":          {
-          "properties":    {
-            "ResourcePath" : {"type": "string", "index":"not_analyzed"},
-            "ContainerPath": {"type": "string", "index":"not_analyzed"}
+        }
+      },
+      {
+        "RAMCommitment_EngNotation_as_keyword": {
+          "match_mapping_type": "long",
+          "path_match":   "*RAMCommitment*",
+          "mapping": {
+            "type": "keyword",
+            "index": "true"
           }
-        },
-        "CreatedAt" :      {"type": "date", "format" : "dateOptionalTime"},
-        "UpdatedAt" :      {"type": "date", "format" : "dateOptionalTime"},
-        "ConfigFiles":     {
-          "properties": {
-            "": {"type": "string", "index": "not_analyzed"},
-            "": {"type": "string", "index": "not_analyzed"},
-            "": {"type": "string", "index": "not_analyzed"}
-          }
-        },
-        "EndPoints" :      {
-          "properties":    {
-            "Protocol" :            {"type": "string", "index":"not_analyzed"},
-            "Application" :         {"type": "string", "index":"not_analyzed"},
-            "ApplicationTemplate" : {"type": "string", "index":"not_analyzed"},
-            "Purpose" :             {"type": "string", "index":"not_analyzed"},
-            "PortNumber" :          {"type": "long",   "index":"not_analyzed"}
-          }
-        },
-        "Tasks": {
-          "properties": {
-            "Name" :           {"type": "string", "index":"not_analyzed"},
-            "Schedule" :       {"type": "string", "index":"not_analyzed"},
-            "Command" :        {"type": "string", "index":"not_analyzed"},
-            "LastRunAt" :      {"type": "date", "format" : "dateOptionalTime"},
-            "TotalRunCount" :  {"type": "long",   "index":"not_analyzed"}
+        }
+      },
+      {
+        "OriginalConfigs_strings_as_keywords": {
+          "match_mapping_type": "string",
+          "path_match":   "OriginalConfigs.*",
+          "mapping": {
+            "type": "keyword",
+            "ignore_above": 256
           }
         }
       }
-    },
-    "servicetemplatewrapper": {
-      "properties": {
-        "Id" :             {"type": "string", "index":"not_analyzed"},
-        "Name":            {"type": "string", "index":"not_analyzed"},
-        "Description":     {"type": "string", "index":"not_analyzed"},
-        "ApiVersion":      {"type": "long", "index":"not_analyzed"},
-        "TemplateVersion": {"type": "long", "index":"not_analyzed"},
-        "Data":            {"type": "string", "index":"not_analyzed"}
-      }
-    },
-    "servicestate": {
-      "properties": {
-        "Id" :             {"type": "string", "index":"not_analyzed"},
-        "HostID":          {"type": "string", "index":"not_analyzed"},
-        "ServiceID":       {"type": "string", "index":"not_analyzed"},
-        "DockerID":        {"type": "string", "index":"not_analyzed"},
-        "PrivateIP":       {"type": "string", "index":"not_analyzed"},
-        "Scheduled" :      {"type": "date", "format" : "dateOptionalTime"},
-        "Terminate" :      {"type": "date", "format" : "dateOptionalTime"},
-        "Started" :        {"type": "date", "format" : "dateOptionalTime"},
-        "EndPoints" :      {
-          "properties":    {
-            "Protocol" :    {"type": "string", "index":"not_analyzed"},
-            "Application" : {"type": "string", "index":"not_analyzed"},
-            "Purpose" :     {"type": "string", "index":"not_analyzed"},
-            "PortNumber" :  {"type": "long",   "index":"not_analyzed"}
-          }
-        }
-      }
-    },
-    "servicedeployment": {
-      "properties": {
-        "Id" :             {"type": "string", "index":"not_analyzed"},
-        "ServiceID":       {"type": "string", "index":"not_analyzed"},
-        "TemplateID":      {"type": "string", "index":"not_analyzed"},
-        "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
-      }
-    }
+    ]
   }
 }

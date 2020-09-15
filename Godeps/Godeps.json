@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/control-center/serviced",
-	"GoVersion": "go1.7.4",
+	"GoVersion": "go1.14.4",
 	"GodepVersion": "v80",
 	"Deps": [
 		{
@@ -225,7 +225,7 @@
 		},
 		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "7c07ffce0f7e14a4da49ce92a2842d4e87be1c1e"
+			"Rev": "f2ca7eb917de4f08359a9c099a50a3de941359cd"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
