@@ -264,15 +264,15 @@ func esNodesHealthCheck(host string, port int, minHealth ESHealth) HealthCheckFu
 					log.WithError(r.err).Debugf("Unable to check Elastic Nodes health: %s", r.err)
 					break
 				}
-				if status := r.response["_nodes"].(map[string]interface{})["failed"].(int); status > 0 {
+				if status := int(r.response["_nodes"].(map[string]interface{})["failed"].(float64)); status > 0 {
 					log.WithFields(logrus.Fields{
 						"_nodes": r.response,
-					}).Warn("Elastic health reported below minimum")
+					}).Warn("Elastic Nodes health reported below minimum")
 					break
 				}
 				return nil
 			case <-cancel:
-				log.Debug("Canceled health check for Elastic")
+				log.Debug("Canceled health check for Elastic Nodes")
 				return nil
 			}
 			time.Sleep(time.Second)
@@ -297,16 +297,21 @@ func esHealthCheck(host string, port int, minHealth ESHealth) HealthCheckFunctio
 				}
 				if status := GetHealth(r.response["status"].(string)); status < minHealth {
 					log.WithFields(logrus.Fields{
-						"reported":              r.response["status"],
-						"cluster_name":          r.response["cluster_name"],
-						"timed_out":             r.response["timed_out"],
-						"number_of_nodes":       r.response["number_of_nodes"],
-						"number_of_data_nodes":  r.response["number_of_data_nodes"],
-						"active_primary_shards": r.response["active_primary_shards"],
-						"active_shards":         r.response["active_shards"],
-						"relocating_shards":     r.response["relocating_shards"],
-						"initializing_shards":   r.response["initializing_shards"],
-						"unassigned_shards":     r.response["unassigned_shards"],
+						"reported":                         r.response["status"],
+						"cluster_name":                     r.response["cluster_name"],
+						"timed_out":                        r.response["timed_out"],
+						"number_of_nodes":                  r.response["number_of_nodes"],
+						"number_of_data_nodes":             r.response["number_of_data_nodes"],
+						"active_primary_shards":            r.response["active_primary_shards"],
+						"active_shards":                    r.response["active_shards"],
+						"relocating_shards":                r.response["relocating_shards"],
+						"initializing_shards":              r.response["initializing_shards"],
+						"unassigned_shards":                r.response["unassigned_shards"],
+						"delayed_unassigned_shards":        r.response["delayed_unassigned_shards"],
+						"number_of_pending_tasks":          r.response["number_of_pending_tasks"],
+						"number_of_in_flight_fetch":        r.response["number_of_in_flight_fetch"],
+						"task_max_waiting_in_queue_millis": r.response["task_max_waiting_in_queue_millis"],
+						"active_shards_percent_as_number":  r.response["active_shards_percent_as_number"],
 					}).Warn("Elastic health reported below minimum")
 					break
 				}

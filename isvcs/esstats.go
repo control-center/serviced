@@ -29,12 +29,21 @@ import (
 var esStore = NewElasticSearchStatsStore()
 
 type ElasticSearchStats struct {
-	Address        string
-	gc_young_count int
-	gc_young_time  float64
-	gc_old_count   int
-	gc_old_time    float64
-	threads        int
+	Address                       string
+	gc_young_count                int
+	gc_young_time                 float64
+	gc_old_count                  int
+	gc_old_time                   float64
+	threads                       int
+	thread_write_queue            int
+	thread_write_rejected         int
+	process_open_file_descriptors int
+	process_max_file_descriptors  int
+	fs_io_stats_operations        int
+	fs_io_stats_read_kilobytes    int
+	fs_io_stats_read_operations   int
+	fs_io_stats_write_kilobytes   int
+	fs_io_stats_write_operations  int
 }
 
 type ElasticSearchStatsCache struct {
@@ -178,6 +187,88 @@ func writeESToOpenTSDB(stats []ElasticSearchStats) {
 		)
 
 		metrics = append(metrics, gcYoungCountMetric)
+
+		thread_write_queueMetric := newElasticSearchMetric(
+			"isvcs.thread.write.queue",
+			strconv.Itoa(s.thread_write_queue),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, thread_write_queueMetric)
+
+		thread_write_rejectedMetric := newElasticSearchMetric(
+			"isvcs.thread.write.rejected",
+			strconv.Itoa(s.thread_write_rejected),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, thread_write_rejectedMetric)
+
+		process_open_file_descriptorsMetric := newElasticSearchMetric(
+			"isvcs.process.open_file_descriptors",
+			strconv.Itoa(s.process_open_file_descriptors),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, process_open_file_descriptorsMetric)
+
+		process_max_file_descriptorsMetric := newElasticSearchMetric(
+			"isvcs.process.max_file_descriptors",
+			strconv.Itoa(s.process_max_file_descriptors),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, process_max_file_descriptorsMetric)
+
+		fs_io_stats_operationsMetric := newElasticSearchMetric(
+			"isvcs.fs.io_stats.operations",
+			strconv.Itoa(s.fs_io_stats_operations),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, fs_io_stats_operationsMetric)
+
+		fs_io_stats_read_kilobytesMetric := newElasticSearchMetric(
+			"isvcs.fs.io_stats.read_kilobytes",
+			strconv.Itoa(s.fs_io_stats_read_kilobytes),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, fs_io_stats_read_kilobytesMetric)
+
+		fs_io_stats_read_operationsMetric := newElasticSearchMetric(
+			"isvcs.fs.io_stats.read_operations",
+			strconv.Itoa(s.fs_io_stats_read_operations),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, fs_io_stats_read_operationsMetric)
+
+		fs_io_stats_write_kilobytesMetric := newElasticSearchMetric(
+			"isvcs.fs.io_stats.write_kilobytes",
+			strconv.Itoa(s.fs_io_stats_write_kilobytes),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, fs_io_stats_write_kilobytesMetric)
+
+		fs_io_stats_write_operationsMetric := newElasticSearchMetric(
+			"isvcs.fs.io_stats.write_operations",
+			strconv.Itoa(s.fs_io_stats_write_operations),
+			t.Unix(),
+			s.Address,
+		)
+
+		metrics = append(metrics, fs_io_stats_write_operationsMetric)
+
 	}
 
 	err := postDataToOpenTSDB(metrics)
@@ -192,7 +283,7 @@ func queryElasticSearchStats(address string) ElasticSearchStats {
 	logger := log.WithField("elasticsearch_address", address)
 	stats := ElasticSearchStats{Address: address}
 
-	resp, err := http.Get(address + "/_nodes/stats/jvm")
+	resp, err := http.Get(address + "/_nodes/_all/stats")
 	if err != nil {
 		logger.WithError(err).Warn("Unable to get ElasticSearch stats")
 		return stats
@@ -208,6 +299,29 @@ func queryElasticSearchStats(address string) ElasticSearchStats {
 	json.Unmarshal([]byte(body), &result)
 	nodes := result["nodes"].(map[string]interface{})
 	for _, value := range nodes {
+		// FS io_stats
+		fs := value.(map[string]interface{})["fs"].(map[string]interface{})
+		if io_stats, found := fs["io_stats"]; found {
+			total := io_stats.(map[string]interface{})["total"].(map[string]interface{})
+			stats.fs_io_stats_operations += int(total["operations"].(float64))
+			stats.fs_io_stats_read_kilobytes += int(total["read_kilobytes"].(float64))
+			stats.fs_io_stats_read_operations += int(total["read_operations"].(float64))
+			stats.fs_io_stats_write_kilobytes += int(total["write_kilobytes"].(float64))
+			stats.fs_io_stats_write_operations += int(total["write_operations"].(float64))
+		}
+
+		// open_file_descriptors & max_file_descriptors
+		process := value.(map[string]interface{})["process"].(map[string]interface{})
+		stats.process_open_file_descriptors += int(process["open_file_descriptors"].(float64))
+		stats.process_max_file_descriptors += int(process["max_file_descriptors"].(float64))
+
+		// thread_pool['write'] queue & rejected
+		thread_pool := value.(map[string]interface{})["thread_pool"].(map[string]interface{})
+		if _, found := thread_pool["write"]; found {
+			stats.thread_write_queue += int(thread_pool["write"].(map[string]interface{})["queue"].(float64))
+			stats.thread_write_rejected += int(thread_pool["write"].(map[string]interface{})["rejected"].(float64))
+		}
+
 		jvm_metrics := value.(map[string]interface{})["jvm"].(map[string]interface{})
 		thread_count := jvm_metrics["threads"].(map[string]interface{})["count"].(float64)
 		stats.threads += int(thread_count)
