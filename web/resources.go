@@ -24,6 +24,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/zenoss/go-json-rest"
 
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/domain"
@@ -34,7 +35,6 @@ import (
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	"github.com/control-center/serviced/config"
 )
 
 var empty interface{}
@@ -956,7 +956,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 		restServerError(w, err)
 		return
 	}
-	w.WriteJson(&simpleResponse{string(unused), servicesLinks()})
+	w.WriteJson(&simpleResponse{strconv.Itoa(unused), servicesLinks()})
 }
 
 // RestBackupFileList implements a rest call that will return a list of the current backup files.

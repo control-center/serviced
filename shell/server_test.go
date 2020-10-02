@@ -121,6 +121,8 @@ func makeExpectedResult(image string, o *osMock, s *service.Service, c *ProcessC
 		"-e", "SERVICED_IS_SERVICE_SHELL=true",
 		"-e", servicedServiceImage,
 		"-e", "SERVICED_UI_PORT=443",
+		"-e", "SERVICED_ZOOKEEPER_ACL_USER=",
+		"-e", "SERVICED_ZOOKEEPER_ACL_PASSWD=",
 	)
 
 	val, ok := o.env["TZ"]
