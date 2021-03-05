@@ -10,6 +10,7 @@ CONTAINER_ES_DIR=/opt/elasticsearch-serviced
 SVC_NAME=/serviced-isvcs_elasticsearch-serviced
 NODE_NAME=elasticsearch-serviced
 CLUSTER_NAME=$(cat $HOST_ISVCS_DIR/elasticsearch-serviced.clustername)
+CLUSTER_NAME_FILE=$HOST_ISVCS_DIR/elasticsearch-serviced.clustername
 HOST_ES_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-serviced/data
 CONTAINER_ES_DATA_DIR=$CONTAINER_ES_DIR/data
 ELASTIC_BIN=$CONTAINER_ES_DIR/bin/elasticsearch
@@ -139,16 +140,25 @@ docker run --rm -d --name $SVC_NAME -p 9200:9200 \
   sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME \
   -Des.cluster.name=$CLUSTER_NAME"
 
-if check_elasticsearch; then
-    report "SUCCESS" "Container started within timeout"
+#
+# CC-4419: If Elasticsearch configuration file and data folder does not exist
+# on the delegate that migration shouldn't start
+#
+if [[ ! -d $HOST_ES_DATA_DIR ] || [ ! -f $CLUSTER_NAME_FILE ]]; then
+    echo "Skipping elasticsearch export on delegate hosts"
 else
-    report "FAILURE" "Container failed to start within 120 seconds"
-fi
 
-if migrate_elasticsearch; then
-    report "SUCCESS" "Export completed"
-else
-    report "FAILURE" "Export failed try make the export manual"
+    if check_elasticsearch; then
+        report "SUCCESS" "Container started within timeout"
+    else
+        report "FAILURE" "Container failed to start within 120 seconds"
+    fi
+
+    if migrate_elasticsearch; then
+        report "SUCCESS" "Export completed"
+    else
+        report "FAILURE" "Export failed try make the export manual"
+    fi
 fi
 
 echo "Stopping the container with old elasticsearch"
