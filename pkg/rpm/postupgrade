@@ -143,7 +143,7 @@ docker run --rm -d --name $SVC_NAME -p 9200:9200 \
 # CC-4419: If Elasticsearch configuration file and data folder does not exist
 # on the delegate that migration shouldn't start
 #
-if [[ ! -d $HOST_ES_DATA_DIR ] || [ ! -f $CLUSTER_NAME ]]; then
+if [[ ! -d $HOST_ES_DATA_DIR ] || [ ! $CLUSTER_NAME ]]; then
     echo "Skipping elasticsearch export on delegate hosts"
 else
 
@@ -188,7 +188,7 @@ docker run --rm -d --name $SVC_NAME -p 9200:9200 \
 # CC-4419: If Elasticsearch configuration file and data folder does not exist
 # on the delegate that migration shouldn't start
 #
-if [[ ! -d $HOST_ES_DATA_DIR ] || [ ! -f $CLUSTER_NAME ]]; then
+if [[ ! -d $HOST_ES_DATA_DIR ] || [ ! $CLUSTER_NAME ]]; then
     echo "Skipping elasticsearch import on delegate hosts"
 else
 
