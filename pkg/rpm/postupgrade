@@ -134,7 +134,7 @@ cp -ar $HOST_ISVCS_DIR/zookeeper $HOST_ISVCS_DIR/zookeeper.backup
 # CC-4419: If Elasticsearch configuration file and data folder does not exist
 # on the delegate that migration shouldn't start
 #
-if [[ ! -d $HOST_ES_DATA_DIR ] || [ -z $CLUSTER_NAME ]]; then
+if [[ ! -d $HOST_ES_DATA_DIR || -z $CLUSTER_NAME ]]; then
     echo "Skipping elasticsearch export on delegate hosts"
 else
     echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
@@ -174,7 +174,7 @@ sysctl --system
 # CC-4419: If Elasticsearch configuration file and data folder does not exist
 # on the delegate that migration shouldn't start
 #
-if [[ ! -d $HOST_ES_DATA_DIR ] || [ -z $CLUSTER_NAME ]]; then
+if [[ ! -d $HOST_ES_DATA_DIR || -z $CLUSTER_NAME ]]; then
     echo "Skipping elasticsearch import on delegate hosts"
 else
 
