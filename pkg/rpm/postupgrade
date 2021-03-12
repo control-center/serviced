@@ -14,6 +14,7 @@ HOST_ES_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-serviced/data
 CONTAINER_ES_DATA_DIR=$CONTAINER_ES_DIR/data
 ELASTIC_BIN=$CONTAINER_ES_DIR/bin/elasticsearch
 SERVICED_LOG_DIR=/var/log/serviced
+PREUPGRADE_SERVICED_VER_FILE=/tmp/preupgrade-serviced-version.txt
 
 ################################################################################
 report() {
@@ -57,6 +58,14 @@ migrate_elasticsearch() {
         -f $HOST_ISVCS_DIR/elasticsearch_data.json &>/dev/null
     err=$?
     return $err
+}
+
+version_greater_equal() {
+    if [[ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]]; then 
+        return 0
+    else
+        return 1
+    fi
 }
 ################################################################################
 
@@ -126,6 +135,17 @@ if [[ -f /etc/cron.d/cron_zenossdbpack.backup ]]; then
 fi
 
 touch /etc/cron.d/cron_zenossdbpack
+
+# if preupgrade version of serviced >= 1.8.0 then ES and Zookeeper data
+# don't require migration
+if [[ -f $PREUPGRADE_SERVICED_VER_FILE ]]; then
+    PREUPGRADE_SERVICED_VER=$(cat $PREUPGRADE_SERVICED_VER_FILE)
+    echo "Preupgrade serviced version: $PREUPGRADE_SERVICED_VER"
+    if version_greater_equal $PREUPGRADE_SERVICED_VER "1.8.0"; then
+        echo "ElasticSearch and Zookeeper data don't require migration"
+        exit 0
+    fi
+fi
 
 echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
 cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_ISVCS_DIR/elasticsearch-serviced.backup
