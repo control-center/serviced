@@ -150,63 +150,81 @@ fi
 echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
 cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_ISVCS_DIR/elasticsearch-serviced.backup
 
-echo "Creating a backup of zookeeper data in $HOST_ISVCS_DIR"
-cp -ar $HOST_ISVCS_DIR/zookeeper $HOST_ISVCS_DIR/zookeeper.backup
-
-echo "Starting docker container elasticsearch-serviced ..."
-docker run --rm -d --name $SVC_NAME -p 9200:9200 \
-  -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v63 \
-  sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME \
-  -Des.cluster.name=$CLUSTER_NAME"
-
-if check_elasticsearch; then
-    report "SUCCESS" "Container started within timeout"
+#
+# CC-4419: If Elasticsearch configuration file and data folder does not exist
+# on the delegate that migration shouldn't start
+#
+if [[ ! -d $HOST_ES_DATA_DIR || -z $CLUSTER_NAME ]]; then
+    echo "Skipping elasticsearch export on delegate hosts"
 else
-    report "FAILURE" "Container failed to start within 120 seconds"
-fi
+    echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
+    cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_ISVCS_DIR/elasticsearch-serviced.backup
 
-if migrate_elasticsearch; then
-    report "SUCCESS" "Export completed"
-else
-    report "FAILURE" "Export failed try make the export manual"
-fi
+    echo "Starting docker container elasticsearch-serviced ..."
+    docker run --rm -d --name $SVC_NAME -p 9200:9200 \
+      -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v63 \
+      sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME \
+      -Des.cluster.name=$CLUSTER_NAME"
 
-echo "Stopping the container with old elasticsearch"
-docker stop $SVC_NAME
+    if check_elasticsearch; then
+        report "SUCCESS" "Container started within timeout"
+    else
+        report "FAILURE" "Container failed to start within 120 seconds"
+    fi
+
+    if migrate_elasticsearch; then
+        report "SUCCESS" "Export completed"
+    else
+        report "FAILURE" "Export failed try make the export manual"
+    fi
+
+    echo "Stopping the container with old elasticsearch"
+    docker stop $SVC_NAME
+fi
 
 echo "Copying stub snapshot.0 file to zookeeper storage dir for migration"
 echo "from 3.4.x to 3.5.5 version according to the issue ZOOKEEPER-3056"
 mv $HOME_SERVICED/isvcs/resources/zookeeper/snapshot.0 \
   $HOST_ISVCS_DIR/zookeeper/data/version-2/
 
-echo "Preparing the host for data import to new elasticsearch storage"
-rm -rf ${HOST_ES_DATA_DIR:?}/*
-groupadd -f elastic -g 1001
-id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
-chown 1001:1001 -R $HOST_ES_DATA_DIR
-
 echo "Setting persistent vm.max_map_count in the sysctl.conf"
 echo vm.max_map_count=262144 >> /etc/sysctl.conf
 sysctl --system
-
-echo "Starting container with new elasticsearch"
-docker run --rm -d --name $SVC_NAME -p 9200:9200 \
-  -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 \
-  su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME \
-  -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
-
-if check_elasticsearch; then
-    report "SUCCESS" "Container started within timeout"
+#
+# CC-4419: If Elasticsearch configuration file and data folder does not exist
+# on the delegate that migration shouldn't start
+#
+if [[ ! -d $HOST_ES_DATA_DIR || -z $CLUSTER_NAME ]]; then
+    echo "Skipping elasticsearch import on delegate hosts"
 else
-    report "FAILURE" "Container failed to start within 120 seconds"
+
+    echo "Preparing the host for data import to new elasticsearch storage"
+    rm -rf ${HOST_ES_DATA_DIR:?}/*
+    groupadd -f elastic -g 1001
+    id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
+    chown 1001:1001 -R $HOST_ES_DATA_DIR
+
+    echo "Starting container with new elasticsearch"
+    docker run --rm -d --name $SVC_NAME -p 9200:9200 \
+      -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 \
+      su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME \
+      -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
+
+
+    if check_elasticsearch; then
+        report "SUCCESS" "Container started within timeout"
+    else
+        report "FAILURE" "Container failed to start within 120 seconds"
+    fi
+
+    echo "Importing data to new elasticsearch"
+    $HOME_SERVICED/bin/elastic -i -c $HOME_SERVICED/etc/es_cluster.ini \
+      -f $HOST_ISVCS_DIR/elasticsearch_data.json
+
+    echo "Stopping the container with new elasticsearch"
+    docker stop $SVC_NAME
+
 fi
-
-echo "Importing data to new elasticsearch"
-$HOME_SERVICED/bin/elastic -i -c $HOME_SERVICED/etc/es_cluster.ini \
-  -f $HOST_ISVCS_DIR/elasticsearch_data.json
-
-echo "Stopping the container with new elasticsearch"
-docker stop $SVC_NAME
 
 echo "Removing data from old Hbase version"
 rm -rf /opt/serviced/var/isvcs/opentsdb/*
