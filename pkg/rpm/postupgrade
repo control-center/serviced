@@ -147,9 +147,6 @@ if [[ -f $PREUPGRADE_SERVICED_VER_FILE ]]; then
     fi
 fi
 
-echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
-cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_ISVCS_DIR/elasticsearch-serviced.backup
-
 #
 # CC-4419: If Elasticsearch configuration file and data folder does not exist
 # on the delegate that migration shouldn't start
