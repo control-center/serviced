@@ -26,6 +26,7 @@ import sys
 
 
 SERVICED_CONFIG="/etc/default/serviced"
+SERVICED_VERSION_FILE="/tmp/preupgrade-serviced-version.txt"
 C_RESET  = '\033[0m'
 C_BOLD   = C_RESET + '\033[1m'
 C_WARN   = C_RESET + '\033[93m'
@@ -349,6 +350,22 @@ def get_docker_version():
     return version
 
 
+def get_serviced_version():
+    """
+    Returns the version of serviced currently installed
+    """
+    # awk/grep isn't grabbing just the version.. parse it out.
+    version = subprocess.check_output("serviced version | grep '^Version' | head -1 || true", shell=True).strip()
+    version = [s for s in version.split(' ') if not s == '']
+    if not version:
+        return
+    if len(version) > 1:
+        version = version[1].strip()
+    else:
+        version = version[0].strip()
+    return version
+
+
 def show_help():
     """
     Displays steps for downgrading docker from the now upgraded version to the version
@@ -381,6 +398,12 @@ def show_help():
         print '\nDocker and Control Center need to be restarted after rolling back the upgrade.%s\n' % C_RESET
     else:
         print 'If you cannot immediately expand storage, you can start Control Center now without upgrading.%s\n' % C_RESET
+
+# Save the preupgrade serviced version to check whether ElasticSearch and Zookeeper data should be migrated after upgrade
+serviced_version = get_serviced_version()
+if serviced_version:
+    with open(SERVICED_VERSION_FILE, 'w+') as file:
+        file.write(serviced_version)
 
 
 # If the os environment variable NOCHECK is set, skip this entirely.
