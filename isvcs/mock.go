@@ -1030,11 +1030,11 @@ func init() {
 					YAxisLabel: "count",
 					ReturnSet:  "EXACT",
 					Type:       "line",
-					Tags:       map[string][]string{
+					Tags: map[string][]string{
 						"controlplane_service_id": []string{"isvc-opentsdb"},
-						"daemon": []string{"opentsdb"},
+						"daemon":                  []string{"opentsdb"},
 					},
-					Units:      "Count",
+					Units: "Count",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:           "jvm_gc_runs",
@@ -1076,11 +1076,11 @@ func init() {
 					YAxisLabel: "seconds",
 					ReturnSet:  "EXACT",
 					Type:       "line",
-					Tags:       map[string][]string{
+					Tags: map[string][]string{
 						"controlplane_service_id": []string{"isvc-opentsdb"},
-						"daemon": []string{"opentsdb"},
+						"daemon":                  []string{"opentsdb"},
 					},
-					Units:      "Miliseconds",
+					Units: "Miliseconds",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:           "jvm_gc_time",
@@ -1122,11 +1122,11 @@ func init() {
 					YAxisLabel: "count",
 					ReturnSet:  "EXACT",
 					Type:       "line",
-					Tags:       map[string][]string{
+					Tags: map[string][]string{
 						"controlplane_service_id": []string{"isvc-opentsdb"},
-						"daemon": []string{"opentsdb"},
+						"daemon":                  []string{"opentsdb"},
 					},
-					Units:      "Count",
+					Units: "Count",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:           "jvm_thread",
@@ -1156,11 +1156,11 @@ func init() {
 					YAxisLabel: "count",
 					ReturnSet:  "EXACT",
 					Type:       "line",
-					Tags:       map[string][]string{
+					Tags: map[string][]string{
 						"controlplane_service_id": []string{"isvc-opentsdb"},
-						"daemon": []string{"Consumer-Application"},
+						"daemon":                  []string{"Consumer-Application"},
 					},
-					Units:      "Count",
+					Units: "Count",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:           "mc_jvm_gc_runs",
@@ -1202,11 +1202,11 @@ func init() {
 					YAxisLabel: "miliseconds",
 					ReturnSet:  "EXACT",
 					Type:       "line",
-					Tags:       map[string][]string{
+					Tags: map[string][]string{
 						"controlplane_service_id": []string{"isvc-opentsdb"},
-						"daemon": []string{"Consumer-Application"},
+						"daemon":                  []string{"Consumer-Application"},
 					},
-					Units:      "Miliseconds",
+					Units: "Miliseconds",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:           "mc_jvm_gc_time",
@@ -1248,11 +1248,11 @@ func init() {
 					YAxisLabel: "count",
 					ReturnSet:  "EXACT",
 					Type:       "line",
-					Tags:       map[string][]string{
+					Tags: map[string][]string{
 						"controlplane_service_id": []string{"isvc-opentsdb"},
-						"daemon": []string{"Consumer-Application"},
+						"daemon":                  []string{"Consumer-Application"},
 					},
-					Units:      "Count",
+					Units: "Count",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:           "jvm_thread",
@@ -1398,7 +1398,7 @@ func init() {
 	KibanaISVC = s.Service{
 		Name:            "Kibana",
 		ID:              "isvc-kibana",
-		Startup:         "/opt/kibana-4.5.2/bin/kibana",
+		Startup:         "/opt/kibana-7.12.0/bin/kibana",
 		Description:     "Internal Kibana",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
@@ -1619,7 +1619,6 @@ func init() {
 			},
 		},
 	}
-
 
 	ISVCSMap = map[string]*s.Service{
 		"isvc-internalservices":       &InternalServicesISVC,

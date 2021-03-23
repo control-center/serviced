@@ -17,7 +17,7 @@ var kibana *IService
 
 func initKibana() {
 	var err error
-	command := "exec /opt/kibana/bin/kibana"
+	command := "exec /opt/kibana/bin/kibana --allow-root"
 
 	webserverPortBinding := portBinding{
 		HostIp:         "127.0.0.1",

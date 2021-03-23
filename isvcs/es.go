@@ -158,9 +158,6 @@ func initElasticSearch() {
 		}).WithError(err).Fatal("Unable to initialize internal service")
 	}
 
-	// This value will be overwritten by SERVICED_ISVCS_ENV_X in
-	// /etc/default/serviced
-	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
 		nodeName := elasticsearch_logstash.Name
 		clusterName := elasticsearch_logstash.Configuration["cluster"]
