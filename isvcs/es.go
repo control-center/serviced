@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -158,9 +157,6 @@ func initElasticSearch() {
 		}).WithError(err).Fatal("Unable to initialize internal service")
 	}
 
-	// This value will be overwritten by SERVICED_ISVCS_ENV_X in
-	// /etc/default/serviced
-	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
 		nodeName := elasticsearch_logstash.Name
 		clusterName := elasticsearch_logstash.Configuration["cluster"]
@@ -288,30 +284,26 @@ func esHealthCheck(host string, port int, minHealth ESHealth) HealthCheckFunctio
 func PurgeLogstashIndices(days int, gb int) {
 	iservice := elasticsearch_logstash
 	port := iservice.PortBindings[0].HostPort
-	prefix := []string{"/usr/bin/curator", "--port", fmt.Sprintf("%d", port)}
+
+	curatorConfigPath := "/opt/curator/curator-config.yml"
+	curatorActionsPath := "/opt/curator/curator-actions.yml"
+
+	prefix := []string{
+		fmt.Sprintf("ES_PORT=%d", port),
+		fmt.Sprintf("MAX_AGE_DAYS=%d", days),
+		fmt.Sprintf("MAX_SIZE_GB=%d", gb),
+	}
+	command := []string{"/usr/bin/curator", "--config", curatorConfigPath, curatorActionsPath}
 
 	log := log.WithFields(logrus.Fields{
 		"maxagedays": days,
 		"maxsizegb":  gb,
 	})
 
-	log.Debug("Purging Logstash entries older than max age")
-	indices := []string{"indices", "--older-than", fmt.Sprintf("%d", days), "--time-unit", "days", "--timestring", "%Y.%m.%d"}
-	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
-		if !(strings.Contains(string(output), "No indices found in Elasticsearch") ||
-			strings.Contains(string(output), "No indices matched provided args")) {
-			log.WithError(err).Warn("Unable to purge logstash entries older than max age")
-		}
+	log.Debug("Purging Logstash entries older than max age or bigger than max size")
+	if _, err := iservice.Exec(append(prefix, command...)); err != nil {
+		log.WithError(err).Warn("Unable to purge logstash entries")
+	} else {
+		log.Info("Purged Logstash entries older than max age or bigger than max size")
 	}
-	log.Info("Purged Logstash entries older than max age")
-
-	log.Debug("Purging Logstash entries to be below max size")
-	indices = []string{"--disk-space", fmt.Sprintf("%d", gb), "indices", "--all-indices"}
-	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
-		if !(strings.Contains(string(output), "No indices found in Elasticsearch") ||
-			strings.Contains(string(output), "No indices matched provided args")) {
-			log.WithError(err).Warn("Unable to purge logstash entries to be below max size")
-		}
-	}
-	log.Info("Purged Logstash entries to be below max size")
 }
