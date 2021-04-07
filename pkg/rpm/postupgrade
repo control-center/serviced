@@ -215,7 +215,7 @@ else
     fi
 
     echo "Importing data to new elasticsearch logstash"
-    $HOME_SERVICED/bin/elastic -i -c $HOME_SERVICED/etc/es_cluster.ini \
+    $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini \
       -f $HOST_ISVCS_DIR/elasticsearch_logstash_data.json -I
 
     echo "Stopping the container with new elasticsearch"
