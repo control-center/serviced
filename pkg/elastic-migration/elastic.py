@@ -78,7 +78,10 @@ class ExportUtil(BaseUtil):
 
     def __get_json_data_logstash(self):
         self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port'))
-        es = ES1x([self.config.get('DEFAULT', 'elastic_logstash_host_port')], use_ssl=False)
+        es = ES1x([self.config.get('DEFAULT', 'elastic_logstash_host_port')],
+                   timeout=int(self.config.get('DEFAULT', 'timeout')),
+                   use_ssl=False,
+                   retry_on_timeout=True)
         _, data = es.transport.perform_request('GET', '/_all/_mapping')
         actions = []
         indices_type = []
@@ -119,7 +122,9 @@ class ImportUtil(BaseUtil):
 
     def __set_json_data(self, data):
         self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_host_port'))
-        es = ES7x([self.config.get('DEFAULT', 'elastic_host_port')], use_ssl=False)
+        es = ES7x([self.config.get('DEFAULT', 'elastic_host_port')],
+                  timeout=int(self.config.get('DEFAULT', 'timeout')),
+                  use_ssl=False, retry_on_timeout=True)
         self.types = re.sub(r"[\n\t\s]*", "", self.config.get('DEFAULT', 'types')).split(",")
         index = self.config.get('DEFAULT','index')
 
