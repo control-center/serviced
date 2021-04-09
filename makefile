@@ -298,6 +298,7 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usag
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-fstrim:serviced-fstrim
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/elastic-migration/elastic:elastic
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/elastic-migration/migrate_es_logstash_data.sh:migrate_es_logstash_data.sh
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced-storage:$(_DESTDIR)/usr/bin/serviced-storage
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/ui/build:static
