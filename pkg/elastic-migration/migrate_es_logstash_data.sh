@@ -97,5 +97,10 @@ echo "Importing data to new elasticsearch logstash"
 $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini \
   -f $HOST_ISVCS_DIR/elasticsearch_logstash_data.json -I
 
+echo "Removing old version of kibana settings "
+curl -X DELETE "localhost:9100/kibana-int/_doc/4.5.2?pretty"
+curl -X DELETE "localhost:9100/kibana-int/_doc/4.6.4?pretty"
+curl -X DELETE "localhost:9100/kibana-int/_doc/logstash-*?pretty"
+
 echo "Stopping the container with new elasticsearch"
 docker stop $SVC_NAME_LS
