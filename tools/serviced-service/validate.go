@@ -148,7 +148,7 @@ func (mc *MigrationContext) validateName(name string, parentID string) error {
 		return err
 	}
 	if existing != nil {
-		path, err := mc.services.GetServicePath(name)
+		path, err := mc.services.GetServicePath(existing.ID)
 		if err != nil {
 			path = fmt.Sprintf("%v", err)
 		}
