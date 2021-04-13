@@ -7,6 +7,10 @@ from ConfigParser import ConfigParser
 from elasticsearch1 import Elasticsearch as ES1x
 from elasticsearch import Elasticsearch as ES7x
 
+from elasticsearch1.helpers import scan
+from elasticsearch.helpers import bulk
+
+
 
 class BaseUtil:
 
@@ -34,7 +38,10 @@ class ExportUtil(BaseUtil):
 
     def __call__(self, *args, **kwargs):
         with open(self.fname, "w") as f:
-            f.write(self.__get_json_data())
+            if "logstash" in kwargs and kwargs["logstash"]:
+                f.write(self.__get_json_data_logstash())
+            else:
+                f.write(self.__get_json_data())
         self.log.info("Export is done")
 
     def __get_json_data(self):
@@ -69,17 +76,55 @@ class ExportUtil(BaseUtil):
         self.log.info("Dumping all result to json")
         return json.dumps(results, indent=2, sort_keys=True)
 
+    def __get_json_data_logstash(self):
+        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port'))
+        es = ES1x([self.config.get('DEFAULT', 'elastic_logstash_host_port')],
+                   timeout=int(self.config.get('DEFAULT', 'timeout')),
+                   use_ssl=False,
+                   retry_on_timeout=True)
+        _, data = es.transport.perform_request('GET', '/_all/_mapping')
+        actions = []
+        indices_type = []
+
+        for index, value in data.items():
+            for type in value.get("mappings"):
+                indices_type.append((index, type))
+
+        match_all = {"size": self.config.getint('DEFAULT', "query_batch_size"), "query": {"match_all": {}}}
+
+        for index, type in indices_type:
+            self.log.info("Starting fetching index: %s; type: %s", index, type)
+
+            data = scan(es, query=match_all, size=self.config.getint('DEFAULT', "query_batch_size"),
+                        index=index, doc_type=type)
+
+            for item in data:
+                item["_source"].update({"type": type})
+                actions.append({'_op_type': 'create',
+                                '_index': index,
+                                '_id': item["_id"],
+                                '_source': item["_source"]})
+            self.log.info("Finished fetching index: %s; type: %s", index, type)
+
+        self.log.info("Dumping all result to json")
+        return json.dumps(actions, indent=2, sort_keys=True)
+
 
 class ImportUtil(BaseUtil):
 
     def __call__(self, *args, **kwargs):
         with open(self.fname) as f:
-            self.__set_json_data(json.load(f))
+            if "logstash" in kwargs and kwargs["logstash"]:
+                self.__set_json_data_logstash(json.load(f))
+            else:
+                self.__set_json_data(json.load(f))
         self.log.info("Import is done")
 
     def __set_json_data(self, data):
         self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_host_port'))
-        es = ES7x([self.config.get('DEFAULT', 'elastic_host_port')], use_ssl=False)
+        es = ES7x([self.config.get('DEFAULT', 'elastic_host_port')],
+                  timeout=int(self.config.get('DEFAULT', 'timeout')),
+                  use_ssl=False, retry_on_timeout=True)
         self.types = re.sub(r"[\n\t\s]*", "", self.config.get('DEFAULT', 'types')).split(",")
         index = self.config.get('DEFAULT','index')
 
@@ -97,6 +142,13 @@ class ImportUtil(BaseUtil):
             self.log.info("Created %d doc(s)", len(values))
             self.log.info("Finished adding data of %s type", current_type)
 
+    def __set_json_data_logstash(self, actions):
+        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port'))
+        es = ES7x([self.config.get('DEFAULT', 'elastic_logstash_host_port')], use_ssl=False)
+        bulk(es, actions, chunk_size=self.config.get('DEFAULT', 'chunk_size'),
+                          max_retries=int(self.config.get('DEFAULT', 'max_retries')),
+                          max_chunk_bytes=int(self.config.get('DEFAULT', 'max_chunk_bytes')) * 1024 * 1024,
+                          stats_only=True)
 
 def main():
     parser = OptionParser()
@@ -107,18 +159,28 @@ def main():
     parser.add_option("-c", "--config", dest="config_name", default="es_cluster.ini",
                       help="config file of elastic cluster", metavar="FILE")
 
-    parser.add_option("-e", "--export", action="store_true", dest="export", default=True,
-                      help="make an export from old elastic")
+    parser.add_option("-e", "--export", action="store_true", dest="export",
+                      help="make an export from old elastic serviced")
 
-    parser.add_option("-i", "--import", action="store_false", dest="export",
-                      help="make an import to new elastic")
+    parser.add_option("-E", "--export-logstash", action="store_true", dest="ls_export",
+                      help="make an export from old elastic logstash")
+
+    parser.add_option("-i", "--import", action="store_true", dest="import",
+                      help="make an import to new elastic serviced")
+
+    parser.add_option("-I", "--import-logstash", action="store_true", dest="ls_import",
+                      help="make an import to new elastic logstash")
 
     (options, _) = parser.parse_args()
 
     if options.export:
         ExportUtil(options.filename, options.config_name)()
-    else:
+    elif options.ls_export:
+        ExportUtil(options.filename, options.config_name)(logstash=True)
+    elif getattr(options, "import"):
         ImportUtil(options.filename, options.config_name)()
+    elif options.ls_import:
+        ImportUtil(options.filename, options.config_name)(logstash=True)
 
 
 if __name__ == "__main__":

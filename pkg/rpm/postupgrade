@@ -13,6 +13,13 @@ CLUSTER_NAME=$(cat $HOST_ISVCS_DIR/elasticsearch-serviced.clustername)
 HOST_ES_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-serviced/data
 CONTAINER_ES_DATA_DIR=$CONTAINER_ES_DIR/data
 ELASTIC_BIN=$CONTAINER_ES_DIR/bin/elasticsearch
+CONTAINER_ES_LS_DIR=/opt/elasticsearch-logstash
+SVC_NAME_LS=/serviced-isvcs_elasticsearch-logstash
+NODE_NAME_LS=elasticsearch-logstash
+CLUSTER_NAME_LS=$(cat $HOST_ISVCS_DIR/elasticsearch-logstash.clustername)
+HOST_ES_LS_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-logstash/data
+CONTAINER_ES_LS_DATA_DIR=$CONTAINER_ES_LS_DIR/data
+ELASTIC_LS_BIN=$CONTAINER_ES_LS_DIR/bin/elasticsearch
 SERVICED_LOG_DIR=/var/log/serviced
 PREUPGRADE_SERVICED_VER_FILE=/tmp/preupgrade-serviced-version.txt
 
@@ -55,13 +62,13 @@ migrate_elasticsearch() {
     local err
     echo "Starting export for old elasticsearch storage"
     retry 120 $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini \
-        -f $HOST_ISVCS_DIR/elasticsearch_data.json &>/dev/null
+        -f $HOST_ISVCS_DIR/elasticsearch_data.json -e &>/dev/null
     err=$?
     return $err
 }
 
 version_greater_equal() {
-    if [[ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]]; then 
+    if [[ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]]; then
         return 0
     else
         return 1
