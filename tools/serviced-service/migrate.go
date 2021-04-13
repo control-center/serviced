@@ -16,6 +16,7 @@ package main
 import (
 	// log "github.com/Sirupsen/logrus"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -46,6 +47,7 @@ func (mc *MigrationContext) Migrate(req dao.ServiceMigrationRequest) (ServiceLis
 	var err error
 
 	if err = mc.validate(req); err != nil {
+		fmt.Fprintln(os.Stderr, "migrate: validation failed")
 		return nil, err
 	}
 
@@ -62,6 +64,7 @@ func (mc *MigrationContext) Migrate(req dao.ServiceMigrationRequest) (ServiceLis
 	// Process modified services
 	for _, svc := range req.Modified {
 		if err := mc.Update(svc); err != nil {
+			fmt.Fprintf(os.Stderr, "migrate: service failed to update.  svc.Name=%v\n", svc.Name)
 			return nil, err
 		}
 	}
@@ -69,6 +72,7 @@ func (mc *MigrationContext) Migrate(req dao.ServiceMigrationRequest) (ServiceLis
 	// Process newly added services
 	for _, svc := range req.Added {
 		if err := mc.Add(svc); err != nil {
+			fmt.Fprintf(os.Stderr, "migrate: new service not added.  svc.Name=%v\n", svc.Name)
 			return nil, err
 		}
 	}
@@ -76,6 +80,7 @@ func (mc *MigrationContext) Migrate(req dao.ServiceMigrationRequest) (ServiceLis
 	// Process deployment requests for services from service definitions.
 	for _, sdreq := range req.Deploy {
 		if err := mc.Deploy(sdreq); err != nil {
+			fmt.Fprintf(os.Stderr, "migrate: new service not deployed.  svc.Name=%v\n", sdreq.Service.Name)
 			return nil, err
 		}
 	}
