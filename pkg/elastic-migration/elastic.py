@@ -148,7 +148,8 @@ class ImportUtil(BaseUtil):
         bulk(es, actions, chunk_size=self.config.get('DEFAULT', 'chunk_size'),
                           max_retries=int(self.config.get('DEFAULT', 'max_retries')),
                           max_chunk_bytes=int(self.config.get('DEFAULT', 'max_chunk_bytes')) * 1024 * 1024,
-                          stats_only=True)
+                          stats_only=True,
+                          timeout="%ss" % self.config.get('DEFAULT', 'timeout'))
 
 def main():
     parser = OptionParser()
