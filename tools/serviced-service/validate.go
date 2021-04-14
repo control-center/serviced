@@ -15,6 +15,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
@@ -148,7 +149,7 @@ func (mc *MigrationContext) validateName(name string, parentID string) error {
 		return err
 	}
 	if existing != nil {
-		path, err := mc.services.GetServicePath(name)
+		path, err := mc.services.GetServicePath(existing.ID)
 		if err != nil {
 			path = fmt.Sprintf("%v", err)
 		}
@@ -226,22 +227,14 @@ func (mc *MigrationContext) validateDeployment(
 	parentID string, sd *definition.ServiceDefinition,
 ) error {
 	var err error
-	var parent *service.Service
 
-	parent, err = mc.services.Get(parentID)
+	_, err = mc.services.Get(parentID)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "migrate: parent ID for new deployed service not found.  svc.Name=%v\n", sd.Name)
 		return err
 	}
 
-	return deploy(
-		mc.services,
-		mc.services.GetTenantID(),
-		parent.PoolID,
-		parent.DeploymentID,
-		parentID,
-		false,
-		*sd,
-	)
+	return nil
 }
 
 // validateMigration makes sure there are no collisions with the added/modified services.
