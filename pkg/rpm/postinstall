@@ -27,5 +27,8 @@ if ! (python -c "import sys; sys.exit(0 if \"${LIBDEVMAPPER}\".endswith('.1') el
     [ -f "${LIBDEVMAPPER}.1" -o -h "${LIBDEVMAPPER}.1" ] || ln -sf ${LIBDEVMAPPER} ${LIBDEVMAPPER}.1
     ldconfig
 fi
+
+echo fs.inotify.max_user_instances=16384 > /etc/sysctl.d/99-inotify.conf
+echo fs.inotify.max_user_watches=640000 >> /etc/sysctl.d/99-inotify.conf
 echo vm.max_map_count=262144 >> /etc/sysctl.conf
 sysctl --system
