@@ -143,6 +143,11 @@ fi
 
 touch /etc/cron.d/cron_zenossdbpack
 
+echo "Setting higher fs.inotify limits"
+echo fs.inotify.max_user_instances=16384 > /etc/sysctl.d/99-inotify.conf
+echo fs.inotify.max_user_watches=640000 >> /etc/sysctl.d/99-inotify.conf
+sysctl --system
+
 # if preupgrade version of serviced >= 1.8.0 then ES and Zookeeper data
 # don't require migration
 if [[ -f $PREUPGRADE_SERVICED_VER_FILE ]]; then
