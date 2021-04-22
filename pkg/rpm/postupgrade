@@ -148,6 +148,30 @@ echo fs.inotify.max_user_instances=16384 > /etc/sysctl.d/99-inotify.conf
 echo fs.inotify.max_user_watches=640000 >> /etc/sysctl.d/99-inotify.conf
 sysctl --system
 
+# if preupgrade version of serviced >= 1.9.0 then ES logstash data
+# don't require migration
+if [[ -f $PREUPGRADE_SERVICED_VER_FILE ]]; then
+    PREUPGRADE_SERVICED_VER=$(cat $PREUPGRADE_SERVICED_VER_FILE)
+    echo "Preupgrade serviced version: $PREUPGRADE_SERVICED_VER"
+    if version_greater_equal $PREUPGRADE_SERVICED_VER "1.9.0"; then
+        echo "ElasticSearch logstash data don't require migration"
+        exit 0
+    fi
+fi
+
+echo "Creating a backup of elasticsearch-logstash data in $HOST_ISVCS_DIR"
+cp -ar $HOST_ISVCS_DIR/elasticsearch-logstash $HOST_ISVCS_DIR/elasticsearch-logstash.backup
+
+echo "Starting docker container elasticsearch-logstash ..."
+docker run --rm -d --name $SVC_NAME_LS -p 9100:9100 \
+  -v $HOST_ES_LS_DATA_DIR:$CONTAINER_ES_LS_DATA_DIR zenoss/serviced-isvcs:v68 \
+  sh -c "$ELASTIC_LS_BIN -Des.insecure.allow.root=true -Des.node.name=$NODE_NAME_LS -Des.cluster.name=$CLUSTER_NAME_LS"
+
+echo "Removing old version of kibana settings"
+curl -XDELETE http://localhost:9100/kibana-int?pretty
+
+docker stop $SVC_NAME_LS
+
 # if preupgrade version of serviced >= 1.8.0 then ES and Zookeeper data
 # don't require migration
 if [[ -f $PREUPGRADE_SERVICED_VER_FILE ]]; then
