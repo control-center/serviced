@@ -53,9 +53,6 @@ HOST_ES_LS_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-logstash/data
 CONTAINER_ES_LS_DATA_DIR=$CONTAINER_ES_LS_DIR/data
 ELASTIC_LS_BIN=$CONTAINER_ES_LS_DIR/bin/elasticsearch
 
-echo "Creating a backup of elasticsearch-logstash data in $HOST_ISVCS_DIR"
-cp -ar $HOST_ISVCS_DIR/elasticsearch-logstash $HOST_ISVCS_DIR/elasticsearch-logstash.backup
-
 echo "Starting docker container elasticsearch-logstash ..."
 docker run --rm -d --name $SVC_NAME_LS -p 9100:9100 \
   -v $HOST_ES_LS_DATA_DIR:$CONTAINER_ES_LS_DATA_DIR zenoss/serviced-isvcs:v68 \
@@ -96,11 +93,6 @@ fi
 echo "Importing data to new elasticsearch logstash"
 $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini \
   -f $HOST_ISVCS_DIR/elasticsearch_logstash_data.json -I
-
-echo "Removing old version of kibana settings "
-curl -X DELETE "localhost:9100/kibana-int/_doc/4.5.2?pretty"
-curl -X DELETE "localhost:9100/kibana-int/_doc/4.6.4?pretty"
-curl -X DELETE "localhost:9100/kibana-int/_doc/logstash-*?pretty"
 
 echo "Stopping the container with new elasticsearch"
 docker stop $SVC_NAME_LS
