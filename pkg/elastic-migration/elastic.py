@@ -8,8 +8,7 @@ from elasticsearch1 import Elasticsearch as ES1x
 from elasticsearch import Elasticsearch as ES7x
 
 from elasticsearch1.helpers import scan
-from elasticsearch.helpers import bulk
-
+from elasticsearch.helpers import parallel_bulk
 
 
 class BaseUtil:
@@ -37,11 +36,13 @@ class BaseUtil:
 class ExportUtil(BaseUtil):
 
     def __call__(self, *args, **kwargs):
-        with open(self.fname, "w") as f:
-            if "logstash" in kwargs and kwargs["logstash"]:
-                f.write(self.__get_json_data_logstash())
-            else:
+
+        if "logstash" in kwargs and kwargs["logstash"]:
+            self.__migrate_logstash()
+        else:
+            with open(self.fname, "w") as f:
                 f.write(self.__get_json_data())
+
         self.log.info("Export is done")
 
     def __get_json_data(self):
@@ -76,14 +77,16 @@ class ExportUtil(BaseUtil):
         self.log.info("Dumping all result to json")
         return json.dumps(results, indent=2, sort_keys=True)
 
-    def __get_json_data_logstash(self):
+    def __migrate_logstash(self):
         self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port'))
         es = ES1x([self.config.get('DEFAULT', 'elastic_logstash_host_port')],
                    timeout=int(self.config.get('DEFAULT', 'timeout')),
                    use_ssl=False,
                    retry_on_timeout=True)
+
+        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port_new'))
+        es7 = ES7x([self.config.get('DEFAULT', 'elastic_logstash_host_port_new')], use_ssl=False)
         _, data = es.transport.perform_request('GET', '/_all/_mapping')
-        actions = []
         indices_type = []
 
         for index, value in data.items():
@@ -92,22 +95,36 @@ class ExportUtil(BaseUtil):
 
         match_all = {"size": self.config.getint('DEFAULT', "query_batch_size"), "query": {"match_all": {}}}
 
+        ok_count = 0
+        fail_count = 0
+
         for index, type in indices_type:
             self.log.info("Starting fetching index: %s; type: %s", index, type)
 
             data = scan(es, query=match_all, size=self.config.getint('DEFAULT', "query_batch_size"),
                         index=index, doc_type=type)
 
-            for item in data:
-                item["_source"].update({"type": type})
-                actions.append({'_op_type': 'create',
-                                '_index': index,
-                                '_id': item["_id"],
-                                '_source': item["_source"]})
-            self.log.info("Finished fetching index: %s; type: %s", index, type)
+            def _transfer_data(data):
+                for item in data:
+                    item["_source"].update({"type": type})
+                    yield {'_op_type': 'create',
+                           '_index': index,
+                           '_id': item["_id"],
+                           '_source': item["_source"]}
 
-        self.log.info("Dumping all result to json")
-        return json.dumps(actions, indent=2, sort_keys=True)
+            for (ok, item) in parallel_bulk(es7, _transfer_data(data),
+                                            chunk_size=int(self.config.get('DEFAULT', 'chunk_size')),
+                                            max_chunk_bytes=int(self.config.get('DEFAULT', 'max_chunk_bytes')) * 1024 * 1024,
+                                            timeout="%ss" % self.config.get('DEFAULT', 'timeout')):
+                if not ok:
+                    self.log.error("got error on index {} which is : {}".format(index, item))
+                    fail_count += 1
+                else:
+                    ok_count += 1
+
+            self.log.info("Finished transfer index: %s; type: %s", index, type)
+
+        self.log.info("Migration finished successfully success_requests: %s; failed_requests: %s", ok_count, fail_count)
 
 
 class ImportUtil(BaseUtil):
@@ -142,14 +159,6 @@ class ImportUtil(BaseUtil):
             self.log.info("Created %d doc(s)", len(values))
             self.log.info("Finished adding data of %s type", current_type)
 
-    def __set_json_data_logstash(self, actions):
-        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port'))
-        es = ES7x([self.config.get('DEFAULT', 'elastic_logstash_host_port')], use_ssl=False)
-        bulk(es, actions, chunk_size=self.config.get('DEFAULT', 'chunk_size'),
-                          max_retries=int(self.config.get('DEFAULT', 'max_retries')),
-                          max_chunk_bytes=int(self.config.get('DEFAULT', 'max_chunk_bytes')) * 1024 * 1024,
-                          stats_only=True,
-                          timeout="%ss" % self.config.get('DEFAULT', 'timeout'))
 
 def main():
     parser = OptionParser()
@@ -163,25 +172,20 @@ def main():
     parser.add_option("-e", "--export", action="store_true", dest="export",
                       help="make an export from old elastic serviced")
 
-    parser.add_option("-E", "--export-logstash", action="store_true", dest="ls_export",
+    parser.add_option("-M", "--migrate-logstash", action="store_true", dest="ls_migrate",
                       help="make an export from old elastic logstash")
 
     parser.add_option("-i", "--import", action="store_true", dest="import",
                       help="make an import to new elastic serviced")
 
-    parser.add_option("-I", "--import-logstash", action="store_true", dest="ls_import",
-                      help="make an import to new elastic logstash")
-
     (options, _) = parser.parse_args()
 
     if options.export:
         ExportUtil(options.filename, options.config_name)()
-    elif options.ls_export:
+    elif options.ls_migrate:
         ExportUtil(options.filename, options.config_name)(logstash=True)
     elif getattr(options, "import"):
         ImportUtil(options.filename, options.config_name)()
-    elif options.ls_import:
-        ImportUtil(options.filename, options.config_name)(logstash=True)
 
 
 if __name__ == "__main__":
