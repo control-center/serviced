@@ -52,8 +52,10 @@ retry() {
 
 check_elasticsearch() {
     local err
-    echo "Waiting 120 seconds for elasticsearch to start ..."
-    retry 120 curl http://localhost:9200/_cluster/health &>/dev/null
+    local port
+    port=$1
+    echo "Waiting 120 seconds for elasticsearch on localhost:${port} to start ..."
+    retry 120 curl http://localhost:${port}/_cluster/health &>/dev/null
     err=$?
     return $err
 }
@@ -167,6 +169,12 @@ docker run --rm -d --name $SVC_NAME_LS -p 9100:9100 \
   -v $HOST_ES_LS_DATA_DIR:$CONTAINER_ES_LS_DATA_DIR zenoss/serviced-isvcs:v68 \
   sh -c "$ELASTIC_LS_BIN -Des.insecure.allow.root=true -Des.node.name=$NODE_NAME_LS -Des.cluster.name=$CLUSTER_NAME_LS"
 
+if check_elasticsearch 9100; then
+	report "SUCCESS" "Container started within timeout"
+else
+	report "FAILURE" "Container failed to start within 120 seconds"
+fi
+
 echo "Removing old version of kibana settings"
 curl -XDELETE http://localhost:9100/kibana-int?pretty
 
@@ -199,7 +207,7 @@ else
       sh -c "$ELASTIC_BIN -f -Des.node.name=$NODE_NAME \
       -Des.cluster.name=$CLUSTER_NAME"
 
-    if check_elasticsearch; then
+    if check_elasticsearch 9200; then
         report "SUCCESS" "Container started within timeout"
     else
         report "FAILURE" "Container failed to start within 120 seconds"
@@ -244,7 +252,7 @@ else
       -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
 
 
-    if check_elasticsearch; then
+    if check_elasticsearch 9200; then
         report "SUCCESS" "Container started within timeout"
     else
         report "FAILURE" "Container failed to start within 120 seconds"
