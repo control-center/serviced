@@ -98,4 +98,4 @@ docker stop $SVC_NAME_LS_NEW
 
 echo "Replacing old data folder to new "
 rm -rf ${HOST_ES_LS_DATA_DIR:?}
-mv $HOST_ISVCS_DIR/elasticsearch-logstash-new $HOST_ISVCS_DIR/elasticsearch-logstash
+mv $HOST_ISVCS_DIR/elasticsearch-logstash-new/* $HOST_ISVCS_DIR/elasticsearch-logstash
