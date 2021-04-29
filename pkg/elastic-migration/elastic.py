@@ -1,14 +1,107 @@
 import json
 import re
 import logging
+import threading
 from optparse import OptionParser
 from ConfigParser import ConfigParser
+from collections import deque
 
 from elasticsearch1 import Elasticsearch as ES1x
 from elasticsearch import Elasticsearch as ES7x
 
 from elasticsearch1.helpers import scan
 from elasticsearch.helpers import parallel_bulk
+
+from progressbar import ProgressBar
+
+INDEX_TEMPLATE = {
+    "index_patterns": [
+        "logstash-*"
+    ],
+    "template": {
+        "settings": {
+            "refresh_interval": "5s",
+            "number_of_replicas": 0
+        },
+        "mappings": {
+            "dynamic_templates": [
+                {
+                    "message_field": {
+                        "match_mapping_type": "string",
+                        "mapping": {
+                            "omit_norms": True,
+                            "type": "text",
+                            "fielddata": False
+                        },
+                        "match": "message"
+                    }
+                },
+                {
+                    "string_fields": {
+                        "match_mapping_type": "string",
+                        "mapping": {
+                            "fields": {
+                                "raw": {
+                                    "ignore_above": 256,
+                                    "type": "keyword"
+                                }
+                            },
+                            "type": "text",
+                            "fielddata": False,
+                            "omit_norms": True
+                        },
+                        "match": "*"
+                    }
+                }
+            ],
+            "properties": {
+                "geoip": {
+                    "dynamic": "true",
+                    "properties": {
+                        "latitude": {
+                            "type": "float"
+                        },
+                        "ip": {
+                            "type": "ip"
+                        },
+                        "location": {
+                            "type": "geo_point"
+                        },
+                        "longitude": {
+                            "type": "float"
+                        }
+                    }
+                },
+                "@timestamp": {
+                    "type": "date"
+                },
+                "host": {
+                    "ignore_above": 256,
+                    "type": "keyword"
+                },
+                "@version": {
+                    "type": "text"
+                },
+                "type": {
+                    "ignore_above": 256,
+                    "type": "keyword"
+                },
+                "message": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                },
+                "rcvd_datetime": {
+                    "type": "date"
+                },
+                "port": {
+                    "type": "long"
+                }
+            }
+        }
+    }
+}
+
+PROGRESS_INTERVAL = 20.0
 
 
 class BaseUtil:
@@ -47,7 +140,8 @@ class ExportUtil(BaseUtil):
 
     def __get_json_data(self):
 
-        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_host_port'))
+        self.log.info("Connecting to the elastic cluster by address  %s",
+                      self.config.get('DEFAULT', 'elastic_host_port'))
         es = ES1x([self.config.get('DEFAULT', 'elastic_host_port')], use_ssl=False)
 
         self.types = re.sub(r"[\n\t\s]*", "", self.config.get('DEFAULT', 'types')).split(",")
@@ -78,16 +172,22 @@ class ExportUtil(BaseUtil):
         return json.dumps(results, indent=2, sort_keys=True)
 
     def __migrate_logstash(self):
-        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port'))
+        self.log.info("Connecting to the elastic cluster by address  %s",
+                      self.config.get('DEFAULT', 'elastic_logstash_host_port'))
         es = ES1x([self.config.get('DEFAULT', 'elastic_logstash_host_port')],
-                   timeout=int(self.config.get('DEFAULT', 'timeout')),
-                   use_ssl=False,
-                   retry_on_timeout=True)
+                  timeout=int(self.config.get('DEFAULT', 'timeout')),
+                  use_ssl=False,
+                  retry_on_timeout=True)
 
-        self.log.info("Connecting to the elastic cluster by address  %s", self.config.get('DEFAULT', 'elastic_logstash_host_port_new'))
+        self.log.info("Connecting to the elastic cluster by address  %s",
+                      self.config.get('DEFAULT', 'elastic_logstash_host_port_new'))
         es7 = ES7x([self.config.get('DEFAULT', 'elastic_logstash_host_port_new')], use_ssl=False)
         _, data = es.transport.perform_request('GET', '/_all/_mapping')
         indices_type = []
+
+        total_count = int(es.transport.perform_request('GET', '/_cat/count?h=count')[1].strip())
+
+        pb_instance = ProgressBar(total=100, decimals=3, length=50, fill='X', zfill='-')
 
         for index, value in data.items():
             for type in value.get("mappings"):
@@ -95,13 +195,33 @@ class ExportUtil(BaseUtil):
 
         match_all = {"size": self.config.getint('DEFAULT', "query_batch_size"), "query": {"match_all": {}}}
 
-        ok_count = 0
-        fail_count = 0
+        es7.indices.put_index_template("merge_tmp_1", body=INDEX_TEMPLATE)
+        speed = {"min": 1000000, "max": 0, "current": 0, "prev_count": 0}
+
+        def progress_run():
+            progress = 0
+            try:
+                current_count = int(es7.transport.perform_request('GET', '/_cat/count?h=count').strip())
+                progress = int(100 * current_count/total_count)
+                pb_instance.print_progress_bar(progress)
+                speed["current"] = (current_count - speed["prev_count"]) / PROGRESS_INTERVAL
+                if speed["current"] >= speed["max"]:
+                    speed["max"] = speed["current"]
+                if speed["current"] <= speed["min"]:
+                    speed["min"] = speed["current"]
+                speed["prev_count"] = current_count
+                self.log.info(">>> Documents processed: %d/%d; current speed %d doc's/sec <<<",
+                              current_count, total_count, speed["current"])
+            finally:
+                if progress != 100:
+                    threading.Timer(PROGRESS_INTERVAL, progress_run).start()
+
+        threading.Timer(PROGRESS_INTERVAL, progress_run).start()
 
         for index, type in indices_type:
             self.log.info("Starting fetching index: %s; type: %s", index, type)
 
-            data = scan(es, query=match_all, size=self.config.getint('DEFAULT', "query_batch_size"),
+            data = scan(es, query=match_all, scroll="10m", size=self.config.getint('DEFAULT', "query_batch_size"),
                         index=index, doc_type=type)
 
             def _transfer_data(data):
@@ -112,19 +232,28 @@ class ExportUtil(BaseUtil):
                            '_id': item["_id"],
                            '_source': item["_source"]}
 
-            for (ok, item) in parallel_bulk(es7, _transfer_data(data),
-                                            chunk_size=int(self.config.get('DEFAULT', 'chunk_size')),
-                                            max_chunk_bytes=int(self.config.get('DEFAULT', 'max_chunk_bytes')) * 1024 * 1024,
-                                            timeout="%ss" % self.config.get('DEFAULT', 'timeout')):
-                if not ok:
-                    self.log.error("got error on index {} which is : {}".format(index, item))
-                    fail_count += 1
-                else:
-                    ok_count += 1
+            pb = parallel_bulk(es7,
+                               _transfer_data(data),
+                               thread_count=4,
+                               queue_size=4,
+                               chunk_size=int(self.config.get('DEFAULT', 'chunk_size')),
+                               max_chunk_bytes=int(self.config.get('DEFAULT', 'max_chunk_bytes')) * 1024 * 1024,
+                               timeout="%ss" % self.config.get('DEFAULT', 'timeout'))
+            deque(pb, maxlen=0)
 
             self.log.info("Finished transfer index: %s; type: %s", index, type)
+            self.log.info("Performance for current index avg: %d; min: %d; max: %d - doc's/sec",
+                          (speed["max"]+speed["min"])/2, speed["min"], speed["max"])
 
-        self.log.info("Migration finished successfully success_requests: %s; failed_requests: %s", ok_count, fail_count)
+        del INDEX_TEMPLATE["template"]["settings"]
+        self.log.info("Remove bulk performance settings from index template")
+        es7.indices.put_index_template("merge_tmp_1", body=INDEX_TEMPLATE)
+        self.log.info("Restore refresh_interval to 1s for all indices")
+        es7.transport.perform_request('PUT', '/_settings', body={"index": {"refresh_interval": "1s"}})
+
+        self.log.info("Migration finished successfully")
+        self.log.info("Performance for all indices avg: %d; min: %d; max: %d - doc's/sec",
+                      (speed["max"]+speed["min"])/2, speed["min"], speed["max"])
 
 
 class ImportUtil(BaseUtil):

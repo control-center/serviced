@@ -39,7 +39,7 @@ check_elasticsearch_ls() {
 migrate_elasticsearch_ls() {
     local err
     echo "Starting migration from old elasticsearch-logstash storage to new"
-    retry 120 $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini -M &>/dev/null
+    $HOME_SERVICED/bin/elastic -c $HOME_SERVICED/etc/es_cluster.ini -M
     err=$?
     return $err
 }
@@ -67,6 +67,7 @@ if check_elasticsearch_ls 9100; then
   report "SUCCESS" "Container started within timeout"
 else
   report "FAILURE" "Container failed to start within 120 seconds"
+  exit 1
 fi
 
 groupadd -f elastic -g 1001
@@ -82,13 +83,25 @@ if check_elasticsearch_ls 9101; then
     report "SUCCESS" "Container started within timeout"
 else
     report "FAILURE" "Container failed to start within 120 seconds"
+    exit 1
+    docker stop $SVC_NAME_LS
 fi
 
 if migrate_elasticsearch_ls; then
   report "SUCCESS" "Migration completed"
 else
   report "FAILURE" "Migration failed try make the export manual"
+  docker stop $SVC_NAME_LS
+  docker stop $SVC_NAME_LS_NEW
+  rm -rf $HOST_ISVCS_DIR/elasticsearch-logstash-new
+  exit 1
 fi
+
+echo "Force merge to restore segments"
+curl -XPOST 'localhost:9101/_forcemerge?max_num_segments=5'
+
+echo "Refresh all indecies"
+curl -XPOST 'localhost:9101/_refresh'
 
 echo "Stopping the container with old elasticsearch"
 docker stop $SVC_NAME_LS
