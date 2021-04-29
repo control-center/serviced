@@ -23,6 +23,7 @@ filter {
 output {
 	elasticsearch {
 		hosts => "elasticsearch:9100"
+		index => "logstash-%{+YYYY.MM.dd}"
 		template_overwrite => true
 	}
 }
