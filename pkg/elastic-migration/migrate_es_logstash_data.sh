@@ -70,6 +70,9 @@ else
   exit 1
 fi
 
+# Removing the old version of kibana settings if exists
+curl -XDELETE http://localhost:9100/kibana-int?ignore_unavailable=true
+
 groupadd -f elastic -g 1001
 id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
 chown 1001:1001 -R $HOST_ES_LS_DATA_DIR_NEW
