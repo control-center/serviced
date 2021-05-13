@@ -29,9 +29,9 @@ INDEX_TEMPLATE = {
                     "message_field": {
                         "match_mapping_type": "string",
                         "mapping": {
-                            "omit_norms": True,
+                            "norms": False,
                             "type": "text",
-                            "fielddata": False
+                            "fielddata": False,
                         },
                         "match": "message"
                     }
@@ -48,7 +48,7 @@ INDEX_TEMPLATE = {
                             },
                             "type": "text",
                             "fielddata": False,
-                            "omit_norms": True
+                            "norms": False
                         },
                         "match": "*"
                     }
@@ -85,10 +85,6 @@ INDEX_TEMPLATE = {
                 "type": {
                     "ignore_above": 256,
                     "type": "keyword"
-                },
-                "message": {
-                    "type": "keyword",
-                    "ignore_above": 256
                 },
                 "rcvd_datetime": {
                     "type": "date"
