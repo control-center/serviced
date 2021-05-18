@@ -55,8 +55,9 @@ CONTAINER_ES_LS_DATA_DIR=$CONTAINER_ES_LS_DIR/data
 ELASTIC_LS_BIN=$CONTAINER_ES_LS_DIR/bin/elasticsearch
 SVC_NAME_LS_NEW=/serviced-isvcs_elasticsearch-logstash-new
 
-mkdir -p $HOST_ISVCS_DIR/elasticsearch-logstash-new/data
-HOST_ES_LS_DATA_DIR_NEW=$HOST_ISVCS_DIR/elasticsearch-logstash-new/data
+HOST_LS_WORKING_DIR=${HOST_LS_WORKING_DIR:-/opt/serviced/var/backups}
+mkdir -p $HOST_LS_WORKING_DIR/elasticsearch-logstash-new/data
+HOST_ES_LS_DATA_DIR_NEW=$HOST_LS_WORKING_DIR/elasticsearch-logstash-new/data
 
 echo "Starting docker container elasticsearch-logstash ..."
 docker run --rm --ulimit memlock=-1:-1 -d --name $SVC_NAME_LS -p 9100:9100 \
@@ -114,4 +115,4 @@ docker stop $SVC_NAME_LS_NEW
 
 echo "Replacing old data folder to new "
 rm -rf ${HOST_ES_LS_DATA_DIR:?}
-mv $HOST_ISVCS_DIR/elasticsearch-logstash-new/* $HOST_ISVCS_DIR/elasticsearch-logstash
+mv $HOST_LS_WORKING_DIR/elasticsearch-logstash-new/* $HOST_ISVCS_DIR/elasticsearch-logstash

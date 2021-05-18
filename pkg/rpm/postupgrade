@@ -22,6 +22,7 @@ CONTAINER_ES_LS_DATA_DIR=$CONTAINER_ES_LS_DIR/data
 ELASTIC_LS_BIN=$CONTAINER_ES_LS_DIR/bin/elasticsearch
 SERVICED_LOG_DIR=/var/log/serviced
 PREUPGRADE_SERVICED_VER_FILE=/tmp/preupgrade-serviced-version.txt
+HOST_BACKUP_DIR=${HOST_BACKUP_DIR:-/opt/serviced/var/backups}
 
 ################################################################################
 report() {
@@ -162,7 +163,7 @@ if [[ -f $PREUPGRADE_SERVICED_VER_FILE ]]; then
 fi
 
 echo "Creating a backup of elasticsearch-logstash data in $HOST_ISVCS_DIR"
-cp -ar $HOST_ISVCS_DIR/elasticsearch-logstash $HOST_ISVCS_DIR/elasticsearch-logstash.backup
+cp -ar $HOST_ISVCS_DIR/elasticsearch-logstash $HOST_BACKUP_DIR/elasticsearch-logstash.backup
 
 echo "Starting docker container elasticsearch-logstash ..."
 docker run --rm -d --name $SVC_NAME_LS -p 9100:9100 \
@@ -199,7 +200,7 @@ if [[ ! -d $HOST_ES_DATA_DIR || -z $CLUSTER_NAME ]]; then
     echo "Skipping elasticsearch export on delegate hosts"
 else
     echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
-    cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_ISVCS_DIR/elasticsearch-serviced.backup
+    cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_BACKUP_DIR/elasticsearch-serviced.backup
 
     echo "Starting docker container elasticsearch-serviced ..."
     docker run --rm -d --name $SVC_NAME -p 9200:9200 \
