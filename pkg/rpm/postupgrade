@@ -290,3 +290,4 @@ rm -rf /opt/serviced/var/isvcs/opentsdb/*
 echo "Replacing old data folder to new"
 rm -rf ${HOST_ES_DATA_DIR:?}
 mv $HOST_ES_DATA_DIR_NEW $HOST_ES_DATA_DIR
+rm -rf $HOST_ISVCS_DIR/elasticsearch-serviced-new
