@@ -35,7 +35,6 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
-	elastigocore "github.com/zenoss/elastigo/core"
 )
 
 type UnknownElasticStructError struct {
@@ -62,10 +61,10 @@ type ExportLogDriver interface {
 	LogstashDays() ([]string, error)
 
 	// Start a new search of ES logstash for a given date
-	StartSearch(logstashIndex string, query string) (elastigocore.SearchResult, error)
+	StartSearch(logstashIndex string, query string) (ElasticSearchResults, error)
 
 	// Scroll to the next set of search results
-	ScrollSearch(scrollID string) (elastigocore.SearchResult, error)
+	ScrollSearch(scrollID string) (ElasticSearchResults, error)
 }
 
 // The export process produces 1 or more <nnn>.log files containing the exported log messages. The values of
@@ -544,16 +543,15 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 		}
 
 		//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
-		remaining := result.Hits.Total > 0
+		remaining := result.Hits.Total.Value > 0
 		for remaining {
-			result, e = exporter.Driver.ScrollSearch(result.ScrollId)
+			result, e = exporter.Driver.ScrollSearch(result.ScrollID)
 			if e != nil {
 				return foundIndexedDay, numWarnings, e
 			}
 			hits := result.Hits.Hits
-			total := len(hits)
-			for i := 0; i < total; i++ {
-				message, e := parseLogSource(yyyymmdd, hits[i].Source)
+			for _, hit := range hits {
+				message, e := parseLogSource(yyyymmdd, *hit.Source)
 				if e != nil {
 					return foundIndexedDay, numWarnings, e
 				}
@@ -842,20 +840,33 @@ func (exporter *logExporter) getServiceName(serviceID string) string {
 
 // beatProps are properties added to each message by filebeat itself
 type beatProps struct {
-	Name     string `json:"name"`
-	Hostname string `json:"hostname"` // Note this is actually the docker container id
-	Version  string `json:"version"`
+	Name     interface{} `json:"name"`
+	Hostname interface{} `json:"hostname"` // Note this is actually the docker container id
+	Version  string      `json:"version"`
 }
 
 // fieldProps are properties added to each message by our container controller; see container/logstash.go
 type fieldProps struct {
 	CCWorkerID  interface{} `json:"ccWorkerID"` // Note this is actually the host ID of the CC host
 	Type        interface{} `json:"type"`       // This is the 'type' from the LogConfig in the service def
-	Service     string      `json:"service"`    // This is the service id
+	Service     interface{} `json:"service"`    // This is the service id
 	Instance    interface{} `json:"instance"`   // This is the service instance id
-	HostIPs     string      `json:"hostips"`    // space-separated list of host-ips from the container
+	HostIPs     interface{} `json:"hostips"`    // space-separated list of host-ips from the container
 	PoolID      interface{} `json:"poolid"`
-	ServicePath string      `json:"servicepath"` // Fully qualified path to the service
+	ServicePath interface{} `json:"servicepath"` // Fully qualified path to the service
+}
+
+func IDsToString(ids interface{}) string {
+	var idsStr string
+	switch ids.(type) {
+	case []string:
+		idsStr = strings.Join(ids.([]string)[:], "_")
+	case string:
+		idsStr = ids.(string)
+	default:
+		idsStr = ""
+	}
+	return idsStr
 }
 
 // logSingleLine represents the data returned from elasticsearch for a single-line log message
@@ -990,6 +1001,15 @@ func convertWorkerID(id interface{}) (string, error) {
 		return string(id.(json.Number)), nil
 	case string:
 		return id.(string), nil
+	case []string:
+		return strings.Join(id.([]string)[:], "_"), nil
+	case []interface{}:
+		datalist := id.([]interface{})
+		ids := make([]string, len(datalist))
+		for i, item := range datalist {
+			ids[i] = fmt.Sprint(item)
+		}
+		return strings.Join(ids[:], "_"), nil
 	}
 
 	// An unexpected type. We'll get the type name for the error, but this
@@ -1170,10 +1190,10 @@ func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 			Date:        date,
 			Type:        line.Type,
 			HostID:      ccWorkerID,
-			ContainerID: line.FileBeat.Hostname,
+			ContainerID: IDsToString(line.FileBeat.Hostname),
 			LogFileName: line.File,
 			Lines:       []compactLogLine{compactLine},
-			ServiceID:   line.Fields.Service,
+			ServiceID:   IDsToString(line.Fields.Service),
 		}
 		return message, nil
 	}
@@ -1239,11 +1259,11 @@ func parseLogSource(date string, source []byte) (*parsedMessage, error) {
 		Date:        date,
 		Type:        line.Type,
 		HostID:      ccWorkerID,
-		ContainerID: multiLine.FileBeat.Hostname,
+		ContainerID: IDsToString(multiLine.FileBeat.Hostname),
 		LogFileName: multiLine.File,
 		Lines:       compactLines,
 		Warnings:    warnings,
-		ServiceID:   multiLine.Fields.Service,
+		ServiceID:   IDsToString(multiLine.Fields.Service),
 	}
 	return message, nil
 }

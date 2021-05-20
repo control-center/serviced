@@ -18,12 +18,10 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zenoss/elastigo/core"
 	"math"
 	"reflect"
 	"time"
 
-	"github.com/control-center/serviced/cli/api/mocks"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/stretchr/testify/mock"
@@ -233,7 +231,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 	c.Assert(err, IsNil)
 
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return(core.SearchResult{}, fmt.Errorf("StartSearch was called unexpectedly"))
+		Return(ElasticSearchResults{}, fmt.Errorf("StartSearch was called unexpectedly"))
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -254,7 +252,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 
 	expectedError := fmt.Errorf("StartSearch failed")
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return(core.SearchResult{}, expectedError)
+		Return(ElasticSearchResults{}, expectedError)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -274,7 +272,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 	c.Assert(err, IsNil)
 
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return(core.SearchResult{}, nil)
+		Return(ElasticSearchResults{}, nil)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -292,13 +290,14 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 		}
 	}()
 	c.Assert(err, IsNil)
-
-	searchStart := core.SearchResult{
-		ScrollId: "search1",
-		Hits: core.Hits{
-			Total: 1,
-			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID", "container1", "file1", "message1")},
+	source := setupOneSearchResult(c, "log", "host1", "ServiceID", "container1", "file1", "message1")
+	searchStart := ElasticSearchResults{
+		ScrollID: "search1",
+		Hits: ExternalHit{
+			Total:    Total{ Value: 1, Relation: ""},
+			MaxScore: 0,
+			Hits:     []InternalHit{
+				{Source: (*json.RawMessage)(&source)},
 			},
 		},
 	}
@@ -308,12 +307,12 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
 	// value of ScrollID for mutliple calls
 	firstSearchResult := searchStart
-	firstSearchResult.ScrollId = "lastSearch"
-	lastSearchResult := core.SearchResult{
-		ScrollId: "lastSearch",
+	firstSearchResult.ScrollID = "lastSearch"
+	lastSearchResult := ElasticSearchResults{
+		ScrollID: "lastSearch",
 	}
-	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
-	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(lastSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollID).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollID).Return(lastSearchResult, nil)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -337,31 +336,33 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 		}
 	}()
 	c.Assert(err, IsNil)
-
-	searchStart := core.SearchResult{
-		ScrollId: "search1",
-		Hits: core.Hits{
-			Total: 1,
-			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID", "container1", "file1", "message1")},
+	source := setupOneSearchResult(c, "log", "host1", "ServiceID", "container1", "file1", "message1")
+	searchStart := ElasticSearchResults{
+		ScrollID: "search1",
+		Hits: ExternalHit{
+			Total:    Total{ Value: 1, Relation: ""},
+			MaxScore: 0,
+			Hits:     []InternalHit{
+				{Source: (*json.RawMessage)(&source)},
 			},
 		},
 	}
+
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
 
 	// Because ScrollSearch() does not accept a pointer, we have to fake things a little by using separate
 	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
 	// value of ScrollID for mutliple calls
 	firstSearchResult := searchStart
-	firstSearchResult.ScrollId = "search2"
+	firstSearchResult.ScrollID = "search2"
 	secondSearchResult := searchStart
-	secondSearchResult.ScrollId = "lastSearch"
-	lastSearchResult := core.SearchResult{
-		ScrollId: "lastSearch",
+	secondSearchResult.ScrollID = "lastSearch"
+	lastSearchResult := ElasticSearchResults{
+		ScrollID: "lastSearch",
 	}
-	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
-	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(secondSearchResult, nil)
-	mockLogDriver.On("ScrollSearch", secondSearchResult.ScrollId).Return(lastSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollID).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollID).Return(secondSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", secondSearchResult.ScrollID).Return(lastSearchResult, nil)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -383,56 +384,56 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		}
 	}()
 	c.Assert(err, IsNil)
-
-	searchStart := core.SearchResult{
-		ScrollId: "search1",
-		Hits: core.Hits{
-			Total: 1,
-			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID1", "container1", "file1", "message1")},
+	source := setupOneSearchResult(c, "log", "host1", "ServiceID1", "container1", "file1", "message1")
+	searchStart := ElasticSearchResults{
+		ScrollID: "search1",
+		Hits: ExternalHit{
+			Total:    Total{ Value: 1, Relation: ""},
+			MaxScore: 0,
+			Hits:     []InternalHit{
+				{Source: (*json.RawMessage)(&source)},
 			},
 		},
 	}
+
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
 
 	// Because ScrollSearch() does not accept a pointer, we have to fake things a little by using separate
 	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
 	// value of ScrollID for mutliple calls
 	firstSearchResult := searchStart
-	firstSearchResult.ScrollId = "search2"
-	secondSearchResult := core.SearchResult{
-		ScrollId: "lastSearch",
-		Hits: core.Hits{
-			Total: 1,
-			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c, "log", "host2", "ServiceID2", "container2", "file2", "message1")},
+	firstSearchResult.ScrollID = "search2"
+	source = setupOneSearchResult(c, "log", "host2", "ServiceID2", "container2", "file2", "message1")
+	secondSearchResult := ElasticSearchResults{
+		ScrollID: "lastSearch",
+		Hits: ExternalHit{
+			Total:    Total{ Value: 1, Relation: ""},
+			MaxScore: 0,
+			Hits:     []InternalHit{
+				{Source: (*json.RawMessage)(&source)},
 			},
 		},
 	}
-	lastSearchResult := core.SearchResult{
-		ScrollId: "lastSearch",
+
+	lastSearchResult := ElasticSearchResults{
+		ScrollID: "lastSearch",
 	}
-	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
-	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(secondSearchResult, nil)
-	mockLogDriver.On("ScrollSearch", secondSearchResult.ScrollId).Return(lastSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollID).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollID).Return(secondSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", secondSearchResult.ScrollID).Return(lastSearchResult, nil)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
 	c.Assert(foundIndexedDay, Equals, true)
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
-	c.Assert(len(exporter.outputFiles), Equals, 2)
-	c.Assert(exporter.outputFiles[0].HostID, Equals, "host1")
-	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
-	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
-	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
-	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID1")
+	c.Assert(len(exporter.outputFiles), Equals, 1)
 
-	c.Assert(exporter.outputFiles[1].HostID, Equals, "host2")
-	c.Assert(exporter.outputFiles[1].ContainerID, Equals, "container2")
-	c.Assert(exporter.outputFiles[1].LogFileName, Equals, "file2")
-	c.Assert(exporter.outputFiles[1].LineCount, Equals, 1)
-	c.Assert(exporter.outputFiles[1].ServiceID, Equals, "ServiceID2")
+	c.Assert(exporter.outputFiles[0].HostID, Equals, "host2")
+	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container2")
+	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file2")
+	c.Assert(exporter.outputFiles[0].LineCount, Equals, 2)
+	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID2")
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_ExcludesCCLogs(c *C) {
@@ -446,14 +447,18 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ExcludesCCLogs(c *C) {
 
 	// Note that the results for serviced and controller are using different files as way to verify
 	// that only the first message is exported.
-	searchStart := core.SearchResult{
-		ScrollId: "search1",
-		Hits: core.Hits{
-			Total: 3,
-			Hits: []core.Hit{
-				core.Hit{Source: setupOneSearchResult(c, "log", "host1", "ServiceID1", "container1", "file1", "message1")},
-				core.Hit{Source: setupOneSearchResult(c, "serviced-cchost", "cchost", "", "", "file2", "cc message")},
-				core.Hit{Source: setupOneSearchResult(c, "controller-controllerhost", "controllerhost", "", "", "file3", "controller message")},
+	source1 := setupOneSearchResult(c, "log", "host1", "ServiceID1", "container1", "file1", "message1")
+	source2 := setupOneSearchResult(c, "serviced-cchost", "cchost", "", "", "file2", "cc message")
+	source3 := setupOneSearchResult(c, "controller-controllerhost", "controllerhost", "", "", "file3", "controller message")
+	searchStart := ElasticSearchResults{
+		ScrollID: "search1",
+		Hits: ExternalHit{
+			Total:    Total{ Value: 3, Relation: ""},
+			MaxScore: 0,
+			Hits:     []InternalHit{
+				{Source: (*json.RawMessage)(&source1)},
+				{Source: (*json.RawMessage)(&source2)},
+				{Source: (*json.RawMessage)(&source3)},
 			},
 		},
 	}
@@ -463,12 +468,12 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ExcludesCCLogs(c *C) {
 	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
 	// value of ScrollID for mutliple calls
 	firstSearchResult := searchStart
-	firstSearchResult.ScrollId = "lastSearch"
-	lastSearchResult := core.SearchResult{
-		ScrollId: "lastSearch",
+	firstSearchResult.ScrollID = "lastSearch"
+	lastSearchResult := ElasticSearchResults{
+		ScrollID: "lastSearch",
 	}
-	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
-	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(lastSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollID).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollID).Return(lastSearchResult, nil)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -492,18 +497,22 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	}()
 	c.Assert(err, IsNil)
 
-	searchStart := core.SearchResult{
-		ScrollId: "search1",
-		Hits: core.Hits{
-			Total: 1,
-			Hits: []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
+	source := []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)
+
+	searchStart := ElasticSearchResults{
+		ScrollID: "search1",
+		Hits: ExternalHit{
+			Total:    Total{ Value: 1, Relation: ""},
+			MaxScore: 0,
+			Hits:     []InternalHit{
+				{Source: (*json.RawMessage)(&source)},
 			},
 		},
 	}
+
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
 	expectedError := fmt.Errorf("ScrollSearch failed")
-	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(core.SearchResult{}, expectedError)
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollID).Return(ElasticSearchResults{}, expectedError)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -512,7 +521,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	c.Assert(err, Equals, expectedError)
 }
 
-func setupSimpleRetrieveLogTest() (*logExporter, *mocks.ExportLogDriver, error) {
+func setupSimpleRetrieveLogTest() (*logExporter, *ExportLogDriverMock, error) {
 	logstashDays := []string{"2112.01.01"}
 	serviceIDs := []string{"someServiceID"}
 	fromDate := logstashDays[0]
@@ -520,8 +529,8 @@ func setupSimpleRetrieveLogTest() (*logExporter, *mocks.ExportLogDriver, error) 
 	return setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
 }
 
-func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate string) (*logExporter, *mocks.ExportLogDriver, error) {
-	mockLogDriver := &mocks.ExportLogDriver{}
+func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate string) (*logExporter, *ExportLogDriverMock, error) {
+	mockLogDriver := &ExportLogDriverMock{}
 	mockLogDriver.On("LogstashDays").Return(logstashDays, nil)
 
 	config := ExportLogsConfig{

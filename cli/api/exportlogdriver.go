@@ -1,14 +1,14 @@
-package mocks
+package api
 
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/stretchr/testify/mock"
+)
 
-import elastigocore "github.com/zenoss/elastigo/core"
-
-type ExportLogDriver struct {
+type ExportLogDriverMock struct {
 	mock.Mock
 }
 
-func (_m *ExportLogDriver) SetLogstashInfo(logstashES string) error {
+func (_m *ExportLogDriverMock) SetLogstashInfo(logstashES string) error {
 	ret := _m.Called(logstashES)
 
 	var r0 error
@@ -20,7 +20,7 @@ func (_m *ExportLogDriver) SetLogstashInfo(logstashES string) error {
 
 	return r0
 }
-func (_m *ExportLogDriver) LogstashDays() ([]string, error) {
+func (_m *ExportLogDriverMock) LogstashDays() ([]string, error) {
 	ret := _m.Called()
 
 	var r0 []string
@@ -41,14 +41,14 @@ func (_m *ExportLogDriver) LogstashDays() ([]string, error) {
 
 	return r0, r1
 }
-func (_m *ExportLogDriver) StartSearch(logstashIndex string, query string) (elastigocore.SearchResult, error) {
+func (_m *ExportLogDriverMock) StartSearch(logstashIndex string, query string) (ElasticSearchResults, error) {
 	ret := _m.Called(logstashIndex, query)
 
-	var r0 elastigocore.SearchResult
-	if rf, ok := ret.Get(0).(func(string, string) elastigocore.SearchResult); ok {
+	var r0 ElasticSearchResults
+	if rf, ok := ret.Get(0).(func(string, string) ElasticSearchResults); ok {
 		r0 = rf(logstashIndex, query)
 	} else {
-		r0 = ret.Get(0).(elastigocore.SearchResult)
+		r0 = ret.Get(0).(ElasticSearchResults)
 	}
 
 	var r1 error
@@ -60,14 +60,14 @@ func (_m *ExportLogDriver) StartSearch(logstashIndex string, query string) (elas
 
 	return r0, r1
 }
-func (_m *ExportLogDriver) ScrollSearch(scrollID string) (elastigocore.SearchResult, error) {
+func (_m *ExportLogDriverMock) ScrollSearch(scrollID string) (ElasticSearchResults, error) {
 	ret := _m.Called(scrollID)
 
-	var r0 elastigocore.SearchResult
-	if rf, ok := ret.Get(0).(func(string) elastigocore.SearchResult); ok {
+	var r0 ElasticSearchResults
+	if rf, ok := ret.Get(0).(func(string) ElasticSearchResults); ok {
 		r0 = rf(scrollID)
 	} else {
-		r0 = ret.Get(0).(elastigocore.SearchResult)
+		r0 = ret.Get(0).(ElasticSearchResults)
 	}
 
 	var r1 error
@@ -76,6 +76,5 @@ func (_m *ExportLogDriver) ScrollSearch(scrollID string) (elastigocore.SearchRes
 	} else {
 		r1 = ret.Error(1)
 	}
-
 	return r0, r1
 }

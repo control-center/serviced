@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) Zenoss, Inc. 2005-2020, all rights reserved.
+# Copyright (C) Zenoss, Inc. 2005-2021, all rights reserved.
 #
 ################################################################################
 
@@ -11,6 +11,7 @@ SVC_NAME=/serviced-isvcs_elasticsearch-serviced
 NODE_NAME=elasticsearch-serviced
 CLUSTER_NAME=$(cat $HOST_ISVCS_DIR/elasticsearch-serviced.clustername)
 HOST_ES_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-serviced/data
+HOST_ES_DATA_DIR_NEW=$HOST_ISVCS_DIR/elasticsearch-serviced-new/data
 CONTAINER_ES_DATA_DIR=$CONTAINER_ES_DIR/data
 ELASTIC_BIN=$CONTAINER_ES_DIR/bin/elasticsearch
 CONTAINER_ES_LS_DIR=/opt/elasticsearch-logstash
@@ -162,8 +163,12 @@ if [[ -f $PREUPGRADE_SERVICED_VER_FILE ]]; then
     fi
 fi
 
-echo "Creating a backup of elasticsearch-logstash data in $HOST_ISVCS_DIR"
+echo "Creating a backup of elasticsearch-logstash data in $HOST_BACKUP_DIR"
 cp -ar $HOST_ISVCS_DIR/elasticsearch-logstash $HOST_BACKUP_DIR/elasticsearch-logstash.backup
+if [ $? -ne 0 ]; then
+    report "FAILURE" "Creating a backup of elasticsearch-logstash data failed"
+    exit 1
+fi
 
 echo "Starting docker container elasticsearch-logstash ..."
 docker run --rm -d --name $SVC_NAME_LS -p 9100:9100 \
@@ -199,8 +204,12 @@ fi
 if [[ ! -d $HOST_ES_DATA_DIR || -z $CLUSTER_NAME ]]; then
     echo "Skipping elasticsearch export on delegate hosts"
 else
-    echo "Creating a backup of elasticsearch-serviced data in $HOST_ISVCS_DIR"
+    echo "Creating a backup of elasticsearch-serviced data in $HOST_BACKUP_DIR"
     cp -ar $HOST_ISVCS_DIR/elasticsearch-serviced $HOST_BACKUP_DIR/elasticsearch-serviced.backup
+    if [ $? -ne 0 ]; then
+        report "FAILURE" "Creating a backup of elasticsearch-serviced data failed"
+        exit 1
+    fi
 
     echo "Starting docker container elasticsearch-serviced ..."
     docker run --rm -d --name $SVC_NAME -p 9200:9200 \
@@ -241,14 +250,14 @@ if [[ ! -d $HOST_ES_DATA_DIR || -z $CLUSTER_NAME ]]; then
 else
 
     echo "Preparing the host for data import to new elasticsearch storage"
-    rm -rf ${HOST_ES_DATA_DIR:?}/*
+    mkdir -p $HOST_ES_DATA_DIR_NEW
     groupadd -f elastic -g 1001
     id -u 1001 &>/dev/null || useradd elastic -u 1001 -g 1001
-    chown 1001:1001 -R $HOST_ES_DATA_DIR
+    chown 1001:1001 -R $HOST_ES_DATA_DIR_NEW
 
     echo "Starting container with new elasticsearch"
     docker run --rm -d --name $SVC_NAME -p 9200:9200 \
-      -v $HOST_ES_DATA_DIR:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 \
+      -v $HOST_ES_DATA_DIR_NEW:$CONTAINER_ES_DATA_DIR zenoss/serviced-isvcs:v67 \
       su elastic -c "$ELASTIC_BIN -Ecluster.initial_master_nodes=$NODE_NAME \
       -Enode.name=$NODE_NAME -Ecluster.name=$CLUSTER_NAME"
 
@@ -262,6 +271,13 @@ else
     echo "Importing data to new elasticsearch"
     $HOME_SERVICED/bin/elastic -i -c $HOME_SERVICED/etc/es_cluster.ini \
       -f $HOST_ISVCS_DIR/elasticsearch_data.json
+    
+    if [ $? -ne 0 ]; then
+        report "FAILURE" "Import failed"
+        docker stop $SVC_NAME
+        rm -rf $HOST_ISVCS_DIR/elasticsearch-serviced-new
+        exit 1
+    fi
 
     echo "Stopping the container with new elasticsearch"
     docker stop $SVC_NAME
@@ -270,3 +286,8 @@ fi
 
 echo "Removing data from old Hbase version"
 rm -rf /opt/serviced/var/isvcs/opentsdb/*
+
+echo "Replacing old data folder to new"
+rm -rf ${HOST_ES_DATA_DIR:?}
+mv $HOST_ES_DATA_DIR_NEW $HOST_ES_DATA_DIR
+rm -rf $HOST_ISVCS_DIR/elasticsearch-serviced-new
