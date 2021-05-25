@@ -16,26 +16,27 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/control-center/serviced/config"
+	"github.com/elastic/go-elasticsearch/v7"
 	"sort"
 	"strings"
-
-	"github.com/control-center/serviced/config"
-	elastigo "github.com/zenoss/elastigo/api"
-	elastigocore "github.com/zenoss/elastigo/core"
+	"time"
 )
 
 const (
 	esLogStashIndexPrefix   = "logstash-" // Prefix of the logstash index names in Elasticsearch
-	esLogstashScrollTimeout = "1m"        // tells ES how log to keep a scroll request 'alive'
+	esLogstashScrollTimeout =  time.Minute       // tells ES how log to keep a scroll request 'alive'
 )
 
 type elastigoLogDriver struct {
 	Domain string // hostname/ip of the Logstash ES instance
 	Port   string // port number of the Logstash ES instance
+	es 	   *elasticsearch.Client
 }
 
 // Verify that the elastigoLogDriver implements the interface
 var _ ExportLogDriver = &elastigoLogDriver{}
+
 
 // Sets the ES Logstash connection info; logstashES should be in the format hostname:port
 func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {
@@ -43,28 +44,45 @@ func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid logstash-es host:port %s", config.GetOptions().LogstashES)
 	}
-	elastigo.Domain = parts[0]
-	elastigo.Port = parts[1]
 
-	driver.Domain = elastigo.Domain
-	driver.Port = elastigo.Port
+	es, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{
+			fmt.Sprintf("http://%s:%s", parts[0], parts[1]),
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("Error creating the client: %s", err)
+	}
+
+	driver.Domain = parts[0]
+	driver.Port = parts[1]
+	driver.es = es
+
 	return nil
 }
 
 // Returns a list of all the dates for which a logstash-YYYY.MM.DD index is available in ES logstash.
 // The strings are in YYYY.MM.DD format, and in reverse chronological order.
+
 func (driver *elastigoLogDriver) LogstashDays() ([]string, error) {
-	response, e := elastigo.DoCommand("GET", "/_aliases", nil)
+
+	response, e := driver.es.Cat.Indices(driver.es.Cat.Indices.WithFormat("JSON"))
 	if e != nil {
 		return []string{}, fmt.Errorf("couldn't fetch list of indices: %s", e)
 	}
-	var aliasMap map[string]interface{}
-	if e = json.Unmarshal(response, &aliasMap); e != nil {
+
+	defer response.Body.Close()
+
+	var resMap []map[string]interface{}
+
+	if err := json.NewDecoder(response.Body).Decode(&resMap); err != nil {
 		return []string{}, fmt.Errorf("couldn't parse response (%s): %s", response, e)
 	}
-	result := make([]string, 0, len(aliasMap))
-	for index := range aliasMap {
-		if trimmed := strings.TrimPrefix(index, esLogStashIndexPrefix); trimmed != index {
+
+	result := make([]string, 0, len(resMap))
+	for _, row := range resMap {
+		if trimmed := strings.TrimPrefix(fmt.Sprint(row["index"]), esLogStashIndexPrefix); trimmed != row["index"] {
 			if trimmed, e = NormalizeYYYYMMDD(trimmed); e != nil {
 				trimmed = ""
 			}
@@ -79,17 +97,104 @@ func (driver *elastigoLogDriver) LogstashDays() ([]string, error) {
 // params:
 //   @date:  specifies the date to search against in the format YYYYMMDD
 //   @query: valid string in lucene search syntax
-//
-// For more info on the details of the ES search params, see
-// https://www.elastic.co/guide/en/elasticsearch/reference/0.90/search-request-search-type.html
-func (driver *elastigoLogDriver) StartSearch(date string, query string) (elastigocore.SearchResult, error) {
+
+func (driver *elastigoLogDriver) StartSearch(date string, query string) (ElasticSearchResults, error) {
 	logstashIndex := fmt.Sprintf("%s%s", esLogStashIndexPrefix, date)
 	scanSize := 1000
-	return elastigocore.SearchUri(logstashIndex, "", query, esLogstashScrollTimeout, scanSize)
+	res, err := driver.es.Search(driver.es.Search.WithIndex(logstashIndex),
+								 driver.es.Search.WithScroll(esLogstashScrollTimeout),
+								 driver.es.Search.WithSize(scanSize),
+								 driver.es.Search.WithQuery(query))
+
+	if err != nil {
+		return ElasticSearchResults{}, fmt.Errorf("Error getting response: %s", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.IsError() {
+		var e map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+			return ElasticSearchResults{}, fmt.Errorf("Error parsing the response body: %s", err)
+		} else {
+			// Print the response status and error information.
+			return ElasticSearchResults{}, fmt.Errorf("[%s] %s: %s",
+				res.Status(),
+				e["error"].(map[string]interface{})["type"],
+				e["error"].(map[string]interface{})["reason"],
+			)
+		}
+	}
+
+	var searchResults ElasticSearchResults
+	if err := json.NewDecoder(res.Body).Decode(&searchResults); err != nil {
+		return ElasticSearchResults{}, fmt.Errorf("Error parsing the response body: %s", err)
+	}
+	return searchResults, nil
 }
 
 // Scroll to the next set of search results
-func (driver *elastigoLogDriver) ScrollSearch(scrollID string) (elastigocore.SearchResult, error) {
-	prettyPrint := false
-	return elastigocore.Scroll(prettyPrint, scrollID, esLogstashScrollTimeout)
+
+func (driver *elastigoLogDriver) ScrollSearch(scrollID string) (ElasticSearchResults, error) {
+
+	res, err := driver.es.Scroll(driver.es.Scroll.WithScrollID(scrollID),
+								 driver.es.Scroll.WithScroll(esLogstashScrollTimeout))
+
+	if err != nil {
+		return ElasticSearchResults{}, fmt.Errorf("Error getting response: %s", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.IsError() {
+		var e map[string]interface{}
+		if err = json.NewDecoder(res.Body).Decode(&e); err != nil {
+			return ElasticSearchResults{}, fmt.Errorf("Error parsing the response body: %s", err)
+		} else {
+			// Print the response status and error information.
+			return ElasticSearchResults{}, fmt.Errorf("[%s] %s: %s",
+				res.Status(),
+				e["error"].(map[string]interface{})["type"],
+				e["error"].(map[string]interface{})["reason"],
+			)
+		}
+	}
+
+	var scrollResults ElasticSearchResults
+
+	if err = json.NewDecoder(res.Body).Decode(&scrollResults); err != nil {
+		return ElasticSearchResults{}, fmt.Errorf("Error parsing the response body: %s", err)
+	}
+
+	return scrollResults, nil
+}
+
+type ElasticSearchResults struct {
+	Took     int            `json:"took,omitempty"`
+	TimedOut bool           `json:"timed_out,omitempty"`
+	Shards   map[string]int `json:"_shards,omitempty"`
+	ScrollID string         `json:"_scroll_id,omitempty"`
+	Hits     ExternalHit    `json:"hits,omitempty"`
+}
+
+type Total struct {
+	Value    int    `json:"value"`
+	Relation string `json:"relation"`
+}
+
+type InternalHit struct {
+	Index       string                 `json:"_index"`
+	Type        string                 `json:"_type"`
+	Id          string                 `json:"_id"`
+	Version     int                    `json:"_version,omitempty"`
+	PrimaryTerm int                    `json:"_primary_term,omitempty"`
+	SeqNo       int                    `json:"_seq_no,omitempty"`
+	Score       float64                `json:"_score"`
+	Source      *json.RawMessage       `json:"_source"`
+}
+
+type ExternalHit struct {
+	Total    Total          `json:"total"`
+	MaxScore float64        `json:"max_score"`
+	Hits     []InternalHit    `json:"hits,omitempty"`
 }

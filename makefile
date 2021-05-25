@@ -11,6 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Turn off modules.
+# Starting with Go 1.17, modules are required and this variable is ignored.
+GO111MODULE = off
+export GO111MODULE
+
 VERSION := $(shell cat ./VERSION)
 DATE := $(shell date -u '+%a_%b_%d_%H:%M:%S_%Z_%Y')
 GO_VERSION := $(shell go version | awk '{print $$3}')
@@ -30,8 +35,8 @@ GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 GOBUILD_TAGS  ?= $(shell bash build-tags.sh)
 GOBUILD_FLAGS ?= -tags "$(GOBUILD_TAGS)"
 
-GOVETTARGETS := $(shell go list -f '{{.Dir}}' ./... | grep -v /vendor/ | grep -v '/serviced$$')
-GOSOURCEFILES := $(shell find `go list -f '{{.Dir}}' ./... | grep -v /vendor/` -maxdepth 1 -name \*.go)
+GOVETTARGETS = $(shell GO111MODULE=off go list -f '{{.Dir}}' ./... | grep -v /vendor/ | grep -v '/serviced$$')
+GOSOURCEFILES = $(shell find `GO111MODULE=off go list -f '{{.Dir}}' ./... | grep -v /vendor/` -maxdepth 1 -name \*.go)
 
 # jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
 BUILD_TAG ?= 0
@@ -72,7 +77,7 @@ INSTALL_TEMPLATES_ONLY = 0
 PKG         = $(default_PKG) # deb | rpm | tgz
 default_PKG = deb
 
-build_TARGETS = build_isvcs build_js $(GOBIN)/serviced $(GOBIN)/serviced-storage $(GOBIN)/serviced-controller
+build_TARGETS = build_isvcs build_js $(GOBIN)/serviced $(GOBIN)/serviced-storage $(GOBIN)/serviced-controller $(GOBIN)/serviced-service
 
 # Define GOPATH for containerized builds.
 #
@@ -169,6 +174,9 @@ $(GOBIN)/serviced-controller: $(GOSOURCEFILES) | $(GOBIN)
 $(GOBIN)/serviced-storage: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./tools/serviced-storage
 
+$(GOBIN)/serviced-service: $(GOSOURCEFILES) | $(GOBIN)
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./tools/serviced-service
+
 .PHONY: serviced
 serviced: $(GOBIN)/serviced
 
@@ -178,8 +186,11 @@ serviced-controller: $(GOBIN)/serviced-controller
 .PHONY: serviced-storage
 serviced-storage: $(GOBIN)/serviced-storage
 
+.PHONY: serviced-service
+serviced-service: $(GOBIN)/serviced-service
+
 .PHONY: go
-go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
+go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage $(GOBIN)/serviced-service
 
 #
 # BUILD_VERSION is the version of the serviced-build docker image
@@ -287,6 +298,7 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usag
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-fstrim:serviced-fstrim
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/elastic-migration/elastic:elastic
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/elastic-migration/migrate_es_logstash_data.sh:migrate_es_logstash_data.sh
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced-storage:$(_DESTDIR)/usr/bin/serviced-storage
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/ui/build:static
@@ -509,6 +521,7 @@ clean_serviced:
 	rm -rf $(GOBIN)/serviced
 	rm -rf $(GOBIN)/serviced-storage
 	rm -rf $(GOBIN)/serviced-controller
+	rm -rf $(GOBIN)/serviced-service
 
 .PHONY: clean_pkg
 clean_pkg:

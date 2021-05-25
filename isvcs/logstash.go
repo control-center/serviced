@@ -25,8 +25,7 @@ func initLogstash() {
 	var err error
 
 	confFile := filepath.Join(utils.LOGSTASH_CONTAINER_DIRECTORY, "logstash.conf")
-	command := "exec /opt/logstash/bin/logstash agent " +
-		"-f " + confFile + " --auto-reload"
+	command := "export JAVA_HOME=/usr/lib/jvm/jre-11; exec /opt/logstash/bin/logstash -f " + confFile + " --config.reload.automatic"
 	localFilePortBinding := portBinding{
 		HostIp:         "0.0.0.0",
 		HostIpOverride: "", // logstash should always be open
@@ -54,7 +53,7 @@ func initLogstash() {
 				localFilePortBinding,
 				filebeatPortBinding,
 				webserverPortBinding},
-			Volumes:    map[string]string{UseServicedLogDir : utils.LOGSTASH_LOCAL_SERVICED_LOG_DIR},
+			Volumes:    map[string]string{UseServicedLogDir: utils.LOGSTASH_LOCAL_SERVICED_LOG_DIR},
 			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
 			StartGroup: 1,
 		})
