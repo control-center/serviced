@@ -67,7 +67,8 @@ function cleanup() {
 trap cleanup SIGINT SIGTERM SIGHUP SIGQUIT EXIT ERR
 
 HOME_SERVICED=/opt/serviced
-HOST_ISVCS_DIR=$HOME_SERVICED/var/isvcs
+HOST_ISVCS_DIR="$(grep -E '^\b*SERVICED_ISVCS_PATH' /etc/default/serviced | cut -f2 -d=)"
+HOST_ISVCS_DIR="${HOST_ISVCS_DIR:-/opt/serviced/var/isvcs}"
 CONTAINER_ES_LS_DIR=/opt/elasticsearch-logstash
 SVC_NAME_LS=/serviced-isvcs_elasticsearch-logstash
 NODE_NAME_LS=elasticsearch-logstash
