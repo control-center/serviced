@@ -107,8 +107,8 @@ if check_elasticsearch_ls 9101; then
     report "SUCCESS" "Container started within timeout"
 else
     report "FAILURE" "Container failed to start within 120 seconds"
-    exit 1
     docker stop $SVC_NAME_LS
+    exit 1
 fi
 
 if migrate_elasticsearch_ls; then
