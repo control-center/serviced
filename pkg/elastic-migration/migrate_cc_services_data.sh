@@ -77,7 +77,7 @@ HOST_ISVCS_DIR="${HOST_ISVCS_DIR:-/opt/serviced/var/isvcs}"
 CONTAINER_ES_LS_DIR=/opt/elasticsearch-logstash
 SVC_NAME_LS=/serviced-isvcs_elasticsearch-logstash
 NODE_NAME_LS=elasticsearch-logstash
-CLUSTER_NAME_LS=$(cat $HOST_ISVCS_DIR/elasticsearch-logstash.clustername)
+CLUSTER_NAME_LS=$(cat "$HOST_ISVCS_DIR"/elasticsearch-logstash.clustername)
 HOST_ES_LS_DATA_DIR=$HOST_ISVCS_DIR/elasticsearch-logstash/data
 CONTAINER_ES_LS_DATA_DIR=$CONTAINER_ES_LS_DIR/data
 ELASTIC_LS_BIN=$CONTAINER_ES_LS_DIR/bin/elasticsearch
@@ -89,7 +89,7 @@ HOST_ES_LS_DATA_DIR_NEW=$HOST_LS_WORKING_DIR/elasticsearch-logstash-new/data
 
 echo "Starting docker container elasticsearch-logstash ..."
 docker run --rm --ulimit memlock=-1:-1 -d --name $SVC_NAME_LS -p 9100:9100 \
-  -v $HOST_ES_LS_DATA_DIR:$CONTAINER_ES_LS_DATA_DIR zenoss/serviced-isvcs:v68 \
+  -v "$HOST_ES_LS_DATA_DIR":$CONTAINER_ES_LS_DATA_DIR zenoss/serviced-isvcs:v68 \
   sh -c "ES_HEAP_SIZE='8g' $ELASTIC_LS_BIN -Des.insecure.allow.root=true -Des.node.name=$NODE_NAME_LS -Des.cluster.name=$CLUSTER_NAME_LS"
 
 if check_elasticsearch_ls 9100; then
@@ -137,6 +137,6 @@ echo "Stopping the container with new elasticsearch"
 docker stop $SVC_NAME_LS_NEW
 
 echo "Replacing old data folder to new "
-rm -rf ${HOST_ES_LS_DATA_DIR:?}
-mv "$HOST_LS_WORKING_DIR"/elasticsearch-logstash-new/* $HOST_ISVCS_DIR/elasticsearch-logstash
+rm -rf "${HOST_ES_LS_DATA_DIR:?}"
+mv "$HOST_LS_WORKING_DIR"/elasticsearch-logstash-new/* "$HOST_ISVCS_DIR"/elasticsearch-logstash
 rm -rf "$HOST_LS_WORKING_DIR"/elasticsearch-logstash-new
