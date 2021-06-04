@@ -58,8 +58,13 @@ migrate_elasticsearch_ls() {
 }
 
 function cleanup() {
-  docker stop "$SVC_NAME_LS"
-  docker stop "$SVC_NAME_LS_NEW"
+  for container in $(docker container ps --format "{{.Names}}"); do
+    for name in "$SVC_NAME_LS $SVC_NAME_LS_NEW"; do
+      if [[ "$container" == "$name" ]]; then
+        docker stop "$name"
+      fi
+    done
+  done
   rm -rf "$HOST_ISVCS_DIR"/elasticsearch-logstash-new
   exit 1
 }
