@@ -112,7 +112,7 @@ func initElasticSearch() {
 		if clusterName, ok := elasticsearch_serviced.Configuration["cluster"]; ok {
 			clusterArg = fmt.Sprintf(`-Ecluster.name="%s" `, clusterName)
 		}
-		cmd := fmt.Sprintf(`export JAVA_HOME=/usr/lib/jvm/jre-11; su elastic -c 'exec /opt/elasticsearch-serviced/bin/elasticsearch -Ecluster.initial_master_nodes="%s" -Enode.name="%s" %s'`,
+		cmd := fmt.Sprintf(`export JAVA_HOME=/opt/elasticsearch-serviced/jdk; su elastic -c 'exec /opt/elasticsearch-serviced/bin/elasticsearch -Ecluster.initial_master_nodes="%s" -Enode.name="%s" %s'`,
 			elasticsearch_serviced.Name, elasticsearch_serviced.Name, clusterArg)
 		log.Infof("Build the command for running es-serviced: %s", cmd)
 		return cmd
