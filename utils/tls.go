@@ -30,7 +30,7 @@ import (
 //---------------------------------------------------------------------------
 
 // DefaultTLSMinVersion minimum TLS version supported
-const DefaultTLSMinVersion = "VersionTLS10"
+const DefaultTLSMinVersion = "VersionTLS12"
 
 var cipherLookup map[string]uint16
 
