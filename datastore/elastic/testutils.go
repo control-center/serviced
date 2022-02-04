@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	esVersion = "7.7.1"
+	esVersion = "7.16.3"
 )
 
 // ElasticTest for running tests that need elasticsearch. Type is to be used a a gocheck Suite. When writing a test,
@@ -160,6 +160,8 @@ func (tc *testCluster) Stop() error {
 	if tc.cmd != nil && tc.cmd.Process != nil {
 		log.Print("Stop called, killing elastic search")
 		return tc.cmd.Process.Kill()
+	} else {
+		log.Printf("Stop called, SKIPPED killing elastic search. Cmd: %s; Process: %v", tc.cmd, tc.cmd.Process)
 	}
 	return nil
 }
@@ -170,19 +172,26 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 	tc.shutdown = false
 	tc.cmdLock = sync.RWMutex{}
 
+	nodeName := fmt.Sprintf("elasticsearch-serviced-%v", rand.Int())
+	clusterName := rand.Int()
 	command := []string{
 		elasticDir + "/bin/elasticsearch",
-		"-E",
-		fmt.Sprintf("http.port=%v", port),
+		"-E", fmt.Sprintf("cluster.initial_master_nodes=%s", nodeName),
+		"-E", fmt.Sprintf("ingest.geoip.downloader.enabled=%v", false),
+		"-E", fmt.Sprintf("node.name=%s", nodeName),
+		"-E", fmt.Sprintf("cluster.name=%v", clusterName),
+		"-E", fmt.Sprintf("http.port=%v", port),
 	}
 
-	conf := fmt.Sprintf(`cluster.name: %v`, rand.Int())
+	conf := fmt.Sprintf(`cluster.name: %v`, clusterName)
 	err := ioutil.WriteFile(elasticDir+"/config/elasticsearch.yml", []byte(conf), 0644)
 	if err != nil {
 		return nil, err
 	}
 
 	cmd := exec.Command(command[0], command[1:]...)
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "ES_JAVA_HOME=" + elasticDir + "/jdk")
 	tc.cmd = cmd
 	go func() {
 		log.Printf("Starting elastic on port %v....: %v\n", port, command)
@@ -196,7 +205,7 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 		}
 		tc.cmdLock.Lock()
 		if err := cmd.Start(); err != nil {
-			return
+			panic(fmt.Errorf("can't start elastic: %v", err))
 		}
 		tc.cmdLock.Unlock()
 

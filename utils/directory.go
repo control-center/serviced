@@ -86,10 +86,14 @@ func TempDir(p string) string {
 
 // ServicedLogDir gets the serviced log directory
 func ServicedLogDir() string {
-        if config.GetOptions().LogPath != "" {
+	if config.GetOptions().LogPath != "" {
 		return config.GetOptions().LogPath
 	} else{
-		return os.Getenv("SERVICED_LOG_PATH")
+		value, exists := os.LookupEnv("SERVICED_LOG_PATH")
+		if !exists {
+			value = "/var/log/serviced"
+		}
+		return value
 	}
 }
 

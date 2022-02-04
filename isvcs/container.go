@@ -385,10 +385,12 @@ func (svc *IService) create() (*docker.Container, error) {
 			})
 			if exists, _ := isDir(hostpath); !exists {
 				if err := os.MkdirAll(hostpath, 0777); err != nil {
-					log.WithError(err).Debug("Unable to create volume path on host")
+					log.WithError(err).Error("Unable to create volume path on host")
 					return nil, err
 				}
 			}
+
+			log.Infof("Host config binds")
 
 			//TODO It's ugly but we need non-root user for running es bin and the data folder should be
 			//  also with non-root privileges

@@ -36,9 +36,13 @@ def elastic_server(port):
         # TODO: handle already started
         # TODO: Get image name from serviced binary or isvcs.go
         # TODO: Wait for start more betterly
+        master_nodes = node_name = "elasticsearch-serviced"
+        cluster_name = str(uuid.uuid4())
         cmd = ["docker", "run", "-d", "--name", container_name, "--user", "1001:1001",
-               "-p", "%d:9200" % port, "zenoss/serviced-isvcs:v67",
-               "/opt/elasticsearch-serviced/bin/elasticsearch"]
+               "-p", "%d:9200" % port, "zenoss/serviced-isvcs:v71",
+                "sh", "-c", "\"export ES_JAVA_HOME=/opt/elasticsearch-serviced/jdk; su elastic -c 'exec /opt/elasticsearch-serviced/bin/elasticsearch -Ecluster.initial_master_nodes=\"%s\" -Enode.name=\"%s\" -Ecluster.name=\"%s\" '\""
+               % (master_nodes, node_name, cluster_name)
+               ]
         subprocess.call(cmd)
         time.sleep(10)
         yield

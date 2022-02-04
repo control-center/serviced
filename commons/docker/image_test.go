@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -126,8 +127,22 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 	exportcmd := exec.Command("docker", "export", s.regid)
 	stdout, err := exportcmd.StdoutPipe()
 	if err != nil {
-		panic(fmt.Errorf("can't create pipe for docker export: %v", err))
+		panic(fmt.Errorf("can't create stdout pipe for docker export: %v", err))
 	}
+
+	stderr, err := exportcmd.StderrPipe()
+	if err != nil {
+		panic(fmt.Errorf("can't create stderr pipe for docker export: %v", err))
+	}
+
+	go func() {
+		if errInfo, nestedErr := ioutil.ReadAll(stderr); nestedErr != nil {
+			panic(fmt.Errorf("can't read stderr: %v", nestedErr))
+		} else {
+			c.Log("Exit because of: " + string(errInfo))
+		}
+	}()
+
 
 	if err = exportcmd.Start(); err != nil {
 		panic(fmt.Errorf("can't start docker export command: %v", err))
