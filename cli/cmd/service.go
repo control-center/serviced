@@ -2017,7 +2017,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	// set up signal handler to stop the run
 	stopChan := make(chan struct{})
-	sigChan := make(chan os.Signal)
+	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
