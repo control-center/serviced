@@ -57,6 +57,8 @@ func (s *S) Test_LogFilterCRUD(c *C) {
 
 	actual, err = s.store.Get(s.ctx, expected.Name, expected.Version)
 	c.Assert(err, IsNil)
+	expected.IfSeqNo = actual.IfSeqNo
+	expected.IfPrimaryTerm = actual.IfPrimaryTerm
 	c.Assert(actual, DeepEquals, expected)
 
 	err = s.store.Put(s.ctx, expected)
@@ -65,6 +67,8 @@ func (s *S) Test_LogFilterCRUD(c *C) {
 
 	actual, err = s.store.Get(s.ctx, expected.Name, expected.Version)
 	c.Assert(err, IsNil)
+	expected.IfSeqNo = actual.IfSeqNo
+	expected.IfPrimaryTerm = actual.IfPrimaryTerm
 	c.Assert(actual, DeepEquals, expected)
 
 	err = s.store.Delete(s.ctx, expected.Name, expected.Version)
@@ -132,22 +136,18 @@ func (s *S) Test_GetLogFilters(c *C) {
 	c.Assert(err, IsNil)
 	err = s.store.Put(s.ctx, &filter2_2)
 	c.Assert(err, IsNil)
-
-	filter1_1.IfPrimaryTerm = 1
-
-	filter2_1.IfPrimaryTerm = 1
-	filter2_1.IfSeqNo = 1
-
-	filter1_2.IfPrimaryTerm = 1
-	filter1_2.IfSeqNo = 2
-
-	filter2_2.IfPrimaryTerm = 1
-	filter2_2.IfSeqNo = 3
-
 	filters, err = s.store.GetLogFilters(s.ctx)
 	c.Assert(err, IsNil)
 	c.Assert(filters, NotNil)
 	c.Assert(len(filters), Equals, 4)
+	filter1_1.IfPrimaryTerm = filters[0].IfPrimaryTerm
+	filter1_1.IfSeqNo = filters[0].IfSeqNo
+	filter2_1.IfPrimaryTerm = filters[1].IfPrimaryTerm
+	filter2_1.IfSeqNo = filters[1].IfSeqNo
+	filter1_2.IfPrimaryTerm = filters[2].IfPrimaryTerm
+	filter1_2.IfSeqNo = filters[2].IfSeqNo
+	filter2_2.IfPrimaryTerm = filters[3].IfPrimaryTerm
+	filter2_2.IfSeqNo = filters[3].IfSeqNo
 	c.Assert(*(filters[0]), DeepEquals, filter1_1)
 	c.Assert(*(filters[1]), DeepEquals, filter2_1)
 	c.Assert(*(filters[2]), DeepEquals, filter1_2)

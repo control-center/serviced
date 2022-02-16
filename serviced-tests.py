@@ -39,10 +39,12 @@ def elastic_server(port):
         master_nodes = node_name = "elasticsearch-serviced"
         cluster_name = str(uuid.uuid4())
         cmd = ["docker", "run", "-d", "--name", container_name, "--user", "1001:1001",
+               "--env", "ES_JAVA_HOME=/opt/elasticsearch-serviced/jdk",
                "-p", "%d:9200" % port, "zenoss/serviced-isvcs:v71",
-                "sh", "-c", "\"export ES_JAVA_HOME=/opt/elasticsearch-serviced/jdk; su elastic -c 'exec /opt/elasticsearch-serviced/bin/elasticsearch -Ecluster.initial_master_nodes=\"%s\" -Enode.name=\"%s\" -Ecluster.name=\"%s\" '\""
-               % (master_nodes, node_name, cluster_name)
-               ]
+               "sh", "-c", "/opt/elasticsearch-serviced/bin/elasticsearch",
+               "-E", "cluster.initial_master_nodes=%s" % master_nodes,
+               "-E", "node.name=%s" % node_name,
+               "-E", "cluster.name=%s" % cluster_name]
         subprocess.call(cmd)
         time.sleep(10)
         yield

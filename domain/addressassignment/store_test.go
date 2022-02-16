@@ -124,7 +124,8 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	addrs, err = s.store.GetAllAddressAssignments(s.ctx)
 	t.Assert(err, IsNil)
 	t.Assert(len(addrs), Equals, 1)
-	assignment1.IfPrimaryTerm = 1
+	assignment1.IfPrimaryTerm = addrs[0].IfPrimaryTerm
+	assignment1.IfSeqNo = addrs[0].IfSeqNo
 	t.Assert(addrs[0], Equals, assignment1)
 
 	err = s.store.Put(s.ctx, Key(assignment2.ID), &assignment2)
@@ -145,15 +146,15 @@ func (s *S) Test_GetAllAddressAssignments(t *C) {
 	t.Assert(ok, Equals, true)
 	t.Assert(result, Equals, assignment1)
 
-	assignment2.IfPrimaryTerm = 1
-	assignment2.IfSeqNo = 1
 	result, ok = addrMap[assignment2.ID]
 	t.Assert(ok, Equals, true)
+	assignment2.IfPrimaryTerm = result.IfPrimaryTerm
+	assignment2.IfSeqNo = result.IfSeqNo
 	t.Assert(result, Equals, assignment2)
 
-	assignment3.IfPrimaryTerm = 1
-	assignment3.IfSeqNo = 2
 	result, ok = addrMap[assignment3.ID]
 	t.Assert(ok, Equals, true)
+	assignment3.IfPrimaryTerm = result.IfPrimaryTerm
+	assignment3.IfSeqNo = result.IfSeqNo
 	t.Assert(result, Equals, assignment3)
 }

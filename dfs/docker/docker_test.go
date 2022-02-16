@@ -91,7 +91,12 @@ func (s *DockerSuite) TearDownSuite(c *C) {
 
 func (s *DockerSuite) SetUpTest(c *C) {
 	opts := dockerclient.PullImageOptions{Repository: "busybox", Tag: "latest"}
-	auth := dockerclient.AuthConfiguration{}
+	auths, err := dockerclient.NewAuthConfigurationsFromDockerCfg()
+	if err != nil {
+		panic(err)
+	}
+	auth, _ := auths.Configs[DefaultRegistry]
+
 	if err := s.dc.PullImage(opts, auth); err != nil {
 		c.Fatalf("Could not pull test image: %s", err)
 	}
