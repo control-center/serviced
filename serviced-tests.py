@@ -175,7 +175,7 @@ def main(options):
         runner = ensure_tool("gocov", "github.com/axw/gocov/gocov")
         log.debug("Using gocov executable %s" % runner)
         if options.cover_html:
-            ensure_tool("gocov-html", "gopkg.in/matm/v1/gocov-html")
+            ensure_tool("gocov-html", "github.com/matm/gocov-html")
         if options.cover_xml:
             ensure_tool("gocov-xml", "github.com/AlekSi/gocov-xml")
         stdout = tempfile.NamedTemporaryFile()
