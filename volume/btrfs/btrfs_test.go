@@ -42,7 +42,7 @@ type BtrfsSuite struct {
 }
 
 func (s *BtrfsSuite) SetUpSuite(c *C) {
-	root := volume.CreateBtrfsTmpVolume(c, 32*1024*1024)
+	root := volume.CreateBtrfsTmpVolume(c, 128*1024*1024)
 	s.root = root
 }
 
@@ -120,7 +120,7 @@ func (s *BtrfsSuite) TestBtrfsSnapshotTags(c *C) {
 }
 
 func (s *BtrfsSuite) TestBtrfsExportImport(c *C) {
-	other_root := volume.CreateBtrfsTmpVolume(c, 32*1024*1024)
+	other_root := volume.CreateBtrfsTmpVolume(c, 128*1024*1024)
 	defer volume.CleanupTmpVolume(c, other_root)
 	drivertest.DriverTestExportImport(c, "btrfs", s.root, other_root, btrfsArgs)
 }
