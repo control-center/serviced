@@ -193,6 +193,10 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		logger.Debug("Calling CC uiHandler")
 		w.Header().Add("Strict-Transport-Security", "max-age=31536000")
 		w.Header().Add("X-Content-Type-Options", "nosniff")
+		w.Header().Add("X-Frame-Options", "SAMEORIGIN")
+		//all CSP header properties could be added into csp
+		csp := []string{"frame-ancestors 'self';",}
+		w.Header().Add("Content-Security-Policy", strings.Join(csp, "; "))
 
 		if r.TLS == nil {
 			// bindPort has already been validated, so the Split/access below won't break.
