@@ -184,9 +184,11 @@ func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
 		defer resp.Body.Close()
 	}
 	if err != nil {
+		plog.WithError(err).Debug("Received error response for elastic health check")
 		return health, err
 	}
 	if resp.StatusCode != 200 {
+		plog.Errorf("Received status code %v!=200 ", resp.StatusCode)
 		return health, fmt.Errorf("http status: %v", resp.StatusCode)
 	}
 
@@ -345,6 +347,43 @@ func (ed *elasticDriver) deleteIndex() error {
 		return err
 	}
 	logger.Info("Index deleted")
+	return nil
+}
+
+func (ed *elasticDriver) clearIndex() error {
+	logger := plog.WithField("URL", ed.indexURL())
+	logger.Info("Clear Index")
+
+	matchAllQuery := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match_all": map[string]string{},
+		},
+	}
+
+	matchAllQueryBytes, err := json.Marshal(matchAllQuery)
+	logger.WithField("config", string(matchAllQueryBytes)).Debug("Clear Index")
+
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/_delete_by_query?refresh=true", ed.indexURL()),
+		bytes.NewBuffer(matchAllQueryBytes))
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	logger.WithField("response", string(body)).Debug("Clear index response")
+	if err != nil {
+		return err
+	}
+	logger.Info("Index cleared")
 	return nil
 }
 
