@@ -61,8 +61,8 @@ func (s *S) Test_Put(c *C) {
 
 	actual, err := s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
-	// update version since it is incremented when stored
-	props.IfPrimaryTerm = 1
+	props.IfPrimaryTerm = actual.IfPrimaryTerm
+	props.IfSeqNo = actual.IfSeqNo
 	c.Assert(actual, DeepEquals, props)
 
 	props.SetCCVersion("9.9.9")
@@ -71,7 +71,8 @@ func (s *S) Test_Put(c *C) {
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx)
 	c.Assert(err, IsNil)
-	props.IfSeqNo = 1
+	props.IfPrimaryTerm = actual.IfPrimaryTerm
+	props.IfSeqNo = actual.IfSeqNo
 	c.Assert(actual, DeepEquals, props)
 
 }

@@ -162,13 +162,10 @@ func (ft *FacadeIntegrationTest) TestRestoreResourcePools(c *C) {
 	c.Assert(err, IsNil)
 	actual, err := ft.Facade.GetResourcePools(ft.CTX)
 	c.Assert(err, IsNil)
-	for i := range pools1 {
-		pools1[i].IfPrimaryTerm = 1
-		pools1[i].IfSeqNo++
-		pools1[i].Type = pool.GetType()
-	}
-
 	for i := range actual {
+		pools1[i].IfPrimaryTerm = actual[i].IfPrimaryTerm
+		pools1[i].IfSeqNo = actual[i].IfSeqNo
+		pools1[i].Type = pool.GetType()
 		actual[i].CreatedAt = time.Time{}
 		actual[i].UpdatedAt = time.Time{}
 	}
@@ -210,14 +207,10 @@ func (ft *FacadeIntegrationTest) TestRestoreResourcePools(c *C) {
 	c.Assert(err, IsNil)
 	actual, err = ft.Facade.GetResourcePools(ft.CTX)
 	c.Assert(err, IsNil)
-	for i := range pools2 {
-		pools2[i].IfPrimaryTerm = 1
-		pools2[i].IfSeqNo = 0
-		pools2[i].Type = pool.GetType()
-	}
-
 	for i := range actual {
-		actual[i].IfSeqNo = 0
+		pools2[i].IfPrimaryTerm = actual[i].IfPrimaryTerm
+		pools2[i].IfSeqNo = actual[i].IfSeqNo
+		pools2[i].Type = pool.GetType()
 		actual[i].CreatedAt = time.Time{}
 		actual[i].UpdatedAt = time.Time{}
 	}

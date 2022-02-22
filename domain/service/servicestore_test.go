@@ -203,7 +203,6 @@ func (s *S) Test_VersionConflicts(t *C) {
 	svcs, err := s.store.GetServices(s.ctx)
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 1)
-	t.Assert(svcs[0].IfSeqNo, Equals, 0)
 
 	svc2 := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name_1", Launch: "auto"}
 	err = s.store.Put(s.ctx, svc2)
@@ -212,7 +211,6 @@ func (s *S) Test_VersionConflicts(t *C) {
 	svcs, err = s.store.GetServices(s.ctx)
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 1)
-	t.Assert(svcs[0].IfSeqNo, Equals, 1)
 
 	svc3 := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
 	svc3.IfPrimaryTerm = 0

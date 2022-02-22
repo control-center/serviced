@@ -16,6 +16,7 @@
 package registry
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/control-center/serviced/datastore"
@@ -60,16 +61,18 @@ func (s *S) Test_ImageCRUD(c *C) {
 	c.Assert(actual, IsNil)
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 	err = s.store.Put(s.ctx, expected)
-	expected.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx, expected.String())
 	c.Assert(err, IsNil)
+	expected.IfPrimaryTerm = actual.IfPrimaryTerm
+	expected.IfSeqNo = actual.IfSeqNo
 	c.Assert(actual, DeepEquals, expected)
 	err = s.store.Put(s.ctx, expected)
-	expected.IfSeqNo = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.Get(s.ctx, expected.String())
 	c.Assert(err, IsNil)
+	expected.IfPrimaryTerm = actual.IfPrimaryTerm
+	expected.IfSeqNo = actual.IfSeqNo
 	c.Assert(actual, DeepEquals, expected)
 	err = s.store.Delete(s.ctx, expected.String())
 	c.Assert(err, IsNil)
@@ -116,6 +119,8 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 	expected = append(expected, *image)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
 	c.Assert(err, IsNil)
+	expected[0].IfPrimaryTerm = actual[0].IfPrimaryTerm
+	expected[0].IfSeqNo = actual[0].IfSeqNo
 	c.Assert(actual, DeepEquals, expected)
 
 	image = &Image{
@@ -125,12 +130,20 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 		UUID:    "4567dsfdsg",
 	}
 	err = s.store.Put(s.ctx, image)
-	image.IfSeqNo = 1
-	image.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	expected = append(expected, *image)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
 	c.Assert(err, IsNil)
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i].UUID < expected[j].UUID
+	})
+	sort.Slice(actual, func(i, j int) bool {
+		return actual[i].UUID < actual[j].UUID
+	})
+	for i := range expected {
+		expected[i].IfPrimaryTerm = actual[i].IfPrimaryTerm
+		expected[i].IfSeqNo = actual[i].IfSeqNo
+	}
 	c.Assert(actual, DeepEquals, expected)
 
 	image = &Image{
@@ -140,14 +153,14 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 		UUID:    "4567dsfdsg",
 	}
 	err = s.store.Put(s.ctx, image)
-	image.IfSeqNo = 2
-	image.IfPrimaryTerm = 1
 	c.Assert(err, IsNil)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test2", "latest")
 	c.Assert(err, IsNil)
+	image.IfPrimaryTerm = actual[0].IfPrimaryTerm
+	image.IfSeqNo = actual[0].IfSeqNo
 	c.Assert(actual, DeepEquals, []Image{*image})
 
 	image = &Image{
@@ -157,12 +170,22 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 		UUID:    "5654gge",
 	}
 	err = s.store.Put(s.ctx, image)
-	image.IfSeqNo = 3
-	image.IfPrimaryTerm = 1
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "latest")
 	c.Assert(err, IsNil)
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i].UUID < expected[j].UUID
+	})
+	sort.Slice(actual, func(i, j int) bool {
+		return actual[i].UUID < actual[j].UUID
+	})
+	for i := range expected {
+		expected[i].IfPrimaryTerm = actual[i].IfPrimaryTerm
+		expected[i].IfSeqNo = actual[i].IfSeqNo
+	}
 	c.Assert(actual, DeepEquals, expected)
 	actual, err = s.store.SearchLibraryByTag(s.ctx, "test", "tuesday")
 	c.Assert(err, IsNil)
+	image.IfPrimaryTerm = actual[0].IfPrimaryTerm
+	image.IfSeqNo = actual[0].IfSeqNo
 	c.Assert(actual, DeepEquals, []Image{*image})
 }

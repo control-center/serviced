@@ -32,8 +32,9 @@ type ZZKServer struct {
 }
 
 const (
-	DEFAULT_PORT = 2181
-	zzkVersion   = "3.4.5"
+	DEFAULT_PORT    = 2181
+	zzkVersion      = "3.4.5"
+	DefaultRegistry = "https://index.docker.io/v1/"
 )
 
 // Start will start an instance of Zookeeper using a docker container.
@@ -70,7 +71,14 @@ func (s *ZZKServer) Start() error {
 			Repository: "jplock/zookeeper",
 			Tag:        zzkVersion,
 		}
-		auth := dockerclient.AuthConfiguration{}
+
+		auths, err := dockerclient.NewAuthConfigurationsFromDockerCfg()
+		if err != nil {
+			return err
+		}
+
+		auth, _ := auths.Configs[DefaultRegistry]
+
 		fmt.Printf("ZZKServer.Start(): Pulling %s:%s ...\n", opts.Repository, opts.Tag)
 		err = s.dc.PullImage(opts, auth)
 		if err != nil {
