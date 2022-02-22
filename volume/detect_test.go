@@ -40,7 +40,7 @@ func (s *AutodetectSuite) TearDownTest(c *C) {
 }
 
 func (s *AutodetectSuite) TestPreexistingBtrfs(c *C) {
-	root := CreateBtrfsTmpVolume(c, 32*1024*1024)
+	root := CreateBtrfsTmpVolume(c, 128*1024*1024)
 	defer CleanupTmpVolume(c, root)
 
 	// Initialize the driver and create a btrfs volume

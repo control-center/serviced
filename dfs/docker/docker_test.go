@@ -53,14 +53,14 @@ func (s *DockerSuite) SetUpSuite(c *C) {
 	} else {
 		opts := dockerclient.PullImageOptions{
 			Repository: "registry",
-			Tag:        "2.1.1",
+			Tag:        "2.8.0",
 		}
 		auth := dockerclient.AuthConfiguration{}
 		s.dc.PullImage(opts, auth)
 	}
 	// Start the docker registry
 	opts := dockerclient.CreateContainerOptions{Name: "regtestserver"}
-	opts.Config = &dockerclient.Config{Image: "registry:2.1.1"}
+	opts.Config = &dockerclient.Config{Image: "registry:2.8.0"}
 	opts.HostConfig = &dockerclient.HostConfig{
 		PortBindings: map[dockerclient.Port][]dockerclient.PortBinding{
 			"5000/tcp": []dockerclient.PortBinding{
@@ -233,7 +233,7 @@ func (s *DockerSuite) TestGetImageHash(c *C) {
 	_, err := s.docker.GetImageHash("fakebox")
 	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
 	hash1, err1 := s.docker.GetImageHash("busybox")
-	hash2, err2 := s.docker.GetImageHash("registry:2.1.1")
+	hash2, err2 := s.docker.GetImageHash("registry:2.8.0")
 	c.Assert(err1, IsNil)
 	c.Assert(err2, IsNil)
 	c.Assert(hash1, Not(Equals), "")
