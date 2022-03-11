@@ -156,8 +156,8 @@ func (ft *FacadeIntegrationTest) TestGetRegistryImages(c *C) {
 	actual, err := ft.Facade.GetRegistryImages(ft.CTX)
 	c.Assert(err, IsNil)
 	for i, _ := range actual {
-		expected[i].IfPrimaryTerm = actual[i].IfPrimaryTerm
-		expected[i].IfSeqNo = actual[i].IfSeqNo
+		expected[i].IfPrimaryTerm, actual[i].IfPrimaryTerm = 0, 0
+		expected[i].IfSeqNo, actual[i].IfSeqNo = 0, 0
 	}
 	c.Assert(actual, DeepEquals, expected)
 }
