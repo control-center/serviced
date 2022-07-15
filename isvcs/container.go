@@ -1135,6 +1135,8 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				}).WithError(err).Warn("Unable to create stats request")
 				break
 			}
+			options := config.GetOptions()
+			req.SetBasicAuth(options.IsvcsOpenTsdbUsername, options.IsvcsOpenTsdbPasswd)
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				// FIXME: This should be a warning, but it happens alot at startup, so let's keep it

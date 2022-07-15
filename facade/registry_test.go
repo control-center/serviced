@@ -159,6 +159,18 @@ func (ft *FacadeIntegrationTest) TestGetRegistryImages(c *C) {
 		expected[i].IfPrimaryTerm, actual[i].IfPrimaryTerm = 0, 0
 		expected[i].IfSeqNo, actual[i].IfSeqNo = 0, 0
 	}
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i].Repo < expected[j].Repo ||
+			expected[i].Library < expected[j].Library ||
+			expected[i].Tag < expected[j].Tag ||
+			expected[i].UUID < expected[j].UUID
+	})
+	sort.Slice(actual, func(i, j int) bool {
+		return actual[i].Repo < actual[j].Repo ||
+			actual[i].Library < actual[j].Library ||
+			actual[i].Tag < actual[j].Tag ||
+			actual[i].UUID < actual[j].UUID
+	})
 	c.Assert(actual, DeepEquals, expected)
 }
 

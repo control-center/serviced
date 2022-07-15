@@ -35,7 +35,7 @@ var (
 
 const (
 	IMAGE_REPO         = "zenoss/serviced-isvcs"
-	IMAGE_TAG          = "v71"
+	IMAGE_TAG          = "v72"
 	ZK_IMAGE_REPO      = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG       = "v16"
 	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
@@ -180,6 +180,17 @@ func setIsvcsEnv() error {
 	}
 	if zkpasswd := options.IsvcsZKPasswd; zkpasswd != "" {
 		if err := AddEnv("zookeeper:ZK_PASSWD=" + zkpasswd); err != nil {
+			return err
+		}
+	}
+
+	if opentsdbusername := options.IsvcsOpenTsdbUsername; opentsdbusername != "" {
+		if err := AddEnv("opentsdb:OPENTSDB_USERNAME=" + opentsdbusername); err != nil {
+			return err
+		}
+	}
+	if opentsdbpasswd := options.IsvcsOpenTsdbPasswd; opentsdbpasswd != "" {
+		if err := AddEnv("opentsdb:OPENTSDB_PASSWD=" + opentsdbpasswd); err != nil {
 			return err
 		}
 	}
