@@ -176,6 +176,8 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		IsvcsZKQuorum:              cfg.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
 		IsvcsZKUsername:            cfg.StringVal("ISVCS_ZOOKEEPER_USERNAME", ""),
 		IsvcsZKPasswd:              cfg.StringVal("ISVCS_ZOOKEEPER_PASSWD", ""),
+		IsvcsOpenTsdbUsername:      cfg.StringVal("ISVCS_OPENTSDB_USERNAME", ""),
+		IsvcsOpenTsdbPasswd:        cfg.StringVal("ISVCS_OPENTSDB_PASSWD", ""),
 		ZkAclUser:                  cfg.StringVal("ZOOKEEPER_ACL_USER", ""),
 		ZkAclPasswd:                cfg.StringVal("ZOOKEEPER_ACL_PASSWD", ""),
 		TLSCiphers:                 cfg.StringSlice("TLS_CIPHERS", utils.GetDefaultCiphers("http")),

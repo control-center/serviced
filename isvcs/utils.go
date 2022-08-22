@@ -15,6 +15,7 @@ package isvcs
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 
 	"bytes"
 	"encoding/json"
@@ -22,7 +23,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"	
+	"regexp"
 )
 
 var randomSource string
@@ -98,7 +99,8 @@ func postDataToOpenTSDB(metrics []metric) error {
 	if err != nil {
 		return err
 	}
-
+	options := config.GetOptions()
+	req.SetBasicAuth(options.IsvcsOpenTsdbUsername, options.IsvcsOpenTsdbPasswd)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err

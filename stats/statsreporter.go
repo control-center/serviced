@@ -16,6 +16,7 @@ package stats
 
 import (
 	"fmt"
+	"github.com/control-center/serviced/config"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
@@ -103,6 +104,8 @@ func Post(destination string, stats []Sample) error {
 		}).WithError(err).Warn("Couldn't create stats request")
 		return nil
 	}
+	options := config.GetOptions()
+	statsReq.SetBasicAuth(options.IsvcsOpenTsdbUsername, options.IsvcsOpenTsdbPasswd)
 	statsReq.Header["User-Agent"] = statsReqUserAgent
 	statsReq.Header["Content-Type"] = statsReqContentType
 	resp, err := http.DefaultClient.Do(statsReq)

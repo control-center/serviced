@@ -36,7 +36,7 @@ metricService:
       minTestTime:       60000
       clientBufferSize:  65536
       clients:
-        - {host: localhost, port: 4242}
+        - {host: localhost, port: 4343}
 
       clientFactory:
         keepAlive:          true

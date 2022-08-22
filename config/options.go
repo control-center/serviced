@@ -107,6 +107,8 @@ type Options struct {
 	IsvcsZKQuorum              []string          // Members of the zookeeper quorum
 	IsvcsZKUsername            string            // Zookeeper username required for quorum authentication
 	IsvcsZKPasswd              string            // Zookeeper password required for quorum authentication
+	IsvcsOpenTsdbUsername      string            // OpenTsdb username required for Admin UI
+	IsvcsOpenTsdbPasswd        string            // OpenTsdb password required for Admin UI
 	ZkAclUser                  string            // Zookeeper username required for digest ACL scheme
 	ZkAclPasswd                string            // Zookeeper password required for digest ACL scheme
 	TLSCiphers                 []string          // List of tls ciphers supported for http

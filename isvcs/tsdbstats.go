@@ -15,25 +15,26 @@ package isvcs
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
 	"strconv"
+	"sync"
 	"time"
 )
 
 var tsdbStore = NewOpenTSDBStatsStore()
 
 type OpenTSDBStats struct {
-	gc_young_count    int
-	gc_young_time     float64
-	gc_old_count      int
-	gc_old_time       float64
-	threads           int
+	gc_young_count int
+	gc_young_time  float64
+	gc_old_count   int
+	gc_old_time    float64
+	threads        int
 }
 
 type OpenTSDBStatsCache struct {
@@ -118,7 +119,7 @@ func newOpenTSDBMetric(name string, value string, timestamp int64) metric {
 	tags := map[string]string{
 		"isvc":                    "true",
 		"controlplane_service_id": opentsdb.ID,
-		"daemon": "opentsdb",
+		"daemon":                  "opentsdb",
 	}
 
 	return metric{name, value, timestamp, tags}
@@ -183,7 +184,17 @@ func queryOpenTSDBStats(address string) OpenTSDBStats {
 	logger := log.WithField("opentsdb_address", address)
 	stats := OpenTSDBStats{}
 
-	threads_resp, err := http.Get(address + "/api/stats/threads")
+	url := address + "/api/stats/threads"
+	req, err := http.NewRequest("GET", url, http.NoBody)
+	if err != nil {
+		logger.WithError(err).Warnf("Unable to create request to %s", url)
+		return stats
+	}
+
+	options := config.GetOptions()
+	req.SetBasicAuth(options.IsvcsOpenTsdbUsername, options.IsvcsOpenTsdbPasswd)
+	threads_resp, err := http.DefaultClient.Do(req)
+
 	if err != nil {
 		logger.WithError(err).Warn("Unable to get OpenTSDB threads")
 		return stats
@@ -198,7 +209,17 @@ func queryOpenTSDBStats(address string) OpenTSDBStats {
 	json.Unmarshal([]byte(threads_body), &threads_array)
 	stats.threads = len(threads_array)
 
-	resp, err := http.Get(address + "/api/stats/jvm")
+	url = address + "/api/stats/jvm"
+	req, err = http.NewRequest("GET", url, http.NoBody)
+
+	if err != nil {
+		logger.WithError(err).Warnf("Unable to create request to %s", url)
+		return stats
+	}
+
+	req.SetBasicAuth(options.IsvcsOpenTsdbUsername, options.IsvcsOpenTsdbPasswd)
+	resp, err := http.DefaultClient.Do(req)
+
 	if err != nil {
 		logger.WithError(err).Warn("Unable to get OpenTSDB jvm stats")
 		return stats
@@ -215,7 +236,7 @@ func queryOpenTSDBStats(address string) OpenTSDBStats {
 	for key, value := range gc {
 		gc_metrics := value.(map[string]interface{})
 		if key == "ParNew" || key == "pSScavenge" {
-			stats.gc_young_time= gc_metrics["collectionTime"].(float64) / 1000
+			stats.gc_young_time = gc_metrics["collectionTime"].(float64) / 1000
 			stats.gc_young_count = int(gc_metrics["collectionCount"].(float64))
 		} else if key == "ConcurrentMarkSweep" || key == "pSMarkSweep" {
 			stats.gc_old_time = gc_metrics["collectionTime"].(float64) / 1000
