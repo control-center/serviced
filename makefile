@@ -128,7 +128,10 @@ endif
 # Build targets       #
 #---------------------#
 .PHONY: default build all
-default build all: $(build_TARGETS) govet
+default build all: docker_build
+
+.PHONY: artifacts
+artifacts: $(build_TARGETS) govet
 
 .PHONY: FORCE
 FORCE:
@@ -239,20 +242,23 @@ endif
 pkg_build_tmp = pkg/build/tmp
 docker_build: docker_ok
 	docker run --rm \
-	-v `pwd`:$(docker_serviced_SRC) \
-	zenoss/serviced-build:$(BUILD_VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
-	if [ ! -d "$(pkg_build_tmp)" ];then \
-		mkdir -p $(pkg_build_tmp) ;\
-	fi
-	docker run --rm \
-	-v `pwd`:$(docker_serviced_SRC) \
-	-v `pwd`/$(pkg_build_tmp):/tmp \
-	-t zenoss/serviced-build:$(BUILD_VERSION) \
-	make \
-		NODEJS=/usr/bin/node \
-		GOPATH=$(docker_GOPATH) \
-		IN_DOCKER=1 \
-		build
+		-v $(GOPATH)/bin:$(docker_GOPATH)/bin \
+		-v $(CURDIR):$(docker_serviced_SRC) \
+		-w $(docker_serviced_pkg_SRC) \
+		-e "GOPATH=$(docker_GOPATH)" \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		make clean
+	if [ ! -d "$(pkg_build_tmp)" ]; then mkdir -p $(pkg_build_tmp); fi
+	docker run --rm -t \
+		-v $(GOPATH)/bin:$(docker_GOPATH)/bin \
+		-v $(CURDIR):$(docker_serviced_SRC) \
+		-v $(CURDIR)/$(pkg_build_tmp):/tmp \
+		-w $(docker_serviced_SRC) \
+		-e "GOPATH=$(docker_GOPATH)" \
+		-e "NODEJS=/usr/bin/node" \
+		-e "IN_DOCKER=1" \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		make artifacts
 
 #---------------------#
 # Install targets     #
@@ -441,28 +447,28 @@ pkgs:
 
 .PHONY: docker_buildandpackage
 docker_buildandpackage: docker_ok
-	if [ -z "$$RELEASE_PHASE" -a -z "$$BUILD_NUMBER" ]; then \
-        exit 1 ;\
-    fi
+	if [ -z "$$RELEASE_PHASE" -a -z "$$BUILD_NUMBER" ]; then exit 1; fi
 	docker run --rm \
-	-v `pwd`:/go/src/github.com/control-center/serviced \
-	zenoss/serviced-build:$(BUILD_VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
-	if [ ! -d "$(pkg_build_tmp)" ];then \
-		mkdir -p $(pkg_build_tmp) ;\
-	fi
-	docker run --rm \
-	-v `pwd`:$(docker_serviced_SRC) \
-	-v `pwd`/$(pkg_build_tmp):/tmp \
-	-t zenoss/serviced-build:$(BUILD_VERSION) make \
-		NODEJS=/usr/bin/node \
-		IN_DOCKER=1 \
-		INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) \
-		GOPATH=$(docker_GOPATH) \
-		BUILD_TAG=$(BUILD_TAG) \
-		BUILD_NUMBER=$(BUILD_NUMBER) \
-		RELEASE_PHASE=$(RELEASE_PHASE) \
-		SUBPRODUCT=$(SUBPRODUCT) \
-		build pkgs
+		-v $(CURDIR):/go/src/github.com/control-center/serviced \
+		-w $(docker_serviced_pkg_SRC) \
+		-e "GOPATH=$(docker_GOPATH)" \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		make clean
+	if [ ! -d "$(pkg_build_tmp)" ]; then mkdir -p $(pkg_build_tmp); fi
+	docker run --rm -t \
+		-v $(CURDIR):$(docker_serviced_SRC) \
+		-v $(CURDIR)/$(pkg_build_tmp):/tmp \
+		-w $(docker_serviced_SRC) \
+		-e "NODEJS=/usr/bin/node" \
+		-e "IN_DOCKER=1" \
+		-e "INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)" \
+		-e "GOPATH=$(docker_GOPATH)" \
+		-e "BUILD_TAG=$(BUILD_TAG)" \
+		-e "BUILD_NUMBER=$(BUILD_NUMBER)" \
+		-e "RELEASE_PHASE=$(RELEASE_PHASE)" \
+		-e "SUBPRODUCT=$(SUBPRODUCT)" \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		make artifacts pkgs
 
 #---------------------#
 # Test targets        #
@@ -533,8 +539,11 @@ clean: clean_js clean_pkg clean_serviced
 .PHONY: docker_clean_pkg
 docker_clean_pkg:
 	docker run --rm \
-	-v `pwd`:$(docker_serviced_SRC) \
-	zenoss/serviced-build:$(BUILD_VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+		-v $(CURDIR):$(docker_serviced_SRC) \
+		-w $(docker_serviced_pkg_SRC) \
+		-e "GOPATH=$(docker_GOPATH)" \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		make clean
 
 .PHONY: docker_clean
 docker_clean: docker_clean_pkg
