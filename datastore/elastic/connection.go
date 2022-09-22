@@ -205,12 +205,12 @@ func (ec *elasticConnection) elasticGet(id string) (elasticResponse, error) {
 
 	res, err = ec.client.Get(ec.index, id)
 
+	defer res.Body.Close()
+
 	if err != nil {
 		plog.Errorf("Error getting response: %s", err)
 		return retval, err
 	}
-
-	defer res.Body.Close()
 
 	if res.IsError() {
 		var e map[string]interface{}
