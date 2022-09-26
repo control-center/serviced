@@ -232,7 +232,12 @@ func queryOpenTSDBStats(address string) OpenTSDBStats {
 	}
 	var result map[string]interface{}
 	json.Unmarshal([]byte(body), &result)
-	gc := result["gc"].(map[string]interface{})
+	gc, ok := result["gc"].(map[string]interface{})
+	if !ok {
+		logger.Warn("Unable to read OpenTSDB gc stats")
+		logger.Debug(result)
+		return stats
+	}
 	for key, value := range gc {
 		gc_metrics := value.(map[string]interface{})
 		if key == "ParNew" || key == "pSScavenge" {
