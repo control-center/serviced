@@ -39,7 +39,7 @@ const (
 	ZK_IMAGE_REPO      = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG       = "v16"
 	OTSDB_BT_REPO      = "zenoss/isvcs-metrics-bigtable"
-	OTSDB_BT_TAG       = "v1"
+	OTSDB_BT_TAG       = "v2-dev"
 	API_KEY_PROXY_REPO = "gcr.io/zing-registry-188222/api-key-proxy"
 	API_KEY_PROXY_TAG  = "2018-08-01-1"
 )
