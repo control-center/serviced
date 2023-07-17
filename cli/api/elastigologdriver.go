@@ -20,6 +20,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v7"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -37,6 +38,9 @@ type elastigoLogDriver struct {
 // Verify that the elastigoLogDriver implements the interface
 var _ ExportLogDriver = &elastigoLogDriver{}
 
+var lock = &sync.Mutex{}
+
+var singleESclient *elasticsearch.Client
 
 // Sets the ES Logstash connection info; logstashES should be in the format hostname:port
 func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {
@@ -45,11 +49,23 @@ func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {
 		return fmt.Errorf("invalid logstash-es host:port %s", config.GetOptions().LogstashES)
 	}
 
-	es, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: []string{
-			fmt.Sprintf("http://%s:%s", parts[0], parts[1]),
-		},
-	})
+	var err error
+	if singleESclient == nil {
+		lock.Lock()
+		defer lock.Unlock()
+		if singleESclient == nil {
+			fmt.Print("Creating elasticsearch client single instance now.")
+			singleESclient, err = elasticsearch.NewClient(elasticsearch.Config{
+				Addresses: []string{
+					fmt.Sprintf("http://%s:%s", parts[0], parts[1]),
+				},
+			})
+		} else {
+			fmt.Print("Client instance already created.")
+		}
+	} else {
+		fmt.Print("Client instance already created.")
+	}
 
 	if err != nil {
 		return fmt.Errorf("Error creating the client: %s", err)
@@ -57,7 +73,7 @@ func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {
 
 	driver.Domain = parts[0]
 	driver.Port = parts[1]
-	driver.es = es
+	driver.es = singleESclient
 
 	return nil
 }
@@ -68,11 +84,12 @@ func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {
 func (driver *elastigoLogDriver) LogstashDays() ([]string, error) {
 
 	response, e := driver.es.Cat.Indices(driver.es.Cat.Indices.WithFormat("JSON"))
+	if response != nil && response.Body != nil {
+		defer response.Body.Close()
+	}
 	if e != nil {
 		return []string{}, fmt.Errorf("couldn't fetch list of indices: %s", e)
 	}
-
-	defer response.Body.Close()
 
 	var resMap []map[string]interface{}
 
@@ -102,15 +119,17 @@ func (driver *elastigoLogDriver) StartSearch(date string, query string) (Elastic
 	logstashIndex := fmt.Sprintf("%s%s", esLogStashIndexPrefix, date)
 	scanSize := 1000
 	res, err := driver.es.Search(driver.es.Search.WithIndex(logstashIndex),
-								 driver.es.Search.WithScroll(esLogstashScrollTimeout),
-								 driver.es.Search.WithSize(scanSize),
-								 driver.es.Search.WithQuery(query))
+		driver.es.Search.WithScroll(esLogstashScrollTimeout),
+		driver.es.Search.WithSize(scanSize),
+		driver.es.Search.WithQuery(query))
+
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
 
 	if err != nil {
 		return ElasticSearchResults{}, fmt.Errorf("Error getting response: %s", err)
 	}
-
-	defer res.Body.Close()
 
 	if res.IsError() {
 		var e map[string]interface{}
@@ -138,13 +157,15 @@ func (driver *elastigoLogDriver) StartSearch(date string, query string) (Elastic
 func (driver *elastigoLogDriver) ScrollSearch(scrollID string) (ElasticSearchResults, error) {
 
 	res, err := driver.es.Scroll(driver.es.Scroll.WithScrollID(scrollID),
-								 driver.es.Scroll.WithScroll(esLogstashScrollTimeout))
+		driver.es.Scroll.WithScroll(esLogstashScrollTimeout))
+
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
 
 	if err != nil {
 		return ElasticSearchResults{}, fmt.Errorf("Error getting response: %s", err)
 	}
-
-	defer res.Body.Close()
 
 	if res.IsError() {
 		var e map[string]interface{}

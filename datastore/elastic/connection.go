@@ -67,7 +67,10 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 
 	res, err := ec.client.Index(ec.index, bytes.NewReader(msg.Bytes()), args...)
 
-	defer res.Body.Close()
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+
 	if err != nil {
 		logger.WithError(err).Error("Put failed")
 		//TODO handle new type of ES error
@@ -124,6 +127,10 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 		BuildID(key.ID(), key.Kind()),
 		ec.client.Delete.WithRefresh("true"))
 
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+
 	traceLogger.WithField("response", res).Debug("Delete")
 	if err != nil {
 		return err
@@ -134,12 +141,14 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 func (ec *elasticConnection) Query(query esapi.SearchRequest) ([]datastore.JSONMessage, error) {
 
 	resp, err := query.Do(context.Background(), ec.client)
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		err = fmt.Errorf("error executing query %v", err)
 		plog.WithError(err).Error("error executing query")
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.IsError() {
 		var e map[string]interface{}
@@ -205,7 +214,9 @@ func (ec *elasticConnection) elasticGet(id string) (elasticResponse, error) {
 
 	res, err = ec.client.Get(ec.index, id)
 
-	defer res.Body.Close()
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
 
 	if err != nil {
 		plog.Errorf("Error getting response: %s", err)

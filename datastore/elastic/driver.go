@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/datastore"
@@ -58,6 +59,10 @@ func newDriver(host string, port uint16, index string) *elasticDriver {
 //Make sure elasticDriver implements datastore.Driver
 var _ datastore.Driver = &elasticDriver{}
 
+var lock = &sync.Mutex{}
+
+var singleESclient *elasticsearch.Client
+
 type elasticDriver struct {
 	host           string
 	port           uint16
@@ -67,16 +72,28 @@ type elasticDriver struct {
 }
 
 func (ed *elasticDriver) GetConnection() (datastore.Connection, error) {
-	es, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: []string{
-			ed.elasticURL(),
-		},
-	})
+	var err error
+	if singleESclient == nil {
+		lock.Lock()
+		defer lock.Unlock()
+		if singleESclient == nil {
+			plog.Info("Creating elasticsearch client single instance now.")
+			singleESclient, err = elasticsearch.NewClient(elasticsearch.Config{
+				Addresses: []string{
+					ed.elasticURL(),
+				},
+			})
+		} else {
+			plog.Debug("Client instance already created.")
+		}
+	} else {
+		plog.Debug("Client instance already created.")
+	}
 	if err != nil {
 		plog.Errorf("Error creating the client: %s", err)
 		return nil, err
 	}
-	return &elasticConnection{ed.index, es}, nil
+	return &elasticConnection{ed.index, singleESclient}, nil
 }
 
 func (ed *elasticDriver) Initialize(timeout time.Duration) error {
@@ -337,10 +354,12 @@ func (ed *elasticDriver) deleteIndex() error {
 		return err
 	}
 	resp, err := http.DefaultClient.Do(req)
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	logger.WithField("response", body).Debug("Delete response")
 	if err != nil {
@@ -374,10 +393,12 @@ func (ed *elasticDriver) clearIndex() error {
 		return err
 	}
 	resp, err := http.DefaultClient.Do(req)
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	logger.WithField("response", string(body)).Debug("Clear index response")
 	if err != nil {
