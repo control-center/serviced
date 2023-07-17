@@ -89,13 +89,15 @@ func (c *Client) do(method, path string, data interface{}) ([]byte, int, error) 
 	} else {
 		resp, err = c.HTTPClient.Do(req)
 	}
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return nil, -1, ErrConnectionRefused
 		}
 		return nil, -1, err
 	}
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, -1, err
