@@ -1138,6 +1138,9 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			options := config.GetOptions()
 			req.SetBasicAuth(options.IsvcsOpenTsdbUsername, options.IsvcsOpenTsdbPasswd)
 			resp, err := http.DefaultClient.Do(req)
+			if resp != nil && resp.Body != nil {
+				defer resp.Body.Close()
+			}
 			if err != nil {
 				// FIXME: This should be a warning, but it happens alot at startup, so let's keep it
 				// on the DL until we have some better startup coordination and/or logging mechanisms.
@@ -1146,7 +1149,6 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				}).WithError(err).Debug("Unable to POST container stats")
 				break
 			}
-			defer resp.Body.Close()
 			if strings.Contains(resp.Status, "204 No Content") == false {
 				log.WithFields(logrus.Fields{
 					"url":    url,

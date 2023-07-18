@@ -193,11 +193,13 @@ func queryElasticSearchStats(address string) ElasticSearchStats {
 	stats := ElasticSearchStats{Address: address}
 
 	resp, err := http.Get(address + "/_nodes/stats/jvm")
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		logger.WithError(err).Warn("Unable to get ElasticSearch stats")
 		return stats
 	}
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logger.WithError(err).Warn("Unable to read ElasticSearch stats")
