@@ -503,7 +503,7 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 				explog.WithField("conntrackFlush", a.conntrackFlush).Info("Checking flag")
 				if a.conntrackFlush {
 					if _, ok := protocols[exp.Protocol]; !ok {
-						if err := flushConntrack(exp.Protocol); err != nil {
+						if err := flushConntrack(); err != nil {
 							plog.WithError(err).WithFields(log.Fields{
 								"protocol": exp.Protocol,
 							}).Warn("Unable to flush conntrack table")
@@ -898,11 +898,10 @@ func addBindingToMap(bindsMap map[string]string, cp, rp string) {
 	}
 }
 
-func flushConntrack(protocol string) error {
-	args := []string{"-D", "-p", protocol}
+func flushConntrack() error {
+	args := []string{"-F"}
 	plog.WithFields(log.Fields{
-		"protocol": protocol,
-		"cmd":      fmt.Sprintf("conntrack %s", strings.Join(args, " ")),
+		"cmd": "conntrack -F",
 	}).Info("Flushing conntrack table")
 	output, err := iptables.RunConntrackCommand(args...)
 	plog.Info(string(output))
