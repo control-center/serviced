@@ -213,7 +213,7 @@ func GetStatus() *Statuses {
 				result.SimpleStatusMap[path] = status.(*SimpleStatus)
 			}
 		} else {
-			glog.Warningf("nil status returned for path %s", path)
+			glog.Warningf("nil status (no data) returned for path %s", path)
 		}
 	}
 	return result
