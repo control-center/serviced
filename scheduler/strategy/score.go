@@ -62,7 +62,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		glog.V(2).Infof("Host %s has %d memory and %d cores", host.HostID(), totalMem, totalCpu)
 
 		var (
-			usedCpu  int
+			usedCpu  float32
 			usedMem  uint64
 			cpuScore int
 			memScore int
@@ -82,7 +82,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		// Calculate CPU score as a percentage of used cores on the host with this service deployed
 		if totalCpu > 0 {
 			if service.RequestedCorePercent() > 0 {
-				cpuScore = (usedCpu + service.RequestedCorePercent()) / totalCpu
+				cpuScore = int((usedCpu + service.RequestedCorePercent()) * 100.0 / float32(totalCpu))
 			}
 		} else {
 			cpuScore = 100
@@ -98,13 +98,12 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		}
 
 		glog.V(2).Infof("Host %s CPU score: %d, memory score: %d", host.HostID(), cpuScore, memScore)
+		scoredHost.Score = cpuScore + memScore
 		if cpuScore <= 100 && memScore <= 100 {
 			glog.V(2).Infof("Host %s can run service %s", host.HostID(), service.GetServiceID())
-			scoredHost.Score = cpuScore + memScore
 			undersubscribed = append(undersubscribed, scoredHost)
 		} else {
 			glog.V(2).Infof("Host %s would be oversubscribed with service %s", host.HostID(), service.GetServiceID())
-			scoredHost.Score = memScore
 			oversubscribed = append(oversubscribed, scoredHost)
 		}
 	}
