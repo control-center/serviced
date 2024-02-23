@@ -439,7 +439,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hosts []host.Ho
 				}
 				inst = service.StrategyInstance{
 					ServiceID:     s.ID,
-					CPUCommitment: int(s.CPUCommitment),
+					CPUCommitment: float32(s.CPUCommitment),
 					RAMCommitment: s.RAMCommitment.Value,
 					HostPolicy:    s.HostPolicy,
 				}
