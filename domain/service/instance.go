@@ -69,7 +69,7 @@ type Instance struct {
 type StrategyInstance struct {
 	HostID        string
 	ServiceID     string
-	CPUCommitment int
+	CPUCommitment float32
 	RAMCommitment uint64
 	RAMThreshold  uint
 	HostPolicy    servicedefinition.HostPolicy

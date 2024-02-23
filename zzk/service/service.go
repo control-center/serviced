@@ -44,7 +44,7 @@ type ServiceNode struct {
 	HostPolicy                  servicedefinition.HostPolicy
 	Instances                   int
 	RAMCommitment               utils.EngNotation
-	CPUCommitment               int
+	CPUCommitment               float32
 	ChangeOptions               []servicedefinition.ChangeOption
 	AddressAssignment           addressassignment.AddressAssignment
 	ShouldHaveAddressAssignment bool
@@ -59,7 +59,7 @@ func NewServiceNodeFromService(s *service.Service) (*ServiceNode, error) {
 		Name:          s.Name,
 		DesiredState:  s.DesiredState,
 		Instances:     s.Instances,
-		CPUCommitment: int(s.CPUCommitment),
+		CPUCommitment: float32(s.CPUCommitment),
 		RAMCommitment: s.RAMCommitment,
 		ChangeOptions: s.ChangeOptions,
 		HostPolicy:    s.HostPolicy,

@@ -43,7 +43,7 @@ type Host interface {
 
 type ServiceConfig interface {
 	GetServiceID() string
-	RequestedCorePercent() int
+	RequestedCorePercent() float32
 	RequestedMemoryBytes() uint64
 	HostPolicy() servicedefinition.HostPolicy
 }

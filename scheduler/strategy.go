@@ -106,7 +106,7 @@ func (s *StrategyService) GetServiceID() string {
 	return s.svc.ID
 }
 
-func (s *StrategyService) RequestedCorePercent() int {
+func (s *StrategyService) RequestedCorePercent() float32 {
 	return s.svc.CPUCommitment
 }
 
@@ -122,7 +122,7 @@ func (s *StrategyRunningService) GetServiceID() string {
 	return s.svc.ServiceID
 }
 
-func (s *StrategyRunningService) RequestedCorePercent() int {
+func (s *StrategyRunningService) RequestedCorePercent() float32 {
 	return s.svc.CPUCommitment
 }
 
