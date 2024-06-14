@@ -1,3 +1,4 @@
+//go:build linux && !darwin
 // +build linux,!darwin
 
 package devicemapper
@@ -1376,7 +1377,11 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		volume.UsageInt{Value: dockerStatus.Metadata.Total, MetricName: "storage.pool.metadata.total"},
 	}
 
-	iostats := volume.GetLastIOStat()
+	iostats, ok := volume.GetLastIOStat()
+	if !ok {
+		return nil, nil
+	}
+
 	singleIOStat, ok := iostats[dockerStatus.PoolName]
 	if ok {
 		simpleIOStat, err := singleIOStat.ToSimpleIOStat()

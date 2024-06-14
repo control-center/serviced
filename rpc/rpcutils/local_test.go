@@ -1,8 +1,10 @@
+//go:build unit
 // +build unit
 
 package rpcutils
 
 import (
+	"fmt"
 	. "gopkg.in/check.v1"
 )
 
@@ -40,7 +42,7 @@ func (s *MySuite) BenchmarkNilReplyRemote(c *C) {
 func (s *MySuite) BenchmarkEchoDirect(c *C) {
 	reply := ""
 	for n := 0; n < c.N; n++ {
-		arg := "hello" + string(n)
+		arg := fmt.Sprintf("hello %d", n)
 		err := rtt.Echo(arg, &reply)
 		c.Assert(err, IsNil)
 		c.Assert(reply, Equals, arg)
@@ -51,7 +53,7 @@ func (s *MySuite) BenchmarkEchoCached(c *C) {
 	client := rpcClient
 	reply := ""
 	for n := 0; n < c.N; n++ {
-		arg := "hello" + string(n)
+		arg := fmt.Sprintf("hello %d", n)
 		err := client.Call("RPCTestType.Echo", arg, &reply, 0)
 		c.Assert(err, IsNil)
 		c.Assert(reply, Equals, arg)
@@ -62,7 +64,7 @@ func (s *MySuite) BenchmarkEchoLocal(c *C) {
 	client := localRpcClient
 	reply := ""
 	for n := 0; n < c.N; n++ {
-		arg := "hello" + string(n)
+		arg := fmt.Sprintf("hello %d", n)
 		err := client.Call("RPCTestType.Echo", arg, &reply, 0)
 		c.Assert(err, IsNil)
 		c.Assert(reply, Equals, arg)
@@ -72,7 +74,7 @@ func (s *MySuite) BenchmarkEchoBareRPC(c *C) {
 	client := bareRpcClient
 	reply := ""
 	for n := 0; n < c.N; n++ {
-		arg := "hello" + string(n)
+		arg := fmt.Sprintf("hello %d", n)
 		err := client.Call("RPCTestType.Echo", arg, &reply)
 		c.Assert(err, IsNil)
 		c.Assert(reply, Equals, arg)
@@ -83,7 +85,7 @@ func (s *MySuite) BenchmarkStructDirect(c *C) {
 	arg := TestArgs{A: "test", B: 10, C: true, D: make([]string, 1000)}
 	var reply TestArgs
 	for n := 0; n < c.N; n++ {
-		arg.A = "hello" + string(n)
+		arg.A = fmt.Sprintf("hello %d", n)
 		err := rtt.StructCall(arg, &reply)
 		c.Assert(err, IsNil)
 	}
@@ -94,7 +96,7 @@ func (s *MySuite) BenchmarkStructCached(c *C) {
 	arg := TestArgs{A: "test", B: 10, C: true, D: make([]string, 1000)}
 	var reply TestArgs
 	for n := 0; n < c.N; n++ {
-		arg.A = "hello" + string(n)
+		arg.A = fmt.Sprintf("hello %d", n)
 		err := client.Call("RPCTestType.StructCall", arg, &reply, 0)
 		c.Assert(err, IsNil)
 	}
@@ -105,7 +107,7 @@ func (s *MySuite) BenchmarkStructBareRPC(c *C) {
 	arg := TestArgs{A: "test", B: 10, C: true, D: make([]string, 1000)}
 	var reply TestArgs
 	for n := 0; n < c.N; n++ {
-		arg.A = "hello" + string(n)
+		arg.A = fmt.Sprintf("hello %d", n)
 		err := client.Call("RPCTestType.StructCall", arg, &reply)
 		c.Assert(err, IsNil)
 	}

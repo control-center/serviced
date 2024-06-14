@@ -302,10 +302,14 @@ func InitIOStat(getter iostat.Getter, closeChannel <-chan interface{}) {
 }
 
 // GetLastIOStat returns the iostat device utilization reports
-func GetLastIOStat() map[string]iostat.DeviceUtilizationReport {
+func GetLastIOStat() (map[string]iostat.DeviceUtilizationReport, bool) {
 	lastIOStat.RLock()
 	defer lastIOStat.RUnlock()
-	return lastIOStat.Data
+	if len(lastIOStat.Data) == 0 {
+		return nil, false
+	} else {
+		return lastIOStat.Data, true
+	}
 }
 
 // SplitPath splits a path by its driver and respective volume.  Returns

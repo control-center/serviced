@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build integration
 // +build integration
 
 package volume_test
@@ -370,8 +371,9 @@ func (s *DriverSuite) TestInitIOStat_Success(c *C) {
 		c.Fatalf("Could not send stats to channel")
 	}
 
-	actual := GetLastIOStat()
+	actual, ok := GetLastIOStat()
 
+	c.Assert(ok, Equals, true)
 	c.Assert(actual, DeepEquals, result)
 
 	// Make sure the goroutine doesn't exit
