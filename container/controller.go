@@ -363,9 +363,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		logforwarder, exited, err := subprocess.New(
 			time.Second,
 			nil,
-			"", // runas
+			"",                        // runas
 			options.Logforwarder.Path, // command
-			"-e", // Log to stderr
+			"-e",                      // Log to stderr
 			"-c", options.Logforwarder.ConfigFile)
 		if err != nil {
 			return nil, err

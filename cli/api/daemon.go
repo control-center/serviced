@@ -640,29 +640,9 @@ func (d *daemon) removeOrphanRegistryImages() error {
 	return nil
 }
 
-func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err error) {
-	if len(certPEMFile) > 0 {
-		certPEM, err = ioutil.ReadFile(certPEMFile)
-		if err != nil {
-			return
-		}
-	} else {
-		certPEM = []byte(proxy.InsecureCertPEM)
-	}
-	if len(keyPEMFile) > 0 {
-		keyPEM, err = ioutil.ReadFile(keyPEMFile)
-		if err != nil {
-			return
-		}
-	} else {
-		keyPEM = []byte(proxy.InsecureKeyPEM)
-	}
-	return
-}
-
 func getTLSConfig(connectionType string) (*tls.Config, error) {
 	options := config.GetOptions()
-	proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
+	proxyCertPEM, proxyKeyPEM, err := proxy.GetKeyPairs(options.CertPEMFile, options.KeyPEMFile)
 	if err != nil {
 		return nil, err
 	}
