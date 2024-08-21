@@ -98,3 +98,23 @@ func TempKeyFile() (string, error) {
 	fmt.Fprint(f, InsecureKeyPEM)
 	return f.Name(), nil
 }
+
+func GetKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err error) {
+	if len(certPEMFile) > 0 {
+		certPEM, err = ioutil.ReadFile(certPEMFile)
+		if err != nil {
+			return
+		}
+	} else {
+		certPEM = []byte(InsecureCertPEM)
+	}
+	if len(keyPEMFile) > 0 {
+		keyPEM, err = ioutil.ReadFile(keyPEMFile)
+		if err != nil {
+			return
+		}
+	} else {
+		keyPEM = []byte(InsecureKeyPEM)
+	}
+	return
+}

@@ -14,6 +14,10 @@
 package isvcs
 
 import (
+	"github.com/control-center/serviced/config"
+	"github.com/control-center/serviced/proxy"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/control-center/serviced/utils"
@@ -40,6 +44,24 @@ func initLogstash() {
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_LOGSTASH_PORT_9292_HOSTIP",
 		HostPort:       9292,
+	}
+
+	// Generalize serviced cert and pem files to logstash service according to CC-4136
+	logstashPath := filepath.Join(utils.ResourcesDir(), "logstash")
+	filebeatCrtPath := filepath.Join(logstashPath, "filebeat.crt")
+	filebeatPemPath := filepath.Join(logstashPath, "filebeat.pem")
+	globalOptions := config.GetOptions()
+
+	if certPEM, keyPEM, err := proxy.GetKeyPairs(globalOptions.CertPEMFile, globalOptions.KeyPEMFile); err != nil {
+		log.WithError(err).Errorf("Unable to retrieve TLS configuration")
+	} else {
+		if err = ioutil.WriteFile(filebeatCrtPath, certPEM, os.FileMode(0644)); err != nil {
+			log.WithError(err).Errorf("Could not write out crt file: %s", filebeatCrtPath)
+		}
+		if err = ioutil.WriteFile(logstashPath+"/filebeat.pem", keyPEM, os.FileMode(0644)); err != nil {
+			log.WithError(err).Errorf("Could not write out pem file: %s", filebeatPemPath)
+		}
+		log.Info("Re-written filebeat crt and pem files for logstash configuration")
 	}
 
 	logstash, err = NewIService(
