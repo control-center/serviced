@@ -18,5 +18,3 @@ RUN wget "http://downloads.sourceforge.net/project/rpmrebuild/rpmrebuild/2.11/rp
 RUN rpm -Uvh rpmrebuild-2.11-1.noarch.rpm
 
 RUN rpm -ivh http://get.zenoss.io/yum/zenoss-repo-1-1.x86_64.rpm
-
-ADD reversion.sh /usr/local/bin/
