@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build integration
 // +build integration
 
 // Package zzktest provides helper code for integration tests that use Zookeeper
@@ -33,7 +34,7 @@ type ZZKServer struct {
 
 const (
 	DEFAULT_PORT    = 2181
-	zzkVersion      = "3.4.5"
+	zzkVersion      = "3.9.2"
 	DefaultRegistry = "https://index.docker.io/v1/"
 )
 
@@ -68,7 +69,7 @@ func (s *ZZKServer) Start() error {
 		return fmt.Errorf("ERROR: unable to inspect container %s: %s", containerName, err)
 	} else {
 		opts := dockerclient.PullImageOptions{
-			Repository: "jplock/zookeeper",
+			Repository: "zookeeper",
 			Tag:        zzkVersion,
 		}
 
@@ -89,7 +90,7 @@ func (s *ZZKServer) Start() error {
 
 	// Start zookeeper
 	opts := dockerclient.CreateContainerOptions{Name: containerName}
-	opts.Config = &dockerclient.Config{Image: fmt.Sprintf("jplock/zookeeper:%s", zzkVersion)}
+	opts.Config = &dockerclient.Config{Image: fmt.Sprintf("zookeeper:%s", zzkVersion)}
 
 	if s.Port == 0 {
 		s.Port = DEFAULT_PORT
