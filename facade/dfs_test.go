@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build integration
 // +build integration
 
 package facade
@@ -47,6 +48,7 @@ var (
 )
 
 var dfsRegistrySvcDefs = [...]service.Service{
+	// registry:0.9.1 with manifest v1 schema 1 has been deprecated
 	service.Service{
 		ID:           "dfsrgysvc1",
 		Name:         "TestDfsRegistry1",
@@ -55,6 +57,7 @@ var dfsRegistrySvcDefs = [...]service.Service{
 		PoolID:       "pool_id",
 		Launch:       "auto",
 	},
+	// TODO update to the newest registry:2.8.3. Current version registry:2.2.0
 	service.Service{
 		ID:           "dfsrgysvc2",
 		Name:         "TestDfsRegistry2",
@@ -269,6 +272,8 @@ func getOldRegistryEndpoint() string {
 // Test Cases
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeLocal(c *gocheck.C) {
+	// registry:0.9.1 with manifest v1 schema 1 has been deprecated
+	c.Skip("TODO: update to the newest registry:2.8.3. Current version registry:2.2.0")
 	fdrt.verifyAllImagesUpgraded(c, getOldRegistryEndpoint(), false)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, "", false)
@@ -278,6 +283,8 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeLocal(c *gocheck.C
 }
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_SkipUpgradedLocal(c *gocheck.C) {
+	// registry:0.9.1 with manifest v1 schema 1 has been deprecated
+	c.Skip("TODO: update to the newest registry:2.8.3. Current version registry:2.2.0")
 	fdrt.markOldRegistryUpgraded(c)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, "", false)
@@ -288,6 +295,8 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_SkipUpgradedLocal(c *goch
 }
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_ForceLocal(c *gocheck.C) {
+	// registry:0.9.1 with manifest v1 schema 1 has been deprecated
+	c.Skip("TODO: update to the newest registry:2.8.3. Current version registry:2.2.0")
 	fdrt.markOldRegistryUpgraded(c)
 
 	fdrt.verifyAllImagesUpgraded(c, getOldRegistryEndpoint(), true)
@@ -299,6 +308,8 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_ForceLocal(c *gocheck.C) 
 }
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_ForceLocalButNoRegistry(c *gocheck.C) {
+	// registry:0.9.1 with manifest v1 schema 1 has been deprecated
+	c.Skip("TODO: update to the newest registry:2.8.3. Current version registry:2.2.0")
 	fdrt.cleanUpOldRegistry(c)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, "", true)
@@ -309,6 +320,8 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_ForceLocalButNoRegistry(c
 }
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeRemote(c *gocheck.C) {
+	// registry:0.9.1 with manifest v1 schema 1 has been deprecated
+	c.Skip("TODO: update to the newest registry:2.8.3. Current version registry:2.2.0")
 	fdrt.verifyAllImagesUpgraded(c, remoteRegistryEndpoint, false)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, remoteRegistryEndpoint, false)
@@ -318,6 +331,8 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeRemote(c *gocheck.
 }
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeRemoteForce(c *gocheck.C) {
+	// registry:0.9.1 with manifest v1 schema 1 has been deprecated
+	c.Skip("TODO: update to the newest registry:2.8.3. Current version registry:2.2.0")
 	fdrt.verifyAllImagesUpgraded(c, remoteRegistryEndpoint, true)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, remoteRegistryEndpoint, true)

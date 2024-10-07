@@ -201,7 +201,8 @@ func (dao *ControlPlaneDao) Restore(restoreRequest model.RestoreRequest, _ *int)
 	inprogress.SetProgress(restoreRequest.Filename, "restore")
 	defer func() {
 		if err != nil {
-			log.WithError(err).Error("Restore failed with error")
+			log.WithError(err).Error("Restore failed with error. Check DM_BASESIZE, " +
+				"thin pool should have enough space for twice the size of each tenant device it supports")
 		}
 		inprogress.SetError(err)
 	}()
