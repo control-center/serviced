@@ -187,6 +187,8 @@ func tlsVersionStringToUint(version string) (uint16, error) {
 		return tls.VersionTLS11, nil
 	case "VERSIONTLS12":
 		return tls.VersionTLS12, nil
+	case "VERSIONTLS13":
+		return tls.VersionTLS13, nil
 	default:
 		return 0, fmt.Errorf("Invalid TLS version %s", version)
 	}
