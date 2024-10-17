@@ -46,22 +46,25 @@ func initLogstash() {
 		HostPort:       9292,
 	}
 
-	// Generalize serviced cert and pem files to logstash service according to CC-4136
+	// Generalize serviced cert and key files to logstash service according to CC-4136
 	logstashPath := filepath.Join(utils.ResourcesDir(), "logstash")
 	filebeatCrtPath := filepath.Join(logstashPath, "filebeat.crt")
-	filebeatPemPath := filepath.Join(logstashPath, "filebeat.pem")
+	filebeatKeyPath := filepath.Join(logstashPath, "filebeat.key")
 	globalOptions := config.GetOptions()
 
-	if certPEM, keyPEM, err := proxy.GetKeyPairs(globalOptions.CertPEMFile, globalOptions.KeyPEMFile); err != nil {
-		log.WithError(err).Errorf("Unable to retrieve TLS configuration")
-	} else {
-		if err = ioutil.WriteFile(filebeatCrtPath, certPEM, os.FileMode(0644)); err != nil {
-			log.WithError(err).Errorf("Could not write out crt file: %s", filebeatCrtPath)
+	// We use custom certificates only in case they are set in config
+	if len(globalOptions.KeyPEMFile) > 0 && len(globalOptions.CertPEMFile) > 0 {
+		if certPEM, keyPEM, err := proxy.GetKeyPairs(globalOptions.CertPEMFile, globalOptions.KeyPEMFile); err != nil {
+			log.WithError(err).Errorf("Unable to retrieve TLS configuration")
+		} else {
+			if err = ioutil.WriteFile(filebeatCrtPath, certPEM, os.FileMode(0600)); err != nil {
+				log.WithError(err).Errorf("Could not write out crt file: %s", filebeatCrtPath)
+			}
+			if err = ioutil.WriteFile(logstashPath+"/filebeat.key", keyPEM, os.FileMode(0600)); err != nil {
+				log.WithError(err).Errorf("Could not write out key file: %s", filebeatKeyPath)
+			}
+			log.Info("Re-written filebeat crt and key files for logstash configuration")
 		}
-		if err = ioutil.WriteFile(logstashPath+"/filebeat.pem", keyPEM, os.FileMode(0644)); err != nil {
-			log.WithError(err).Errorf("Could not write out pem file: %s", filebeatPemPath)
-		}
-		log.Info("Re-written filebeat crt and pem files for logstash configuration")
 	}
 
 	logstash, err = NewIService(
